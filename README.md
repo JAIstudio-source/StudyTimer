@@ -13,4 +13,4 @@ JAI Study Timer ("we", "our", or "us") respects your privacy. This Privacy Polic
 JAI Study Timer does not use third-party tracking, analytics SDKs, or advertising networks that collect personal identifiable information.
 
 ## 3. Contact Us
-If you have any questions regarding this Privacy Policy, you can contact us at: [Your Contact Email]
+If you have any questions regarding this Privacy Policy, you can contact us at: studytimer737@gmail.com

@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     
-    // 1. Fetch version.json from GitHub Raw URL
+    // 1. Fetch version.json from GitHub and update DOM
     async function loadAppVersion() {
         try {
             const response = await fetch('https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/version.json');
@@ -8,27 +8,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 const data = await response.json();
                 
-                // Read versionName from JSON format (adds 'v' prefix if missing)
-                const versionString = data.versionName 
-                    ? (data.versionName.startsWith('v') ? data.versionName : `v${data.versionName}`)
-                    : 'v1.0.0';
-                
-                // Update version text across all elements
+                // Update version text
                 const versionElements = document.querySelectorAll('.app-version');
                 versionElements.forEach(el => {
-                    el.textContent = versionString;
+                    el.textContent = data.versionName || data.version || 'v1.0.0';
                 });
 
-                // Update download URL
+                // Update download links with flexible property fallbacks
                 const downloadLinks = document.querySelectorAll('.download-link');
                 downloadLinks.forEach(el => {
-                    el.href = data.url || 'StudyTimer-release.apk';
+                    el.href = data.apkUrl || data.url || 'StudyTimer-release.apk';
                 });
             } else {
                 setFallbackVersion();
             }
         } catch (error) {
-            console.error('Failed to load version.json from GitHub:', error);
+            console.error("Failed to fetch version from GitHub:", error);
             setFallbackVersion();
         }
     }
@@ -42,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadAppVersion();
 
-    // 2. Scroll Progress Bar & Glass Navbar Shadow
+    // 2. Scroll Progress Bar & Navbar sticky style
     const scrollProgress = document.getElementById('scroll-progress');
     const navbar = document.getElementById('navbar');
     
@@ -51,18 +46,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const docHeight = document.body.scrollHeight - window.innerHeight;
         const scrollPercent = (scrollTop / docHeight) * 100;
         
-        scrollProgress.style.width = `${scrollPercent}%`;
+        if (scrollProgress) {
+            scrollProgress.style.width = `${scrollPercent}%`;
+        }
 
-        if (scrollTop > 50) {
-            navbar.style.background = 'rgba(5, 5, 5, 0.85)';
-            navbar.style.boxShadow = '0 4px 30px rgba(0, 0, 0, 0.5)';
-        } else {
-            navbar.style.background = 'rgba(5, 5, 5, 0.7)';
-            navbar.style.boxShadow = 'none';
+        if (navbar) {
+            if (scrollTop > 50) {
+                navbar.style.background = 'rgba(5, 5, 5, 0.85)';
+                navbar.style.boxShadow = '0 4px 30px rgba(0, 0, 0, 0.5)';
+            } else {
+                navbar.style.background = 'rgba(5, 5, 5, 0.7)';
+                navbar.style.boxShadow = 'none';
+            }
         }
     });
 
-    // 3. Navbar Active Section Highlighting
+    // 3. Navbar Active Links Update
     const sections = document.querySelectorAll('section, header');
     const navLinks = document.querySelectorAll('.nav-links a');
 
@@ -107,32 +106,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
     revealElements.forEach(el => revealObserver.observe(el));
 
-    // 5. Modern Carousel & Indicator Logic
+    // 5. Screenshots Carousel & Active Indicator Logic
     const track = document.getElementById('carousel-track');
     const btnPrev = document.querySelector('.prev-btn');
     const btnNext = document.querySelector('.next-btn');
     const indicators = document.querySelectorAll('.indicator');
-    const items = document.querySelectorAll('.modern-image-wrapper');
 
-    if (track && btnPrev && btnNext) {
-        const scrollAmount = 350; 
+    if (track) {
+        const scrollAmount = 320; 
 
-        btnPrev.addEventListener('click', () => {
-            track.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
-        });
+        if (btnPrev && btnNext) {
+            btnPrev.addEventListener('click', () => {
+                track.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+            });
 
-        btnNext.addEventListener('click', () => {
-            track.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-        });
+            btnNext.addEventListener('click', () => {
+                track.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+            });
+        }
 
-        // Sync indicators on scroll
+        // Active indicator on scroll
         track.addEventListener('scroll', () => {
-            const scrollPos = track.scrollLeft;
-            const itemWidth = items[0].offsetWidth + 32;
-            const activeIndex = Math.round(scrollPos / itemWidth);
-
-            indicators.forEach((ind, index) => {
-                if (index === activeIndex) {
+            const index = Math.round(track.scrollLeft / (track.scrollWidth / indicators.length));
+            indicators.forEach((ind, i) => {
+                if (i === index) {
                     ind.classList.add('active');
                 } else {
                     ind.classList.remove('active');
@@ -140,18 +137,15 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        // Click indicator to scroll
-        indicators.forEach((ind, index) => {
+        // Click indicators to navigate
+        indicators.forEach((ind, i) => {
             ind.addEventListener('click', () => {
-                const itemWidth = items[0].offsetWidth + 32;
-                track.scrollTo({
-                    left: index * itemWidth,
-                    behavior: 'smooth'
-                });
+                const targetScroll = (track.scrollWidth / indicators.length) * i;
+                track.scrollTo({ left: targetScroll, behavior: 'smooth' });
             });
         });
 
-        // Mouse Drag to Scroll
+        // Drag scrolling logic
         let isDown = false;
         let startX;
         let scrollLeft;
@@ -174,99 +168,65 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 6. Lightbox with Swipe and Keyboard Navigation
+    // 6. Lightbox for Screenshots
     const lightbox = document.getElementById('lightbox');
-    const lightboxImg = lightbox.querySelector('.lightbox-img');
-    const lightboxClose = lightbox.querySelector('.lightbox-close');
-    const screenshots = Array.from(document.querySelectorAll('.screenshot-img'));
-    let currentImageIndex = 0;
+    const lightboxImg = lightbox ? lightbox.querySelector('.lightbox-img') : null;
+    const lightboxClose = lightbox ? lightbox.querySelector('.lightbox-close') : null;
+    const screenshots = document.querySelectorAll('.screenshot-img');
 
-    function showLightboxImage(index) {
-        if (index < 0) index = screenshots.length - 1;
-        if (index >= screenshots.length) index = 0;
-        currentImageIndex = index;
-        lightboxImg.src = screenshots[currentImageIndex].src;
-    }
-
-    screenshots.forEach((img, index) => {
-        img.addEventListener('click', () => {
-            showLightboxImage(index);
-            lightbox.classList.add('active');
-            document.body.style.overflow = 'hidden'; 
+    if (lightbox && lightboxImg && lightboxClose) {
+        screenshots.forEach(img => {
+            img.addEventListener('click', () => {
+                lightboxImg.src = img.src;
+                lightbox.classList.add('active');
+                document.body.style.overflow = 'hidden'; 
+            });
         });
-    });
 
-    const closeLightbox = () => {
-        lightbox.classList.remove('active');
-        document.body.style.overflow = '';
-        setTimeout(() => { lightboxImg.src = ''; }, 300);
-    };
+        const closeLightbox = () => {
+            lightbox.classList.remove('active');
+            document.body.style.overflow = '';
+            setTimeout(() => { lightboxImg.src = ''; }, 300);
+        };
 
-    lightboxClose.addEventListener('click', closeLightbox);
-    lightbox.addEventListener('click', (e) => {
-        if (e.target === lightbox) closeLightbox();
-    });
-
-    // Touch Swipe Support for Lightbox
-    let touchStartX = 0;
-    let touchEndX = 0;
-
-    lightbox.addEventListener('touchstart', (e) => {
-        touchStartX = e.changedTouches[0].screenX;
-    }, { passive: true });
-
-    lightbox.addEventListener('touchend', (e) => {
-        touchEndX = e.changedTouches[0].screenX;
-        handleLightboxSwipe();
-    }, { passive: true });
-
-    function handleLightboxSwipe() {
-        const swipeThreshold = 50; 
-        if (touchEndX < touchStartX - swipeThreshold) {
-            // Swiped Left -> Next Image
-            showLightboxImage(currentImageIndex + 1);
-        }
-        if (touchEndX > touchStartX + swipeThreshold) {
-            // Swiped Right -> Previous Image
-            showLightboxImage(currentImageIndex - 1);
-        }
+        lightboxClose.addEventListener('click', closeLightbox);
+        lightbox.addEventListener('click', (e) => {
+            if (e.target === lightbox) closeLightbox();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && lightbox.classList.contains('active')) {
+                closeLightbox();
+            }
+        });
     }
-
-    // Keyboard Arrow Keys & Escape for Lightbox
-    document.addEventListener('keydown', (e) => {
-        if (!lightbox.classList.contains('active')) return;
-
-        if (e.key === 'ArrowRight') {
-            showLightboxImage(currentImageIndex + 1);
-        } else if (e.key === 'ArrowLeft') {
-            showLightboxImage(currentImageIndex - 1);
-        } else if (e.key === 'Escape') {
-            closeLightbox();
-        }
-    });
 
     // 7. Back to Top Button
     const backToTopBtn = document.getElementById('back-to-top');
 
-    window.addEventListener('scroll', () => {
-        if (window.scrollY > 500) {
-            backToTopBtn.classList.add('visible');
-        } else {
-            backToTopBtn.classList.remove('visible');
-        }
-    });
-
-    backToTopBtn.addEventListener('click', () => {
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
+    if (backToTopBtn) {
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 500) {
+                backToTopBtn.classList.add('visible');
+            } else {
+                backToTopBtn.classList.remove('visible');
+            }
         });
-    });
 
-    // 8. Footer Year
-    document.getElementById('year').textContent = new Date().getFullYear();
+        backToTopBtn.addEventListener('click', () => {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+    }
 
-    // 9. Floating Canvas Particles
+    // 8. Footer Year Update
+    const yearEl = document.getElementById('year');
+    if (yearEl) {
+        yearEl.textContent = new Date().getFullYear();
+    }
+
+    // 9. Floating Particles (Canvas)
     const canvas = document.getElementById('particles-canvas');
     if (canvas) {
         const ctx = canvas.getContext('2d');

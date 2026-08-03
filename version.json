@@ -1,7 +1,7 @@
 {
   "versionCode": 3,
   "versionName": "1.2.1",
-  "url": "https://studytimer.update-studytimer.workers.dev/",
+  "url": "https://github.com/JAIstudio-source/StudyTimer/",
 
   "releaseNotes": "New: in-app update checker that gently reminds you when a new version is available"
 }

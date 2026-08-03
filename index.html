@@ -1,112 +1,197 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Study Timer</title>
-
-<meta name="theme-color" content="#050505">
-
-<link rel="stylesheet" href="style.css">
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Timer - Focus Without Distractions</title>
+    <meta name="description" content="Beautiful focus timer designed for students. Boost productivity with Study Timer by JAI Studio.">
+    <meta name="theme-color" content="#050505">
+    
+    <meta property="og:title" content="Study Timer - Focus Without Distractions">
+    <meta property="og:description" content="Beautiful focus timer designed for students. Boost productivity with Study Timer.">
+    <meta property="og:image" content="assets/featured.webp">
+    <meta property="og:type" content="website">
+    
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Study Timer - Focus Without Distractions">
+    <meta name="twitter:description" content="Beautiful focus timer designed for students.">
+    <meta name="twitter:image" content="assets/featured.webp">
+    
+    <link rel="icon" href="assets/logo.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
+    <div id="scroll-progress"></div>
 
-<div class="background">
-    <div class="blob blob1"></div>
-    <div class="blob blob2"></div>
-    <div class="blob blob3"></div>
-</div>
+    <nav id="navbar" class="glass">
+        <div class="nav-container">
+            <a href="#home" class="nav-brand">
+                <img src="assets/logo.png" alt="Study Timer Logo" width="32" height="32" class="logo-float">
+                <span>Study Timer</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="#home" class="active">Home</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#screenshots">Screenshots</a></li>
+                <li><a href="#download">Download</a></li>
+            </ul>
+            <a href="https://github.com/JAIstudio-source/StudyTimer" target="_blank" rel="noopener noreferrer" class="nav-github glass-btn">GitHub</a>
+        </div>
+    </nav>
 
-<header>
+    <header id="home" class="hero section-padding">
+        <div class="hero-bg">
+            <div class="blob blob-1"></div>
+            <div class="blob blob-2"></div>
+        </div>
+        <canvas id="particles-canvas"></canvas>
+        
+        <div class="hero-content reveal">
+            <img src="assets/logo.png" alt="Study Timer" class="hero-logo logo-float" width="120" height="120">
+            <h1 class="hero-title">Focus Without <span>Distractions</span></h1>
+            <p class="hero-subtitle">Beautiful focus timer designed for students.</p>
+            
+            <div class="hero-actions">
+                <a href="#" class="btn primary-btn glow-btn download-link" id="hero-download">
+                    Download APK
+                    <span class="btn-subtext app-version">v1.0.0</span>
+                </a>
+                <a href="https://github.com/JAIstudio-source/StudyTimer" target="_blank" rel="noopener noreferrer" class="btn secondary-btn">
+                    View on GitHub
+                </a>
+            </div>
+            <p class="version-info">Latest Version: <span class="app-version">v1.0.0</span></p>
+        </div>
+    </header>
 
-<nav>
+    <section id="features" class="section-padding">
+        <div class="container">
+            <div class="section-header reveal">
+                <h2>Designed for Deep Work</h2>
+                <p>Everything you need to study effectively, with nothing to distract you.</p>
+            </div>
+            
+            <div class="features-grid">
+                <div class="feature-card glass reveal">
+                    <div class="feature-icon primary-text">svg-time</div>
+                    <h3>Focus Sessions</h3>
+                    <p>Customizable Pomodoro timers to keep you in the zone.</p>
+                </div>
+                <div class="feature-card glass reveal delay-1">
+                    <div class="feature-icon accent-text">svg-break</div>
+                    <h3>Break Timer</h3>
+                    <p>Smart break intervals to recharge your brain optimally.</p>
+                </div>
+                <div class="feature-card glass reveal delay-2">
+                    <div class="feature-icon primary-text">svg-chart</div>
+                    <h3>Weekly Insights</h3>
+                    <p>Track your study patterns and improve your consistency.</p>
+                </div>
+                <div class="feature-card glass reveal">
+                    <div class="feature-icon accent-text">svg-landscape</div>
+                    <h3>Immersive Landscape Mode</h3>
+                    <p>Perfect for tablet users or a desk clock setup.</p>
+                </div>
+                <div class="feature-card glass reveal delay-1">
+                    <div class="feature-icon primary-text">svg-history</div>
+                    <h3>History</h3>
+                    <p>Detailed logs of all your past study sessions.</p>
+                </div>
+                <div class="feature-card glass reveal delay-2">
+                    <div class="feature-icon accent-text">svg-theme</div>
+                    <h3>Themes</h3>
+                    <p>Beautiful AMOLED dark themes tailored to your style.</p>
+                </div>
+                <div class="feature-card glass reveal">
+                    <div class="feature-icon primary-text">svg-settings</div>
+                    <h3>Settings</h3>
+                    <p>Granular control over timers, notifications, and sounds.</p>
+                </div>
+                <div class="feature-card glass reveal delay-1">
+                    <div class="feature-icon accent-text">svg-offline</div>
+                    <h3>100% Offline</h3>
+                    <p>No internet required. Your data stays on your device.</p>
+                </div>
+                <div class="feature-card glass reveal delay-2">
+                    <div class="feature-icon primary-text">svg-noads</div>
+                    <h3>No Ads</h3>
+                    <p>Completely free and open-source with absolutely no ads.</p>
+                </div>
+            </div>
+        </div>
+    </section>
 
-<div class="logo">
+    <section id="screenshots" class="section-padding">
+        <div class="container">
+            <div class="section-header reveal">
+                <h2>Beautifully Crafted</h2>
+                <p>A user interface designed to get out of your way.</p>
+            </div>
+            
+            <div class="carousel-container reveal">
+                <button class="carousel-btn prev-btn" aria-label="Previous screenshot">←</button>
+                <div class="carousel-track" id="carousel-track">
+                    <img src="assets/screenshots/focus.webp" alt="Focus Session" loading="lazy" class="screenshot-img">
+                    <img src="assets/screenshots/breaks.webp" alt="Break Timer" loading="lazy" class="screenshot-img">
+                    <img src="assets/screenshots/insights.webp" alt="Weekly Insights" loading="lazy" class="screenshot-img">
+                    <img src="assets/screenshots/history.webp" alt="History" loading="lazy" class="screenshot-img">
+                    <img src="assets/screenshots/themes.webp" alt="Themes" loading="lazy" class="screenshot-img">
+                    <img src="assets/screenshots/settings.webp" alt="Settings" loading="lazy" class="screenshot-img">
+                </div>
+                <button class="carousel-btn next-btn" aria-label="Next screenshot">→</button>
+            </div>
+        </div>
+    </section>
 
-<img src="assets/logo.png">
+    <section id="download" class="section-padding">
+        <div class="container">
+            <div class="download-card glass reveal">
+                <div class="download-content">
+                    <h2>Ready to focus?</h2>
+                    <p>Download the latest release and start studying better today.</p>
+                    <ul class="download-specs">
+                        <li><span class="spec-label">Version</span> <span class="app-version">v1.0.0</span></li>
+                        <li><span class="spec-label">Requirements</span> Android 9+</li>
+                        <li><span class="spec-label">Size</span> 2.85 MB</li>
+                    </ul>
+                </div>
+                <div class="download-action">
+                    <a href="#" class="btn primary-btn glow-btn download-link w-full">
+                        Download APK
+                    </a>
+                    <p class="open-source-note">Free & Open Source</p>
+                </div>
+            </div>
+        </div>
+    </section>
 
-<span>Study Timer</span>
+    <footer class="footer">
+        <div class="container footer-content">
+            <div class="footer-brand">
+                <img src="assets/logo.png" alt="Study Timer Logo" width="24" height="24">
+                <span>Study Timer</span>
+            </div>
+            <div class="footer-links">
+                <a href="https://github.com/JAIstudio-source/StudyTimer" target="_blank" rel="noopener noreferrer" class="footer-link">GitHub Source</a>
+            </div>
+            <div class="footer-credit">
+                <p>Made with ❤️ by JAI Studio</p>
+                <p class="copyright">© <span id="year">2026</span> JAI Studio. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
 
-</div>
+    <div id="lightbox" class="lightbox">
+        <button class="lightbox-close" aria-label="Close fullscreen">&times;</button>
+        <img class="lightbox-img" src="" alt="Fullscreen screenshot">
+    </div>
 
-<div class="links">
+    <button id="back-to-top" aria-label="Back to top">↑</button>
 
-<a href="#">Home</a>
-<a href="#features">Features</a>
-<a href="#screenshots">Screenshots</a>
-<a href="#download">Download</a>
-
-</div>
-
-<a class="github"
-href="https://github.com/JAIstudio-source/StudyTimer"
-target="_blank">
-
-GitHub
-
-</a>
-
-</nav>
-
-<section class="hero">
-
-<img class="heroLogo"
-src="assets/logo.png">
-
-<h1>
-
-Focus Without
-Distractions
-
-</h1>
-
-<p>
-
-Beautiful focus timer built for students.
-
-Stay productive.
-Stay consistent.
-
-</p>
-
-<div class="buttons">
-
-<a id="downloadButton">
-
-Download APK
-
-</a>
-
-<a class="secondary"
-href="https://github.com/JAIstudio-source/StudyTimer">
-
-Source Code
-
-</a>
-
-</div>
-
-<div class="version">
-
-Version <span id="versionText">Loading...</span>
-
-</div>
-
-</section>
-
-</header>
-
-<footer>
-
-Made with ❤️ by JAI Studio
-
-</footer>
-
-<script src="script.js"></script>
-
+    <script src="script.js"></script>
 </body>
 </html>

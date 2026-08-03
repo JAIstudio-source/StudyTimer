@@ -1,29 +1,33 @@
 document.addEventListener('DOMContentLoaded', () => {
     
-    // 1. Fetch version.json and update DOM
+   // 1. Fetch version.json from GitHub and update DOM
     async function loadAppVersion() {
         try {
-            const response = await fetch('version.json');
+            const response = await fetch('https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/version.json');
+            
             if (response.ok) {
                 const data = await response.json();
                 
+                // Update text
                 const versionElements = document.querySelectorAll('.app-version');
                 versionElements.forEach(el => {
                     el.textContent = data.version || 'v1.0.0';
                 });
 
+                // Update links - CHANGED to data.url here
                 const downloadLinks = document.querySelectorAll('.download-link');
                 downloadLinks.forEach(el => {
-                    el.href = data.downloadUrl || 'StudyTimer-release.apk';
+                    el.href = data.url || 'StudyTimer-release.apk';
                 });
             } else {
                 setFallbackVersion();
             }
         } catch (error) {
+            console.error("Failed to fetch version from GitHub:", error);
             setFallbackVersion();
         }
     }
-
+    
     function setFallbackVersion() {
         const downloadLinks = document.querySelectorAll('.download-link');
         downloadLinks.forEach(el => {

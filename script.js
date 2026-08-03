@@ -1,1 +1,1 @@
-
+fetch("version.json")

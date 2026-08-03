@@ -8,10 +8,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 const data = await response.json();
                 
-                // Update version text across elements
+                // Read versionName from your JSON format (adds 'v' prefix if not present)
+                const versionString = data.versionName 
+                    ? (data.versionName.startsWith('v') ? data.versionName : `v${data.versionName}`)
+                    : 'v1.0.0';
+                
+                // Update version text across all elements
                 const versionElements = document.querySelectorAll('.app-version');
                 versionElements.forEach(el => {
-                    el.textContent = data.version || 'v1.0.0';
+                    el.textContent = versionString;
                 });
 
                 // Update download URL
@@ -123,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Sync indicators on scroll
         track.addEventListener('scroll', () => {
             const scrollPos = track.scrollLeft;
-            const itemWidth = items[0].offsetWidth + 32; // item width + gap
+            const itemWidth = items[0].offsetWidth + 32;
             const activeIndex = Math.round(scrollPos / itemWidth);
 
             indicators.forEach((ind, index) => {

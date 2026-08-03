@@ -1,63 +1,112 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>Study Timer</title>
 
-<style>
-body{
-    margin:0;
-    font-family:Arial,sans-serif;
-    background:#111827;
-    color:white;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    height:100vh;
-}
+<meta name="theme-color" content="#050505">
 
-.card{
-    background:#1f2937;
-    padding:30px;
-    border-radius:20px;
-    text-align:center;
-    width:90%;
-    max-width:380px;
-}
+<link rel="stylesheet" href="style.css">
 
-h1{
-    margin-top:0;
-}
-
-button{
-    margin-top:20px;
-    width:100%;
-    padding:15px;
-    font-size:18px;
-    border:none;
-    border-radius:12px;
-    background:#4f46e5;
-    color:white;
-}
-
-button:hover{
-    cursor:pointer;
-}
-</style>
 </head>
 
 <body>
 
-<div class="card">
-    <h1>Study Timer</h1>
-
-    <p>Stay focused. Study smarter.</p>
-
-    <button onclick="window.location='StudyTimer-release.apk'">
-        Download APK
-    </button>
+<div class="background">
+    <div class="blob blob1"></div>
+    <div class="blob blob2"></div>
+    <div class="blob blob3"></div>
 </div>
+
+<header>
+
+<nav>
+
+<div class="logo">
+
+<img src="assets/logo.png">
+
+<span>Study Timer</span>
+
+</div>
+
+<div class="links">
+
+<a href="#">Home</a>
+<a href="#features">Features</a>
+<a href="#screenshots">Screenshots</a>
+<a href="#download">Download</a>
+
+</div>
+
+<a class="github"
+href="https://github.com/JAIstudio-source/StudyTimer"
+target="_blank">
+
+GitHub
+
+</a>
+
+</nav>
+
+<section class="hero">
+
+<img class="heroLogo"
+src="assets/logo.png">
+
+<h1>
+
+Focus Without
+Distractions
+
+</h1>
+
+<p>
+
+Beautiful focus timer built for students.
+
+Stay productive.
+Stay consistent.
+
+</p>
+
+<div class="buttons">
+
+<a id="downloadButton">
+
+Download APK
+
+</a>
+
+<a class="secondary"
+href="https://github.com/JAIstudio-source/StudyTimer">
+
+Source Code
+
+</a>
+
+</div>
+
+<div class="version">
+
+Version <span id="versionText">Loading...</span>
+
+</div>
+
+</section>
+
+</header>
+
+<footer>
+
+Made with ❤️ by JAI Studio
+
+</footer>
+
+<script src="script.js"></script>
 
 </body>
 </html>

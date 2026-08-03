@@ -337,20 +337,6 @@ ul {
     position: relative;
 }
 
-/* Mocking SVG Icons with CSS geometric shapes for the assignment constraint */
-.feature-icon::before {
-    content: '';
-    display: block;
-    width: 24px; height: 24px;
-    background: currentColor;
-    mask-size: contain;
-    -webkit-mask-size: contain;
-    mask-repeat: no-repeat;
-    -webkit-mask-repeat: no-repeat;
-    mask-position: center;
-    -webkit-mask-position: center;
-}
-
 .feature-card h3 {
     font-size: 1.25rem;
     font-weight: 600;
@@ -363,21 +349,26 @@ ul {
     line-height: 1.5;
 }
 
-/* Screenshots Carousel */
+/* Modern Screenshots Carousel (Linear/Arc Style) */
 .carousel-container {
     position: relative;
     width: 100%;
-    padding: 0 40px;
+}
+
+.modern-frame {
+    position: relative;
+    display: flex;
+    align-items: center;
 }
 
 .carousel-track {
     display: flex;
-    gap: 24px;
+    gap: 32px;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE/Edge */
-    padding-bottom: 24px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: 40px 10px;
     cursor: grab;
 }
 
@@ -389,19 +380,44 @@ ul {
     cursor: grabbing;
 }
 
-.screenshot-img {
-    height: 500px;
-    border-radius: 16px;
-    border: 1px solid var(--border);
+.modern-image-wrapper {
+    position: relative;
     scroll-snap-align: center;
     flex: 0 0 auto;
-    transition: transform 0.3s ease, filter 0.3s ease;
-    object-fit: cover;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    border-radius: 24px;
+    padding: 8px;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.01));
+    border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.screenshot-img:hover {
-    transform: scale(1.02);
+.display-glow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    height: 80%;
+    background: radial-gradient(circle, rgba(var(--primary-rgb), 0.25) 0%, rgba(0, 0, 0, 0) 70%);
+    filter: blur(40px);
+    z-index: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+}
+
+.screenshot-img {
+    position: relative;
+    z-index: 1;
+    height: 540px;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), box-shadow 0.4s ease;
+    object-fit: cover;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+}
+
+.modern-image-wrapper:hover .screenshot-img {
+    transform: translateY(-6px) scale(1.01);
+    box-shadow: 0 30px 60px -12px rgba(107, 124, 255, 0.25);
     cursor: zoom-in;
 }
 
@@ -409,38 +425,67 @@ ul {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    width: 48px;
-    height: 48px;
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
-    background: var(--glass-bg);
-    border: 1px solid var(--border);
+    background: rgba(17, 17, 17, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     color: var(--text);
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     transition: all 0.3s ease;
     z-index: 10;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
 }
 
 .carousel-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-50%) scale(1.05);
 }
 
-.prev-btn { left: -10px; }
-.next-btn { right: -10px; }
+.prev-btn { left: -20px; }
+.next-btn { right: -20px; }
+
+.carousel-controls {
+    display: flex;
+    justify-content: center;
+    margin-top: 24px;
+}
+
+.carousel-indicators {
+    display: flex;
+    gap: 10px;
+}
+
+.indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.indicator.active {
+    width: 24px;
+    border-radius: 4px;
+    background: var(--primary);
+    box-shadow: 0 0 10px rgba(var(--primary-rgb), 0.5);
+}
 
 /* Lightbox */
 .lightbox {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.9);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: rgba(0, 0, 0, 0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     z-index: 2000;
     display: flex;
     align-items: center;
@@ -456,10 +501,11 @@ ul {
 }
 
 .lightbox-img {
-    max-height: 90vh;
+    max-height: 88vh;
     max-width: 90vw;
-    border-radius: 16px;
-    box-shadow: 0 0 50px rgba(0,0,0,0.8);
+    border-radius: 20px;
+    box-shadow: 0 0 60px rgba(0,0,0,0.9);
+    border: 1px solid rgba(255,255,255,0.1);
     transform: scale(0.95);
     transition: transform 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
@@ -633,7 +679,7 @@ ul {
 .delay-1 { transition-delay: 0.1s; }
 .delay-2 { transition-delay: 0.2s; }
 
-/* Media Queries */
+/* Responsive Adjustments */
 @media (max-width: 992px) {
     .download-card {
         flex-direction: column;
@@ -643,6 +689,10 @@ ul {
     
     .download-specs {
         justify-content: center;
+    }
+
+    .screenshot-img {
+        height: 460px;
     }
 }
 
@@ -662,7 +712,7 @@ ul {
     }
     
     .screenshot-img {
-        height: 400px;
+        height: 380px;
     }
     
     .footer-content {

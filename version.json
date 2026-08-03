@@ -1,7 +1,7 @@
 {
-  "versionCode": 3,
-  "versionName": "1.2.1",
+  "versionCode": 4,
+  "versionName": "1.2.2",
   "url": "https://studytimer.update-studytimer.workers.dev/",
   "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-  "releaseNotes": "New: in-app update checker that gently reminds you when a new version is available"
+  "releaseNotes": "Fixed: updates now download the APK directly instead of opening the website"
 }

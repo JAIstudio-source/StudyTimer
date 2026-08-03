@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 const data = await response.json();
                 
-                // Read versionName from your JSON format (adds 'v' prefix if not present)
+                // Read versionName from JSON format (adds 'v' prefix if missing)
                 const versionString = data.versionName 
                     ? (data.versionName.startsWith('v') ? data.versionName : `v${data.versionName}`)
                     : 'v1.0.0';
@@ -174,15 +174,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 6. Lightbox Handler
+    // 6. Lightbox with Swipe and Keyboard Navigation
     const lightbox = document.getElementById('lightbox');
     const lightboxImg = lightbox.querySelector('.lightbox-img');
     const lightboxClose = lightbox.querySelector('.lightbox-close');
-    const screenshots = document.querySelectorAll('.screenshot-img');
+    const screenshots = Array.from(document.querySelectorAll('.screenshot-img'));
+    let currentImageIndex = 0;
 
-    screenshots.forEach(img => {
+    function showLightboxImage(index) {
+        if (index < 0) index = screenshots.length - 1;
+        if (index >= screenshots.length) index = 0;
+        currentImageIndex = index;
+        lightboxImg.src = screenshots[currentImageIndex].src;
+    }
+
+    screenshots.forEach((img, index) => {
         img.addEventListener('click', () => {
-            lightboxImg.src = img.src;
+            showLightboxImage(index);
             lightbox.classList.add('active');
             document.body.style.overflow = 'hidden'; 
         });
@@ -198,8 +206,41 @@ document.addEventListener('DOMContentLoaded', () => {
     lightbox.addEventListener('click', (e) => {
         if (e.target === lightbox) closeLightbox();
     });
+
+    // Touch Swipe Support for Lightbox
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    lightbox.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+
+    lightbox.addEventListener('touchend', (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        handleLightboxSwipe();
+    }, { passive: true });
+
+    function handleLightboxSwipe() {
+        const swipeThreshold = 50; 
+        if (touchEndX < touchStartX - swipeThreshold) {
+            // Swiped Left -> Next Image
+            showLightboxImage(currentImageIndex + 1);
+        }
+        if (touchEndX > touchStartX + swipeThreshold) {
+            // Swiped Right -> Previous Image
+            showLightboxImage(currentImageIndex - 1);
+        }
+    }
+
+    // Keyboard Arrow Keys & Escape for Lightbox
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && lightbox.classList.contains('active')) {
+        if (!lightbox.classList.contains('active')) return;
+
+        if (e.key === 'ArrowRight') {
+            showLightboxImage(currentImageIndex + 1);
+        } else if (e.key === 'ArrowLeft') {
+            showLightboxImage(currentImageIndex - 1);
+        } else if (e.key === 'Escape') {
             closeLightbox();
         }
     });

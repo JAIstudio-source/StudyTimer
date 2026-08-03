@@ -709,6 +709,25 @@ ul {
     }
 }
 
+/* Showcase Banner for featured.webp */
+.showcase-section {
+    padding: 40px 0 80px 0;
+}
+
+.showcase-card {
+    padding: 16px;
+    overflow: hidden;
+    border-radius: 24px;
+}
+
+.featured-banner {
+    width: 100%;
+    height: auto;
+    border-radius: 16px;
+    display: block;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+}
+
 @media (max-width: 768px) {
     .nav-links { display: none; }
     

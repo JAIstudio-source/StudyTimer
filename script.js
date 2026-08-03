@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     
-   // 1. Fetch version.json from GitHub and update DOM
+    // 1. Fetch version.json from GitHub Raw URL
     async function loadAppVersion() {
         try {
             const response = await fetch('https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/version.json');
@@ -8,13 +8,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 const data = await response.json();
                 
-                // Update text
+                // Update version text across elements
                 const versionElements = document.querySelectorAll('.app-version');
                 versionElements.forEach(el => {
                     el.textContent = data.version || 'v1.0.0';
                 });
 
-                // Update links - CHANGED to data.url here
+                // Update download URL
                 const downloadLinks = document.querySelectorAll('.download-link');
                 downloadLinks.forEach(el => {
                     el.href = data.url || 'StudyTimer-release.apk';
@@ -23,11 +23,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 setFallbackVersion();
             }
         } catch (error) {
-            console.error("Failed to fetch version from GitHub:", error);
+            console.error('Failed to load version.json from GitHub:', error);
             setFallbackVersion();
         }
     }
-    
+
     function setFallbackVersion() {
         const downloadLinks = document.querySelectorAll('.download-link');
         downloadLinks.forEach(el => {
@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadAppVersion();
 
-    // 2. Scroll Progress Bar & Navbar sticky style
+    // 2. Scroll Progress Bar & Glass Navbar Shadow
     const scrollProgress = document.getElementById('scroll-progress');
     const navbar = document.getElementById('navbar');
     
@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 3. Navbar Active Links Update
+    // 3. Navbar Active Section Highlighting
     const sections = document.querySelectorAll('section, header');
     const navLinks = document.querySelectorAll('.nav-links a');
 
@@ -102,13 +102,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     revealElements.forEach(el => revealObserver.observe(el));
 
-    // 5. Screenshots Carousel Logic
+    // 5. Modern Carousel & Indicator Logic
     const track = document.getElementById('carousel-track');
     const btnPrev = document.querySelector('.prev-btn');
     const btnNext = document.querySelector('.next-btn');
+    const indicators = document.querySelectorAll('.indicator');
+    const items = document.querySelectorAll('.modern-image-wrapper');
 
     if (track && btnPrev && btnNext) {
-        const scrollAmount = 300; 
+        const scrollAmount = 350; 
 
         btnPrev.addEventListener('click', () => {
             track.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
@@ -118,6 +120,33 @@ document.addEventListener('DOMContentLoaded', () => {
             track.scrollBy({ left: scrollAmount, behavior: 'smooth' });
         });
 
+        // Sync indicators on scroll
+        track.addEventListener('scroll', () => {
+            const scrollPos = track.scrollLeft;
+            const itemWidth = items[0].offsetWidth + 32; // item width + gap
+            const activeIndex = Math.round(scrollPos / itemWidth);
+
+            indicators.forEach((ind, index) => {
+                if (index === activeIndex) {
+                    ind.classList.add('active');
+                } else {
+                    ind.classList.remove('active');
+                }
+            });
+        });
+
+        // Click indicator to scroll
+        indicators.forEach((ind, index) => {
+            ind.addEventListener('click', () => {
+                const itemWidth = items[0].offsetWidth + 32;
+                track.scrollTo({
+                    left: index * itemWidth,
+                    behavior: 'smooth'
+                });
+            });
+        });
+
+        // Mouse Drag to Scroll
         let isDown = false;
         let startX;
         let scrollLeft;
@@ -128,13 +157,8 @@ document.addEventListener('DOMContentLoaded', () => {
             scrollLeft = track.scrollLeft;
         });
 
-        track.addEventListener('mouseleave', () => {
-            isDown = false;
-        });
-
-        track.addEventListener('mouseup', () => {
-            isDown = false;
-        });
+        track.addEventListener('mouseleave', () => { isDown = false; });
+        track.addEventListener('mouseup', () => { isDown = false; });
 
         track.addEventListener('mousemove', (e) => {
             if (!isDown) return;
@@ -145,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 6. Lightbox for Screenshots
+    // 6. Lightbox Handler
     const lightbox = document.getElementById('lightbox');
     const lightboxImg = lightbox.querySelector('.lightbox-img');
     const lightboxClose = lightbox.querySelector('.lightbox-close');
@@ -193,10 +217,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 8. Footer Year Update
+    // 8. Footer Year
     document.getElementById('year').textContent = new Date().getFullYear();
 
-    // 9. Floating Particles (Canvas)
+    // 9. Floating Canvas Particles
     const canvas = document.getElementById('particles-canvas');
     if (canvas) {
         const ctx = canvas.getContext('2d');

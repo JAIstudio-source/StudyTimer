@@ -1,6 +1,6 @@
 {
-  "versionCode": 5,
-  "versionName": "1.3.0",
+  "versionCode": 6,
+  "versionName": "1.3.1",
   "url": "https://studytimer.update-studytimer.workers.dev/",
   "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
   "releaseNotes": "Pomodoro progress ring (with break-fill behavior + theme colors Streak uses daily goal- toggle — Off = 45m threshold, On = your daily goal Focus Pattern improvements — 7d/30d toggle, tap-a-block detail dialog, clearer intensity grid Other: smoother pause blink, Activity Result migration, cleanup, lint-clean build"

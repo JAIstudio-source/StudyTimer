@@ -84,14 +84,26 @@ ul {
 /* Navbar */
 #navbar {
     position: fixed;
-    top: 0;
-    width: 100%;
+    top: 20px;
+    left: 24px;
+    right: 24px;
+    width: auto;
     z-index: 1000;
     background: var(--nav-bg);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border-bottom: 1px solid var(--border);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 22px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
     transition: all 0.3s ease;
+}
+
+@media (max-width: 768px) {
+    #navbar {
+        top: 16px;
+        left: 16px;
+        right: 16px;
+    }
 }
 
 .nav-container {
@@ -142,6 +154,26 @@ ul {
 .glass-btn:hover {
     background: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.2);
+}
+
+.nav-download {
+    width: 40%;
+    max-width: 140px;
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    line-height: 1;
+    border-radius: 999px;
+    min-width: auto;
+    background: rgba(107, 124, 255, 0.18);
+    color: #fff;
+    border: 1px solid rgba(107, 124, 255, 0.4);
+    box-shadow: none;
+}
+
+.nav-download:hover {
+    transform: translateY(-1px);
+    background: rgba(107, 124, 255, 0.28);
+    box-shadow: 0 10px 24px rgba(var(--primary-rgb), 0.12);
 }
 
 /* Hero Section */
@@ -646,53 +678,11 @@ ul {
     opacity: 0.7;
 }
 
-/* Floating Download Button (Mobile FAB) */
-#floating-download {
-    position: fixed;
-    bottom: 32px;
-    right: 32px;
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary), rgba(107, 124, 255, 0.8));
-    border: none;
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.3s ease;
-    z-index: 998;
-    box-shadow: 0 4px 20px rgba(107, 124, 255, 0.3);
-    text-decoration: none;
-}
-
-#floating-download.visible {
-    opacity: 1;
-    visibility: visible;
-}
-
-#floating-download:hover {
-    transform: scale(1.15);
-    box-shadow: 0 6px 30px rgba(107, 124, 255, 0.5);
-}
-
-#floating-download:active {
-    transform: scale(0.95);
-}
-
-#floating-download svg {
-    width: 24px;
-    height: 24px;
-}
-
 /* Back to top */
 #back-to-top {
     position: fixed;
     bottom: 32px;
-    right: 100px;
+    right: 32px;
     width: 48px;
     height: 48px;
     border-radius: 50%;

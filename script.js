@@ -1,30 +1,38 @@
 document.addEventListener('DOMContentLoaded', () => {
     
-    // 1. Fetch version.json from GitHub and update DOM
+    // 1. Fetch version.json from local file first, then GitHub if needed
     async function loadAppVersion() {
-        try {
-            const response = await fetch('https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/version.json');
-            
-            if (response.ok) {
-                const data = await response.json();
-                
-                // Update version text
-                const versionText = data.versionName || data.version || 'v1.0.0';
-                const versionElements = document.querySelectorAll('.app-version');
-                versionElements.forEach(el => {
-                    el.textContent = versionText;
-                });
+        const versionSources = [
+            'version.json',
+            'https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/version.json'
+        ];
 
-                // Update download links with flexible property fallbacks
-                const downloadLinks = document.querySelectorAll('.download-link');
-                downloadLinks.forEach(el => {
-                    el.href = data.apkUrl || data.url || 'StudyTimer-release.apk';
-                });
-            } else {
-                setFallbackVersion();
+        let data = null;
+
+        for (const source of versionSources) {
+            try {
+                const response = await fetch(source);
+                if (!response.ok) continue;
+
+                data = await response.json();
+                break;
+            } catch (error) {
+                console.warn(`Version fetch failed for ${source}:`, error);
             }
-        } catch (error) {
-            console.error("Failed to fetch version from GitHub:", error);
+        }
+
+        if (data) {
+            const versionText = data.versionName || data.version || 'v1.0.0';
+            const versionElements = document.querySelectorAll('.app-version');
+            versionElements.forEach(el => {
+                el.textContent = versionText;
+            });
+
+            const downloadLinks = document.querySelectorAll('.download-link');
+            downloadLinks.forEach(el => {
+                el.href = data.apkUrl || data.url || 'StudyTimer-release.apk';
+            });
+        } else {
             setFallbackVersion();
         }
     }

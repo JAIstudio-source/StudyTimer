@@ -217,6 +217,7 @@ ul {
 
 .hero-title span {
     background: linear-gradient(135deg, var(--text), var(--secondary));
+    background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -280,6 +281,17 @@ ul {
 .glow-btn:hover {
     box-shadow: 0 0 50px rgba(var(--primary-rgb), 0.6);
     transform: translateY(-2px);
+}
+
+.hero-download {
+    padding: 20px 48px;
+    font-size: 1.3rem;
+    min-width: 280px;
+}
+
+.hero-download:hover {
+    transform: translateY(-4px) scale(1.05);
+    box-shadow: 0 0 60px rgba(var(--primary-rgb), 0.8);
 }
 
 .version-info {
@@ -664,6 +676,48 @@ ul {
 #back-to-top:hover {
     background: rgba(255,255,255,0.1);
     transform: translateY(-4px);
+}
+
+/* Floating Download Button (Mobile FAB) */
+#floating-download {
+    position: fixed;
+    bottom: 32px;
+    right: 32px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), rgba(107, 124, 255, 0.8));
+    border: none;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 998;
+    box-shadow: 0 4px 20px rgba(107, 124, 255, 0.3);
+    text-decoration: none;
+}
+
+#floating-download.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+#floating-download:hover {
+    transform: scale(1.15);
+    box-shadow: 0 6px 30px rgba(107, 124, 255, 0.5);
+}
+
+#floating-download:active {
+    transform: scale(0.95);
+}
+
+#floating-download svg {
+    width: 24px;
+    height: 24px;
 }
 
 /* Animations */

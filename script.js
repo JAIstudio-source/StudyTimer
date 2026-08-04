@@ -9,9 +9,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
                 
                 // Update version text
+                const versionText = data.versionName || data.version || 'v1.0.0';
                 const versionElements = document.querySelectorAll('.app-version');
                 versionElements.forEach(el => {
-                    el.textContent = data.versionName || data.version || 'v1.0.0';
+                    el.textContent = versionText;
                 });
 
                 // Update download links with flexible property fallbacks
@@ -29,6 +30,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setFallbackVersion() {
+        const versionElements = document.querySelectorAll('.app-version');
+        versionElements.forEach(el => {
+            el.textContent = 'v1.0.0';
+        });
+
         const downloadLinks = document.querySelectorAll('.download-link');
         downloadLinks.forEach(el => {
             el.href = 'StudyTimer-release.apk';

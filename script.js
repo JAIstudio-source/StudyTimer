@@ -28,12 +28,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 el.textContent = versionText;
             });
 
+            const apkUrl = data.apkUrl || data.url || 'StudyTimer-release.apk';
             const downloadLinks = document.querySelectorAll('.download-link');
             downloadLinks.forEach(el => {
-                el.href = data.apkUrl || data.url || 'StudyTimer-release.apk';
+                el.href = apkUrl;
             });
+
+            updateAppSize(apkUrl);
         } else {
             setFallbackVersion();
+        }
+    }
+
+    // Live app size from the APK's Content-Length header, with HTML fallback if it fails
+    async function updateAppSize(apkUrl) {
+        try {
+            const response = await fetch(apkUrl, { method: 'HEAD' });
+            const bytes = parseInt(response.headers.get('Content-Length'), 10);
+            if (!isNaN(bytes) && bytes > 0) {
+                const mb = bytes / (1024 * 1024);
+                const sizeElements = document.querySelectorAll('.app-size');
+                sizeElements.forEach(el => {
+                    el.textContent = mb.toFixed(2) + ' MB';
+                });
+            }
+        } catch (error) {
+            console.warn(`Size fetch failed for ${apkUrl}:`, error);
         }
     }
 

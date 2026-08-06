@@ -1,4 +1,9 @@
-# StudyTimer 1.4.0 (versionCode 8)
+# StudyTimer 1.4.1 (versionCode 9)
+
+## What's New (since 1.4.0)
+- **Swipe between tabs** — in Insights (Overview ↔ History) and Settings (General ↔ Appearance) you can now drag sideways to flip between panels. The tabs follow your finger like a card, and the release glides to a smooth, velocity-matched settle.
+- **Card slide polish** — while a swipe is in motion the panel behaves like a plain inert card (no scrolling, no accidental taps); both panels lift with rounded corners and a soft shadow while swapping.
+- **Faster, stable swipes** — pages are cached and pre-warmed so repeated swiping stays buttery, and rapid back-and-forth swipes no longer glitch.
 
 ## What's New
 - **Glassmorphic UI Redesign** — the whole app now uses the NOVA AI glass style: deep indigo/violet gradient backgrounds, translucent glass cards with luminous borders, and neon accent glows.
@@ -18,4 +23,4 @@
 - Signed with the JAI Labs release key
 
 ## Installation
-Install `StudyTimer-release.apk` (v1.4.0, ~3.0 MB). Updating preserves all study logs, streaks, and settings.
+Install `StudyTimer-release.apk` (v1.4.1, ~3.0 MB). Updating preserves all study logs, streaks, and settings.

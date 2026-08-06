@@ -1,7 +1,7 @@
 {
-  "versionCode": 8,
-  "versionName": "1.4.0",
+  "versionCode": 9,
+  "versionName": "1.4.1",
   "url": "https://studytimer.update-studytimer.workers.dev/",
   "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-  "releaseNotes": "Glassmorphic UI redesign — glass cards, luminous borders, neon glows across OLED/Slate/Light. Theme Style toggle (Glass vs Classic) in Settings. Insights and Settings tabs now swipe like cards. Focus screen glow, glossy primary button, gradient countdown ring. Themed dialogs, glass home-screen widget, Focus Pattern auto-scroll."
+  "releaseNotes": "Swipe between Insights (Overview/History) and Settings (General/Appearance) tabs — panels follow your finger like a card with velocity-matched settle. No scroll/tap while sliding, cached pages for buttery repeated swipes, rapid back-and-forth fixed. Includes all of 1.4.0's glass UI redesign."
 }

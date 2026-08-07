@@ -19,7 +19,7 @@
 
 html {
     scroll-behavior: smooth;
-    scroll-padding-top: 80px;
+    scroll-padding-top: 120px;
 }
 
 body {
@@ -325,7 +325,8 @@ ul {
 
 @media (max-width: 768px) {
     .hero {
-        padding-top: 90px;
+        /* increase top padding on small screens so fixed navbar doesn't overlap hero content */
+        padding-top: 140px;
     }
 
     .hero-inner {

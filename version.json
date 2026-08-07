@@ -3,5 +3,5 @@
   "versionName": "1.4.3",
   "url": "https://studytimer.update-studytimer.workers.dev/",
   "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-  "releaseNotes": "Faster Insights — the study timeline is parsed once and cached in memory, and date lookups use cheap day-range filters, so stats screens load in a fraction of a second. Session history moved out of SharedPreferences into its own crash-safe file with a safe one-time migration (old backups restore fine). Full localization: every string (timer, Insights, settings, dialogs, notifications, widget, onboarding) is now translation-ready. Smarter writes and 43 automated tests. Includes all of 1.4.1's swipe-and-glass UI."
+  "releaseNotes": "Performance boost — Insights loads faster and the app feels snappier overall. Minor bug fixes for a smoother, more stable experience."
 }

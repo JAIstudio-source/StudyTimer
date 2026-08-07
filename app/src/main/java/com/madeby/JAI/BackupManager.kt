@@ -9,6 +9,15 @@ class BackupManager(private val context: Context) {
 
     private fun getBackupFile(): File = File(context.filesDir, "study_timer_backup.dat")
 
+    private fun putTimeline(json: JSONObject) {
+        json.put("focus_timeline", timelineToJsonString(TimelineLogger.load(context)))
+    }
+
+    private fun restoreTimeline(importedJsonObject: JSONObject) {
+        val raw = importedJsonObject.optString("focus_timeline", null)?.takeIf { it.isNotEmpty() }
+        TimelineLogger.importRaw(context, raw)
+    }
+
     fun runSilentAutoBackup() {
         try {
             val sharedPrefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
@@ -16,6 +25,7 @@ class BackupManager(private val context: Context) {
             for ((key, value) in sharedPrefs.all) {
                 json.put(key, value)
             }
+            putTimeline(json)
             getBackupFile().writeText(json.toString())
         } catch (_: Exception) {}
     }
@@ -33,6 +43,7 @@ class BackupManager(private val context: Context) {
             val editor = sharedPrefs.edit()
             sanitizeAndBuildPreferences(importedJsonObject, editor)
             editor.apply()
+            restoreTimeline(importedJsonObject)
         } catch (_: Exception) {}
     }
 
@@ -43,6 +54,7 @@ class BackupManager(private val context: Context) {
             for ((key, value) in sharedPrefs.all) {
                 json.put(key, value)
             }
+            putTimeline(json)
             val outputStream = context.contentResolver.openOutputStream(uri, "w")
                 ?: return false
             outputStream.use { stream ->
@@ -64,6 +76,7 @@ class BackupManager(private val context: Context) {
                 editor.clear()
                 sanitizeAndBuildPreferences(importedJsonObject, editor)
                 editor.apply()
+                restoreTimeline(importedJsonObject)
                 return true
             }
         } catch (_: Exception) {}
@@ -81,6 +94,9 @@ class BackupManager(private val context: Context) {
             val key = keys.next()
             when (key) {
                 "timerState" -> editor.putString(key, "IDLE")
+                "focus_timeline" -> {
+                    // Restored via file storage (TimelineLogger.importRaw), not prefs.
+                }
                 "accumulatedStudy", "currentBreakSeconds", "lastTimestamp", "focus_remaining_secs", "pre_pause_state", "streak_last_calculated" -> {
                     // Never resurrect an in-flight session from a backup; streak is recomputed on next stats open.
                 }

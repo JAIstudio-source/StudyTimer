@@ -19,8 +19,8 @@ object GoalReminderScheduler {
     fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val channel = NotificationChannel(CHANNEL_ID, "Daily Goal Reminders", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "Evening reminder when the daily focus goal is not yet reached"
+            val channel = NotificationChannel(CHANNEL_ID, context.getString(R.string.goal_channel_name), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = context.getString(R.string.goal_channel_desc)
                 setShowBadge(false)
             }
             nm.createNotificationChannel(channel)

@@ -1,8 +1,6 @@
 package com.madeby.JAI
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Calendar
 import java.util.Date
@@ -23,10 +21,22 @@ class StreakCalculatorTest {
     }
 
     @Test
-    fun isQualified_threshold() {
-        assertTrue(StreakCalculator.isQualified(2700L))
-        assertTrue(StreakCalculator.isQualified(9999L))
-        assertFalse(StreakCalculator.isQualified(2699L))
+    fun qualifyingThreshold_is2700Seconds() {
+        assertEquals(2700L, StreakCalculator.QUALIFYING_SECS)
+    }
+
+    @Test
+    fun longestStreak_dayExactlyAtThresholdQualifies() {
+        val b = base()
+        val days = listOf(date(b, 0) to StreakCalculator.QUALIFYING_SECS)
+        assertEquals(1, StreakCalculator.longestStreak(days))
+    }
+
+    @Test
+    fun longestStreak_dayBelowThresholdDoesNotQualify() {
+        val b = base()
+        val days = listOf(date(b, 0) to (StreakCalculator.QUALIFYING_SECS - 1L))
+        assertEquals(0, StreakCalculator.longestStreak(days))
     }
 
     @Test

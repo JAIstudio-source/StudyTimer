@@ -1,4 +1,290 @@
 <resources>
     <string name="app_name">StudyTimer</string>
-</resources>
 
+    <!-- Backup & export -->
+    <string name="restore_backup">♻️ RESTORE BACKUP</string>
+    <string name="restore_backup_title">Restore backup?</string>
+    <string name="restore_backup_message">Importing replaces ALL current study data with the backup file. This cannot be undone.</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="btn_cancel_upper">CANCEL</string>
+    <string name="btn_restore">RESTORE</string>
+    <string name="confirm_delete_block">Delete this %1$s block?</string>
+    <string name="confirm_delete_block_msg">Removes %1$s from this day\'s log.</string>
+    <string name="confirm_delete_day">Delete %1$s?</string>
+    <string name="confirm_delete_day_msg">Removes the day\'s focus/break totals and its session timeline.</string>
+    <string name="toast_logs_restored">Logs restored successfully!</string>
+    <string name="toast_backup_parse_failed">Failed to parse backup file structure.</string>
+    <string name="toast_logs_exported">Logs exported successfully!</string>
+    <string name="toast_logs_export_failed">Failed to export logs.</string>
+    <string name="toast_csv_exported">CSV exported successfully!</string>
+    <string name="toast_csv_export_failed">Failed to export CSV.</string>
+
+    <!-- Battery optimization -->
+    <string name="btn_run_in_background">⚡ RUN IN BACKGROUND</string>
+    <string name="battery_title">Keep your timer running</string>
+    <string name="battery_message">For long study sessions, this permission keeps the app running in the background so the system doesn\'t pause your timer and you don\'t lose your progress and data.</string>
+    <string name="btn_later">LATER</string>
+    <string name="btn_allow">ALLOW</string>
+
+    <!-- Update checker -->
+    <string name="update_available">🔄 UPDATE AVAILABLE</string>
+    <string name="update_version_ready">v%1$s is ready</string>
+    <string name="update_message">A newer version is available. Your download will start now.</string>
+    <string name="btn_update">UPDATE</string>
+    <string name="toast_update_page_failed">Could not open the update page.</string>
+    <string name="toast_checking_updates">Checking for updates…</string>
+    <string name="toast_update_check_failed">Couldn\'t check for updates. Check your connection.</string>
+    <string name="toast_up_to_date">You\'re up to date (v%1$s)</string>
+
+    <!-- Notifications permission -->
+    <string name="notif_permission_title">Enable notifications?</string>
+    <string name="notif_permission_off_title">Notifications are off</string>
+    <string name="notif_permission_rationale">Notifications keep your study session visible and remind you to reach your daily goal. You can change this anytime in Settings.</string>
+    <string name="notif_permission_blocked">Notifications are blocked. You can still use the app, but you won\'t get session updates or daily goal reminders. Enable them anytime in system Settings.</string>
+    <string name="btn_allow_upper">Allow</string>
+    <string name="btn_not_now">Not now</string>
+    <string name="btn_open_settings">Open Settings</string>
+
+    <!-- Misc toasts -->
+    <string name="toast_session_saved">Session saved successfully.</string>
+    <string name="toast_press_back_again">Press back again to exit</string>
+    <string name="toast_kind_block_deleted">%1$s block deleted</string>
+    <string name="toast_day_deleted">Day deleted</string>
+    <string name="toast_end_after_start">End time must be after start time</string>
+    <string name="toast_kind_block_updated">%1$s block updated</string>
+    <string name="toast_kind_block_added">%1$s block added</string>
+    <string name="toast_open_block_hint">Open block — stop the timer first</string>
+    <string name="toast_share_failed">Failed to share</string>
+    <string name="toast_dev_config_enabled">Developer Config Enabled</string>
+    <string name="toast_logs_cleared">Today\'s logs cleared.</string>
+    <string name="toast_hold_to_confirm">Hold to confirm wipe</string>
+    <string name="toast_block_shifted">%1$s last block shifted on Today</string>
+    <string name="toast_goal_reached">🎉 Daily goal reached!</string>
+
+    <!-- Focus panel -->
+    <string name="btn_pause">❚❚ PAUSE</string>
+    <string name="btn_hold_to_end">HOLD TO END SESSION</string>
+    <string name="crunching_numbers">Crunching numbers…</string>
+
+    <!-- Heatmap fullscreen -->
+    <string name="heatmap_fullscreen_title">FOCUS HEATMAP · FULL SCREEN</string>
+    <string name="heatmap_hint">Last 6 months · swipe to scroll · tap a day to inspect</string>
+    <string name="btn_done">✕ Done</string>
+
+    <!-- Insights / stats -->
+    <string name="insights_title">Insights</string>
+    <string name="tab_overview">Overview</string>
+    <string name="tab_history">History</string>
+    <string name="content_desc_streak">Day streak</string>
+    <string name="thought_of_the_day">Thought of the Day</string>
+    <string name="today_label">TODAY</string>
+    <string name="streak_days">%1$dd streak</string>
+    <string name="trend_no_sessions">no sessions yet</string>
+    <string name="trend_up">↑ %1$d%% vs yesterday</string>
+    <string name="trend_down">%1$d%% ↓ vs yesterday</string>
+    <string name="trend_same">same as yesterday</string>
+    <string name="daily_goal_label">%1$s daily goal</string>
+    <string name="goal_reached_yes">✓ Goal reached!</string>
+    <string name="x_to_go">%1$s to go</string>
+    <string name="filter_7d">7 Days</string>
+    <string name="filter_30d">30 Days</string>
+    <string name="filter_all">All</string>
+    <string name="avg7_label">7d avg %1$dh %2$dm</string>
+    <string name="goal_mark">| %1$s goal mark    ○ today</string>
+    <string name="lifetime_focus">Lifetime focus</string>
+    <string name="lifetime_breaks">Lifetime breaks</string>
+    <string name="no_sessions_yet">No sessions yet</string>
+    <string name="insights_empty_hint">Start your first focus block to see insights here.</string>
+    <string name="focus_heatmap">FOCUS HEATMAP</string>
+    <string name="btn_fullscreen">⚡ Fullscreen</string>
+    <string name="legend_less">Less</string>
+    <string name="legend_more">More</string>
+    <string name="focus_pattern">FOCUS PATTERN</string>
+    <string name="week_7d">7d</string>
+    <string name="week_30d">30d</string>
+    <string name="block_focus_total">%1$s of focus</string>
+    <string name="block_fraction">%1$s of %2$s total · 2-hour block</string>
+    <string name="block_start">Block start</string>
+    <string name="block_end">Block end</string>
+    <string name="block_manual">Manual  </string>
+    <string name="block_break">Break  </string>
+    <string name="block_focus">Focus  </string>
+    <string name="today_prefix">Today · %1$s</string>
+    <string name="btn_close">CLOSE</string>
+    <string name="most_focused">Most focused %1$s · %2$s total</string>
+    <string name="no_focus_recent">No focus logged in the last %1$s days</string>
+
+    <!-- Duration & summary formats -->
+    <string name="duration_h_m">%1$dh %2$dm</string>
+    <string name="duration_h">%1$dh</string>
+    <string name="duration_m">%1$dm</string>
+    <string name="duration_s">%1$ds</string>
+    <string name="focus_break_summary">Focus %1$dh %2$dm    ·    Break %3$dh %4$dm</string>
+    <string name="focus_blocks_summary">%1$d focus blocks · %2$d breaks · longest %3$dh %4$dm</string>
+    <string name="sessions_summary">%1$d sessions · longest %2$dh %3$dm</string>
+    <string name="day_row_summary">%1$s  ·  Focus %2$dh %3$dm  ·  Break %4$dh %5$dm</string>
+    <string name="break_h_m">Break %1$dh %2$dm</string>
+
+    <!-- Day/month dialogs -->
+    <string name="no_session_log_day">No session log for this day</string>
+    <string name="load_more">Load more</string>
+    <string name="btn_delete">Delete</string>
+    <string name="timeline_editor">TIMELINE EDITOR</string>
+    <string name="dev_editor_hint">Tap the date to open the calendar (any day/month). ✎ edits a block\'s start/end.</string>
+    <string name="no_blocks_for_day">No blocks for this day</string>
+    <string name="no_days_this_month">No days logged this month</string>
+    <string name="saving">Saving…</string>
+    <string name="btn_close_lower">Close</string>
+    <string name="btn_save">💾 Save</string>
+    <string name="btn_share">📤 Share</string>
+    <string name="export_summary_card">📱 Export Summary Card</string>
+    <string name="share_chooser_title">Share Summary Card</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_subtitle">Customize your experience</string>
+    <string name="tab_general">General</string>
+    <string name="tab_appearance">Appearance</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_light_sub">Clean bright theme</string>
+    <string name="theme_slate">Slate</string>
+    <string name="theme_slate_sub">Soft dark grey tones</string>
+    <string name="theme_amoled">AMOLED Black</string>
+    <string name="theme_amoled_sub">True black for OLED screens</string>
+    <string name="style_glass">Glass</string>
+    <string name="style_glass_sub">Translucent cards, glow &amp; gradients</string>
+    <string name="style_classic">Classic</string>
+    <string name="style_classic_sub">Solid flat panels, true black stays true</string>
+    <string name="section_theme_style">THEME STYLE</string>
+    <string name="no_previous_data">No previous data</string>
+    <string name="cd_weekly_card_preview">Weekly summary card preview</string>
+    <string name="section_dynamic_color">DYNAMIC COLOR</string>
+    <string name="section_dark_mode">DARK MODE</string>
+    <string name="material_you">Material You</string>
+    <string name="dynamic_follows_wallpaper">Follows your wallpaper palette</string>
+    <string name="dynamic_uses_wallpaper">Use your wallpaper\'s accent colors (Android 12+)</string>
+    <string name="daily_goal">Daily Goal</string>
+    <string name="daily_goal_sub">Daily focus target shown in Insights</string>
+    <string name="goal_steps_15">15 min steps</string>
+    <string name="section_goals">GOALS</string>
+    <string name="section_timer_mode">TIMER MODE</string>
+    <string name="section_daily_reminder">DAILY REMINDER</string>
+    <string name="section_display">DISPLAY</string>
+    <string name="section_data_management">DATA MANAGEMENT</string>
+    <string name="section_about">ABOUT</string>
+    <string name="section_experimental">EXPERIMENTAL</string>
+    <string name="section_developer">DEVELOPER</string>
+    <string name="streak_uses_goal">Streak uses daily goal</string>
+    <string name="streak_uses_goal_sub">Off = 45m threshold, On = your daily goal</string>
+    <string name="mode_stopwatch">Stopwatch</string>
+    <string name="mode_stopwatch_sub">Timer counts up until you end the session</string>
+    <string name="mode_pomodoro">Pomodoro Countdown</string>
+    <string name="mode_pomodoro_sub">Focus counts down, auto-switches to break at 0</string>
+    <string name="reminder_evening">Evening Goal Reminder</string>
+    <string name="reminder_evening_sub">Reminds you if the daily goal isn\'t reached</string>
+    <string name="reminder_time">Reminder Time</string>
+    <string name="reminder_time_sub">Shown when daily goal not yet hit</string>
+    <string name="immersive_landscape">Immersive Landscape</string>
+    <string name="immersive_landscape_sub">Hide system bars for distraction-free study</string>
+    <string name="time_format">Time Format</string>
+    <string name="time_format_sub">12h or 24h for sessions, reminders &amp; charts</string>
+    <string name="time_format_follow_system">Follow System</string>
+    <string name="time_format_24h">24 Hour</string>
+    <string name="time_format_12h">12 Hour</string>
+    <string name="time_format_system">System</string>
+    <string name="pure_white_timer">Pure White Timer</string>
+    <string name="pure_white_timer_sub">Timer text always pure white</string>
+    <string name="focus_heatmap_setting">Focus Heatmap</string>
+    <string name="focus_heatmap_setting_sub">Show heatmap card in Insights</string>
+    <string name="focus_pattern_setting">Focus Pattern</string>
+    <string name="focus_pattern_setting_sub">Show time-of-day pattern in Insights</string>
+    <string name="keep_screen_on">Keep Screen On</string>
+    <string name="keep_screen_on_sub">Stay awake while focusing (turns off on break)</string>
+    <string name="pause_button">Pause Button</string>
+    <string name="pause_button_sub">Show pause button while focusing</string>
+    <string name="export_logs">Export Logs</string>
+    <string name="export_logs_sub">Save study data as JSON file</string>
+    <string name="import_data">Import Data</string>
+    <string name="import_data_sub">Restore from backup file</string>
+    <string name="export_csv">Export CSV</string>
+    <string name="export_csv_sub">Daily summary, sessions &amp; totals for spreadsheets</string>
+    <string name="version_label">Version</string>
+    <string name="check_updates">Check for Updates</string>
+    <string name="check_updates_sub">Looks for a newer version on our server</string>
+    <string name="wipe_hint">These actions are irreversible. Hold the button to confirm.</string>
+    <string name="wipe_today">Wipe Today\'s Data</string>
+    <string name="select_backup_file">Select Backup JSON File</string>
+    <string name="focus_duration">Focus Duration</string>
+    <string name="focus_duration_sub">Counts down, then break starts automatically</string>
+    <string name="duration_steps_hint">5 min steps · 5 min to 4 hours</string>
+    <string name="dev_tools_hint">Dev-only timeline tools. Normal users only see the log in Stats → Timeline.</string>
+    <string name="edit_timeline">✎  Edit timeline</string>
+    <string name="shift_block_hint">Shift today\'s last block by:</string>
+    <string name="randomize_accents">Randomize accent colors</string>
+    <string name="randomize_sub">Picks fresh hues for focus &amp; break together</string>
+    <string name="focus_accent">FOCUS ACCENT</string>
+    <string name="break_accent">BREAK ACCENT</string>
+    <string name="adjust_hue_hint">Toggle to adjust hue</string>
+    <string name="developed_by">Developed by Pushkar Saini</string>
+    <string name="special_thanks">Special thanks to Nikhil Tyagi</string>
+    <string name="btn_back_label">← Back</string>
+    <string name="cd_open_settings">Open settings</string>
+    <string name="cd_open_insights">Open insights</string>
+    <string name="streak_label">🔥 Streak</string>
+    <string name="below_threshold">&lt; %1$s</string>
+    <string name="color_white">White</string>
+    <string name="color_rose">Rose</string>
+    <string name="color_lavender">Lavender</string>
+    <string name="color_sky">Sky</string>
+    <string name="color_orange">Orange</string>
+    <string name="color_mint">Mint</string>
+
+    <!-- Timer states -->
+    <string name="break_prefix">Break: %1$s</string>
+    <string name="resume_deep_focus">RESUME DEEP FOCUS</string>
+    <string name="take_a_break">TAKE A BREAK</string>
+    <string name="ready_to_track">READY TO TRACK</string>
+    <string name="start_focus">START FOCUS</string>
+    <string name="learning_time">⚡ Learning time</string>
+    <string name="break_in_progress">☕ BREAK IN PROGRESS</string>
+    <string name="paused">⏸ PAUSED</string>
+    <string name="resume">RESUME</string>
+
+    <!-- Onboarding -->
+    <string name="welcome">📅 Welcome to StudyTimer</string>
+    <string name="get_started">GET STARTED</string>
+    <string name="onb_step_1">▶️  Tap START FOCUS to begin tracking a study session</string>
+    <string name="onb_step_2">☕️  Take breaks anytime — they won\'t break your focus streak</string>
+    <string name="onb_step_3">📊  Visit Insights to see charts, heatmap &amp; streak history</string>
+    <string name="onb_step_4">⏰  Add a widget or enable the daily reminder from Settings</string>
+
+    <!-- Timer service notifications -->
+    <string name="notif_title_studying">⚡ Learning time</string>
+    <string name="notif_title_break">☕ Resting on Break</string>
+    <string name="notif_title_paused">⏸ Paused</string>
+    <string name="notif_content_countdown">Focus left: %1$s | Break: %2$s</string>
+    <string name="notif_content_stopwatch">Focus: %1$s | Break: %2$s</string>
+    <string name="notif_action_switch_to_break">SWITCH TO BREAK</string>
+    <string name="notif_action_resume_focus">RESUME FOCUS</string>
+    <string name="notif_action_resume">RESUME</string>
+    <string name="notif_action_end_session">END SESSION</string>
+    <string name="notif_complete_title">⏱ Focus session complete!</string>
+    <string name="notif_complete_text">Time for a break. Resume when you\'re ready.</string>
+    <string name="notif_goal_title">🎉 Daily goal reached!</string>
+    <string name="notif_goal_text">You\'ve hit %1$sh %2$sm of focus. Keep going!</string>
+    <string name="channel_completion_name">Focus Session Complete</string>
+    <string name="channel_completion_desc">Alerts when a focus countdown finishes</string>
+    <string name="channel_control_name">Study Timer Control</string>
+    <string name="channel_control_desc">Persistent tray utilities for active sessions</string>
+
+    <!-- Goal reminder -->
+    <string name="goal_channel_name">Daily Goal Reminders</string>
+    <string name="goal_channel_desc">Evening reminder when the daily focus goal is not yet reached</string>
+    <string name="goal_reminder_title">Daily goal not reached yet</string>
+    <string name="goal_reminder_text">You\'ve focused %1$sh %2$sm today. Goal is %3$s.</string>
+
+    <!-- Widget -->
+    <string name="widget_today">Today  %1$dh %2$dm</string>
+    <string name="widget_streak">🔥  %1$d-day streak</string>
+    <string name="widget_stop_focus">STOP</string>
+</resources>

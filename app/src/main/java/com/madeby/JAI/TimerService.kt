@@ -213,19 +213,19 @@ class TimerService : Service() {
         }
 
         val title = when (currentTimerState) {
-            TimerState.STUDYING -> "⚡ Learning time"
-            TimerState.BREAK -> "☕ Resting on Break"
-            else -> "⏸ Paused"
+            TimerState.STUDYING -> getString(R.string.notif_title_studying)
+            TimerState.BREAK -> getString(R.string.notif_title_break)
+            else -> getString(R.string.notif_title_paused)
         }
         val content = if (timerMode == "COUNTDOWN" && currentTimerState == TimerState.STUDYING) {
-            "Focus left: ${formatTime(focusRemainingSecs)} | Break: ${formatTime(currentBreakSeconds)}"
+            getString(R.string.notif_content_countdown, formatTime(focusRemainingSecs), formatTime(currentBreakSeconds))
         } else {
-            "Focus: ${formatTime(accumulatedStudy)} | Break: ${formatTime(currentBreakSeconds)}"
+            getString(R.string.notif_content_stopwatch, formatTime(accumulatedStudy), formatTime(currentBreakSeconds))
         }
         val actionText = when (currentTimerState) {
-            TimerState.STUDYING -> "SWITCH TO BREAK"
-            TimerState.BREAK -> "RESUME FOCUS"
-            else -> "RESUME"
+            TimerState.STUDYING -> getString(R.string.notif_action_switch_to_break)
+            TimerState.BREAK -> getString(R.string.notif_action_resume_focus)
+            else -> getString(R.string.notif_action_resume)
         }
 
         val sharedPrefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
@@ -244,7 +244,7 @@ class TimerService : Service() {
             .setColor(primaryColor)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .addAction(android.R.drawable.ic_media_next, actionText, cachedTogglePendingIntent)
-            .addAction(R.drawable.ic_clock, "END SESSION", cachedStopPendingIntent)
+            .addAction(R.drawable.ic_clock, getString(R.string.notif_action_end_session), cachedStopPendingIntent)
             .build()
 
         if (foregroundStarted) {
@@ -265,8 +265,8 @@ class TimerService : Service() {
         )
         val notification = NotificationCompat.Builder(this, COMPLETION_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_media_pause)
-            .setContentTitle("⏱ Focus session complete!")
-            .setContentText("Time for a break. Resume when you're ready.")
+            .setContentTitle(getString(R.string.notif_complete_title))
+            .setContentText(getString(R.string.notif_complete_text))
             .setAutoCancel(true)
             .setContentIntent(openPending)
             .build()
@@ -277,8 +277,8 @@ class TimerService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             if (nm.getNotificationChannel(COMPLETION_CHANNEL_ID) == null) {
-                val channel = NotificationChannel(COMPLETION_CHANNEL_ID, "Focus Session Complete", NotificationManager.IMPORTANCE_HIGH).apply {
-                    description = "Alerts when a focus countdown finishes"
+                val channel = NotificationChannel(COMPLETION_CHANNEL_ID, getString(R.string.channel_completion_name), NotificationManager.IMPORTANCE_HIGH).apply {
+                    description = getString(R.string.channel_completion_desc)
                     enableVibration(true)
                     setSound(null, null)
                     vibrationPattern = longArrayOf(0, 400, 200, 400)
@@ -307,8 +307,8 @@ class TimerService : Service() {
         )
         val notification = androidx.core.app.NotificationCompat.Builder(this, GoalReminderScheduler.CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_media_play)
-            .setContentTitle("\uD83C\uDF89 Daily goal reached!")
-            .setContentText("You've hit ${goal / 3600}h ${(goal % 3600) / 60}m of focus. Keep going!")
+            .setContentTitle(getString(R.string.notif_goal_title))
+            .setContentText(getString(R.string.notif_goal_text, goal / 3600, (goal % 3600) / 60))
             .setAutoCancel(true)
             .setContentIntent(openPending)
             .build()
@@ -349,9 +349,9 @@ class TimerService : Service() {
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                CHANNEL_ID, "Study Timer Control", NotificationManager.IMPORTANCE_LOW
+                CHANNEL_ID, getString(R.string.channel_control_name), NotificationManager.IMPORTANCE_LOW
             ).apply { 
-                description = "Persistent tray utilities for active sessions"
+                description = getString(R.string.channel_control_desc)
                 setShowBadge(false) 
             }
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(channel)

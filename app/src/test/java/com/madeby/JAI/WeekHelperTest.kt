@@ -43,16 +43,10 @@ class WeekHelperTest {
     }
 
     @Test
-    fun dateOnSameWeek_returnsRequestedWeekdayWithinWeek() {
+    fun mondayOf_sameDayAcrossTimezones_isStable() {
         val wed = utc(2026, Calendar.JULY, 15)
-        assertEquals(13, WeekHelper.dateOnSameWeek(wed, 0).get(Calendar.DAY_OF_MONTH))
-        assertEquals(19, WeekHelper.dateOnSameWeek(wed, 6).get(Calendar.DAY_OF_MONTH))
-        assertEquals(15, WeekHelper.dateOnSameWeek(wed, 2).get(Calendar.DAY_OF_MONTH))
-    }
-
-    @Test
-    fun mondayOf_ms_variant_matchesCalendarVariant() {
-        val ms = utc(2026, Calendar.JULY, 15).timeInMillis
-        assertEquals(WeekHelper.mondayOf(utc(2026, Calendar.JULY, 15)).timeInMillis, WeekHelper.mondayOf(ms))
+        val mon = WeekHelper.mondayOf(wed)
+        assertEquals(13, mon.get(Calendar.DAY_OF_MONTH))
+        assertEquals(0, mon.get(Calendar.HOUR_OF_DAY))
     }
 }

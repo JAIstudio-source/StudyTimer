@@ -37,11 +37,10 @@ class GoalReminderReceiver : BroadcastReceiver() {
             context, 0, openIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val goalLabel = "${goal / 3600}h ${(goal % 3600) / 60}m"
         val notification = NotificationCompat.Builder(context, GoalReminderScheduler.CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_flame)
-            .setContentTitle("Daily goal not reached yet")
-            .setContentText("You've focused ${focus / 3600}h ${(focus % 3600) / 60}m today. Goal is $goalLabel.")
+            .setContentTitle(context.getString(R.string.goal_reminder_title))
+            .setContentText(context.getString(R.string.goal_reminder_text, focus / 3600, (focus % 3600) / 60, context.getString(R.string.duration_h_m, goal / 3600, (goal % 3600) / 60)))
             .setAutoCancel(true)
             .setContentIntent(openPending)
             .build()

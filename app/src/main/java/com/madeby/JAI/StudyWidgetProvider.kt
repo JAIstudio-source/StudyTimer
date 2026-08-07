@@ -53,13 +53,13 @@ class StudyWidgetProvider : AppWidgetProvider() {
             }
 
             val views = RemoteViews(context.packageName, R.layout.study_widget_layout)
-            views.setTextViewText(R.id.widToday, "Today  ${focusToday / 3600}h ${(focusToday % 3600) / 60}m")
-            views.setTextViewText(R.id.widStreak, "\uD83D\uDD25  $streak-day streak")
+            views.setTextViewText(R.id.widToday, context.getString(R.string.widget_today, focusToday / 3600, (focusToday % 3600) / 60))
+            views.setTextViewText(R.id.widStreak, context.getString(R.string.widget_streak, streak))
             views.setTextViewText(R.id.widToggle, when (state) {
-                TimerState.STUDYING -> "TAKE A BREAK"
-                TimerState.BREAK -> "RESUME FOCUS"
-                TimerState.PAUSED -> "RESUME"
-                else -> "START FOCUS"
+                TimerState.STUDYING -> context.getString(R.string.take_a_break)
+                TimerState.BREAK -> context.getString(R.string.notif_action_resume_focus)
+                TimerState.PAUSED -> context.getString(R.string.resume)
+                else -> context.getString(R.string.start_focus)
             })
             views.setInt(R.id.widRoot, "setBackgroundResource", if (light) R.drawable.bg_widget_light else R.drawable.bg_widget_dark)
             views.setTextColor(R.id.widTitle, primary)

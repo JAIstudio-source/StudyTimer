@@ -106,9 +106,9 @@
     <string name="block_fraction">%1$s of %2$s total · 2-hour block</string>
     <string name="block_start">Block start</string>
     <string name="block_end">Block end</string>
-    <string name="block_manual">Manual  </string>
-    <string name="block_break">Break  </string>
-    <string name="block_focus">Focus  </string>
+    <string name="block_manual">Manual</string>
+    <string name="block_break">Break</string>
+    <string name="block_focus">Focus</string>
     <string name="today_prefix">Today · %1$s</string>
     <string name="btn_close">CLOSE</string>
     <string name="most_focused">Most focused %1$s · %2$s total</string>
@@ -133,6 +133,14 @@
     <string name="dev_editor_hint">Tap the date to open the calendar (any day/month). ✎ edits a block\'s start/end.</string>
     <string name="no_blocks_for_day">No blocks for this day</string>
     <string name="no_days_this_month">No days logged this month</string>
+    <string name="cal_today">TODAY</string>
+    <string name="cal_prev">‹</string>
+    <string name="cal_next">›</string>
+    <string name="cal_goal_days">%1$d goal days</string>
+    <string name="cal_month_focus">%1$sh %2$sm focus</string>
+    <string name="cal_month_empty">No focus this month</string>
+    <string name="cal_goal_pct">%1$d%% of goal</string>
+    <string name="cal_see_logs">See logs</string>
     <string name="saving">Saving…</string>
     <string name="btn_close_lower">Close</string>
     <string name="btn_save">💾 Save</string>

@@ -182,6 +182,8 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
             layout.addView(createSectionLabel(getString(R.string.section_timer_mode)))
             val timerModeCard = createSettingsCard()
+            val isLecture = timerMode == "LECTURE"
+            val isStopwatch = timerMode == "STOPWATCH"
             val isCountdown = timerMode == "COUNTDOWN"
 
             fun modeRadio(selected: Boolean): View {
@@ -195,24 +197,37 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 }
             }
 
-            val stopwatchRow = createSettingsRow("\u23F1\uFE0F", getString(R.string.mode_stopwatch), getString(R.string.mode_stopwatch_sub), modeRadio(!isCountdown))
+            val stopwatchRow = createSettingsRow("\u23F1\uFE0F", getString(R.string.mode_stopwatch), getString(R.string.mode_stopwatch_sub), modeRadio(isStopwatch))
             stopwatchRow.setOnClickListener {
-                sharedPrefs.edit().putString("timer_mode", "STOPWATCH").apply()
+                sharedPrefs.edit().putString("timer_mode", "STOPWATCH").putBoolean("lecture_mode_enabled", false).apply()
                 timerMode = "STOPWATCH"
                 navigateToPanel(AppPanel.SETTINGS)
             }
             timerModeCard.addView(stopwatchRow)
             timerModeCard.addView(createDivider())
+
             val countdownRow = createSettingsRow("\u23F2\uFE0F", getString(R.string.mode_pomodoro), getString(R.string.mode_pomodoro_sub), modeRadio(isCountdown))
             countdownRow.setOnClickListener {
-                sharedPrefs.edit().putString("timer_mode", "COUNTDOWN").apply()
+                sharedPrefs.edit().putString("timer_mode", "COUNTDOWN").putBoolean("lecture_mode_enabled", false).apply()
                 timerMode = "COUNTDOWN"
                 navigateToPanel(AppPanel.SETTINGS)
             }
             timerModeCard.addView(countdownRow)
+            timerModeCard.addView(createDivider())
+
+            val lectureRow = createSettingsRow("\uD83C\uDF93", "Scheduled Lecture Mode", "Auto-starts & auto-ends focus based on your fixed class timetable", modeRadio(isLecture))
+
+            lectureRow.setOnClickListener {
+                sharedPrefs.edit().putString("timer_mode", "LECTURE").putBoolean("lecture_mode_enabled", true).apply()
+                timerMode = "LECTURE"
+                navigateToPanel(AppPanel.SETTINGS)
+            }
+            timerModeCard.addView(lectureRow)
             layout.addView(timerModeCard)
 
             if (isCountdown) {
+
+
                 val durationCard = createSettingsCard()
                 val durationValueText = TextView(this).apply {
                     textSize = 15f

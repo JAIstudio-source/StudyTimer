@@ -38,6 +38,8 @@ class FocusPanelBuilder(private val host: MainActivity) {
         }
         navHeader.addView(settingsIconView)
 
+        val savedTimerMode = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).getString("timer_mode", "STOPWATCH") ?: "STOPWATCH"
+
         val headerSpacer = View(this).apply {
             layoutParams = LinearLayout.LayoutParams(0, 1, 1f)
         }
@@ -47,7 +49,6 @@ class FocusPanelBuilder(private val host: MainActivity) {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
         }
 
-        val savedTimerMode = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).getString("timer_mode", "STOPWATCH") ?: "STOPWATCH"
         if (themeCoordinator.isGlassStyle() && !pureWhiteTimerEnabled()) {
             val glowAlpha = when {
                 themeCoordinator.activeBgMode == "OLED" -> 0.22f
@@ -63,26 +64,47 @@ class FocusPanelBuilder(private val host: MainActivity) {
         }
 
         timerRing = TimerRingView(this).apply {
-            visibility = if (!isLandscape && savedTimerMode == "COUNTDOWN") View.VISIBLE else View.GONE
+            visibility = if (!isLandscape && (savedTimerMode == "COUNTDOWN" || savedTimerMode == "LECTURE")) View.VISIBLE else View.GONE
             layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT, Gravity.CENTER)
         }
 
         statusBadge = TextView(this).apply {
             textSize = if (isLandscape) 13f else 14f
-            setPadding(35, 12, 35, 12)
+            setPadding(dp(18), dp(6), dp(18), dp(6))
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             gravity = Gravity.CENTER
             background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 110))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         }
 
         statusBadgeContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
+            orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            layoutParams = FrameLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
-                setMargins(0, 0, 0, if (isLandscape) 4 else 10)
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
+                setMargins(0, if (isLandscape) 4 else 12, 0, 0)
             }
             addView(statusBadge)
+
+            if (savedTimerMode == "LECTURE") {
+                val timetableBtn = TextView(host).apply {
+                    text = "\uD83D\uDCC5 Class Timetable"
+                    textSize = 13f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    setTextColor(themeCoordinator.primaryColor)
+                    background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 110), 20f)
+                    setPadding(dp(16), dp(6), dp(16), dp(6))
+                    gravity = Gravity.CENTER
+                    setOnClickListener { showLectureScheduleManagerDialog() }
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        setMargins(0, dp(14), 0, 0)
+                    }
+
+                }
+                addView(timetableBtn)
+            }
         }
+
+
 
         studyTimerDisplay = TextView(this).apply {
             text = "00:00:00"

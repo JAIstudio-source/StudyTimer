@@ -1,0 +1,53 @@
+{
+  // Portable copy of the OpenCode config used on AndroidIDE.
+  // On a new device: copy this file to opencode.jsonc, then run tools/llm/setup.sh
+  // and tools/llm/llama-server.sh start.
+  "$schema": "https://opencode.ai/config.json",
+  "model": "opencode/big-pickle",
+  "autoupdate": false,
+  "compaction": {
+    "auto": true,
+    "tail_turns": 15
+  },
+  "tool_output": {
+    "max_lines": 200,
+    "max_bytes": 8192
+  },
+  "watcher": {
+    "ignore": [".git/**", "build/**", ".gradle/**", "**/build/**"]
+  },
+  "provider": {
+    "google": {
+      "options": {
+        // Path to the Gemini API key file (opencode-home is the opencode data dir).
+        "apiKey": "{file:/opencode-home/1.17.8/.config/opencode/gemini.key}"
+      }
+    },
+    "local": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Local Gemma (Device)",
+      "options": {
+        "baseURL": "http://127.0.0.1:8080/v1",
+        "apiKey": "local"
+      },
+      "models": {
+        "gemma3-4b": {
+          "name": "Gemma 3 4B (Local)",
+          "attachment": true,
+          "modalities": {
+            "input": ["text", "image"]
+          },
+          "limit": {
+            "context": 8192,
+            "output": 2048
+          }
+        }
+      }
+    }
+  },
+  "agent": {
+    "vision": {
+      "model": "local/gemma3-4b"
+    }
+  }
+}

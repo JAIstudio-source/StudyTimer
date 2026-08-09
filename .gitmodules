@@ -1,0 +1,3 @@
+[submodule "StudyTimer-android"]
+	path = StudyTimer-android
+	url = https://github.com/JAIstudio-source/StudyTimer-android.git

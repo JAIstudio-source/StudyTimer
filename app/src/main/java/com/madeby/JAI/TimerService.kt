@@ -317,7 +317,11 @@ class TimerService : Service() {
 
             if (vibrator != null && vibrator.hasVibrator()) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    vibrator.vibrate(android.os.VibrationEffect.createWaveform(pattern, -1))
+                    val attrs = android.media.AudioAttributes.Builder()
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .setUsage(android.media.AudioAttributes.USAGE_ALARM)
+                        .build()
+                    vibrator.vibrate(android.os.VibrationEffect.createWaveform(pattern, -1), attrs)
                 } else {
                     @Suppress("DEPRECATION")
                     vibrator.vibrate(pattern, -1)
@@ -327,11 +331,11 @@ class TimerService : Service() {
     }
 
     private fun triggerVibration() {
-        triggerVibrationPattern(longArrayOf(0, 500, 250, 500))
+        triggerVibrationPattern(longArrayOf(0, 600, 250, 600, 250, 600))
     }
 
     private fun triggerGoalVibration() {
-        triggerVibrationPattern(longArrayOf(0, 200, 100, 200, 100, 400))
+        triggerVibrationPattern(longArrayOf(0, 300, 150, 300, 150, 500))
     }
 
     private fun checkScheduledLectures(nowSecs: Long) {

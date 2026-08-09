@@ -388,33 +388,103 @@ class MainActivity : AppCompatActivity() {
         }
         val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
         val promptCount = prefs.safeInt("notification_perm_prompt_count", 0)
-        if (promptCount == 0) {
-            prefs.edit().putInt("notification_perm_prompt_count", 1).apply()
+
+        if (promptCount == 0 || !ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.POST_NOTIFICATIONS)) {
+            prefs.edit().putInt("notification_perm_prompt_count", promptCount + 1).apply()
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), NOTIFICATION_PERMISSION_REQUEST_CODE)
             return
         }
-        if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.POST_NOTIFICATIONS)) {
-            android.app.AlertDialog.Builder(this)
-                .setTitle(getString(R.string.notif_permission_title))
-                .setMessage(getString(R.string.notif_permission_rationale))
-                .setPositiveButton(getString(R.string.btn_allow_upper)) { _, _ ->
-                    prefs.edit().putInt("notification_perm_prompt_count", promptCount + 1).apply()
-                    ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), NOTIFICATION_PERMISSION_REQUEST_CODE)
-                }
-                .setNegativeButton(getString(R.string.btn_not_now), null)
-                .create()
-                .show()
-        } else {
-            android.app.AlertDialog.Builder(this)
-                .setTitle(getString(R.string.notif_permission_off_title))
-                .setMessage(getString(R.string.notif_permission_blocked))
-                .setPositiveButton(getString(R.string.btn_open_settings)) { _, _ ->
-                    openNotificationSettings()
-                }
-                .setNegativeButton(getString(R.string.btn_not_now), null)
-                .create()
-                .show()
+
+        // Theme-styled rationale dialog if rationale is needed
+        showCustomDialog(
+            badge = "NOTIFICATION PERMISSION",
+            title = getString(R.string.notif_permission_title),
+            message = getString(R.string.notif_permission_rationale),
+            positiveText = getString(R.string.btn_allow_upper),
+            onPositive = {
+                prefs.edit().putInt("notification_perm_prompt_count", promptCount + 1).apply()
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), NOTIFICATION_PERMISSION_REQUEST_CODE)
+            },
+            negativeText = getString(R.string.btn_not_now)
+        )
+    }
+
+    internal fun showCustomDialog(
+        badge: String? = null,
+        title: String,
+        message: String,
+        positiveText: String,
+        onPositive: () -> Unit,
+        negativeText: String? = null,
+        onNegative: (() -> Unit)? = null
+    ) {
+        val dialog = android.app.Dialog(this)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = themeCoordinator.createDialogBackground(28f)
+            setPadding(dp(22), dp(22), dp(22), dp(18))
         }
+        if (!badge.isNullOrEmpty()) {
+            content.addView(TextView(this).apply {
+                text = badge.uppercase()
+                setTextColor(themeCoordinator.primaryColor)
+                textSize = 12f
+                letterSpacing = 0.18f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            })
+        }
+        content.addView(TextView(this).apply {
+            text = title
+            setTextColor(themeCoordinator.textColor)
+            textSize = 18f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(0, if (badge.isNullOrEmpty()) 0 else dp(6), 0, 0)
+        })
+        content.addView(TextView(this).apply {
+            text = message
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.7f
+            textSize = 13f
+            setPadding(0, dp(10), 0, 0)
+        })
+        val buttonRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.END
+            setPadding(0, dp(20), 0, 0)
+        }
+        if (!negativeText.isNullOrEmpty()) {
+            buttonRow.addView(TextView(this).apply {
+                text = negativeText
+                setTextColor(themeCoordinator.textColor)
+                alpha = 0.6f
+                textSize = 13f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setPadding(dp(16), dp(10), dp(16), dp(10))
+                setOnClickListener {
+                    dialog.dismiss()
+                    onNegative?.invoke()
+                }
+            })
+        }
+        buttonRow.addView(TextView(this).apply {
+            text = positiveText
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 13f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(dp(16), dp(10), dp(16), dp(10))
+            setOnClickListener {
+                dialog.dismiss()
+                onPositive.invoke()
+            }
+        })
+        content.addView(buttonRow)
+        dialog.setContentView(content)
+        dialog.window?.let {
+            it.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+            it.setLayout((resources.displayMetrics.widthPixels * 0.88).toInt(), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+        }
+        dialog.show()
     }
 
     private fun maybePromptBatteryOptimization() {
@@ -763,6 +833,18 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.AppTheme_NoActionBar)
         super.onCreate(savedInstanceState)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+            )
+        }
 
         themeCoordinator = ThemeCoordinator(this)
         backupManager = BackupManager(this)
@@ -2860,95 +2942,89 @@ class MainActivity : AppCompatActivity() {
                 goalsContainer.addView(goalCard)
             }
             parent.addView(goalsContainer)
-
-            // Planner Insights Section
-            val overallInsights = PlannerHistoryManager.computeOverallPlannerInsights(this, goalsList)
-            if (overallInsights.hasEnoughData) {
-                parent.addView(createSectionLabel("Planner Insights"))
-
-                val insightsCard = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    background = themeCoordinator.createCardBackground()
-                    setPadding(dp(18), dp(16), dp(18), dp(16))
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(4), 0, dp(12)) }
-                }
-
-                fun addInsightRow(icon: String, title: String, value: String, sub: String) {
-                    val row = LinearLayout(this).apply {
-                        orientation = LinearLayout.HORIZONTAL
-                        gravity = Gravity.CENTER_VERTICAL
-                        setPadding(0, dp(8), 0, dp(8))
-                    }
-                    row.addView(TextView(this@MainActivity).apply {
-                        text = icon
-                        textSize = 20f
-                        setPadding(0, 0, dp(12), 0)
-                    })
-                    val textCol = LinearLayout(this@MainActivity).apply {
-                        orientation = LinearLayout.VERTICAL
-                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                    }
-                    textCol.addView(TextView(this@MainActivity).apply {
-                        text = title
-                        setTextColor(themeCoordinator.textColor)
-                        textSize = 14f
-                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                    })
-                    textCol.addView(TextView(this@MainActivity).apply {
-                        text = sub
-                        setTextColor(themeCoordinator.textColor)
-                        alpha = 0.5f
-                        textSize = 12f
-                        setPadding(0, dp(2), 0, 0)
-                    })
-                    row.addView(textCol)
-                    row.addView(TextView(this@MainActivity).apply {
-                        text = value
-                        setTextColor(plannerSecondary)
-                        textSize = 15f
-                        typeface = Typeface.create("sans-serif", Typeface.BOLD)
-                    })
-                    insightsCard.addView(row)
-                }
-
-                if (overallInsights.bestStreakDays > 0) {
-                    addInsightRow("🔥", "Best Streak", "${overallInsights.bestStreakDays}d", overallInsights.bestStreakGoalTitle)
-                    insightsCard.addView(createDivider())
-                }
-                if (overallInsights.mostConsistentPct > 0) {
-                    addInsightRow("📈", "Most Consistent", "${overallInsights.mostConsistentPct}%", overallInsights.mostConsistentGoalTitle)
-                    insightsCard.addView(createDivider())
-                }
-
-                val matrixBtn = TextView(this).apply {
-                    text = "📊 Habit Matrix"
-                    setTextColor(plannerPrimary)
-                    textSize = 13f
-                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                    background = themeCoordinator.createGlassChip(tintedColor(plannerPrimary, 120), 14f)
-                    setPadding(dp(14), dp(10), dp(14), dp(10))
-                    gravity = Gravity.CENTER
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(8), 0, 0) }
-                    setOnClickListener { showPlannerMatrixDialog() }
-                }
-                insightsCard.addView(matrixBtn)
-
-                val themeBtn = TextView(this).apply {
-                    text = "🎨 Planner Theme"
-                    setTextColor(plannerPrimary)
-                    textSize = 13f
-                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                    background = themeCoordinator.createGlassChip(tintedColor(plannerPrimary, 120), 14f)
-                    setPadding(dp(14), dp(10), dp(14), dp(10))
-                    gravity = Gravity.CENTER
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(8), 0, 0) }
-                    setOnClickListener { showPlannerThemePickerDialog() }
-                }
-                insightsCard.addView(themeBtn)
-
-                parent.addView(insightsCard)
-            }
         }
+
+        // Planner Insights Section (always rendered whether goals exist or not)
+        val overallInsights = PlannerHistoryManager.computeOverallPlannerInsights(this, goalsList)
+        parent.addView(createSectionLabel("Planner Insights"))
+
+        val insightsCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = themeCoordinator.createCardBackground()
+            setPadding(dp(18), dp(16), dp(18), dp(16))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(4), 0, dp(12)) }
+        }
+
+        fun addInsightRow(icon: String, title: String, value: String, sub: String) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, dp(8), 0, dp(8))
+            }
+            row.addView(TextView(this@MainActivity).apply {
+                text = icon
+                textSize = 20f
+                setPadding(0, 0, dp(12), 0)
+            })
+            val textCol = LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+            textCol.addView(TextView(this@MainActivity).apply {
+                text = title
+                setTextColor(themeCoordinator.textColor)
+                textSize = 14f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            })
+            textCol.addView(TextView(this@MainActivity).apply {
+                text = sub
+                setTextColor(themeCoordinator.textColor)
+                alpha = 0.5f
+                textSize = 12f
+                setPadding(0, dp(2), 0, 0)
+            })
+            row.addView(textCol)
+            row.addView(TextView(this@MainActivity).apply {
+                text = value
+                setTextColor(plannerSecondary)
+                textSize = 15f
+                typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            })
+            insightsCard.addView(row)
+        }
+
+        addInsightRow("🔥", "Best Streak", if (overallInsights.bestStreakDays > 0) "${overallInsights.bestStreakDays}d" else "0d", if (overallInsights.bestStreakDays > 0) overallInsights.bestStreakGoalTitle else "No streak yet")
+        insightsCard.addView(createDivider())
+        addInsightRow("📈", "Most Consistent", if (overallInsights.mostConsistentPct > 0) "${overallInsights.mostConsistentPct}%" else "0%", if (overallInsights.mostConsistentPct > 0) overallInsights.mostConsistentGoalTitle else "No track yet")
+        insightsCard.addView(createDivider())
+
+        val matrixBtn = TextView(this).apply {
+            text = "📊 Habit Matrix"
+            setTextColor(plannerPrimary)
+            textSize = 13f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = themeCoordinator.createGlassChip(tintedColor(plannerPrimary, 120), 14f)
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(8), 0, 0) }
+            setOnClickListener { showPlannerMatrixDialog() }
+        }
+        insightsCard.addView(matrixBtn)
+
+        val themeBtn = TextView(this).apply {
+            text = "🎨 Planner Theme"
+            setTextColor(plannerPrimary)
+            textSize = 13f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = themeCoordinator.createGlassChip(tintedColor(plannerPrimary, 120), 14f)
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(8), 0, 0) }
+            setOnClickListener { showPlannerThemePickerDialog() }
+        }
+        insightsCard.addView(themeBtn)
+
+        parent.addView(insightsCard)
     }
 
     internal fun showGoalHistoryDialog(goal: PlannerGoal, displayMonthOffset: Int = 0) {
@@ -3274,12 +3350,37 @@ class MainActivity : AppCompatActivity() {
 
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val dateHeaderFmt = SimpleDateFormat("MMM dd", Locale.getDefault())
+
+        // Collect all goals (both active and historically deleted)
+        class MatrixGoalItem(val id: String, val title: String, val isDeleted: Boolean)
+        val allGoalItemsMap = mutableMapOf<String, MatrixGoalItem>()
+
+        // Add current active goals first
+        for (g in goalsList) {
+            allGoalItemsMap[g.id] = MatrixGoalItem(g.id, g.title, isDeleted = false)
+        }
+
+        // Add past deleted goals from daily snapshots
+        val prefs = getSharedPreferences("StudyTimerPrefs", MODE_PRIVATE)
+        for (key in prefs.all.keys) {
+            if (key.endsWith("_planner_snapshot")) {
+                val rawJson = prefs.getString(key, null) ?: continue
+                val snapshots = PlannerHistoryManager.loadDaySnapshot(this, key.removeSuffix("_planner_snapshot"))
+                for (s in snapshots) {
+                    if (s.goalId.isNotBlank() && !allGoalItemsMap.containsKey(s.goalId)) {
+                        allGoalItemsMap[s.goalId] = MatrixGoalItem(s.goalId, if (s.title.isNotBlank()) s.title else "Deleted Goal", isDeleted = true)
+                    }
+                }
+            }
+        }
+
+        val allGoalItems = allGoalItemsMap.values.toList()
         val allDates = mutableSetOf<String>()
 
-        val goalHistories = goalsList.associate { goal ->
-            val h = PlannerHistoryManager.loadGoalHistoryDetailed(this, goal.id)
+        val goalHistories = allGoalItems.associate { item ->
+            val h = PlannerHistoryManager.loadGoalHistoryDetailed(this, item.id)
             allDates.addAll(h.keys)
-            goal.id to h
+            item.id to h
         }
 
         val sortedDatesAll = allDates.mapNotNull { runCatching { sdf.parse(it) }.getOrNull() }.sortedDescending()
@@ -3332,10 +3433,10 @@ class MainActivity : AppCompatActivity() {
             })
             leftColumn.addView(createDivider())
 
-            for (goal in goalsList) {
+            for (item in allGoalItems) {
                 leftColumn.addView(TextView(this@MainActivity).apply {
-                    text = goal.title
-                    setTextColor(themeCoordinator.textColor)
+                    text = if (item.isDeleted) "${item.title} (Old)" else item.title
+                    setTextColor(if (item.isDeleted) tintedColor(themeCoordinator.textColor, 120) else themeCoordinator.textColor)
                     textSize = 13f
                     typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                     setPadding(dp(8), dp(8), dp(8), dp(8))
@@ -3377,13 +3478,13 @@ class MainActivity : AppCompatActivity() {
             val greenColor = 0xFF22C55E.toInt()
             val redColor = 0xFFEF4444.toInt()
 
-            for (goal in goalsList) {
+            for (item in allGoalItems) {
                 val row = LinearLayout(this@MainActivity).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
                     layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(38))
                 }
-                val history = goalHistories[goal.id] ?: emptyMap()
+                val history = goalHistories[item.id] ?: emptyMap()
                 for (d in filteredDates) {
                     val dateKey = sdf.format(d)
                     val status = history[dateKey]
@@ -5481,9 +5582,8 @@ class MainActivity : AppCompatActivity() {
                 val showCountdown = (timerMode == "COUNTDOWN" || isLectureModeActive) && isStudying
 
                 studyTimerDisplay.text = when {
-                    isStudying && showCountdown -> formatCountdown(focusRemainingSecs)
-                    isStudying -> formatTime(accumulatedStudy)
-                    else -> "00:00:00"
+                    showCountdown -> formatCountdown(focusRemainingSecs)
+                    else -> formatTime(accumulatedStudy)
                 }
 
                 val breakCountdownSecs = sharedPrefs.getLong("break_countdown_secs", 300L)

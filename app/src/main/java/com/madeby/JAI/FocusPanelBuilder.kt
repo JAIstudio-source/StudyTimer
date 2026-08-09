@@ -90,8 +90,8 @@ class FocusPanelBuilder(private val host: MainActivity) {
                     text = "\uD83D\uDCC5 Class Timetable"
                     textSize = 13f
                     typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                    setTextColor(themeCoordinator.primaryColor)
-                    background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 110), 20f)
+                    setTextColor(themeCoordinator.accentColor)
+                    background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.accentColor, 120), 20f)
                     setPadding(dp(16), dp(6), dp(16), dp(6))
                     gravity = Gravity.CENTER
                     setOnClickListener { showLectureScheduleManagerDialog() }
@@ -117,7 +117,7 @@ class FocusPanelBuilder(private val host: MainActivity) {
         }
 
         breakTimerDisplay = TextView(this).apply {
-            text = getString(R.string.break_prefix, "00:00:00")
+            text = "00:00:00"
             textSize = if (isLandscape) 24f else 20f
             typeface = Typeface.MONOSPACE
             gravity = Gravity.CENTER

@@ -29,6 +29,8 @@ class TimerService : Service() {
     private var timerMode: String = "STOPWATCH"
     private var focusCountdownSecs: Long = 1500L
     private var focusRemainingSecs: Long = 0L
+    private var breakCountdownSecs: Long = 300L
+    private var breakRemainingSecs: Long = 0L
     private var prePauseState: TimerState = TimerState.STUDYING
 
     private val handler = Handler(Looper.getMainLooper())
@@ -75,7 +77,10 @@ class TimerService : Service() {
                 val extendSecs = intent.getLongExtra("EXTEND_SECS", 300L)
                 handleExtendLecture(extendSecs)
             }
-            ACTION_START_BREAK -> handleStartBreak()
+            ACTION_START_BREAK -> {
+                val breakSecs = intent.getLongExtra("BREAK_SECS", 300L)
+                handleStartBreak(breakSecs)
+            }
         }
         return START_STICKY
     }
@@ -177,10 +182,12 @@ class TimerService : Service() {
 
 
 
-    private fun handleStartBreak() {
+    private fun handleStartBreak(breakSecs: Long = 300L) {
         val now = System.currentTimeMillis() / 1000
         currentTimerState = TimerState.BREAK
         focusRemainingSecs = 0L
+        breakCountdownSecs = breakSecs
+        breakRemainingSecs = breakSecs
         lecturePromptTimestamp = 0L
         lastTimestamp = now - 1L
         TimelineLogger.record(this, TimerState.BREAK)
@@ -298,40 +305,53 @@ class TimerService : Service() {
         return null
     }
 
-    private fun triggerVibration() {
+    private fun triggerVibrationPattern(pattern: LongArray) {
         try {
-            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager
+                vibratorManager?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+            }
+
             if (vibrator != null && vibrator.hasVibrator()) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    vibrator.vibrate(android.os.VibrationEffect.createWaveform(longArrayOf(0, 500, 250, 500), -1))
+                    vibrator.vibrate(android.os.VibrationEffect.createWaveform(pattern, -1))
                 } else {
                     @Suppress("DEPRECATION")
-                    vibrator.vibrate(longArrayOf(0, 500, 250, 500), -1)
+                    vibrator.vibrate(pattern, -1)
                 }
             }
         } catch (_: Exception) {}
     }
 
+    private fun triggerVibration() {
+        triggerVibrationPattern(longArrayOf(0, 500, 250, 500))
+    }
+
+    private fun triggerGoalVibration() {
+        triggerVibrationPattern(longArrayOf(0, 200, 100, 200, 100, 400))
+    }
+
     private fun checkScheduledLectures(nowSecs: Long) {
         val sharedPrefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-        val mode = sharedPrefs.getString("timer_mode", "STOPWATCH") ?: "STOPWATCH"
-        val isLecture = mode == "LECTURE" || sharedPrefs.getBoolean("lecture_mode_enabled", false)
-        if (!isLecture) return
-
-        val cal = Calendar.getInstance().apply { timeInMillis = nowSecs * 1000 }
-        val currentMins = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
-
         val jsonStr = sharedPrefs.getString("lecture_schedules_json", "[]") ?: "[]"
         val items = loadLectureSchedulesFromJson(jsonStr).filter { it.enabled }
         if (items.isEmpty()) return
+
+        val cal = Calendar.getInstance().apply { timeInMillis = nowSecs * 1000 }
+        val currentMins = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
 
         for (item in items) {
             val startMins = parseTimeToMinutes(item.startTime) ?: continue
             val endMins = parseTimeToMinutes(item.endTime) ?: continue
 
             if (currentMins in startMins until endMins) {
-                if (currentTimerState == TimerState.IDLE || currentTimerState == TimerState.BREAK || currentTimerState == TimerState.LECTURE_ENDED) {
+                if (currentTimerState == TimerState.IDLE || currentTimerState == TimerState.BREAK) {
                     currentTimerState = TimerState.STUDYING
+                    timerMode = "LECTURE"
+                    lectureModeEnabled = true
                     accumulatedStudy = 0L
                     focusRemainingSecs = ((endMins - currentMins) * 60).toLong()
                     lecturePromptTimestamp = 0L
@@ -339,7 +359,7 @@ class TimerService : Service() {
                     TimelineLogger.record(this, TimerState.STUDYING)
                     saveState()
                     updateForegroundNotification()
-                    postCountdownComplete()
+                    postLectureStartedNotification(item.title)
                     StudyWidgetProvider.refresh(this)
                     break
                 }
@@ -358,6 +378,25 @@ class TimerService : Service() {
                 break
             }
         }
+    }
+
+    private fun postLectureStartedNotification(lectureTitle: String) {
+        ensureCompletionChannel()
+        val openIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val openPending = PendingIntent.getActivity(
+            this, 5, openIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(this, COMPLETION_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setContentTitle("🎓 Lecture Started")
+            .setContentText("Scheduled class '$lectureTitle' has started.")
+            .setAutoCancel(true)
+            .setContentIntent(openPending)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .build()
+        (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(COMPLETION_NOTIFICATION_ID, notification)
     }
 
 
@@ -394,6 +433,7 @@ class TimerService : Service() {
                             if (timerMode == "COUNTDOWN" || timerMode == "LECTURE" || lectureModeEnabled) {
                                 focusRemainingSecs -= gap
                                 if (focusRemainingSecs <= 0L) {
+                                    triggerVibration()
                                     if (timerMode == "LECTURE" || lectureModeEnabled) {
                                         currentTimerState = TimerState.LECTURE_ENDED
                                         lecturePromptTimestamp = now
@@ -406,11 +446,19 @@ class TimerService : Service() {
                                         StudyWidgetProvider.refresh(this)
                                         return@Runnable
                                     } else {
-                                        // Countdown finished: auto-switch to break (unlimited).
-                                        currentTimerState = TimerState.BREAK
-                                        focusRemainingSecs = 0L
-                                        lastTimestamp = now
-                                        TimelineLogger.record(this, TimerState.BREAK)
+                                        val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+                                        val autoBreak = prefs.getBoolean("pomodoro_auto_break", true)
+                                        if (autoBreak) {
+                                            currentTimerState = TimerState.BREAK
+                                            focusRemainingSecs = 0L
+                                            lastTimestamp = now
+                                            TimelineLogger.record(this, TimerState.BREAK)
+                                        } else {
+                                            currentTimerState = TimerState.IDLE
+                                            focusRemainingSecs = 0L
+                                            lastTimestamp = 0L
+                                            TimelineLogger.record(this, TimerState.IDLE)
+                                        }
                                         saveState()
                                         updateForegroundNotification()
                                         postCountdownComplete()
@@ -420,7 +468,24 @@ class TimerService : Service() {
                                 }
                             }
                         }
-                        TimerState.BREAK -> currentBreakSeconds += gap
+                        TimerState.BREAK -> {
+                            currentBreakSeconds += gap
+                            if (breakRemainingSecs > 0L) {
+                                breakRemainingSecs -= gap
+                                if (breakRemainingSecs <= 0L) {
+                                    currentTimerState = TimerState.IDLE
+                                    breakRemainingSecs = 0L
+                                    lastTimestamp = 0L
+                                    triggerVibration()
+                                    TimelineLogger.record(this, TimerState.IDLE)
+                                    saveState()
+                                    updateForegroundNotification()
+                                    postCountdownComplete()
+                                    StudyWidgetProvider.refresh(this)
+                                    return@Runnable
+                                }
+                            }
+                        }
                         else -> {}
                     }
                     lastTimestamp = now
@@ -479,6 +544,7 @@ class TimerService : Service() {
         val goal = prefs.getLong("${todayStr}_goal_secs", prefs.getLong("daily_goal_secs", 2700L))
         if (focus < goal) return
         prefs.edit().putString("goal_pinged_date", todayStr).apply()
+        triggerGoalVibration()
 
         GoalReminderScheduler.ensureChannel(this)
         val openIntent = Intent(this, MainActivity::class.java).apply {
@@ -506,6 +572,8 @@ class TimerService : Service() {
         timerMode = sharedPrefs.getString("timer_mode", "STOPWATCH") ?: "STOPWATCH"
         focusCountdownSecs = sharedPrefs.getLong("focus_countdown_secs", 1500L)
         focusRemainingSecs = sharedPrefs.getLong("focus_remaining_secs", 0L)
+        breakCountdownSecs = sharedPrefs.getLong("break_countdown_secs", 300L)
+        breakRemainingSecs = sharedPrefs.getLong("break_remaining_secs", 0L)
         lectureModeEnabled = sharedPrefs.getBoolean("lecture_mode_enabled", false)
         lecturePromptTimestamp = sharedPrefs.getLong("lecture_prompt_timestamp", 0L)
         prePauseState = runCatching { TimerState.valueOf(sharedPrefs.getString("pre_pause_state", "STUDYING") ?: "STUDYING") }.getOrDefault(TimerState.STUDYING)
@@ -514,10 +582,13 @@ class TimerService : Service() {
     private fun saveState() {
         getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit().apply {
             putString("timerState", currentTimerState.name)
+            putString("timer_mode", timerMode)
             putLong("lastTimestamp", lastTimestamp)
             putLong("accumulatedStudy", accumulatedStudy)
             putLong("currentBreakSeconds", currentBreakSeconds)
             putLong("focus_remaining_secs", focusRemainingSecs)
+            putLong("break_countdown_secs", breakCountdownSecs)
+            putLong("break_remaining_secs", breakRemainingSecs)
             putBoolean("lecture_mode_enabled", lectureModeEnabled)
             putLong("lecture_prompt_timestamp", lecturePromptTimestamp)
             putString("pre_pause_state", prePauseState.name)

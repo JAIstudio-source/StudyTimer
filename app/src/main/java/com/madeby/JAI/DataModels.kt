@@ -11,10 +11,25 @@ data class PlannerGoal(
     val note: String = "",
     val targetMinutes: Int = 0,
     val completed: Boolean = false,
+    val checkedAt: Long = 0L,
     val createdAt: Long = System.currentTimeMillis()
 )
 
 typealias SessionGoal = PlannerGoal
+
+data class PlannerGoalSnapshot(
+    val goalId: String,
+    val title: String,
+    val targetMinutes: Int,
+    val completed: Boolean,
+    val checkedAt: Long = 0L,
+    val isAchieved: Boolean = true
+)
+
+data class PlannerDayRecord(
+    val date: String,
+    val goalSnapshots: List<PlannerGoalSnapshot>
+)
 
 data class LectureScheduleItem(
     val id: String = java.util.UUID.randomUUID().toString(),
@@ -23,5 +38,6 @@ data class LectureScheduleItem(
     val endTime: String,   // "HH:mm" e.g. "11:00"
     val enabled: Boolean = true
 )
+
 
 

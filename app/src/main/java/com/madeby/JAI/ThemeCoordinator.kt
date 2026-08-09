@@ -14,6 +14,7 @@ class ThemeCoordinator(private val context: Context) {
     var textColor = 0xFFFFFFFF.toInt()
     var primaryColor = Color.HSVToColor(floatArrayOf(190f, 0.65f, 0.95f))
     var secondaryColor = Color.HSVToColor(floatArrayOf(120f, 0.65f, 0.95f))
+    var accentColor = Color.HSVToColor(floatArrayOf(36f, 0.80f, 0.95f))
 
     fun applyThemeCoordinates() {
         val sharedPrefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
@@ -36,16 +37,19 @@ class ThemeCoordinator(private val context: Context) {
                 bgColor = 0xFFFFFFFF.toInt()
                 boxColor = 0xFFEDF0F5.toInt()
                 textColor = 0xFF0F172A.toInt()
+                accentColor = Color.HSVToColor(floatArrayOf(30f, 0.85f, 0.75f))
             }
             "ECLIPSE" -> {
                 bgColor = 0xFF0F172A.toInt()
                 boxColor = 0xFF1E293B.toInt()
                 textColor = 0xFFF8FAFC.toInt()
+                accentColor = Color.HSVToColor(floatArrayOf(36f, 0.85f, 0.95f))
             }
             else -> {
                 bgColor = 0xFF000000.toInt()
                 boxColor = 0xFF121212.toInt()
                 textColor = 0xFFFFFFFF.toInt()
+                accentColor = Color.HSVToColor(floatArrayOf(36f, 0.85f, 0.95f))
             }
         }
 

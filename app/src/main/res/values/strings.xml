@@ -111,7 +111,8 @@
     <string name="block_focus">Focus</string>
     <string name="today_prefix">Today · %1$s</string>
     <string name="btn_close">CLOSE</string>
-    <string name="most_focused">Most focused %1$s · %2$s total</string>
+    <string name="most_focused">Best productive hours = %1$s</string>
+    <string name="best_weekday_subtitle">Highest average focus time across all recorded %1$ss</string>
     <string name="no_focus_recent">No focus logged in the last %1$s days</string>
 
     <!-- Duration & summary formats -->

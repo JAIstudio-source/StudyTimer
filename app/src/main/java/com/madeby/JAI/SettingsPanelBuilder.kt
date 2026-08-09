@@ -133,10 +133,20 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         var next = current + delta
                         next = next.coerceIn(900L, 16 * 3600L)
                         val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
-                        sharedPrefs.edit()
-                            .putLong("daily_goal_secs", next)
-                            .putLong("${todayStr}_goal_secs", next)
-                            .apply()
+                        val editor = sharedPrefs.edit()
+                        // Backfill past days that don't have an explicit goal stored so changing today doesn't retroactively alter past logs
+                        for (key in sharedPrefs.all.keys) {
+                            if (key.endsWith("_focus_total")) {
+                                val dStr = key.removeSuffix("_focus_total")
+                                val goalKey = "${dStr}_goal_secs"
+                                if (!sharedPrefs.contains(goalKey)) {
+                                    editor.putLong(goalKey, current)
+                                }
+                            }
+                        }
+                        editor.putLong("daily_goal_secs", next)
+                        editor.putLong("${todayStr}_goal_secs", next)
+                        editor.apply()
                         goalValueText.text = formatGoalLabel(next)
                     }
                 }

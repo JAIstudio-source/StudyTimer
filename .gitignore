@@ -32,3 +32,6 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Android Source Subfolder (tracked in separate repo)
+/StudyTimer-android/

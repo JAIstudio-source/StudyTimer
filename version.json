@@ -1,7 +1,7 @@
 {
-  "versionCode": 12,
-  "versionName": "2.0.0",
+  "versionCode": 13,
+  "versionName": "2.0.1",
   "url": "https://studytimer.update-studytimer.workers.dev/",
   "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-  "releaseNotes": "Major 2.0 Update! Edge-to-edge Habit Matrix, Dual-Theme Planner, Scheduled Lecture mode with smart time picking, Pomodoro break vibrations, and improved state persistence."
+  "releaseNotes": "v2.0.1: Preserved focus timer stopped state on break swap, lock-screen window flags, lock-screen vibration audio attributes, and habit matrix retention."
 }

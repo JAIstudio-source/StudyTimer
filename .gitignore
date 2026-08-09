@@ -12,4 +12,6 @@
 /captures
 .externalNativeBuild
 /opencode.jsonc
-
+/cardtest/out/
+/cardtest/classes/
+/cardtest/tools/classes/

@@ -1,7 +1,7 @@
 {
-  "versionCode": 11,
-  "versionName": "1.4.3",
+  "versionCode": 12,
+  "versionName": "2.0.0",
   "url": "https://studytimer.update-studytimer.workers.dev/",
   "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-  "releaseNotes": "Performance boost — Insights loads faster and the app feels snappier overall. Minor bug fixes for a smoother, more stable experience."
+  "releaseNotes": "Major 2.0 Update! Edge-to-edge Habit Matrix, Dual-Theme Planner, Scheduled Lecture mode with smart time picking, Pomodoro break vibrations, and improved state persistence."
 }

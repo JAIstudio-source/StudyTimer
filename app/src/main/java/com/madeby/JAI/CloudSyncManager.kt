@@ -27,6 +27,8 @@ object CloudSyncManager {
             for ((key, value) in sharedPrefs.all) {
                 prefsJson.put(key, value)
             }
+            AuthManager.getUserName(context)?.let { prefsJson.put("auth_user_name", it) }
+            AuthManager.getProfileImageUri(context)?.let { prefsJson.put("auth_profile_image_uri", it) }
             val timelineJson = timelineToJsonString(TimelineLogger.load(context))
 
             val payload = JSONObject().apply {
@@ -143,6 +145,14 @@ object CloudSyncManager {
                     editor.putLong("currentBreakSeconds", 0L)
                     editor.putLong("lastTimestamp", 0L)
                     editor.putLong("focus_remaining_secs", 0L)
+                    val cloudName = prefsObj.optString("auth_user_name")
+                    if (cloudName.isNotEmpty()) {
+                        AuthManager.updateUserName(context, cloudName)
+                    }
+                    val cloudImg = prefsObj.optString("auth_profile_image_uri")
+                    if (cloudImg.isNotEmpty()) {
+                        AuthManager.saveProfileImageUri(context, cloudImg)
+                    }
                     editor.commit()
                 }
 

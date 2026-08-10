@@ -1010,7 +1010,7 @@ class MainActivity : AppCompatActivity() {
             setOnClickListener {
                 prefs.edit().remove("update_dismissed_version").apply()
                 dialog.dismiss()
-                openUpdateUrl(info.apkUrl ?: info.url)
+                openUpdateUrl(info.url)
             }
         }
         buttonRow.addView(laterBtn)

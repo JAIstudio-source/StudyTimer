@@ -21,9 +21,9 @@ StudyTimer by Pushkar Studio ("we", "our", or "us") respects your privacy. This 
 
 ---
 
-## 2. Third-Party Services & Analytics
-- StudyTimer does **NOT** use third-party tracking SDKs, data brokers, or advertising networks that collect or sell your personal identifiable information.
-- We show 0 intrusive ads and do not profile user study habits for marketing purposes.
+## 2. Third-Party Services & Privacy Guarantees
+- StudyTimer does **NOT** use third-party tracking SDKs, data brokers, or advertising networks. We never collect or sell your personally identifiable information.
+- StudyTimer is completely ad-free. We do not display advertisements, nor do we track or profile user study habits for marketing purposes.
 
 ---
 

@@ -58,6 +58,62 @@ class SettingsPanelBuilder(private val host: MainActivity) {
         }
         settingsRootLayout.addView(subtitleText)
 
+        // Account Profile & Auth Status Card
+        val accountCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(16), dp(16), dp(16))
+            background = GradientDrawable().apply {
+                setColor(if (themeCoordinator.activeBgMode != "LIGHT") Color.parseColor("#121212") else Color.parseColor("#F5F5F5"))
+                cornerRadius = dp(16).toFloat()
+                setStroke(dp(1), if (themeCoordinator.activeBgMode != "LIGHT") Color.parseColor("#282828") else Color.parseColor("#E0E0E0"))
+            }
+            val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            lp.setMargins(dp(6), 0, dp(6), dp(16))
+            layoutParams = lp
+        }
+
+        val accountTitle = TextView(this).apply {
+            text = "ACCOUNT & SYNC"
+            textSize = 12f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(themeCoordinator.accentColor)
+            letterSpacing = 0.05f
+        }
+        accountCard.addView(accountTitle)
+
+        val accountStatus = TextView(this).apply {
+            val userEmail = AuthManager.getUserEmail(context)
+            val userName = AuthManager.getUserName(context)
+            text = if (AuthManager.isGuest(context)) {
+                "Logged in as Guest\n(Sign in to sync your habits and study stats)"
+            } else if (!userEmail.isNullOrBlank()) {
+                "Signed in as: ${userName ?: userEmail}\n($userEmail)"
+            } else {
+                "Guest Account"
+            }
+            textSize = 14f
+            setTextColor(themeCoordinator.textColor)
+            setPadding(0, dp(6), 0, dp(10))
+        }
+        accountCard.addView(accountStatus)
+
+        val btnAuthAction = Button(this).apply {
+            text = if (AuthManager.isGuest(context)) "Sign In with Google" else "Sign Out"
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                setColor(if (AuthManager.isGuest(context)) Color.parseColor("#6B7CFF") else Color.parseColor("#E53E3E"))
+                cornerRadius = dp(10).toFloat()
+            }
+            setOnClickListener {
+                AuthManager.logout(context)
+                val intent = Intent(context, LoginActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                startActivity(intent)
+            }
+        }
+        accountCard.addView(btnAuthAction)
+        settingsRootLayout.addView(accountCard)
+
         val tabContainer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(6), 0, dp(6), dp(12))

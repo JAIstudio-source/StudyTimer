@@ -9,7 +9,7 @@
 
 ## Compatibility
 - Android 9 (API 28) through Android 16 (API 36)
-- Signed with official release key
+- Signed with official release key.
 
 ## Installation
 Install `StudyTimer-release.apk` (v2.0.0). Updating preserves all your study logs, streaks, and settings.

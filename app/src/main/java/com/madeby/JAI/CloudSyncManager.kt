@@ -70,13 +70,6 @@ object CloudSyncManager {
             }
 
             val success = code in 200..299
-            withContext(Dispatchers.Main) {
-                if (success) {
-                    android.widget.Toast.makeText(context, "☁️ Cloud backup synced to Google account!", android.widget.Toast.LENGTH_SHORT).show()
-                } else {
-                    android.widget.Toast.makeText(context, "Cloud sync status: HTTP $code", android.widget.Toast.LENGTH_SHORT).show()
-                }
-            }
             success
         } catch (e: Exception) {
             Log.e("CloudSyncManager", "Failed to sync data to cloud", e)

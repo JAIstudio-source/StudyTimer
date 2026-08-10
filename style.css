@@ -46,6 +46,19 @@ body[data-theme="slate"] {
     --glass-bg: rgba(22, 27, 34, 0.75);
 }
 
+body[data-theme="liquid"] {
+    --bg: #070d18;
+    --card: rgba(255, 255, 255, 0.08);
+    --border: rgba(255, 255, 255, 0.18);
+    --primary: #38BDF8;
+    --primary-rgb: 56, 189, 248;
+    --accent: #F472B6;
+    --text: #FFFFFF;
+    --secondary: #CBD5E1;
+    --glass-bg: rgba(255, 255, 255, 0.12);
+    --shadow-color: rgba(56, 189, 248, 0.25);
+}
+
 body[data-theme="emerald"] {
     --bg: #06120c;
     --card: #0d2116;
@@ -262,6 +275,12 @@ button {
     border-radius: 50%;
     display: inline-block;
 }
+
+.amoled-dot { background: #6B7CFF; }
+.liquid-dot { background: linear-gradient(135deg, #38BDF8, #F472B6); box-shadow: 0 0 6px rgba(56, 189, 248, 0.8); }
+.indigo-dot { background: #7C8DFF; }
+.slate-dot { background: #58A6FF; }
+.emerald-dot { background: #2EA043; }
 
 .nav-theme-item {
     display: flex;
@@ -1421,36 +1440,36 @@ button {
     }
 
     .nav-container {
-        display: flex;
+        display: grid;
+        grid-template-columns: 40px 1fr auto;
         align-items: center;
-        justify-content: space-between;
-        position: relative;
         width: 100%;
         min-height: 44px;
     }
 
     .mobile-menu-toggle {
+        grid-column: 1;
+        justify-self: start;
         display: flex;
         align-items: center;
         justify-content: center;
         padding: 7px;
-        order: 1;
         background: rgba(255, 255, 255, 0.06);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 9px;
     }
 
     .nav-brand {
-        order: 2;
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
-        margin: 0;
+        grid-column: 2;
+        justify-self: center;
         display: flex;
         align-items: center;
+        justify-content: center;
         gap: 8px;
         font-size: 0.96rem;
+        font-weight: 700;
         white-space: nowrap;
+        margin: 0 auto;
     }
 
     .nav-brand img {
@@ -1459,10 +1478,10 @@ button {
     }
 
     .nav-actions {
+        grid-column: 3;
+        justify-self: end;
         display: flex;
         align-items: center;
-        order: 3;
-        margin-left: auto;
     }
 
     .nav-download {

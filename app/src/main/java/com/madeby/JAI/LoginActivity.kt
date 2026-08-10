@@ -144,10 +144,17 @@ class LoginActivity : AppCompatActivity() {
                     val accessToken = json.optString("access_token")
                     val userObj = json.optJSONObject("user")
                     val email = userObj?.optString("email") ?: displayName
+                    val userId = userObj?.optString("id") ?: email
 
                     withContext(Dispatchers.Main) {
-                        AuthManager.saveUserSession(this@LoginActivity, email, displayName, accessToken)
+                        AuthManager.saveUserSession(this@LoginActivity, email, displayName, accessToken, userId)
                         Toast.makeText(this@LoginActivity, "Welcome, $displayName!", Toast.LENGTH_SHORT).show()
+                    }
+
+                    // Restore user's cloud data if present
+                    CloudSyncManager.restoreDataFromCloud(this@LoginActivity)
+
+                    withContext(Dispatchers.Main) {
                         proceedToMain()
                     }
                 } else {

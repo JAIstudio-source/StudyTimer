@@ -373,6 +373,11 @@ class MainActivity : AppCompatActivity() {
                 resetHoldToEnd()
                 handleStopSession()
                 Toast.makeText(this@MainActivity, getString(R.string.toast_session_saved), Toast.LENGTH_SHORT).show()
+                Thread {
+                    kotlinx.coroutines.runBlocking {
+                        CloudSyncManager.syncDataToCloud(this@MainActivity)
+                    }
+                }.start()
             } else {
                 handler.postDelayed(this, 16L)
             }

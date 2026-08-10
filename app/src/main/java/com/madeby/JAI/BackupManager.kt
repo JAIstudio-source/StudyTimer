@@ -78,6 +78,14 @@ class BackupManager(private val context: Context) {
                 val committed = editor.commit() // Synchronous commit to ensure immediate UI update
                 restoreTimeline(importedJsonObject)
                 runSilentAutoBackup()
+
+                // Automatically upload imported data to user's Google/Supabase cloud account
+                Thread {
+                    kotlinx.coroutines.runBlocking {
+                        CloudSyncManager.syncDataToCloud(context)
+                    }
+                }.start()
+
                 return committed
             }
         } catch (_: Exception) {}

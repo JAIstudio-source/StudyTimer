@@ -11,6 +11,8 @@ object AuthManager {
     private const val KEY_USER_NAME = "user_name"
     private const val KEY_ACCESS_TOKEN = "access_token"
 
+    private const val KEY_USER_ID = "user_id"
+
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
     }
@@ -24,13 +26,14 @@ object AuthManager {
         return getPrefs(context).getBoolean(KEY_IS_GUEST, false)
     }
 
-    fun saveUserSession(context: Context, email: String?, name: String?, token: String?) {
+    fun saveUserSession(context: Context, email: String?, name: String?, token: String?, userId: String? = null) {
         getPrefs(context).edit().apply {
             putBoolean(KEY_IS_LOGGED_IN, true)
             putBoolean(KEY_IS_GUEST, false)
             putString(KEY_USER_EMAIL, email)
             putString(KEY_USER_NAME, name)
             putString(KEY_ACCESS_TOKEN, token)
+            if (!userId.isNullOrEmpty()) putString(KEY_USER_ID, userId)
             apply()
         }
     }
@@ -49,6 +52,14 @@ object AuthManager {
 
     fun getUserName(context: Context): String? {
         return getPrefs(context).getString(KEY_USER_NAME, null)
+    }
+
+    fun getUserId(context: Context): String? {
+        return getPrefs(context).getString(KEY_USER_ID, null) ?: getUserEmail(context)
+    }
+
+    fun getAccessToken(context: Context): String? {
+        return getPrefs(context).getString(KEY_ACCESS_TOKEN, null)
     }
 
     fun logout(context: Context) {

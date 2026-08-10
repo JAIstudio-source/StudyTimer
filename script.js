@@ -34,6 +34,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 el.href = apkUrl;
             });
 
+            if (data.releaseNotes) {
+                const releaseNotesEl = document.querySelector('.release-notes-text');
+                if (releaseNotesEl) {
+                    releaseNotesEl.textContent = data.releaseNotes;
+                }
+            }
+
             updateAppSize(apkUrl);
         } else {
             setFallbackVersion();

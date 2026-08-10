@@ -3,5 +3,5 @@
   "versionName": "2.5.0",
   "url": "https://studytimer.update-studytimer.workers.dev/",
   "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-  "releaseNotes": "v2.5.0: Added Supabase & Google Sign-In authentication, cloud backup & data restoration, high-quality profile picture storage, HD avatar viewer, and sign-out confirmation."
+  "releaseNotes": "What's New in This Update 🚀\nSecure Cloud Sync: You can now sign in to safely back up your data and restore it anytime, anywhere.\n\nHabit & Lecture Planner: Stay on track with dedicated planners built specifically to organize your daily routines and study schedule.\n\nDedicated Lecture Mode: Designed for students with fixed-time classes, helping you focus seamlessly when it matters most.\n\nPerformance Boosts & Bug Fixes: We’ve fine-tuned the app to run faster, smoother, and more reliably than ever before."
 }

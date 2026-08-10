@@ -20,7 +20,7 @@ data class UpdateInfo(
 object UpdateChecker {
 
     private const val MANIFEST_URL = "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/version.json"
-    private const val FALLBACK_URL = "https://get-studytimer.vercel.app/"
+    private const val FALLBACK_URL = "https://get-studytimer.vercel.app/?download=true"
 
     fun check(context: Context, onResult: (UpdateInfo?) -> Unit) {
         Thread {

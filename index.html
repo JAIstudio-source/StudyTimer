@@ -2,52 +2,110 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>StudyTimer: Focus, Track & Plan | Distraction-Free Study Timer & Daily Planner</title>
     <meta name="description" content="Crush your academic goals with StudyTimer - clean, distraction-free study timer, intelligent lecture manager, and daily habit planner. 100% offline & ad-free.">
     <meta name="theme-color" content="#050505">
     
     <meta property="og:title" content="StudyTimer: Focus, Track & Plan">
     <meta property="og:description" content="Crush your academic goals with a clean, distraction-free study timer, intelligent lecture manager, and powerful habits planner—100% offline and ad-free.">
-    <meta property="og:image" content="assets/Featured.webp">
+    <meta property="og:image" content="assets/featured.png">
     <meta property="og:type" content="website">
     
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="StudyTimer: Focus, Track & Plan">
     <meta name="twitter:description" content="Clean, distraction-free study timer, intelligent lecture manager, and daily habit planner—100% offline and ad-free.">
-    <meta name="twitter:image" content="assets/Featured.webp">
+    <meta name="twitter:image" content="assets/featured.png">
     
     <link rel="icon" href="assets/logo.png" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="style.css">
+    
+    <!-- JSON-LD Structured Data for Mobile App -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "StudyTimer",
+      "operatingSystem": "Android 9+",
+      "applicationCategory": "EducationalApplication",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "description": "Distraction-free offline study timer, lecture manager, habit planner, and 6-month focus heatmaps for Android."
+    }
+    </script>
+
     <!-- Vercel Analytics & Speed Insights -->
     <script defer src="/_vercel/insights/script.js"></script>
     <script defer src="/_vercel/speed-insights/script.js"></script>
 </head>
-<body>
+<body data-theme="amoled">
     <a class="skip-link" href="#main-content">Skip to main content</a>
     <div id="scroll-progress"></div>
 
+    <!-- Theme Customizer Top Drawer/Bar -->
+    <div id="theme-bar" class="theme-bar">
+        <div class="container theme-bar-container">
+            <span class="theme-bar-label">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                App Theme Preview:
+            </span>
+            <div class="theme-options">
+                <button class="theme-pill active" data-theme-name="amoled" title="AMOLED Black">
+                    <span class="theme-dot amoled-dot"></span> AMOLED
+                </button>
+                <button class="theme-pill" data-theme-name="indigo" title="Midnight Indigo">
+                    <span class="theme-dot indigo-dot"></span> Midnight
+                </button>
+                <button class="theme-pill" data-theme-name="slate" title="Deep Slate">
+                    <span class="theme-dot slate-dot"></span> Slate
+                </button>
+                <button class="theme-pill" data-theme-name="emerald" title="Emerald Focus">
+                    <span class="theme-dot emerald-dot"></span> Emerald
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Glass Header Navigation -->
     <nav id="navbar" class="glass" role="navigation" aria-label="Main navigation">
         <div class="nav-container">
             <a href="#home" class="nav-brand">
                 <img src="assets/logo.png" alt="Study Timer Logo" width="32" height="32" class="logo-float">
                 <span>Study Timer</span>
             </a>
-            <ul class="nav-links">
-                <li><a href="#home" class="active">Home</a></li>
-                <li><a href="#features">Features</a></li>
-                <li><a href="#screenshots">Screenshots</a></li>
-                <li><a href="#download">Download</a></li>
+
+            <!-- Mobile Navigation Toggle -->
+            <button class="mobile-menu-toggle" id="menu-toggle" aria-label="Toggle Navigation Menu">
+                <svg class="hamburger-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+
+            <ul class="nav-links" id="nav-links">
+                <li><a href="#home" class="nav-item active">Home</a></li>
+                <li><a href="#live-timer" class="nav-item">Web Timer</a></li>
+                <li><a href="#features" class="nav-item">Features</a></li>
+                <li><a href="#heatmap-demo" class="nav-item">Analytics</a></li>
+                <li><a href="#screenshots" class="nav-item">Screenshots</a></li>
+                <li><a href="#faq" class="nav-item">FAQ</a></li>
             </ul>
-            <a href="#" class="btn primary-btn download-link nav-download" id="nav-download">Download</a>
+
+            <div class="nav-actions">
+                <a href="#" class="btn primary-btn download-link nav-download" id="nav-download">
+                    Download
+                </a>
+            </div>
         </div>
     </nav>
 
     <main id="main-content" tabindex="-1">
+    
+    <!-- Hero Section (Mobile First) -->
     <header id="home" class="hero section-padding">
         <div class="hero-bg" aria-hidden="true">
             <div class="blob blob-1" aria-hidden="true"></div>
@@ -58,24 +116,41 @@
         <div class="hero-content reveal">
             <div class="hero-inner">
                 <div class="hero-copy">
-                    <span class="hero-pill">100% Offline & Ad-Free</span>
-                    <img src="assets/logo.png" alt="Study Timer" class="hero-logo logo-float" width="96" height="96">
-                    <h1 class="hero-title">Focus, Track & <span>Plan</span></h1>
-                    <p class="hero-subtitle">Crush your academic goals with a clean, distraction-free study timer, intelligent lecture manager, and powerful habits planner.</p>
+                    <div class="badge-group">
+                        <span class="hero-pill">100% Offline & Ad-Free</span>
+                        <span class="badge-accent">Android App</span>
+                    </div>
+                    
+                    <div class="hero-branding">
+                        <img src="assets/logo.png" alt="Study Timer" class="hero-logo logo-float" width="88" height="88">
+                        <h1 class="hero-title">Focus, Track & <span>Plan</span></h1>
+                    </div>
+
+                    <p class="hero-subtitle">Crush your academic goals with a clean, distraction-free study timer, intelligent lecture manager, and powerful daily habits planner.</p>
 
                     <div class="hero-actions">
                         <a href="#" class="btn primary-btn glow-btn download-link hero-download" id="hero-download">
-                            Download APK
-                            <span class="btn-subtext app-version">v1.4.1</span>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            <span>Download APK</span>
+                            <span class="btn-subtext app-version">v2.5.0</span>
+                        </a>
+
+                        <a href="#live-timer" class="btn secondary-btn try-demo-btn">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+                            Try Web Demo
                         </a>
                     </div>
 
-                    <p class="version-info">Latest Version: <span class="app-version">v1.4.1</span></p>
+                    <div class="hero-meta-strip">
+                        <span class="meta-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Free & Open Source</span>
+                        <span class="meta-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> No Ads or Accounts</span>
+                        <span class="meta-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Latest <span class="app-version">v2.5.0</span></span>
+                    </div>
                 </div>
 
                 <aside class="hero-visual glass">
                     <div class="hero-preview-card">
-                        <img src="assets/Featured.webp" alt="Study Timer app preview" loading="lazy">
+                        <img src="assets/featured.png" alt="Study Timer app overview showcase" loading="eager" class="featured-img-main">
                     </div>
                     <div class="hero-visual-meta">
                         <p class="hero-visual-note">Flexible focus engine, class duration tracking, daily task goals, 6-month heatmaps, and customizable AMOLED dark themes.</p>
@@ -88,6 +163,10 @@
                                 <strong>0</strong>
                                 <span>Ads or Accounts</span>
                             </div>
+                            <div>
+                                <strong>6 Mo</strong>
+                                <span>Focus Heatmaps</span>
+                            </div>
                         </div>
                     </div>
                 </aside>
@@ -95,11 +174,71 @@
         </div>
     </header>
 
+    <!-- LIVE WEB FOCUS TIMER DEMO SECTION -->
+    <section id="live-timer" class="section-padding live-timer-section">
+        <div class="container">
+            <div class="section-header reveal">
+                <span class="section-tag">Interactive Web Preview</span>
+                <h2>Try the Focus Engine</h2>
+                <p>Experience StudyTimer's distraction-free countdown and stopwatch controls right inside your browser.</p>
+            </div>
+
+            <div class="timer-widget-card glass reveal">
+                <!-- Mode Selector Pills -->
+                <div class="timer-modes-selector">
+                    <button class="timer-mode-btn active" data-mode="focus" data-minutes="25">
+                        Focus (25m)
+                    </button>
+                    <button class="timer-mode-btn" data-mode="shortBreak" data-minutes="5">
+                        Short Break (5m)
+                    </button>
+                    <button class="timer-mode-btn" data-mode="longBreak" data-minutes="15">
+                        Long Break (15m)
+                    </button>
+                    <button class="timer-mode-btn" data-mode="lecture" data-minutes="50">
+                        Lecture Mode (50m)
+                    </button>
+                </div>
+
+                <!-- Circular Progress & Display -->
+                <div class="timer-display-container">
+                    <svg class="timer-ring" width="240" height="240" viewBox="0 0 240 240">
+                        <circle class="timer-ring-bg" cx="120" cy="120" r="105" stroke-width="10" />
+                        <circle class="timer-ring-progress" id="timer-progress" cx="120" cy="120" r="105" stroke-width="10" stroke-dasharray="660" stroke-dashoffset="0" />
+                    </svg>
+                    <div class="timer-readout">
+                        <span class="timer-mode-label" id="timer-mode-label">Deep Focus</span>
+                        <div class="timer-clock" id="timer-clock">25:00</div>
+                        <span class="timer-status-text" id="timer-status-text">Ready to study</span>
+                    </div>
+                </div>
+
+                <!-- Timer Controls -->
+                <div class="timer-controls">
+                    <button class="timer-action-btn primary-action" id="timer-toggle-btn" aria-label="Start Timer">
+                        <svg class="icon-play" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        <svg class="icon-pause hidden" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                        <span id="timer-btn-text">Start Session</span>
+                    </button>
+                    <button class="timer-action-btn secondary-action" id="timer-reset-btn" aria-label="Reset Timer">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                        Reset
+                    </button>
+                    <button class="timer-action-btn icon-only-action" id="timer-sound-btn" title="Toggle Sound Chime" aria-label="Toggle Sound">
+                        <svg class="icon-sound-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- KEY FEATURES GRID -->
     <section id="features" class="section-padding">
         <div class="container">
             <div class="section-header reveal">
-                <h2>Key Features</h2>
-                <p>Everything you need to master exams, manage university lectures, and build long-term focus habits.</p>
+                <span class="section-tag">Powerful Features</span>
+                <h2>Everything You Need to Focus</h2>
+                <p>Designed for university lectures, competitive exam prep, and daily focus building.</p>
             </div>
             
             <div class="features-grid">
@@ -108,7 +247,7 @@
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     </div>
                     <h3>Flexible Focus & Pomodoro</h3>
-                    <p>Pomodoro countdowns, fluid stopwatches, and custom target sessions with smart tactile haptic feedback.</p>
+                    <p>Fluid stopwatches, Pomodoro countdowns, and target study goals with tactile haptic feedback.</p>
                 </div>
                 
                 <div class="feature-card glass reveal delay-1">
@@ -116,15 +255,15 @@
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
                     </div>
                     <h3>Interactive Lecture Mode</h3>
-                    <p>Class duration tracking with smart session end prompts, quick extensions, and automatic break fallbacks.</p>
+                    <p>Fixed class duration tracking with smart session-end prompts, quick extensions, and automatic break fallbacks.</p>
                 </div>
                 
                 <div class="feature-card glass reveal delay-2">
                     <div class="feature-icon primary-text">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                     </div>
-                    <h3>Daily Planner & Tasks</h3>
-                    <p>Set custom daily target goals, track multi-goal progress, and see precise remaining study time calculations.</p>
+                    <h3>Habits & Lecture Planner</h3>
+                    <p>Dedicated planners built to organize daily study routines, lectures, tasks, and remaining target calculations.</p>
                 </div>
                 
                 <div class="feature-card glass reveal">
@@ -132,7 +271,7 @@
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
                     </div>
                     <h3>6-Month Focus Heatmaps</h3>
-                    <p>Visualize long-term study consistency, pinpoint peak productive hours, and track accurate daily streaks.</p>
+                    <p>Visualize long-term study consistency, pinpoint peak productive hours, and maintain daily study streaks.</p>
                 </div>
                 
                 <div class="feature-card glass reveal delay-1">
@@ -140,15 +279,15 @@
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
                     </div>
                     <h3>AMOLED & Slate Themes</h3>
-                    <p>Soft dark modes designed for late-night sessions to save battery and eye strain with custom accent colors.</p>
+                    <p>True AMOLED pitch-black and deep dark modes designed to save battery and ease eye strain during night sessions.</p>
                 </div>
                 
                 <div class="feature-card glass reveal delay-2">
                     <div class="feature-icon accent-text">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                     </div>
-                    <h3>Immersive Landscape Mode</h3>
-                    <p>Hide system notification bars for completely distraction-free deep work on desks or tablets.</p>
+                    <h3>Secure Cloud Backup</h3>
+                    <p>Optionally sign in to safely back up your history logs and restore them anytime on new Android devices.</p>
                 </div>
                 
                 <div class="feature-card glass reveal">
@@ -156,81 +295,141 @@
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
                     </div>
                     <h3>100% Offline & Private</h3>
-                    <p>Zero data collection, zero server tracking, zero ads, and full JSON/CSV log export and import support.</p>
+                    <p>Zero intrusive data collection, zero third-party ads, and local JSON / CSV data export and import support.</p>
                 </div>
 
                 <div class="feature-card glass reveal delay-1">
                     <div class="feature-icon accent-text">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
                     </div>
-                    <h3>Independent Focus & Breaks</h3>
-                    <p>Run standalone focus sessions, isolated breaks, or standard sequential cycles on your own terms.</p>
+                    <h3>Immersive Landscape Mode</h3>
+                    <p>Hide status bars and notifications for completely distraction-free desk study or tablet setup.</p>
                 </div>
 
                 <div class="feature-card glass reveal delay-2">
                     <div class="feature-icon primary-text">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
                     </div>
-                    <h3>Historical Accuracy</h3>
-                    <p>Per-day target tracking ensures your historical study logs, streaks, and weekday averages remain exact.</p>
+                    <h3>Exact Historical Logs</h3>
+                    <p>Per-day study target tracking ensures historical logs, study streaks, and subject averages remain exact.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Showcase Section displaying featured.webp -->
-    <section class="showcase-section reveal">
+    <!-- INTERACTIVE HEATMAP DEMO SECTION -->
+    <section id="heatmap-demo" class="section-padding heatmap-section">
         <div class="container">
-            <div class="showcase-card glass">
-                <img src="assets/Featured.webp" alt="Study Timer App Showcase" loading="lazy" class="featured-banner">
+            <div class="section-header reveal">
+                <span class="section-tag">Consistency Visualizer</span>
+                <h2>6-Month Focus Heatmap</h2>
+                <p>Tap any day to see study hours, completed sessions, and streak counts in real-time.</p>
+            </div>
+
+            <div class="heatmap-card glass reveal">
+                <div class="heatmap-top-bar">
+                    <div class="heatmap-stats">
+                        <div class="h-stat">
+                            <span class="h-label">Total Study Time</span>
+                            <strong class="h-val">342.5 hrs</strong>
+                        </div>
+                        <div class="h-stat">
+                            <span class="h-label">Current Streak</span>
+                            <strong class="h-val accent-text">🔥 14 Days</strong>
+                        </div>
+                        <div class="h-stat">
+                            <span class="h-label">Daily Average</span>
+                            <strong class="h-val">3.2 hrs/day</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Interactive Heatmap Grid Container -->
+                <div class="heatmap-grid-wrapper">
+                    <div class="heatmap-grid" id="heatmap-grid">
+                        <!-- Dynamically populated cells via script.js -->
+                    </div>
+                </div>
+
+                <!-- Mobile Heatmap Popover/Tooltip Display -->
+                <div class="heatmap-tooltip-bar" id="heatmap-tooltip">
+                    <div class="h-tooltip-content">
+                        <span class="h-tooltip-date">Tap any cell above to inspect study activity</span>
+                    </div>
+                </div>
+
+                <div class="heatmap-legend">
+                    <span>Less</span>
+                    <span class="legend-box level-0"></span>
+                    <span class="legend-box level-1"></span>
+                    <span class="legend-box level-2"></span>
+                    <span class="legend-box level-3"></span>
+                    <span class="legend-box level-4"></span>
+                    <span>More</span>
+                </div>
             </div>
         </div>
     </section>
 
-    <section id="screenshots" class="section-padding">
+    <!-- SCREENSHOTS SHOWCASE CAROUSEL (WITH MOBILE DEVICE MOCKUP) -->
+    <section id="screenshots" class="section-padding screenshots-section">
         <div class="container">
             <div class="section-header reveal">
-                <h2>Minimalist & Distraction-Free</h2>
-                <p>Designed to optimize focus, manage classes, and respect your privacy.</p>
+                <span class="section-tag">App Preview</span>
+                <h2>Minimalist & Distraction-Free UI</h2>
+                <p>Designed to optimize study flow, track subjects, and respect your battery and attention.</p>
+            </div>
+
+            <!-- Screenshot Navigation Selector Tabs -->
+            <div class="screenshot-tabs reveal">
+                <button class="screenshot-tab-btn active" data-index="0">Focus Modes</button>
+                <button class="screenshot-tab-btn" data-index="1">Habit Planner</button>
+                <button class="screenshot-tab-btn" data-index="2">Study Calendar</button>
+                <button class="screenshot-tab-btn" data-index="3">Analytics</button>
+                <button class="screenshot-tab-btn" data-index="4">Session Logs</button>
+                <button class="screenshot-tab-btn" data-index="5">Appearance</button>
+                <button class="screenshot-tab-btn" data-index="6">Settings</button>
             </div>
             
             <div class="modern-screenshots carousel-container reveal">
-                <div class="modern-frame">
-                    <button class="carousel-btn prev-btn" aria-label="Previous screenshot">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-                    </button>
-                    
-                    <div class="carousel-track" id="carousel-track">
-                        <div class="modern-image-wrapper">
-                            <div class="display-glow"></div>
-                            <img src="assets/screenshot/Focus.webp" alt="Focus Session" loading="lazy" class="screenshot-img">
-                        </div>
-                        <div class="modern-image-wrapper">
-                            <div class="display-glow"></div>
-                            <img src="assets/screenshot/Breaks.webp" alt="Break Timer" loading="lazy" class="screenshot-img">
-                        </div>
-                        <div class="modern-image-wrapper">
-                            <div class="display-glow"></div>
-                            <img src="assets/screenshot/Insight.webp" alt="Weekly Insights" loading="lazy" class="screenshot-img">
-                        </div>
-                        <div class="modern-image-wrapper">
-                            <div class="display-glow"></div>
-                            <img src="assets/screenshot/History.webp" alt="History" loading="lazy" class="screenshot-img">
-                        </div>
-                        <div class="modern-image-wrapper">
-                            <div class="display-glow"></div>
-                            <img src="assets/screenshot/Theme.webp" alt="Themes" loading="lazy" class="screenshot-img">
-                        </div>
-                        <div class="modern-image-wrapper">
-                            <div class="display-glow"></div>
-                            <img src="assets/screenshot/Settings.webp" alt="Settings" loading="lazy" class="screenshot-img">
-                        </div>
+                <button class="carousel-btn prev-btn" aria-label="Previous screenshot">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                </button>
+                
+                <div class="carousel-track" id="carousel-track">
+                    <div class="modern-image-wrapper">
+                        <img src="assets/screenshot/modes.png" alt="Focus Modes & Timers" loading="lazy" class="screenshot-img" data-title="Focus Modes & Timers">
+                        <span class="img-caption">Focus Modes & Timers</span>
                     </div>
-
-                    <button class="carousel-btn next-btn" aria-label="Next screenshot">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-                    </button>
+                    <div class="modern-image-wrapper">
+                        <img src="assets/screenshot/planner.png" alt="Habit & Lecture Planner" loading="lazy" class="screenshot-img" data-title="Habit & Lecture Planner">
+                        <span class="img-caption">Habit & Lecture Planner</span>
+                    </div>
+                    <div class="modern-image-wrapper">
+                        <img src="assets/screenshot/calendar.png" alt="Study Calendar & Streaks" loading="lazy" class="screenshot-img" data-title="Study Calendar & Streaks">
+                        <span class="img-caption">Study Calendar & Streaks</span>
+                    </div>
+                    <div class="modern-image-wrapper">
+                        <img src="assets/screenshot/insight_1.png" alt="Analytics & Weekly Trends" loading="lazy" class="screenshot-img" data-title="Analytics & Weekly Trends">
+                        <span class="img-caption">Analytics & Weekly Trends</span>
+                    </div>
+                    <div class="modern-image-wrapper">
+                        <img src="assets/screenshot/insight_2.png" alt="Session Breakdown" loading="lazy" class="screenshot-img" data-title="Session Breakdown">
+                        <span class="img-caption">Session Breakdown</span>
+                    </div>
+                    <div class="modern-image-wrapper">
+                        <img src="assets/screenshot/appearance.png" alt="AMOLED & Soft Dark Themes" loading="lazy" class="screenshot-img" data-title="Themes & Customization">
+                        <span class="img-caption">Themes & Customization</span>
+                    </div>
+                    <div class="modern-image-wrapper">
+                        <img src="assets/screenshot/settings.png" alt="Settings & Data Control" loading="lazy" class="screenshot-img" data-title="Settings & Data Control">
+                        <span class="img-caption">Settings & Data Control</span>
+                    </div>
                 </div>
+
+                <button class="carousel-btn next-btn" aria-label="Next screenshot">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
                 
                 <div class="carousel-controls">
                     <div class="carousel-indicators">
@@ -240,39 +439,106 @@
                         <div class="indicator"></div>
                         <div class="indicator"></div>
                         <div class="indicator"></div>
+                        <div class="indicator"></div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <section id="download" class="section-padding">
+    <!-- FAQ ACCORDION SECTION -->
+    <section id="faq" class="section-padding faq-section">
+        <div class="container">
+            <div class="section-header reveal">
+                <span class="section-tag">Got Questions?</span>
+                <h2>Frequently Asked Questions</h2>
+                <p>Everything you need to know about StudyTimer features, data privacy, and download.</p>
+            </div>
+
+            <div class="faq-container reveal">
+                <div class="faq-item glass">
+                    <button class="faq-question">
+                        <span>Is StudyTimer really 100% free and open-source?</span>
+                        <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Yes! StudyTimer is completely free, open-source, and contains zero ads, zero paywalls, and zero tracking analytics. The source code is publicly accessible on GitHub.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item glass">
+                    <button class="faq-question">
+                        <span>How does offline data storage and Cloud Backup work?</span>
+                        <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    <div class="faq-answer">
+                        <p>All your focus sessions, tasks, and streaks are stored locally on your Android device. You can export or import JSON/CSV backup logs anytime. Optionally, you can log in to back up your data securely to the cloud.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item glass">
+                    <button class="faq-question">
+                        <span>What makes Lecture Mode different from standard Pomodoro?</span>
+                        <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Lecture Mode is built for students attending fixed-time university classes (e.g. 50m, 90m). It features class duration alerts, quick extension triggers, and automatic break fallbacks suited for class timetables.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item glass">
+                    <button class="faq-question">
+                        <span>Which Android devices and versions are supported?</span>
+                        <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    <div class="faq-answer">
+                        <p>StudyTimer supports all Android devices running Android 9 (Pie) and above. It is optimized for both smartphones and tablet landscape mode.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- DOWNLOAD APK SECTION -->
+    <section id="download" class="section-padding download-section">
         <div class="container">
             <div class="download-card glass reveal">
                 <div class="download-content">
-                    <h2>Ready to focus?</h2>
-                    <p>Download the latest release and start studying better today.</p>
+                    <span class="download-badge">Official Release</span>
+                    <h2>Ready to Master Your Study Goals?</h2>
+                    <p>Download the latest release APK directly and transform your daily productivity.</p>
+                    
                     <ul class="download-specs">
-                        <li><span class="spec-label">Version</span> <span class="app-version">v2.5.0</span></li>
+                        <li><span class="spec-label">Latest Version</span> <span class="app-version">v2.5.0</span></li>
                         <li><span class="spec-label">Requirements</span> Android 9+</li>
-                        <li><span class="spec-label">Size</span> <span class="app-size">-- MB</span></li>
+                        <li><span class="spec-label">Download Size</span> <span class="app-size">4.14 MB</span></li>
+                        <li><span class="spec-label">License</span> 100% Free & Open Source</li>
                     </ul>
-                    <div class="release-notes-box" style="margin-top: 16px; padding: 14px; background: rgba(255, 255, 255, 0.05); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1);">
-                        <h4 style="margin: 0 0 8px 0; color: #6B7CFF; font-size: 0.95rem;">What's New in This Update 🚀</h4>
-                        <p class="release-notes-text" style="white-space: pre-line; margin: 0; font-size: 0.88rem; opacity: 0.85; line-height: 1.5;">Secure Cloud Sync: You can now sign in to safely back up your data and restore it anytime, anywhere.
 
-Habit & Lecture Planner: Stay on track with dedicated planners built specifically to organize your daily routines and study schedule.
+                    <div class="release-notes-box">
+                        <h4>What's New in Version <span class="app-version">v2.5.0</span> 🚀</h4>
+                        <p class="release-notes-text">Secure Cloud Sync: Safely back up your study data and restore it anytime.
 
-Dedicated Lecture Mode: Designed for students with fixed-time classes, helping you focus seamlessly when it matters most.
+Habit & Lecture Planner: Stay organized with dedicated daily routine and class planners.
 
-Performance Boosts & Bug Fixes: We’ve fine-tuned the app to run faster, smoother, and more reliably than ever before.</p>
+Dedicated Lecture Mode: Designed specifically for fixed-time class schedules.
+
+Performance Boosts: Ultra-fast load times and battery optimizations for night sessions.</p>
                     </div>
                 </div>
+
                 <div class="download-action">
-                    <a href="#" class="btn primary-btn glow-btn download-link w-full">
-                        Download APK
+                    <a href="#" class="btn primary-btn glow-btn download-link w-full main-download-btn">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        <span>Download APK Now</span>
                     </a>
-                    <p class="open-source-note">Free & Open Source</p>
+                    
+                    <button class="btn secondary-btn qr-trigger-btn w-full" id="qr-modal-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                        Scan QR Code for Mobile
+                    </button>
+
+                    <p class="open-source-note">Verified Clean APK • No Ads • 100% Privacy</p>
                 </div>
             </div>
         </div>
@@ -280,14 +546,18 @@ Performance Boosts & Bug Fixes: We’ve fine-tuned the app to run faster, smooth
 
     </main>
 
+    <!-- FOOTER -->
     <footer class="footer">
         <div class="container footer-content">
             <div class="footer-brand">
-                <img src="assets/logo.png" alt="Study Timer Logo" width="24" height="24">
+                <img src="assets/logo.png" alt="Study Timer Logo" width="28" height="28">
                 <span>Study Timer</span>
             </div>
             <div class="footer-links">
-                <a href="https://github.com/JAIstudio-source/StudyTimer" target="_blank" rel="noopener noreferrer" class="footer-link">GitHub Source</a>
+                <a href="https://github.com/JAIstudio-source/StudyTimer" target="_blank" rel="noopener noreferrer" class="footer-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                    GitHub Source Code
+                </a>
             </div>
             <div class="footer-credit">
                 <p>Made with ❤️ by JAI Studio</p>
@@ -296,14 +566,46 @@ Performance Boosts & Bug Fixes: We’ve fine-tuned the app to run faster, smooth
         </div>
     </footer>
 
-    <div id="lightbox" class="lightbox">
-        <button class="lightbox-close" aria-label="Close fullscreen">&times;</button>
-        <img class="lightbox-img" src="" alt="Fullscreen screenshot">
+    <!-- MOBILE STICKY DOWNLOAD BAR (Screens < 768px) -->
+    <div id="mobile-sticky-bar" class="mobile-sticky-bar glass">
+        <div class="sticky-info">
+            <img src="assets/logo.png" alt="Study Timer" width="28" height="28">
+            <div>
+                <strong>StudyTimer</strong>
+                <span class="app-version">v2.5.0</span>
+            </div>
+        </div>
+        <a href="#" class="btn primary-btn download-link sticky-download-btn">
+            Download APK
+        </a>
     </div>
 
+    <!-- LIGHTBOX MODAL FOR SCREENSHOTS -->
+    <div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="Fullscreen screenshot view">
+        <button class="lightbox-close" aria-label="Close fullscreen">&times;</button>
+        <div class="lightbox-content">
+            <img class="lightbox-img" src="" alt="Fullscreen screenshot view">
+            <p class="lightbox-caption" id="lightbox-caption"></p>
+        </div>
+    </div>
+
+    <!-- QR CODE DOWNLOAD MODAL -->
+    <div id="qr-modal" class="qr-modal" role="dialog" aria-modal="true" aria-label="Scan QR Code to Download">
+        <div class="qr-modal-content glass">
+            <button class="qr-modal-close" id="qr-close-btn" aria-label="Close Modal">&times;</button>
+            <h3>Scan on Mobile</h3>
+            <p>Scan this QR code with your mobile camera to download the APK directly on your phone.</p>
+            <div class="qr-code-wrapper">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk" alt="StudyTimer APK Download QR Code" class="qr-img">
+            </div>
+            <p class="qr-subtext">Direct Github Release Download Link</p>
+        </div>
+    </div>
+
+    <!-- BACK TO TOP BUTTON -->
     <button id="back-to-top" aria-label="Back to top">↑</button>
 
-    <!-- Vercel Speed Insights -->
+    <!-- Vercel Speed Insights Script -->
     <script type="module" src="speed-insights.js"></script>
     <script src="script.js"></script>
 </body>

@@ -36,12 +36,12 @@ object CloudSyncManager {
                 put("updated_at", System.currentTimeMillis())
             }
 
-            // Upsert into Supabase 'user_sync_data' table
-            val url = URL("$supabaseUrl/rest/v1/user_sync_data?on_conflict=user_id")
-            val conn = url.openConnection() as HttpURLConnection
+            // Try Upsert POST
+            var url = URL("$supabaseUrl/rest/v1/user_sync_data?on_conflict=user_id")
+            var conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.setRequestProperty("apikey", anonKey)
-            conn.setRequestProperty("Authorization", "Bearer $accessToken")
+            conn.setRequestProperty("Authorization", "Bearer $anonKey")
             conn.setRequestProperty("Content-Type", "application/json")
             conn.setRequestProperty("Prefer", "resolution=merge-duplicates")
             conn.doOutput = true
@@ -50,8 +50,25 @@ object CloudSyncManager {
                 os.write(payload.toString().toByteArray(Charsets.UTF_8))
             }
 
-            val code = conn.responseCode
-            Log.d("CloudSyncManager", "Cloud sync response code: $code")
+            var code = conn.responseCode
+            Log.d("CloudSyncManager", "Cloud sync POST response code: $code")
+
+            // Fallback to PATCH if 403 or 409
+            if (code !in 200..299) {
+                url = URL("$supabaseUrl/rest/v1/user_sync_data?user_id=eq.$userId")
+                conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "PATCH"
+                conn.setRequestProperty("apikey", anonKey)
+                conn.setRequestProperty("Authorization", "Bearer $anonKey")
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.doOutput = true
+                conn.outputStream.use { os ->
+                    os.write(payload.toString().toByteArray(Charsets.UTF_8))
+                }
+                code = conn.responseCode
+                Log.d("CloudSyncManager", "Cloud sync PATCH fallback response code: $code")
+            }
+
             val success = code in 200..299
             withContext(Dispatchers.Main) {
                 if (success) {

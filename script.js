@@ -1,6 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
     
-    // 1. Fetch version.json from local file first, then GitHub if needed
+    // ----------------------------------------------------
+    // 1. Fetch version.json & update release specs
+    // ----------------------------------------------------
     async function loadAppVersion() {
         const versionSources = [
             'version.json',
@@ -22,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (data) {
-            const versionText = data.versionName || data.version || 'v1.0.0';
+            const versionText = data.versionName || data.version || 'v2.5.0';
             const versionElements = document.querySelectorAll('.app-version');
             versionElements.forEach(el => {
                 el.textContent = versionText;
@@ -41,8 +43,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
+            // Auto download detection
             const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('download') === 'true' || urlParams.get('autodownload') === 'true' || window.location.hash === '#download') {
+            if (urlParams.get('download') === 'true' || urlParams.get('autodownload') === 'true' || window.location.hash === '#download-now') {
                 setTimeout(() => {
                     const downloadAnchor = document.createElement('a');
                     downloadAnchor.href = apkUrl;
@@ -59,16 +62,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Live app size from the APK's Content-Length header, with HTML fallback if it fails
     async function updateAppSize(apkUrl) {
         try {
             const response = await fetch(apkUrl, { method: 'HEAD' });
             const bytes = parseInt(response.headers.get('Content-Length'), 10);
             if (!isNaN(bytes) && bytes > 0) {
-                const mb = bytes / (1024 * 1024);
+                const mb = (bytes / (1024 * 1024)).toFixed(2);
                 const sizeElements = document.querySelectorAll('.app-size');
                 sizeElements.forEach(el => {
-                    el.textContent = mb.toFixed(2) + ' MB';
+                    el.textContent = mb + ' MB';
                 });
             }
         } catch (error) {
@@ -78,135 +80,374 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setFallbackVersion() {
         const versionElements = document.querySelectorAll('.app-version');
-        versionElements.forEach(el => {
-            el.textContent = 'v1.0.0';
-        });
+        versionElements.forEach(el => { el.textContent = 'v2.5.0'; });
 
         const downloadLinks = document.querySelectorAll('.download-link');
-        downloadLinks.forEach(el => {
-            el.href = 'StudyTimer-release.apk';
-        });
+        downloadLinks.forEach(el => { el.href = 'StudyTimer-release.apk'; });
     }
 
     loadAppVersion();
 
-    // 2. Scroll Progress Bar & Navbar sticky style
-    const scrollProgress = document.getElementById('scroll-progress');
-    const navbar = document.getElementById('navbar');
-    
-    window.addEventListener('scroll', () => {
-        const scrollTop = window.scrollY;
-        const docHeight = document.body.scrollHeight - window.innerHeight;
-        const scrollPercent = (scrollTop / docHeight) * 100;
-        
-        if (scrollProgress) {
-            scrollProgress.style.width = `${scrollPercent}%`;
-        }
+    // ----------------------------------------------------
+    // 2. Theme Customizer Switcher (AMOLED, Indigo, Slate, Emerald)
+    // ----------------------------------------------------
+    const themePills = document.querySelectorAll('.theme-pill');
+    const savedTheme = localStorage.getItem('studytimer_theme') || 'amoled';
 
-        if (navbar) {
-            if (scrollTop > 50) {
-                navbar.style.background = 'rgba(5, 5, 5, 0.85)';
-                navbar.style.boxShadow = '0 4px 30px rgba(0, 0, 0, 0.5)';
+    function applyTheme(themeName) {
+        document.body.setAttribute('data-theme', themeName);
+        themePills.forEach(pill => {
+            if (pill.getAttribute('data-theme-name') === themeName) {
+                pill.classList.add('active');
             } else {
-                navbar.style.background = 'rgba(5, 5, 5, 0.7)';
-                navbar.style.boxShadow = 'none';
+                pill.classList.remove('active');
+            }
+        });
+        localStorage.setItem('studytimer_theme', themeName);
+    }
+
+    applyTheme(savedTheme);
+
+    themePills.forEach(pill => {
+        pill.addEventListener('click', () => {
+            const theme = pill.getAttribute('data-theme-name');
+            applyTheme(theme);
+            triggerHaptic();
+        });
+    });
+
+    // Mobile Haptic Feedback helper
+    function triggerHaptic() {
+        if ('vibrate' in navigator) {
+            try {
+                navigator.vibrate(30);
+            } catch (e) {
+                // Ignore if permission denied
             }
         }
+    }
+
+    // ----------------------------------------------------
+    // 3. Mobile Navigation Drawer Toggle
+    // ----------------------------------------------------
+    const menuToggle = document.getElementById('menu-toggle');
+    const navLinks = document.getElementById('nav-links');
+
+    if (menuToggle && navLinks) {
+        menuToggle.addEventListener('click', () => {
+            navLinks.classList.toggle('mobile-open');
+            triggerHaptic();
+        });
+
+        // Close menu on link click
+        navLinks.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                navLinks.classList.remove('mobile-open');
+            });
+        });
+    }
+
+    // ----------------------------------------------------
+    // 4. Interactive Live Focus Web Timer Engine
+    // ----------------------------------------------------
+    const modeButtons = document.querySelectorAll('.timer-mode-btn');
+    const timerClock = document.getElementById('timer-clock');
+    const timerModeLabel = document.getElementById('timer-mode-label');
+    const timerStatusText = document.getElementById('timer-status-text');
+    const timerToggleBtn = document.getElementById('timer-toggle-btn');
+    const timerResetBtn = document.getElementById('timer-reset-btn');
+    const timerSoundBtn = document.getElementById('timer-sound-btn');
+    const timerBtnText = document.getElementById('timer-btn-text');
+    const timerProgress = document.getElementById('timer-progress');
+    const iconPlay = timerToggleBtn ? timerToggleBtn.querySelector('.icon-play') : null;
+    const iconPause = timerToggleBtn ? timerToggleBtn.querySelector('.icon-pause') : null;
+
+    let totalDurationSeconds = 25 * 60;
+    let remainingSeconds = totalDurationSeconds;
+    let timerInterval = null;
+    let isRunning = false;
+    let isSoundEnabled = true;
+
+    const ringCircumference = 660; // 2 * PI * 105
+
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function updateTimerUI() {
+        if (timerClock) timerClock.textContent = formatTime(remainingSeconds);
+        
+        if (timerProgress) {
+            const fraction = remainingSeconds / totalDurationSeconds;
+            const offset = ringCircumference * (1 - fraction);
+            timerProgress.style.strokeDashoffset = offset;
+        }
+    }
+
+    function setTimerMode(modeName, minutes) {
+        pauseTimer();
+        totalDurationSeconds = minutes * 60;
+        remainingSeconds = totalDurationSeconds;
+
+        modeButtons.forEach(btn => {
+            if (btn.getAttribute('data-mode') === modeName) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+
+        if (timerModeLabel) {
+            const labelMap = {
+                focus: 'Deep Focus',
+                shortBreak: 'Short Break',
+                longBreak: 'Long Break',
+                lecture: 'Lecture Mode'
+            };
+            timerModeLabel.textContent = labelMap[modeName] || 'Focus Session';
+        }
+
+        if (timerStatusText) {
+            timerStatusText.textContent = `Ready for ${minutes} min session`;
+        }
+
+        updateTimerUI();
+    }
+
+    function startTimer() {
+        if (isRunning) return;
+        isRunning = true;
+        if (timerBtnText) timerBtnText.textContent = 'Pause Session';
+        if (iconPlay) iconPlay.classList.add('hidden');
+        if (iconPause) iconPause.classList.remove('hidden');
+        if (timerStatusText) timerStatusText.textContent = 'Session active - stay focused!';
+
+        timerInterval = setInterval(() => {
+            if (remainingSeconds > 0) {
+                remainingSeconds--;
+                updateTimerUI();
+            } else {
+                finishTimer();
+            }
+        }, 1000);
+    }
+
+    function pauseTimer() {
+        if (!isRunning) return;
+        isRunning = false;
+        clearInterval(timerInterval);
+        if (timerBtnText) timerBtnText.textContent = 'Resume Session';
+        if (iconPlay) iconPlay.classList.remove('hidden');
+        if (iconPause) iconPause.classList.add('hidden');
+        if (timerStatusText) timerStatusText.textContent = 'Session paused';
+    }
+
+    function resetTimer() {
+        pauseTimer();
+        remainingSeconds = totalDurationSeconds;
+        if (timerBtnText) timerBtnText.textContent = 'Start Session';
+        if (timerStatusText) timerStatusText.textContent = 'Ready to study';
+        updateTimerUI();
+    }
+
+    function finishTimer() {
+        pauseTimer();
+        remainingSeconds = 0;
+        updateTimerUI();
+        if (timerStatusText) timerStatusText.textContent = '🎉 Session Completed!';
+
+        if ('vibrate' in navigator) {
+            try { navigator.vibrate([200, 100, 200, 100, 400]); } catch (e) {}
+        }
+
+        if (isSoundEnabled) {
+            playChimeSound();
+        }
+    }
+
+    function playChimeSound() {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+            osc.frequency.exponentialRampToValueAtTime(659.25, ctx.currentTime + 0.3); // E5
+            osc.frequency.exponentialRampToValueAtTime(783.99, ctx.currentTime + 0.6); // G5
+
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.2);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.start();
+            osc.stop(ctx.currentTime + 1.2);
+        } catch (e) {
+            console.warn('Web Audio chime unavailable:', e);
+        }
+    }
+
+    if (timerToggleBtn) {
+        timerToggleBtn.addEventListener('click', () => {
+            triggerHaptic();
+            if (isRunning) {
+                pauseTimer();
+            } else {
+                startTimer();
+            }
+        });
+    }
+
+    if (timerResetBtn) {
+        timerResetBtn.addEventListener('click', () => {
+            triggerHaptic();
+            resetTimer();
+        });
+    }
+
+    if (timerSoundBtn) {
+        timerSoundBtn.addEventListener('click', () => {
+            isSoundEnabled = !isSoundEnabled;
+            triggerHaptic();
+            timerSoundBtn.style.opacity = isSoundEnabled ? '1' : '0.4';
+        });
+    }
+
+    modeButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            triggerHaptic();
+            const mode = btn.getAttribute('data-mode');
+            const minutes = parseInt(btn.getAttribute('data-minutes'), 10);
+            setTimerMode(mode, minutes);
+        });
     });
 
-    // 3. Navbar Active Links Update
-    const sections = document.querySelectorAll('section, header');
-    const navLinks = document.querySelectorAll('.nav-links a');
+    setTimerMode('focus', 25);
 
-    const observerOptions = {
-        root: null,
-        rootMargin: '-50% 0px -50% 0px',
-        threshold: 0
-    };
+    // ----------------------------------------------------
+    // 5. Interactive 6-Month Heatmap Grid Generator
+    // ----------------------------------------------------
+    const heatmapGrid = document.getElementById('heatmap-grid');
+    const heatmapTooltip = document.getElementById('heatmap-tooltip');
 
-    const sectionObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                navLinks.forEach(link => {
-                    link.classList.remove('active');
-                    if (link.getAttribute('href') === `#${entry.target.id}`) {
-                        link.classList.add('active');
+    if (heatmapGrid) {
+        const totalDays = 140; // 20 weeks x 7 days
+        const today = new Date();
+        
+        for (let i = totalDays - 1; i >= 0; i--) {
+            const cell = document.createElement('div');
+            const cellDate = new Date(today);
+            cellDate.setDate(today.getDate() - i);
+
+            // Generate deterministic mock level based on day index
+            const levelSeed = (i * 7 + i % 3 + Math.floor(i / 5)) % 5;
+            const level = (i % 7 === 0 || i % 7 === 6) ? Math.min(levelSeed, 2) : levelSeed;
+
+            cell.className = `heatmap-cell level-${level}`;
+
+            const dateStr = cellDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            let hours = (level * 1.5).toFixed(1);
+            let sessions = level * 2;
+
+            cell.setAttribute('data-date', dateStr);
+            cell.setAttribute('data-hours', hours);
+            cell.setAttribute('data-sessions', sessions);
+
+            const showTooltip = () => {
+                if (heatmapTooltip) {
+                    if (level === 0) {
+                        heatmapTooltip.innerHTML = `<span class="h-tooltip-date">${dateStr}: <strong>Rest Day (0 hrs)</strong></span>`;
+                    } else {
+                        heatmapTooltip.innerHTML = `<span class="h-tooltip-date">${dateStr}: <strong class="primary-text">${hours} hrs focus</strong> (${sessions} sessions)</span>`;
                     }
-                });
-            }
-        });
-    }, observerOptions);
+                }
+            };
 
-    sections.forEach(section => {
-        sectionObserver.observe(section);
-    });
+            cell.addEventListener('mouseenter', showTooltip);
+            cell.addEventListener('click', () => {
+                triggerHaptic();
+                showTooltip();
+            });
 
-    // 4. Reveal Animations on Scroll
-    const revealElements = document.querySelectorAll('.reveal');
-    
-    const revealObserver = new IntersectionObserver((entries, observer) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('active');
-                observer.unobserve(entry.target);
-            }
-        });
-    }, {
-        root: null,
-        rootMargin: '0px 0px -100px 0px',
-        threshold: 0.1
-    });
+            heatmapGrid.appendChild(cell);
+        }
+    }
 
-    revealElements.forEach(el => revealObserver.observe(el));
-
-    // 5. Screenshots Carousel & Active Indicator Logic
+    // ----------------------------------------------------
+    // 6. Screenshot Carousel & Tab Selector
+    // ----------------------------------------------------
     const track = document.getElementById('carousel-track');
     const btnPrev = document.querySelector('.prev-btn');
     const btnNext = document.querySelector('.next-btn');
     const indicators = document.querySelectorAll('.indicator');
+    const tabBtns = document.querySelectorAll('.screenshot-tab-btn');
 
     if (track) {
-        const scrollAmount = 320; 
+        const scrollAmount = track.clientWidth || 340;
 
         if (btnPrev && btnNext) {
             btnPrev.addEventListener('click', () => {
                 track.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+                triggerHaptic();
             });
 
             btnNext.addEventListener('click', () => {
                 track.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+                triggerHaptic();
             });
         }
 
-        // Active indicator on scroll
+        // Active indicator and tab synchronization
         track.addEventListener('scroll', () => {
-            const index = Math.round(track.scrollLeft / (track.scrollWidth / indicators.length));
+            const scrollPos = track.scrollLeft;
+            const itemWidth = track.scrollWidth / indicators.length;
+            const index = Math.min(Math.round(scrollPos / itemWidth), indicators.length - 1);
+
             indicators.forEach((ind, i) => {
-                if (i === index) {
-                    ind.classList.add('active');
-                } else {
-                    ind.classList.remove('active');
-                }
+                if (i === index) ind.classList.add('active');
+                else ind.classList.remove('active');
+            });
+
+            tabBtns.forEach((tab, i) => {
+                if (i === index) tab.classList.add('active');
+                else tab.classList.remove('active');
             });
         });
 
-        // Click indicators to navigate
+        // Tab click navigation
+        tabBtns.forEach((tab, i) => {
+            tab.addEventListener('click', () => {
+                triggerHaptic();
+                const itemWidth = track.scrollWidth / tabBtns.length;
+                track.scrollTo({ left: itemWidth * i, behavior: 'smooth' });
+            });
+        });
+
+        // Indicator click navigation
         indicators.forEach((ind, i) => {
             ind.addEventListener('click', () => {
-                const targetScroll = (track.scrollWidth / indicators.length) * i;
-                track.scrollTo({ left: targetScroll, behavior: 'smooth' });
+                triggerHaptic();
+                const itemWidth = track.scrollWidth / indicators.length;
+                track.scrollTo({ left: itemWidth * i, behavior: 'smooth' });
             });
         });
 
-        // Drag scrolling logic
+        // Touch & Drag Swipe Scrolling Logic for Mobile Web
         let isDown = false;
         let startX;
-        let scrollLeft;
+        let scrollLeftPos;
 
+        // Mouse Drag Support
         track.addEventListener('mousedown', (e) => {
             isDown = true;
             startX = e.pageX - track.offsetLeft;
-            scrollLeft = track.scrollLeft;
+            scrollLeftPos = track.scrollLeft;
         });
 
         track.addEventListener('mouseleave', () => { isDown = false; });
@@ -216,23 +457,53 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!isDown) return;
             e.preventDefault();
             const x = e.pageX - track.offsetLeft;
-            const walk = (x - startX) * 2; 
-            track.scrollLeft = scrollLeft - walk;
+            const walk = (x - startX) * 2;
+            track.scrollLeft = scrollLeftPos - walk;
         });
+
+        // Touch Swipe Support for Mobile Web Browsers
+        let touchStartX = 0;
+        let touchScrollLeft = 0;
+
+        track.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                touchStartX = e.touches[0].clientX;
+                touchScrollLeft = track.scrollLeft;
+            }
+        }, { passive: true });
+
+        track.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 1) {
+                const currentX = e.touches[0].clientX;
+                const diff = touchStartX - currentX;
+                track.scrollLeft = touchScrollLeft + diff;
+            }
+        }, { passive: true });
+
+        track.addEventListener('touchend', (e) => {
+            triggerHaptic();
+        }, { passive: true });
     }
 
-    // 6. Lightbox for Screenshots
+    // ----------------------------------------------------
+    // 7. Lightbox for Screenshot Zoom
+    // ----------------------------------------------------
     const lightbox = document.getElementById('lightbox');
     const lightboxImg = lightbox ? lightbox.querySelector('.lightbox-img') : null;
+    const lightboxCaption = document.getElementById('lightbox-caption');
     const lightboxClose = lightbox ? lightbox.querySelector('.lightbox-close') : null;
     const screenshots = document.querySelectorAll('.screenshot-img');
 
     if (lightbox && lightboxImg && lightboxClose) {
         screenshots.forEach(img => {
             img.addEventListener('click', () => {
+                triggerHaptic();
                 lightboxImg.src = img.src;
+                if (lightboxCaption) {
+                    lightboxCaption.textContent = img.getAttribute('data-title') || img.alt;
+                }
                 lightbox.classList.add('active');
-                document.body.style.overflow = 'hidden'; 
+                document.body.style.overflow = 'hidden';
             });
         });
 
@@ -253,33 +524,117 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 7. Back to Top Button
+    // ----------------------------------------------------
+    // 8. FAQ Accordion Toggle Logic
+    // ----------------------------------------------------
+    const faqItems = document.querySelectorAll('.faq-item');
+
+    faqItems.forEach(item => {
+        const questionBtn = item.querySelector('.faq-question');
+        if (questionBtn) {
+            questionBtn.addEventListener('click', () => {
+                triggerHaptic();
+                const isActive = item.classList.contains('active');
+                
+                // Close other FAQ items
+                faqItems.forEach(otherItem => otherItem.classList.remove('active'));
+
+                if (!isActive) {
+                    item.classList.add('active');
+                }
+            });
+        }
+    });
+
+    // ----------------------------------------------------
+    // 9. QR Code Modal Toggle
+    // ----------------------------------------------------
+    const qrModal = document.getElementById('qr-modal');
+    const qrModalBtn = document.getElementById('qr-modal-btn');
+    const qrCloseBtn = document.getElementById('qr-close-btn');
+
+    if (qrModal && qrModalBtn && qrCloseBtn) {
+        qrModalBtn.addEventListener('click', () => {
+            triggerHaptic();
+            qrModal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+
+        const closeQrModal = () => {
+            qrModal.classList.remove('active');
+            document.body.style.overflow = '';
+        };
+
+        qrCloseBtn.addEventListener('click', closeQrModal);
+        qrModal.addEventListener('click', (e) => {
+            if (e.target === qrModal) closeQrModal();
+        });
+    }
+
+    // ----------------------------------------------------
+    // 10. Scroll Progress Bar & Scroll Animations
+    // ----------------------------------------------------
+    const scrollProgress = document.getElementById('scroll-progress');
+    const navbar = document.getElementById('navbar');
     const backToTopBtn = document.getElementById('back-to-top');
 
-    if (backToTopBtn) {
-        window.addEventListener('scroll', () => {
-            if (window.scrollY > 500) {
+    window.addEventListener('scroll', () => {
+        const scrollTop = window.scrollY;
+        const docHeight = document.body.scrollHeight - window.innerHeight;
+        const scrollPercent = (scrollTop / docHeight) * 100;
+        
+        if (scrollProgress) {
+            scrollProgress.style.width = `${scrollPercent}%`;
+        }
+
+        if (navbar) {
+            if (scrollTop > 60) {
+                navbar.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.6)';
+            } else {
+                navbar.style.boxShadow = 'none';
+            }
+        }
+
+        if (backToTopBtn) {
+            if (scrollTop > 500) {
                 backToTopBtn.classList.add('visible');
             } else {
                 backToTopBtn.classList.remove('visible');
             }
-        });
+        }
+    });
 
+    if (backToTopBtn) {
         backToTopBtn.addEventListener('click', () => {
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
+            triggerHaptic();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         });
     }
 
-    // 8. Footer Year Update
-    const yearEl = document.getElementById('year');
-    if (yearEl) {
-        yearEl.textContent = new Date().getFullYear();
-    }
+    // Reveal Elements on Scroll
+    const revealElements = document.querySelectorAll('.reveal');
+    const revealObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('active');
+                observer.unobserve(entry.target);
+            }
+        });
+    }, {
+        root: null,
+        rootMargin: '0px 0px -60px 0px',
+        threshold: 0.05
+    });
 
-    // 9. Floating Particles (Canvas)
+    revealElements.forEach(el => revealObserver.observe(el));
+
+    // Footer Year
+    const yearEl = document.getElementById('year');
+    if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+    // ----------------------------------------------------
+    // 11. Floating Particles Canvas
+    // ----------------------------------------------------
     const canvas = document.getElementById('particles-canvas');
     if (canvas) {
         const ctx = canvas.getContext('2d');
@@ -299,9 +654,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.x = Math.random() * width;
                 this.y = Math.random() * height;
                 this.size = Math.random() * 2 + 0.5;
-                this.speedX = Math.random() * 0.5 - 0.25;
-                this.speedY = Math.random() * 0.5 - 0.25;
-                this.opacity = Math.random() * 0.5 + 0.1;
+                this.speedX = Math.random() * 0.4 - 0.2;
+                this.speedY = Math.random() * 0.4 - 0.2;
+                this.opacity = Math.random() * 0.4 + 0.1;
             }
 
             update() {
@@ -324,7 +679,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function initParticles() {
             particles = [];
-            const particleCount = Math.min(window.innerWidth / 15, 100); 
+            const particleCount = Math.min(window.innerWidth / 20, 50); 
             for (let i = 0; i < particleCount; i++) {
                 particles.push(new Particle());
             }
@@ -332,12 +687,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function animateParticles() {
             ctx.clearRect(0, 0, width, height);
-            
             particles.forEach(p => {
                 p.update();
                 p.draw();
             });
-            
             requestAnimationFrame(animateParticles);
         }
 

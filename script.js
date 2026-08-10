@@ -41,6 +41,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('download') === 'true' || urlParams.get('autodownload') === 'true' || window.location.hash === '#download') {
+                setTimeout(() => {
+                    const downloadAnchor = document.createElement('a');
+                    downloadAnchor.href = apkUrl;
+                    downloadAnchor.setAttribute('download', 'StudyTimer-release.apk');
+                    document.body.appendChild(downloadAnchor);
+                    downloadAnchor.click();
+                    document.body.removeChild(downloadAnchor);
+                }, 500);
+            }
+
             updateAppSize(apkUrl);
         } else {
             setFallbackVersion();

@@ -932,15 +932,21 @@ class SettingsPanelBuilder(private val host: MainActivity) {
             var avatarBitmap: android.graphics.Bitmap? = null
             if (!profileImageUriStr.isNullOrEmpty()) {
                 try {
-                    val uri = android.net.Uri.parse(profileImageUriStr)
-                    val source = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                        android.graphics.ImageDecoder.createSource(contentResolver, uri)
-                    } else null
-                    avatarBitmap = if (source != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                        android.graphics.ImageDecoder.decodeBitmap(source)
+                    if (profileImageUriStr.startsWith("data:image")) {
+                        val base64Data = profileImageUriStr.substringAfter("base64,")
+                        val decodedBytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
+                        avatarBitmap = android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
                     } else {
-                        @Suppress("DEPRECATION")
-                        android.provider.MediaStore.Images.Media.getBitmap(contentResolver, uri)
+                        val uri = android.net.Uri.parse(profileImageUriStr)
+                        val source = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                            android.graphics.ImageDecoder.createSource(contentResolver, uri)
+                        } else null
+                        avatarBitmap = if (source != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                            android.graphics.ImageDecoder.decodeBitmap(source)
+                        } else {
+                            @Suppress("DEPRECATION")
+                            android.provider.MediaStore.Images.Media.getBitmap(contentResolver, uri)
+                        }
                     }
                 } catch (_: Exception) {}
             }

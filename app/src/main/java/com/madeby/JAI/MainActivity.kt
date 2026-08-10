@@ -245,9 +245,29 @@ class MainActivity : AppCompatActivity() {
         if (result.resultCode == RESULT_OK) {
             result.data?.data?.let { uri ->
                 try {
-                    contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                } catch (_: Exception) {}
-                AuthManager.saveProfileImageUri(this, uri.toString())
+                    val inputStream = contentResolver.openInputStream(uri)
+                    val originalBitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+                    inputStream?.close()
+                    if (originalBitmap != null) {
+                        val maxDim = 256
+                        val scale = maxDim.toFloat() / Math.max(originalBitmap.width, originalBitmap.height)
+                        val scaledBitmap = if (scale < 1f) {
+                            android.graphics.Bitmap.createScaledBitmap(
+                                originalBitmap,
+                                (originalBitmap.width * scale).toInt(),
+                                (originalBitmap.height * scale).toInt(),
+                                true
+                            )
+                        } else originalBitmap
+                        val baos = java.io.ByteArrayOutputStream()
+                        scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, baos)
+                        val base64Str = android.util.Base64.encodeToString(baos.toByteArray(), android.util.Base64.NO_WRAP)
+                        val dataUri = "data:image/jpeg;base64,$base64Str"
+                        AuthManager.saveProfileImageUri(this, dataUri)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("MainActivity", "Failed to encode profile image", e)
+                }
                 tabPageCache.remove(settingsTabKey(AppSettingsTab.PROFILE))
                 navigateToPanel(AppPanel.SETTINGS)
                 Thread {

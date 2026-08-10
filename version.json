@@ -1,7 +1,7 @@
 {
-  "versionCode": 13,
-  "versionName": "2.0.1",
+  "versionCode": 14,
+  "versionName": "2.5.0",
   "url": "https://studytimer.update-studytimer.workers.dev/",
   "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-  "releaseNotes": "v2.0.1: Preserved focus timer stopped state on break swap, lock-screen window flags, lock-screen vibration audio attributes, and habit matrix retention."
+  "releaseNotes": "v2.5.0: Added Supabase & Google Sign-In authentication, cloud backup & data restoration, high-quality profile picture storage, HD avatar viewer, and sign-out confirmation."
 }

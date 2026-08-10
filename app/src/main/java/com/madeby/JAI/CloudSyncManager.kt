@@ -206,7 +206,7 @@ object CloudSyncManager {
 
         try {
             val fileName = "$userId.jpg"
-            val bucketName = java.net.URLEncoder.encode("Storage for pfp and other", "UTF-8").replace("+", "%20")
+            val bucketName = "profile-pictures"
             val url = URL("$supabaseUrl/storage/v1/object/$bucketName/$fileName")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"

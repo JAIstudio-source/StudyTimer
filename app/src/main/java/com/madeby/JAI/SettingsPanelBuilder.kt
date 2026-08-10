@@ -1052,47 +1052,11 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 setTextColor(themeCoordinator.textColor)
                 alpha = 0.6f
                 gravity = Gravity.CENTER
-                setPadding(0, dp(4), 0, dp(6))
+                setPadding(0, dp(4), 0, dp(14))
             }
             profileContent.addView(emailView)
 
-            // Floating Badges Row near Profile Picture (Top 3 Unlocked/Progress Badges)
-            val statsEngine = StatsEngine(this@with)
-            val snapshot = statsEngine.computeStatsSnapshot()
-            val badgeList = StreakCalculator.calculateBadges(this@with, snapshot.streak, snapshot.totalLife)
-            val top3Badges = badgeList.sortedWith(compareByDescending<AchievementBadge> { it.isUnlocked }).take(3)
-
-            val floatingBadgesRow = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
-                setPadding(0, 0, 0, dp(12))
-            }
-
-            for (badge in top3Badges) {
-                val badgePill = TextView(this).apply {
-                    text = "${badge.icon} ${badge.title}"
-                    textSize = 11f
-                    typeface = Typeface.DEFAULT_BOLD
-                    setTextColor(themeCoordinator.textColor)
-                    alpha = if (badge.isUnlocked) 1f else 0.45f
-                    background = themeCoordinator.createGlassChip(
-                        if (badge.isUnlocked) tintedColor(themeCoordinator.primaryColor, 50) else tintedColor(themeCoordinator.textColor, 20),
-                        50f
-                    )
-                    setPadding(dp(10), dp(4), dp(10), dp(4))
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                        setMargins(dp(3), 0, dp(3), 0)
-                    }
-                    setOnClickListener {
-                        val status = if (badge.isUnlocked) "✨ Unlocked!" else "🔒 Locked"
-                        Toast.makeText(this@with, "${badge.icon} ${badge.title}: ${badge.description} ($status)", Toast.LENGTH_SHORT).show()
-                    }
-                }
-                floatingBadgesRow.addView(badgePill)
-            }
-            profileContent.addView(floatingBadgesRow)
-
-            // Slightly reduced size action buttons
+            // Action buttons
             val btnAuthAction = Button(this).apply {
                 text = if (AuthManager.isGuest(this@with)) "Sign In with Google" else "Sign Out"
                 setTextColor(Color.WHITE)
@@ -1126,7 +1090,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     setPadding(dp(12), dp(6), dp(12), dp(6))
                     background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 10f)
                     layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(40)).apply {
-                        setMargins(0, 0, 0, dp(8))
+                        setMargins(0, dp(12), 0, 0)
                     }
                     setOnClickListener {
                         Thread {

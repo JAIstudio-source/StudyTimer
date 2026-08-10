@@ -95,7 +95,8 @@ object CloudSyncManager {
         }
 
         try {
-            val url = URL("$supabaseUrl/rest/v1/user_sync_data?select=*&limit=1")
+            val encodedUserId = java.net.URLEncoder.encode(userId, "UTF-8")
+            val url = URL("$supabaseUrl/rest/v1/user_sync_data?user_id=eq.$encodedUserId&select=*")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
             conn.setRequestProperty("apikey", anonKey)

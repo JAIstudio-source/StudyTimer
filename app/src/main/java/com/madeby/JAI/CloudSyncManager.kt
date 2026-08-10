@@ -117,19 +117,32 @@ object CloudSyncManager {
                     )
                     while (keys.hasNext()) {
                         val k = keys.next()
-                        val v = prefsObj.get(k)
-                        when (v) {
-                            is Boolean -> editor.putBoolean(k, v)
-                            is Number -> {
-                                if (k in intPrefKeys) {
-                                    editor.putInt(k, v.toInt())
-                                } else {
-                                    editor.putLong(k, v.toLong())
+                        when (k) {
+                            "timerState" -> editor.putString(k, "IDLE")
+                            "accumulatedStudy", "currentBreakSeconds", "lastTimestamp", "focus_remaining_secs", "pre_pause_state" -> {
+                                editor.putLong(k, 0L)
+                            }
+                            else -> {
+                                val v = prefsObj.get(k)
+                                when (v) {
+                                    is Boolean -> editor.putBoolean(k, v)
+                                    is Number -> {
+                                        if (k in intPrefKeys) {
+                                            editor.putInt(k, v.toInt())
+                                        } else {
+                                            editor.putLong(k, v.toLong())
+                                        }
+                                    }
+                                    is String -> editor.putString(k, v)
                                 }
                             }
-                            is String -> editor.putString(k, v)
                         }
                     }
+                    editor.putString("timerState", "IDLE")
+                    editor.putLong("accumulatedStudy", 0L)
+                    editor.putLong("currentBreakSeconds", 0L)
+                    editor.putLong("lastTimestamp", 0L)
+                    editor.putLong("focus_remaining_secs", 0L)
                     editor.commit()
                 }
 

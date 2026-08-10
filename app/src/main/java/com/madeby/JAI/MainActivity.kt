@@ -360,6 +360,78 @@ class MainActivity : AppCompatActivity() {
         dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.88f).toInt(), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
         dialog.show()
     }
+
+    internal fun showExpandedAvatarDialog() {
+        val dialog = android.app.Dialog(this)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+
+        val size = (resources.displayMetrics.widthPixels * 0.72f).toInt()
+        val profileImageUriStr = AuthManager.getProfileImageUri(this)
+        val userName = AuthManager.getUserName(this)
+        val userEmail = AuthManager.getUserEmail(this)
+
+        val frame = FrameLayout(this).apply {
+            layoutParams = FrameLayout.LayoutParams(size, size)
+        }
+
+        var avatarBitmap: android.graphics.Bitmap? = null
+        if (!profileImageUriStr.isNullOrEmpty()) {
+            try {
+                if (profileImageUriStr.startsWith("data:image")) {
+                    val base64Data = profileImageUriStr.substringAfter("base64,")
+                    val decodedBytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
+                    avatarBitmap = android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
+                } else {
+                    val uri = android.net.Uri.parse(profileImageUriStr)
+                    val source = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        android.graphics.ImageDecoder.createSource(contentResolver, uri)
+                    } else null
+                    avatarBitmap = if (source != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        android.graphics.ImageDecoder.decodeBitmap(source)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        android.provider.MediaStore.Images.Media.getBitmap(contentResolver, uri)
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        if (avatarBitmap != null) {
+            val imgView = android.widget.ImageView(this).apply {
+                setImageBitmap(avatarBitmap)
+                scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(themeCoordinator.primaryColor)
+                }
+                clipToOutline = true
+                outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+                layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+            }
+            frame.addView(imgView)
+        } else {
+            val textView = TextView(this).apply {
+                text = if (!userName.isNullOrBlank()) userName.take(1).uppercase() else if (!userEmail.isNullOrBlank()) userEmail.take(1).uppercase() else "G"
+                textSize = 90f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(themeCoordinator.primaryColor)
+                }
+                layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+            }
+            frame.addView(textView)
+        }
+
+        frame.setOnClickListener { dialog.dismiss() }
+
+        dialog.setContentView(frame)
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        dialog.window?.setLayout(size, size)
+        dialog.show()
+    }
     private fun showRestoreConfirmDialog(uri: Uri) {
         val dialog = android.app.Dialog(this)
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)

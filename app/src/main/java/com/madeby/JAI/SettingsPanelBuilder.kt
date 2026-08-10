@@ -990,19 +990,22 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     setColor(tintedColor(Color.BLACK, 160))
                 }
                 layoutParams = FrameLayout.LayoutParams(dp(28), dp(28), Gravity.BOTTOM or Gravity.END)
+                setOnClickListener {
+                    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type = "image/*"
+                    }
+                    avatarImagePickerLauncher.launch(intent)
+                }
             }
             avatarFrame.addView(cameraBadge)
 
             avatarFrame.setOnClickListener {
-                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                    addCategory(Intent.CATEGORY_OPENABLE)
-                    type = "image/*"
-                }
-                avatarImagePickerLauncher.launch(intent)
+                showExpandedAvatarDialog()
             }
             profileContent.addView(avatarFrame)
 
-            // Name Row with Edit Icon
+            // Name Row (Tapping username opens change account name dialog)
             val nameRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
@@ -1016,15 +1019,9 @@ class SettingsPanelBuilder(private val host: MainActivity) {
             nameRow.addView(nameView)
 
             if (!AuthManager.isGuest(this@with)) {
-                val editNameBtn = TextView(this).apply {
-                    text = " ✏️"
-                    textSize = 16f
-                    setPadding(dp(4), 0, 0, 0)
-                    setOnClickListener {
-                        showEditNameDialog()
-                    }
+                nameRow.setOnClickListener {
+                    showEditNameDialog()
                 }
-                nameRow.addView(editNameBtn)
             }
             profileContent.addView(nameRow)
 

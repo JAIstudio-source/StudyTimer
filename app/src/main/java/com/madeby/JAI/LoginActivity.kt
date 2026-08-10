@@ -186,7 +186,12 @@ class LoginActivity : AppCompatActivity() {
             }
             AuthManager.saveUserSession(this, "Google User", "Study User", accessToken)
             Toast.makeText(this, "Signed in successfully!", Toast.LENGTH_SHORT).show()
-            proceedToMain()
+            lifecycleScope.launch(Dispatchers.IO) {
+                CloudSyncManager.restoreDataFromCloud(this@LoginActivity)
+                withContext(Dispatchers.Main) {
+                    proceedToMain()
+                }
+            }
         }
     }
 

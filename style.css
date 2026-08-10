@@ -280,7 +280,7 @@ button {
 /* Navbar */
 #navbar {
     position: fixed;
-    top: 10px;
+    top: 12px;
     left: 16px;
     right: 16px;
     width: auto;
@@ -290,7 +290,7 @@ button {
     background: var(--nav-bg);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 22px;
-    padding: 8px 18px;
+    padding: 12px 22px;
     transition: all 0.3s ease;
 }
 
@@ -1413,10 +1413,10 @@ button {
 
 @media (max-width: 768px) {
     #navbar {
-        top: 8px;
+        top: 10px;
         left: 10px;
         right: 10px;
-        padding: 6px 12px;
+        padding: 9px 14px;
         border-radius: 18px;
     }
 
@@ -1426,18 +1426,18 @@ button {
         justify-content: space-between;
         position: relative;
         width: 100%;
-        min-height: 40px;
+        min-height: 44px;
     }
 
     .mobile-menu-toggle {
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 6px;
+        padding: 7px;
         order: 1;
         background: rgba(255, 255, 255, 0.06);
         border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 8px;
+        border-radius: 9px;
     }
 
     .nav-brand {
@@ -1448,14 +1448,14 @@ button {
         margin: 0;
         display: flex;
         align-items: center;
-        gap: 6px;
-        font-size: 0.92rem;
+        gap: 8px;
+        font-size: 0.96rem;
         white-space: nowrap;
     }
 
     .nav-brand img {
-        width: 26px;
-        height: 26px;
+        width: 28px;
+        height: 28px;
     }
 
     .nav-actions {
@@ -1466,10 +1466,10 @@ button {
     }
 
     .nav-download {
-        padding: 6px 12px;
-        font-size: 0.76rem;
-        min-height: 32px;
-        border-radius: 8px;
+        padding: 7px 14px;
+        font-size: 0.8rem;
+        min-height: 36px;
+        border-radius: 9px;
     }
 
     .nav-links {

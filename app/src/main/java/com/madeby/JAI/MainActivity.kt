@@ -3282,7 +3282,7 @@ class MainActivity : AppCompatActivity() {
 
     internal fun migrateHistoricalDailyGoals(context: Context) {
         val prefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-        val globalGoal = prefs.getLong("daily_goal_secs", 2700L)
+        val globalGoal = (prefs.all["daily_goal_secs"] as? Number)?.toLong() ?: 2700L
         val editor = prefs.edit()
         var modified = false
         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())

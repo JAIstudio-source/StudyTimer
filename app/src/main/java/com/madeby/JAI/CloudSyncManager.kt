@@ -118,15 +118,22 @@ object CloudSyncManager {
                     val editor = sharedPrefs.edit()
                     val prefsObj = JSONObject(prefsStr)
                     val keys = prefsObj.keys()
+                    val intPrefKeys = setOf(
+                        "customBg", "customPrimary", "customHue", "customSecondary", "customSecondaryHue",
+                        "current_streak", "selected_days_filter", "reminder_hour", "reminder_minute"
+                    )
                     while (keys.hasNext()) {
                         val k = keys.next()
                         val v = prefsObj.get(k)
                         when (v) {
                             is Boolean -> editor.putBoolean(k, v)
-                            is Int -> editor.putInt(k, v)
-                            is Long -> editor.putLong(k, v)
-                            is Float -> editor.putFloat(k, v.toFloat())
-                            is Double -> editor.putLong(k, v.toLong())
+                            is Number -> {
+                                if (k in intPrefKeys) {
+                                    editor.putInt(k, v.toInt())
+                                } else {
+                                    editor.putLong(k, v.toLong())
+                                }
+                            }
                             is String -> editor.putString(k, v)
                         }
                     }

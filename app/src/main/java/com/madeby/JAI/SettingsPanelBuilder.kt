@@ -58,62 +58,6 @@ class SettingsPanelBuilder(private val host: MainActivity) {
         }
         settingsRootLayout.addView(subtitleText)
 
-        // Account Profile & Auth Status Card
-        val accountCard = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(16), dp(16), dp(16))
-            background = GradientDrawable().apply {
-                setColor(if (themeCoordinator.activeBgMode != "LIGHT") Color.parseColor("#121212") else Color.parseColor("#F5F5F5"))
-                cornerRadius = dp(16).toFloat()
-                setStroke(dp(1), if (themeCoordinator.activeBgMode != "LIGHT") Color.parseColor("#282828") else Color.parseColor("#E0E0E0"))
-            }
-            val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            lp.setMargins(dp(6), 0, dp(6), dp(16))
-            layoutParams = lp
-        }
-
-        val accountTitle = TextView(this).apply {
-            text = "ACCOUNT & SYNC"
-            textSize = 12f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(themeCoordinator.accentColor)
-            letterSpacing = 0.05f
-        }
-        accountCard.addView(accountTitle)
-
-        val accountStatus = TextView(this).apply {
-            val userEmail = AuthManager.getUserEmail(context)
-            val userName = AuthManager.getUserName(context)
-            text = if (AuthManager.isGuest(context)) {
-                "Logged in as Guest\n(Sign in to sync your habits and study stats)"
-            } else if (!userEmail.isNullOrBlank()) {
-                "Signed in as: ${userName ?: userEmail}\n($userEmail)"
-            } else {
-                "Guest Account"
-            }
-            textSize = 14f
-            setTextColor(themeCoordinator.textColor)
-            setPadding(0, dp(6), 0, dp(10))
-        }
-        accountCard.addView(accountStatus)
-
-        val btnAuthAction = Button(this).apply {
-            text = if (AuthManager.isGuest(context)) "Sign In with Google" else "Sign Out"
-            setTextColor(Color.WHITE)
-            background = GradientDrawable().apply {
-                setColor(if (AuthManager.isGuest(context)) Color.parseColor("#6B7CFF") else Color.parseColor("#E53E3E"))
-                cornerRadius = dp(10).toFloat()
-            }
-            setOnClickListener {
-                AuthManager.logout(context)
-                val intent = Intent(context, LoginActivity::class.java)
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                startActivity(intent)
-            }
-        }
-        accountCard.addView(btnAuthAction)
-        settingsRootLayout.addView(accountCard)
-
         val tabContainer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(6), 0, dp(6), dp(12))
@@ -139,6 +83,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
         }
         tabContainer.addView(createSettingsTabButton(getString(R.string.tab_general), AppSettingsTab.SIMPLE))
         tabContainer.addView(createSettingsTabButton(getString(R.string.tab_appearance), AppSettingsTab.THEME))
+        tabContainer.addView(createSettingsTabButton(getString(R.string.tab_profile), AppSettingsTab.PROFILE))
         settingsRootLayout.addView(tabContainer)
 
         val existingScrollView = if (captureScrollRef) settingsScrollViewRef else null
@@ -628,7 +573,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 devCard.addView(row1); devCard.addView(row2)
                 layout.addView(devCard)
             }
-        } else {
+        } else if (currentSettingsTab == AppSettingsTab.THEME) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 layout.addView(createSectionLabel(getString(R.string.section_dynamic_color)))
                 val dynamicCard = createSettingsCard()
@@ -959,6 +904,72 @@ class SettingsPanelBuilder(private val host: MainActivity) {
             addSecondarySwatch(0xFFF87171.toInt(), "Coral")
             breakCard.addView(secondarySwatchRow)
             layout.addView(breakCard)
+        } else if (currentSettingsTab == AppSettingsTab.PROFILE) {
+            layout.addView(createSectionLabel("ACCOUNT & PROFILE"))
+            val profileCard = createSettingsCard()
+            val profileContent = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(18), dp(18), dp(18), dp(18))
+            }
+
+            val userEmail = AuthManager.getUserEmail(this@with)
+            val userName = AuthManager.getUserName(this@with)
+
+            val avatarText = TextView(this).apply {
+                text = if (!userName.isNullOrBlank()) userName.take(1).uppercase() else if (!userEmail.isNullOrBlank()) userEmail.take(1).uppercase() else "G"
+                textSize = 24f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(themeCoordinator.primaryColor)
+                }
+                layoutParams = LinearLayout.LayoutParams(dp(56), dp(56)).apply {
+                    gravity = Gravity.CENTER_HORIZONTAL
+                    bottomMargin = dp(12)
+                }
+            }
+            profileContent.addView(avatarText)
+
+            val nameView = TextView(this).apply {
+                text = if (AuthManager.isGuest(this@with)) "Guest Account" else (userName ?: userEmail ?: "Study User")
+                textSize = 18f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(themeCoordinator.textColor)
+                gravity = Gravity.CENTER
+            }
+            profileContent.addView(nameView)
+
+            val emailView = TextView(this).apply {
+                text = if (AuthManager.isGuest(this@with)) "Sign in to back up your habits & analytics" else (userEmail ?: "")
+                textSize = 13f
+                setTextColor(themeCoordinator.textColor)
+                alpha = 0.6f
+                gravity = Gravity.CENTER
+                setPadding(0, dp(4), 0, dp(16))
+            }
+            profileContent.addView(emailView)
+
+            val btnAuthAction = Button(this).apply {
+                text = if (AuthManager.isGuest(this@with)) "Sign In with Google" else "Sign Out"
+                setTextColor(Color.WHITE)
+                textSize = 14f
+                typeface = Typeface.DEFAULT_BOLD
+                background = GradientDrawable().apply {
+                    setColor(if (AuthManager.isGuest(this@with)) Color.parseColor("#6B7CFF") else Color.parseColor("#E53E3E"))
+                    cornerRadius = dp(12).toFloat()
+                }
+                setOnClickListener {
+                    AuthManager.logout(this@with)
+                    val intent = Intent(this@with, LoginActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    startActivity(intent)
+                }
+            }
+            profileContent.addView(btnAuthAction)
+            profileCard.addView(profileContent)
+            layout.addView(profileCard)
         }
 
         val pushToBottomSpacer = View(this).apply { layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f) }

@@ -296,7 +296,8 @@ class MainActivity : AppCompatActivity() {
                 if (success) {
                     Toast.makeText(this@MainActivity, getString(R.string.toast_logs_restored), Toast.LENGTH_SHORT).show()
                     themeCoordinator.applyThemeCoordinates()
-                    navigateToPanel(AppPanel.SETTINGS)
+                    tabPageCache.clear()
+                    recreate()
                 } else {
                     Toast.makeText(this@MainActivity, getString(R.string.toast_backup_parse_failed), Toast.LENGTH_SHORT).show()
                 }

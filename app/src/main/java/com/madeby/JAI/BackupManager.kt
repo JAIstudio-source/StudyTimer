@@ -75,9 +75,10 @@ class BackupManager(private val context: Context) {
                 val editor = sharedPrefs.edit()
                 editor.clear()
                 sanitizeAndBuildPreferences(importedJsonObject, editor)
-                editor.apply()
+                val committed = editor.commit() // Synchronous commit to ensure immediate UI update
                 restoreTimeline(importedJsonObject)
-                return true
+                runSilentAutoBackup()
+                return committed
             }
         } catch (_: Exception) {}
         return false

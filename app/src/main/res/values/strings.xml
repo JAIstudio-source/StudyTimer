@@ -154,6 +154,7 @@
     <string name="settings_subtitle">Customize your experience</string>
     <string name="tab_general">General</string>
     <string name="tab_appearance">Appearance</string>
+    <string name="tab_profile">Profile</string>
     <string name="theme_light">Light</string>
     <string name="theme_light_sub">Clean bright theme</string>
     <string name="theme_slate">Slate</string>

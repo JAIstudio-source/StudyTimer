@@ -3,7 +3,7 @@ package com.madeby.JAI
 enum class AppPanel { FOCUS, STATS, SETTINGS, HEATMAP }
 enum class TimerState { IDLE, STUDYING, BREAK, PAUSED, LECTURE_ENDED }
 enum class AppStatsTab { OVERVIEW, TIMELINE, PLANNER }
-enum class AppSettingsTab { SIMPLE, THEME }
+enum class AppSettingsTab { SIMPLE, THEME, PROFILE }
 
 data class PlannerGoal(
     val id: String = java.util.UUID.randomUUID().toString(),

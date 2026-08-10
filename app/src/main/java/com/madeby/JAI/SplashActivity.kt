@@ -17,6 +17,16 @@ class SplashActivity : AppCompatActivity() {
 
         videoView = findViewById(R.id.splashVideoView)
 
+        val footerContainer = findViewById<android.view.View>(R.id.splashFooterContainer)
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { _, insets ->
+            val navBarInset = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars()).bottom
+            val baseMargin = (48 * resources.displayMetrics.density).toInt()
+            val params = footerContainer.layoutParams as android.widget.RelativeLayout.LayoutParams
+            params.bottomMargin = baseMargin + navBarInset
+            footerContainer.layoutParams = params
+            insets
+        }
+
         val videoUri = Uri.parse("android.resource://" + packageName + "/" + R.raw.logo_animation)
         videoView.setVideoURI(videoUri)
 

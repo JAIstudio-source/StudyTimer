@@ -206,7 +206,8 @@ object CloudSyncManager {
 
         try {
             val fileName = "$userId.jpg"
-            val url = URL("$supabaseUrl/storage/v1/object/avatars/$fileName")
+            val bucketName = java.net.URLEncoder.encode("Storage for pfp and other", "UTF-8").replace("+", "%20")
+            val url = URL("$supabaseUrl/storage/v1/object/$bucketName/$fileName")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.setRequestProperty("apikey", anonKey)
@@ -222,7 +223,7 @@ object CloudSyncManager {
             val code = conn.responseCode
             Log.d("CloudSyncManager", "Supabase storage upload code: $code")
             if (code in 200..299) {
-                return@withContext "$supabaseUrl/storage/v1/object/public/avatars/$fileName"
+                return@withContext "$supabaseUrl/storage/v1/object/public/$bucketName/$fileName"
             }
         } catch (e: Exception) {
             Log.e("CloudSyncManager", "Failed to upload image to Supabase Storage", e)

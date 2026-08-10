@@ -305,20 +305,45 @@ button {
 }
 
 .nav-container {
+    display: grid;
+    grid-template-columns: 44px 1fr auto;
+    align-items: center;
+    width: 100%;
+    min-height: 44px;
+    position: relative;
+}
+
+.mobile-menu-toggle {
+    grid-column: 1;
+    justify-self: start;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    width: 100%;
+    justify-content: center;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.mobile-menu-toggle:hover {
+    background: rgba(255, 255, 255, 0.15);
 }
 
 .nav-brand {
+    grid-column: 2;
+    justify-self: center;
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    gap: 10px;
     font-weight: 700;
     font-size: 1.05rem;
     color: var(--text);
     white-space: nowrap;
+    margin: 0 auto;
 }
 
 .nav-brand img,
@@ -335,66 +360,45 @@ button {
     50% { transform: translateY(-4px); }
 }
 
-.nav-links {
+.nav-actions {
+    grid-column: 3;
+    justify-self: end;
     display: flex;
     align-items: center;
+}
+
+.nav-links {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0;
+    right: 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 20px;
+    flex-direction: column;
     gap: 14px;
+    display: none;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.85);
+    z-index: 1001;
     list-style: none;
+}
+
+.nav-links.mobile-open {
+    display: flex;
 }
 
 .nav-item {
     color: var(--secondary);
-    font-size: 0.86rem;
+    font-size: 0.92rem;
     font-weight: 500;
     transition: color var(--transition-fast);
-    padding: 4px 0;
+    padding: 6px 0;
     white-space: nowrap;
 }
 
 .nav-item:hover, .nav-item.active {
     color: var(--text);
-}
-
-.mobile-menu-toggle {
-    display: none;
-    color: var(--text);
-    padding: 8px;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.05);
-}
-
-/* Laptop & Tablet Landscape Responsive Navbar */
-@media (max-width: 1180px) and (min-width: 769px) {
-    #navbar {
-        max-width: 98%;
-        padding: 8px 14px;
-    }
-
-    .nav-links {
-        gap: 10px;
-    }
-
-    .nav-item {
-        font-size: 0.82rem;
-    }
-
-    .theme-nav-label {
-        display: none;
-    }
-
-    .theme-pill {
-        padding: 3px 6px;
-        font-size: 0.72rem;
-    }
-
-    .nav-brand {
-        font-size: 0.92rem;
-    }
-
-    .nav-download {
-        padding: 6px 12px;
-        font-size: 0.78rem;
-    }
 }
 
 .btn {

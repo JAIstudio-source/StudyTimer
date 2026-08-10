@@ -273,12 +273,12 @@ button {
 .nav-theme-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-left: 12px;
+    gap: 6px;
+    margin-left: 6px;
 }
 
 .theme-nav-label {
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     color: var(--secondary);
     font-weight: 600;
     white-space: nowrap;
@@ -299,7 +299,7 @@ button {
     -webkit-backdrop-filter: blur(24px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 22px;
-    padding: 12px 22px;
+    padding: 10px 18px;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
     transition: all 0.3s ease;
 }
@@ -308,15 +308,17 @@ button {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    width: 100%;
 }
 
 .nav-brand {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     font-weight: 700;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     color: var(--text);
+    white-space: nowrap;
 }
 
 .nav-brand img,
@@ -336,15 +338,17 @@ button {
 .nav-links {
     display: flex;
     align-items: center;
-    gap: 24px;
+    gap: 14px;
+    list-style: none;
 }
 
 .nav-item {
     color: var(--secondary);
-    font-size: 0.92rem;
+    font-size: 0.86rem;
     font-weight: 500;
     transition: color var(--transition-fast);
-    padding: 6px 0;
+    padding: 4px 0;
+    white-space: nowrap;
 }
 
 .nav-item:hover, .nav-item.active {
@@ -357,6 +361,40 @@ button {
     padding: 8px;
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.05);
+}
+
+/* Laptop & Tablet Landscape Responsive Navbar */
+@media (max-width: 1180px) and (min-width: 769px) {
+    #navbar {
+        max-width: 98%;
+        padding: 8px 14px;
+    }
+
+    .nav-links {
+        gap: 10px;
+    }
+
+    .nav-item {
+        font-size: 0.82rem;
+    }
+
+    .theme-nav-label {
+        display: none;
+    }
+
+    .theme-pill {
+        padding: 3px 6px;
+        font-size: 0.72rem;
+    }
+
+    .nav-brand {
+        font-size: 0.92rem;
+    }
+
+    .nav-download {
+        padding: 6px 12px;
+        font-size: 0.78rem;
+    }
 }
 
 .btn {

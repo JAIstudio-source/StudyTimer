@@ -241,6 +241,105 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    internal val avatarImagePickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            result.data?.data?.let { uri ->
+                try {
+                    contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                } catch (_: Exception) {}
+                AuthManager.saveProfileImageUri(this, uri.toString())
+                tabPageCache.remove(settingsTabKey(AppSettingsTab.PROFILE))
+                navigateToPanel(AppPanel.SETTINGS)
+                Thread {
+                    kotlinx.coroutines.runBlocking {
+                        CloudSyncManager.syncDataToCloud(this@MainActivity)
+                    }
+                }.start()
+            }
+        }
+    }
+
+    internal fun showEditNameDialog() {
+        val dialog = android.app.Dialog(this)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = themeCoordinator.createDialogBackground(28f)
+            setPadding(dp(22), dp(22), dp(22), dp(18))
+        }
+
+        content.addView(TextView(this).apply {
+            text = "PROFILE"
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 11f
+            letterSpacing = 0.18f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        })
+
+        content.addView(TextView(this).apply {
+            text = "Change Account Name"
+            setTextColor(themeCoordinator.textColor)
+            textSize = 18f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(0, dp(6), 0, dp(14))
+        })
+
+        val currentName = AuthManager.getUserName(this) ?: ""
+        val inputEdit = android.widget.EditText(this).apply {
+            setText(currentName)
+            hint = "Enter your name"
+            setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
+            setTextColor(themeCoordinator.textColor)
+            textSize = 15f
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 12f)
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+        }
+        content.addView(inputEdit)
+
+        val buttonRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, dp(18), 0, 0)
+        }
+        val cancelBtn = Button(this).apply {
+            text = getString(R.string.btn_cancel_upper)
+            setTextColor(themeCoordinator.textColor)
+            textSize = 12f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 40), 50f)
+            setOnClickListener { dialog.dismiss() }
+            layoutParams = LinearLayout.LayoutParams(0, dp(46), 1f).apply { setMargins(0, 0, dp(8), 0) }
+        }
+        val saveBtn = Button(this).apply {
+            text = "SAVE"
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = GradientDrawable().apply { cornerRadius = 50f; setColor(themeCoordinator.primaryColor) }
+            setOnClickListener {
+                val newName = inputEdit.text.toString().trim()
+                if (newName.isNotEmpty()) {
+                    AuthManager.updateUserName(this@MainActivity, newName)
+                    tabPageCache.remove(settingsTabKey(AppSettingsTab.PROFILE))
+                    navigateToPanel(AppPanel.SETTINGS)
+                    Thread {
+                        kotlinx.coroutines.runBlocking {
+                            CloudSyncManager.syncDataToCloud(this@MainActivity)
+                        }
+                    }.start()
+                }
+                dialog.dismiss()
+            }
+            layoutParams = LinearLayout.LayoutParams(0, dp(46), 1f).apply { setMargins(dp(8), 0, 0, 0) }
+        }
+        buttonRow.addView(cancelBtn)
+        buttonRow.addView(saveBtn)
+        content.addView(buttonRow)
+
+        dialog.setContentView(content)
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.88f).toInt(), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+        dialog.show()
+    }
     private fun showRestoreConfirmDialog(uri: Uri) {
         val dialog = android.app.Dialog(this)
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
@@ -1304,7 +1403,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     internal fun statsTabKey(t: AppStatsTab): String = "S:${t.ordinal}"
-    private fun settingsTabKey(t: AppSettingsTab): String = "ST:${t.ordinal}"
+    internal fun settingsTabKey(t: AppSettingsTab): String = "ST:${t.ordinal}"
 
     private fun tabThemeSig(): String {
         val plannerPreset = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).getString("planner_theme_preset", "DEFAULT") ?: "DEFAULT"

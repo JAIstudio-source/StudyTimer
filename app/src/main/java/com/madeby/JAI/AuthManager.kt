@@ -13,6 +13,8 @@ object AuthManager {
 
     private const val KEY_USER_ID = "user_id"
 
+    private const val KEY_PROFILE_IMAGE_URI = "profile_image_uri"
+
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
     }
@@ -31,11 +33,27 @@ object AuthManager {
             putBoolean(KEY_IS_LOGGED_IN, true)
             putBoolean(KEY_IS_GUEST, false)
             putString(KEY_USER_EMAIL, email)
-            putString(KEY_USER_NAME, name)
+            if (!getUserName(context).isNullOrEmpty() && name.isNullOrEmpty()) {
+                // preserve updated user name
+            } else {
+                putString(KEY_USER_NAME, name)
+            }
             putString(KEY_ACCESS_TOKEN, token)
             if (!userId.isNullOrEmpty()) putString(KEY_USER_ID, userId)
             apply()
         }
+    }
+
+    fun updateUserName(context: Context, name: String) {
+        getPrefs(context).edit().putString(KEY_USER_NAME, name).apply()
+    }
+
+    fun saveProfileImageUri(context: Context, uriString: String) {
+        getPrefs(context).edit().putString(KEY_PROFILE_IMAGE_URI, uriString).apply()
+    }
+
+    fun getProfileImageUri(context: Context): String? {
+        return getPrefs(context).getString(KEY_PROFILE_IMAGE_URI, null)
     }
 
     fun setGuestMode(context: Context) {

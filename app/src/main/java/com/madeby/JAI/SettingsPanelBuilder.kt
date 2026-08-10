@@ -919,32 +919,108 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
             val userEmail = AuthManager.getUserEmail(this@with)
             val userName = AuthManager.getUserName(this@with)
+            val profileImageUriStr = AuthManager.getProfileImageUri(this@with)
 
-            val avatarText = TextView(this).apply {
-                text = if (!userName.isNullOrBlank()) userName.take(1).uppercase() else if (!userEmail.isNullOrBlank()) userEmail.take(1).uppercase() else "G"
-                textSize = 24f
-                typeface = Typeface.DEFAULT_BOLD
-                setTextColor(Color.WHITE)
+            // Avatar Container Frame (92dp x 92dp)
+            val avatarFrame = FrameLayout(this).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(92), dp(92)).apply {
+                    gravity = Gravity.CENTER_HORIZONTAL
+                    bottomMargin = dp(14)
+                }
+            }
+
+            var avatarBitmap: android.graphics.Bitmap? = null
+            if (!profileImageUriStr.isNullOrEmpty()) {
+                try {
+                    val uri = android.net.Uri.parse(profileImageUriStr)
+                    val source = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        android.graphics.ImageDecoder.createSource(contentResolver, uri)
+                    } else null
+                    avatarBitmap = if (source != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        android.graphics.ImageDecoder.decodeBitmap(source)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        android.provider.MediaStore.Images.Media.getBitmap(contentResolver, uri)
+                    }
+                } catch (_: Exception) {}
+            }
+
+            if (avatarBitmap != null) {
+                val avatarImg = android.widget.ImageView(this).apply {
+                    setImageBitmap(avatarBitmap)
+                    scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(themeCoordinator.primaryColor)
+                    }
+                    clipToOutline = true
+                    outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+                    layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+                }
+                avatarFrame.addView(avatarImg)
+            } else {
+                val avatarText = TextView(this).apply {
+                    text = if (!userName.isNullOrBlank()) userName.take(1).uppercase() else if (!userEmail.isNullOrBlank()) userEmail.take(1).uppercase() else "G"
+                    textSize = 38f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setTextColor(Color.WHITE)
+                    gravity = Gravity.CENTER
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(themeCoordinator.primaryColor)
+                    }
+                    layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+                }
+                avatarFrame.addView(avatarText)
+            }
+
+            // Camera / Edit Overlay Badge
+            val cameraBadge = TextView(this).apply {
+                text = "📷"
+                textSize = 14f
                 gravity = Gravity.CENTER
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
-                    setColor(themeCoordinator.primaryColor)
+                    setColor(tintedColor(Color.BLACK, 160))
                 }
-                layoutParams = LinearLayout.LayoutParams(dp(56), dp(56)).apply {
-                    gravity = Gravity.CENTER_HORIZONTAL
-                    bottomMargin = dp(12)
-                }
+                layoutParams = FrameLayout.LayoutParams(dp(28), dp(28), Gravity.BOTTOM or Gravity.END)
             }
-            profileContent.addView(avatarText)
+            avatarFrame.addView(cameraBadge)
 
-            val nameView = TextView(this).apply {
-                text = if (AuthManager.isGuest(this@with)) "Guest Account" else (userName ?: userEmail ?: "Study User")
-                textSize = 18f
-                typeface = Typeface.DEFAULT_BOLD
-                setTextColor(themeCoordinator.textColor)
+            avatarFrame.setOnClickListener {
+                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "image/*"
+                }
+                avatarImagePickerLauncher.launch(intent)
+            }
+            profileContent.addView(avatarFrame)
+
+            // Name Row with Edit Icon
+            val nameRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
             }
-            profileContent.addView(nameView)
+            val nameView = TextView(this).apply {
+                text = if (AuthManager.isGuest(this@with)) "Guest Account" else (userName ?: userEmail ?: "Study User")
+                textSize = 20f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(themeCoordinator.textColor)
+            }
+            nameRow.addView(nameView)
+
+            if (!AuthManager.isGuest(this@with)) {
+                val editNameBtn = TextView(this).apply {
+                    text = " ✏️"
+                    textSize = 16f
+                    setPadding(dp(4), 0, 0, 0)
+                    setOnClickListener {
+                        showEditNameDialog()
+                    }
+                }
+                nameRow.addView(editNameBtn)
+            }
+            profileContent.addView(nameRow)
 
             val emailView = TextView(this).apply {
                 text = if (AuthManager.isGuest(this@with)) "Sign in to back up your habits & analytics" else (userEmail ?: "")
@@ -952,19 +1028,22 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 setTextColor(themeCoordinator.textColor)
                 alpha = 0.6f
                 gravity = Gravity.CENTER
-                setPadding(0, dp(4), 0, dp(16))
+                setPadding(0, dp(4), 0, dp(14))
             }
             profileContent.addView(emailView)
 
+            // Slightly reduced size action buttons
             val btnAuthAction = Button(this).apply {
                 text = if (AuthManager.isGuest(this@with)) "Sign In with Google" else "Sign Out"
                 setTextColor(Color.WHITE)
-                textSize = 14f
+                textSize = 13f
                 typeface = Typeface.DEFAULT_BOLD
+                setPadding(dp(12), dp(6), dp(12), dp(6))
                 background = GradientDrawable().apply {
                     setColor(if (AuthManager.isGuest(this@with)) Color.parseColor("#6B7CFF") else Color.parseColor("#E53E3E"))
-                    cornerRadius = dp(12).toFloat()
+                    cornerRadius = dp(10).toFloat()
                 }
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(42))
                 setOnClickListener {
                     AuthManager.logout(this@with)
                     val intent = Intent(this@with, LoginActivity::class.java)
@@ -978,11 +1057,12 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 val btnRestoreCloud = Button(this).apply {
                     text = "📥 Restore Data from Cloud"
                     setTextColor(themeCoordinator.textColor)
-                    textSize = 13f
+                    textSize = 12.5f
                     typeface = Typeface.DEFAULT_BOLD
-                    background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 12f)
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                        setMargins(0, dp(12), 0, 0)
+                    setPadding(dp(12), dp(6), dp(12), dp(6))
+                    background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 10f)
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(40)).apply {
+                        setMargins(0, dp(8), 0, 0)
                     }
                     setOnClickListener {
                         Thread {

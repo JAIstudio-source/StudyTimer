@@ -31,8 +31,13 @@ object CloudSyncManager {
             AuthManager.getProfileImageUri(context)?.let { prefsJson.put("auth_profile_image_uri", it) }
             val timelineJson = timelineToJsonString(TimelineLogger.load(context))
 
+            val userName = AuthManager.getUserName(context) ?: ""
+            val profileImg = AuthManager.getProfileImageUri(context) ?: ""
+
             val payload = JSONObject().apply {
                 put("user_id", userId)
+                put("user_name", userName)
+                put("profile_image_uri", profileImg)
                 put("prefs_data", prefsJson.toString())
                 put("timeline_data", timelineJson)
                 put("updated_at", System.currentTimeMillis())
@@ -107,6 +112,15 @@ object CloudSyncManager {
                 val record = jsonArray.getJSONObject(0)
                 val prefsStr = record.optString("prefs_data")
                 val timelineStr = record.optString("timeline_data")
+                val recordUserName = record.optString("user_name")
+                val recordProfileImg = record.optString("profile_image_uri")
+
+                if (recordUserName.isNotEmpty()) {
+                    AuthManager.updateUserName(context, recordUserName)
+                }
+                if (recordProfileImg.isNotEmpty()) {
+                    AuthManager.saveProfileImageUri(context, recordProfileImg)
+                }
 
                 if (prefsStr.isNotEmpty()) {
                     val sharedPrefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)

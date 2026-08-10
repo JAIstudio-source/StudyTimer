@@ -35,3 +35,6 @@ google-services.json
 
 # Android Source Subfolder (tracked in separate repo)
 /StudyTimer-android/
+
+# Node.js dependencies
+node_modules/

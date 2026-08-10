@@ -249,7 +249,7 @@ class MainActivity : AppCompatActivity() {
                     val originalBitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
                     inputStream?.close()
                     if (originalBitmap != null) {
-                        val maxDim = 256
+                        val maxDim = 800
                         val scale = maxDim.toFloat() / Math.max(originalBitmap.width, originalBitmap.height)
                         val scaledBitmap = if (scale < 1f) {
                             android.graphics.Bitmap.createScaledBitmap(
@@ -260,7 +260,7 @@ class MainActivity : AppCompatActivity() {
                             )
                         } else originalBitmap
                         val baos = java.io.ByteArrayOutputStream()
-                        scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, baos)
+                        scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, baos)
                         val base64Str = android.util.Base64.encodeToString(baos.toByteArray(), android.util.Base64.NO_WRAP)
                         val dataUri = "data:image/jpeg;base64,$base64Str"
                         AuthManager.saveProfileImageUri(this, dataUri)

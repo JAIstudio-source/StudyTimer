@@ -251,7 +251,7 @@ class MainActivity : AppCompatActivity() {
                             val originalBitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
                             inputStream?.close()
                             if (originalBitmap != null) {
-                                val maxDim = 1080
+                                val maxDim = 400
                                 val scale = maxDim.toFloat() / Math.max(originalBitmap.width, originalBitmap.height)
                                 val scaledBitmap = if (scale < 1f) {
                                     android.graphics.Bitmap.createScaledBitmap(
@@ -262,16 +262,16 @@ class MainActivity : AppCompatActivity() {
                                     )
                                 } else originalBitmap
                                 val baos = java.io.ByteArrayOutputStream()
-                                scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, baos)
+                                scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 82, baos)
                                 val imageBytes = baos.toByteArray()
+
+                                val base64Str = android.util.Base64.encodeToString(imageBytes, android.util.Base64.NO_WRAP)
+                                val localDataUri = "data:image/jpeg;base64,$base64Str"
+                                AuthManager.saveProfileImageUri(this@MainActivity, localDataUri)
 
                                 val publicUrl = CloudSyncManager.uploadProfileImageToStorage(this@MainActivity, imageBytes)
                                 if (!publicUrl.isNullOrEmpty()) {
                                     AuthManager.saveProfileImageUri(this@MainActivity, publicUrl)
-                                } else {
-                                    val base64Str = android.util.Base64.encodeToString(imageBytes, android.util.Base64.NO_WRAP)
-                                    val dataUri = "data:image/jpeg;base64,$base64Str"
-                                    AuthManager.saveProfileImageUri(this@MainActivity, dataUri)
                                 }
                             }
                         } catch (e: Exception) {

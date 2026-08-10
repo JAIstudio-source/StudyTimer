@@ -16,6 +16,8 @@ import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import com.google.android.material.switchmaterial.SwitchMaterial
+import java.net.HttpURLConnection
+import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -932,7 +934,25 @@ class SettingsPanelBuilder(private val host: MainActivity) {
             var avatarBitmap: android.graphics.Bitmap? = null
             if (!profileImageUriStr.isNullOrEmpty()) {
                 try {
-                    if (profileImageUriStr.startsWith("data:image")) {
+                    if (profileImageUriStr.startsWith("http://") || profileImageUriStr.startsWith("https://")) {
+                        Thread {
+                            try {
+                                val url = URL(profileImageUriStr)
+                                val conn = url.openConnection() as HttpURLConnection
+                                conn.connectTimeout = 5000
+                                conn.readTimeout = 5000
+                                val bmp = android.graphics.BitmapFactory.decodeStream(conn.inputStream)
+                                if (bmp != null) {
+                                    runOnUiThread {
+                                        val avatarImgView = avatarFrame.findViewById<android.widget.ImageView>(1001)
+                                        if (avatarImgView != null) {
+                                            avatarImgView.setImageBitmap(bmp)
+                                        }
+                                    }
+                                }
+                            } catch (_: Exception) {}
+                        }.start()
+                    } else if (profileImageUriStr.startsWith("data:image")) {
                         val base64Data = profileImageUriStr.substringAfter("base64,")
                         val decodedBytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
                         avatarBitmap = android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
@@ -951,9 +971,10 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 } catch (_: Exception) {}
             }
 
-            if (avatarBitmap != null) {
+            if (avatarBitmap != null || (profileImageUriStr != null && (profileImageUriStr.startsWith("http://") || profileImageUriStr.startsWith("https://")))) {
                 val avatarImg = android.widget.ImageView(this).apply {
-                    setImageBitmap(avatarBitmap)
+                    id = 1001
+                    if (avatarBitmap != null) setImageBitmap(avatarBitmap)
                     scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
                     background = GradientDrawable().apply {
                         shape = GradientDrawable.OVAL

@@ -244,34 +244,43 @@ class MainActivity : AppCompatActivity() {
     internal val avatarImagePickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
             result.data?.data?.let { uri ->
-                try {
-                    val inputStream = contentResolver.openInputStream(uri)
-                    val originalBitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
-                    inputStream?.close()
-                    if (originalBitmap != null) {
-                        val maxDim = 800
-                        val scale = maxDim.toFloat() / Math.max(originalBitmap.width, originalBitmap.height)
-                        val scaledBitmap = if (scale < 1f) {
-                            android.graphics.Bitmap.createScaledBitmap(
-                                originalBitmap,
-                                (originalBitmap.width * scale).toInt(),
-                                (originalBitmap.height * scale).toInt(),
-                                true
-                            )
-                        } else originalBitmap
-                        val baos = java.io.ByteArrayOutputStream()
-                        scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, baos)
-                        val base64Str = android.util.Base64.encodeToString(baos.toByteArray(), android.util.Base64.NO_WRAP)
-                        val dataUri = "data:image/jpeg;base64,$base64Str"
-                        AuthManager.saveProfileImageUri(this, dataUri)
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("MainActivity", "Failed to encode profile image", e)
-                }
-                tabPageCache.remove(settingsTabKey(AppSettingsTab.PROFILE))
-                navigateToPanel(AppPanel.SETTINGS)
                 Thread {
                     kotlinx.coroutines.runBlocking {
+                        try {
+                            val inputStream = contentResolver.openInputStream(uri)
+                            val originalBitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+                            inputStream?.close()
+                            if (originalBitmap != null) {
+                                val maxDim = 1080
+                                val scale = maxDim.toFloat() / Math.max(originalBitmap.width, originalBitmap.height)
+                                val scaledBitmap = if (scale < 1f) {
+                                    android.graphics.Bitmap.createScaledBitmap(
+                                        originalBitmap,
+                                        (originalBitmap.width * scale).toInt(),
+                                        (originalBitmap.height * scale).toInt(),
+                                        true
+                                    )
+                                } else originalBitmap
+                                val baos = java.io.ByteArrayOutputStream()
+                                scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, baos)
+                                val imageBytes = baos.toByteArray()
+
+                                val publicUrl = CloudSyncManager.uploadProfileImageToStorage(this@MainActivity, imageBytes)
+                                if (!publicUrl.isNullOrEmpty()) {
+                                    AuthManager.saveProfileImageUri(this@MainActivity, publicUrl)
+                                } else {
+                                    val base64Str = android.util.Base64.encodeToString(imageBytes, android.util.Base64.NO_WRAP)
+                                    val dataUri = "data:image/jpeg;base64,$base64Str"
+                                    AuthManager.saveProfileImageUri(this@MainActivity, dataUri)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("MainActivity", "Failed to upload profile image", e)
+                        }
+                        runOnUiThread {
+                            tabPageCache.remove(settingsTabKey(AppSettingsTab.PROFILE))
+                            navigateToPanel(AppPanel.SETTINGS)
+                        }
                         CloudSyncManager.syncDataToCloud(this@MainActivity)
                     }
                 }.start()

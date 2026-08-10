@@ -175,12 +175,43 @@ object CloudSyncManager {
                     TimelineLogger.importRaw(context, timelineStr)
                 }
 
-                BackupManager(context).runSilentAutoBackup()
+        BackupManager(context).runSilentAutoBackup()
                 return@withContext true
             }
         } catch (e: Exception) {
             Log.e("CloudSyncManager", "Failed to restore data from cloud", e)
         }
         false
+    }
+
+    suspend fun uploadProfileImageToStorage(context: Context, imageBytes: ByteArray): String? = withContext(Dispatchers.IO) {
+        val supabaseUrl = BuildConfig.SUPABASE_URL
+        val anonKey = BuildConfig.SUPABASE_ANON_KEY
+        val userId = AuthManager.getUserId(context) ?: return@withContext null
+
+        try {
+            val fileName = "$userId.jpg"
+            val url = URL("$supabaseUrl/storage/v1/object/avatars/$fileName")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.setRequestProperty("apikey", anonKey)
+            conn.setRequestProperty("Authorization", "Bearer $anonKey")
+            conn.setRequestProperty("Content-Type", "image/jpeg")
+            conn.setRequestProperty("x-upsert", "true")
+            conn.doOutput = true
+
+            conn.outputStream.use { os ->
+                os.write(imageBytes)
+            }
+
+            val code = conn.responseCode
+            Log.d("CloudSyncManager", "Supabase storage upload code: $code")
+            if (code in 200..299) {
+                return@withContext "$supabaseUrl/storage/v1/object/public/avatars/$fileName"
+            }
+        } catch (e: Exception) {
+            Log.e("CloudSyncManager", "Failed to upload image to Supabase Storage", e)
+        }
+        null
     }
 }

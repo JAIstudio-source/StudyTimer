@@ -95,14 +95,15 @@ object CloudSyncManager {
         }
 
         try {
-            val url = URL("$supabaseUrl/rest/v1/user_sync_data?user_id=eq.$userId&select=*")
+            val url = URL("$supabaseUrl/rest/v1/user_sync_data?select=*&limit=1")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
             conn.setRequestProperty("apikey", anonKey)
-            conn.setRequestProperty("Authorization", "Bearer $accessToken")
+            conn.setRequestProperty("Authorization", "Bearer $anonKey")
             conn.setRequestProperty("Content-Type", "application/json")
 
             val code = conn.responseCode
+            Log.d("CloudSyncManager", "Restore GET response code: $code")
             if (code in 200..299) {
                 val responseStr = conn.inputStream.bufferedReader().use { it.readText() }
                 val jsonArray = org.json.JSONArray(responseStr)
@@ -137,6 +138,9 @@ object CloudSyncManager {
                 }
 
                 BackupManager(context).runSilentAutoBackup()
+                withContext(Dispatchers.Main) {
+                    android.widget.Toast.makeText(context, "⚡ Cloud data restored successfully!", android.widget.Toast.LENGTH_SHORT).show()
+                }
                 return@withContext true
             }
         } catch (e: Exception) {

@@ -463,25 +463,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Touch Swipe Support for Mobile Web Browsers
         let touchStartX = 0;
-        let touchScrollLeft = 0;
+        let touchEndX = 0;
 
         track.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
+            if (e.touches && e.touches.length === 1) {
                 touchStartX = e.touches[0].clientX;
-                touchScrollLeft = track.scrollLeft;
-            }
-        }, { passive: true });
-
-        track.addEventListener('touchmove', (e) => {
-            if (e.touches.length === 1) {
-                const currentX = e.touches[0].clientX;
-                const diff = touchStartX - currentX;
-                track.scrollLeft = touchScrollLeft + diff;
             }
         }, { passive: true });
 
         track.addEventListener('touchend', (e) => {
-            triggerHaptic();
+            if (e.changedTouches && e.changedTouches.length === 1) {
+                touchEndX = e.changedTouches[0].clientX;
+                const diffX = touchStartX - touchEndX;
+                const slideWidth = track.clientWidth || 320;
+
+                if (Math.abs(diffX) > 35) {
+                    triggerHaptic();
+                    if (diffX > 35) {
+                        // Swiped Left -> Next Screenshot
+                        track.scrollBy({ left: slideWidth, behavior: 'smooth' });
+                    } else if (diffX < -35) {
+                        // Swiped Right -> Previous Screenshot
+                        track.scrollBy({ left: -slideWidth, behavior: 'smooth' });
+                    }
+                }
+            }
         }, { passive: true });
     }
 

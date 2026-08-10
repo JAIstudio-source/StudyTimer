@@ -856,21 +856,6 @@ class MainActivity : AppCompatActivity() {
         backupManager = BackupManager(this)
         
         backupManager.triggerAutoRestoreIfPresent()
-        if (AuthManager.isLoggedIn(this) && !AuthManager.isGuest(this)) {
-            Thread {
-                kotlinx.coroutines.runBlocking {
-                    val restored = CloudSyncManager.restoreDataFromCloud(this@MainActivity)
-                    if (restored) {
-                        runOnUiThread {
-                            themeCoordinator.applyThemeCoordinates()
-                            tabPageCache.clear()
-                            statsDirty = true
-                            navigateToPanel(currentPanel)
-                        }
-                    }
-                }
-            }.start()
-        }
         themeCoordinator.applyThemeCoordinates()
 
         createNotificationChannel()

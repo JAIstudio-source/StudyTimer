@@ -973,6 +973,37 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 }
             }
             profileContent.addView(btnAuthAction)
+
+            if (!AuthManager.isGuest(this@with)) {
+                val btnRestoreCloud = Button(this).apply {
+                    text = "📥 Restore Data from Cloud"
+                    setTextColor(themeCoordinator.textColor)
+                    textSize = 13f
+                    typeface = Typeface.DEFAULT_BOLD
+                    background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 12f)
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        setMargins(0, dp(12), 0, 0)
+                    }
+                    setOnClickListener {
+                        Thread {
+                            kotlinx.coroutines.runBlocking {
+                                val success = CloudSyncManager.restoreDataFromCloud(this@with)
+                                runOnUiThread {
+                                    if (success) {
+                                        Toast.makeText(this@with, "⚡ Cloud data restored successfully!", Toast.LENGTH_SHORT).show()
+                                        tabPageCache.clear()
+                                        statsDirty = true
+                                        navigateToPanel(currentPanel)
+                                    } else {
+                                        Toast.makeText(this@with, "No cloud backup found or restore failed", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                        }.start()
+                    }
+                }
+                profileContent.addView(btnRestoreCloud)
+            }
             profileCard.addView(profileContent)
             layout.addView(profileCard)
         }

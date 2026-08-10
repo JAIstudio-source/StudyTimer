@@ -17,6 +17,9 @@
     <meta name="twitter:description" content="Clean, distraction-free study timer, intelligent lecture manager, and daily habit planner—100% offline and ad-free.">
     <meta name="twitter:image" content="assets/featured.png">
     
+    <link rel="canonical" href="https://get-studytimer.vercel.app/">
+    <meta property="og:site_name" content="StudyTimer by Pushkar Studio">
+    <meta property="og:url" content="https://get-studytimer.vercel.app/">
     <link rel="icon" href="assets/logo.png" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -69,6 +72,7 @@
                 <li><a href="#features" class="nav-item">Features</a></li>
                 <li><a href="#heatmap-demo" class="nav-item">Analytics</a></li>
                 <li><a href="#screenshots" class="nav-item">Screenshots</a></li>
+                <li><a href="#whats-new" class="nav-item">What's New</a></li>
                 <li><a href="#faq" class="nav-item">FAQ</a></li>
                 <li class="nav-theme-item">
                     <span class="theme-nav-label">Theme Preview:</span>
@@ -509,7 +513,7 @@
                         <li><span class="spec-label">License</span> 100% Free & Open Source</li>
                     </ul>
 
-                    <div class="release-notes-box">
+                    <div class="release-notes-box" id="whats-new">
                         <h4>What's New in Version <span class="app-version">v2.5.0</span> 🚀</h4>
                         <p class="release-notes-text">Secure Cloud Sync: Safely back up your study data and restore it anytime.
 
@@ -526,10 +530,15 @@ Performance Boosts: Ultra-fast load times and battery optimizations for night se
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         <span>Download APK Now</span>
                     </a>
+
+                    <button class="btn secondary-btn share-app-btn w-full" id="share-app-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                        <span>Share with Classmates</span>
+                    </button>
                     
                     <button class="btn secondary-btn qr-trigger-btn w-full" id="qr-modal-btn">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                        Scan QR Code for Mobile
+                        <span>Scan QR Code for Mobile</span>
                     </button>
 
                     <p class="open-source-note">Verified Clean APK • No Ads • 100% Privacy</p>

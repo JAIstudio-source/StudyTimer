@@ -513,8 +513,34 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ----------------------------------------------------
-    // 9. QR Code Modal Toggle
+    // 9. Web Share API & QR Code Modal Toggle
     // ----------------------------------------------------
+    const shareAppBtn = document.getElementById('share-app-btn');
+    if (shareAppBtn) {
+        shareAppBtn.addEventListener('click', async () => {
+            const shareData = {
+                title: 'StudyTimer: Focus, Track & Plan',
+                text: 'Crush your academic goals with StudyTimer - clean, distraction-free study timer, lecture manager, and habit planner for Android!',
+                url: window.location.href
+            };
+
+            if (navigator.share) {
+                try {
+                    await navigator.share(shareData);
+                } catch (err) {
+                    console.log('Share dismissed:', err);
+                }
+            } else {
+                try {
+                    await navigator.clipboard.writeText(window.location.href);
+                    alert('Link copied to clipboard! Share it with your classmates.');
+                } catch (err) {
+                    prompt('Copy this link to share:', window.location.href);
+                }
+            }
+        });
+    }
+
     const qrModal = document.getElementById('qr-modal');
     const qrModalBtn = document.getElementById('qr-modal-btn');
     const qrCloseBtn = document.getElementById('qr-close-btn');

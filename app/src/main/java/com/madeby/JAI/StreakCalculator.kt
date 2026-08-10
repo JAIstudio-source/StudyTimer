@@ -43,4 +43,39 @@ object StreakCalculator {
         }
         return streak
     }
+
+    fun calculateBadges(
+        context: android.content.Context,
+        currentStreak: Int,
+        totalStudySeconds: Long
+    ): List<AchievementBadge> {
+        val totalHours = totalStudySeconds / 3600L
+        val logs = TimelineLogger.load(context)
+
+        var hasEarlyBird = false
+        var hasMiddayMaster = false
+        var hasPrimeTime = false
+        var hasNightOwl = false
+
+        val cal = Calendar.getInstance()
+        for (item in logs) {
+            cal.timeInMillis = item.timestamp
+            val hour = cal.get(Calendar.HOUR_OF_DAY)
+            if (hour < 7) hasEarlyBird = true
+            if (hour in 12..14) hasMiddayMaster = true
+            if (hour in 16..20) hasPrimeTime = true
+            if (hour >= 23 || hour < 4) hasNightOwl = true
+        }
+
+        return listOf(
+            AchievementBadge("7_day_streak", "7-Day Streak", "Maintain a study streak for 7 consecutive days", "🔥", currentStreak >= 7),
+            AchievementBadge("30_day_streak", "30-Day Streak", "Maintain a study streak for 30 consecutive days", "🏆", currentStreak >= 30),
+            AchievementBadge("10_hours_study", "10 Hours Focus", "Complete 10 total hours of focused study", "⏱️", totalHours >= 10),
+            AchievementBadge("50_hours_study", "50 Hours Focus", "Complete 50 total hours of focused study", "🎓", totalHours >= 50),
+            AchievementBadge("early_bird", "Early Bird", "Complete a study session before 7:00 AM", "🌅", hasEarlyBird),
+            AchievementBadge("midday_master", "Midday Master", "Complete a study session between 12 PM - 3 PM", "☀️", hasMiddayMaster),
+            AchievementBadge("prime_time", "Prime Time Focus", "Complete a study session between 4 PM - 8 PM", "🎯", hasPrimeTime),
+            AchievementBadge("night_owl", "Night Owl", "Complete a study session after 11:00 PM", "🌙", hasNightOwl)
+        )
+    }
 }

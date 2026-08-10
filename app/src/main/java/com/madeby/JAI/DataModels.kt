@@ -39,5 +39,13 @@ data class LectureScheduleItem(
     val enabled: Boolean = true
 )
 
+data class AchievementBadge(
+    val id: String,
+    val title: String,
+    val description: String,
+    val icon: String,
+    val isUnlocked: Boolean
+)
+
 
 

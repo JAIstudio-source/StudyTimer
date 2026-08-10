@@ -4,6 +4,9 @@ import android.content.Context
 import android.net.Uri
 import org.json.JSONObject
 import java.io.*
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class BackupManager(private val context: Context) {
 
@@ -96,6 +99,35 @@ class BackupManager(private val context: Context) {
         "customBg", "customPrimary", "customHue", "customSecondary", "customSecondaryHue",
         "current_streak", "selected_days_filter", "reminder_hour", "reminder_minute"
     )
+
+    fun exportDataToCSV(uri: Uri): Boolean {
+        try {
+            val logs = TimelineLogger.load(context)
+            val sdfDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val sdfTime = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+
+            val sb = StringBuilder()
+            sb.append("Timestamp,Date,Time,State,ID\n")
+
+            for (item in logs) {
+                val dateStr = sdfDate.format(Date(item.timestamp))
+                val timeStr = sdfTime.format(Date(item.timestamp))
+                val state = item.state
+                val idStr = item.id ?: ""
+
+                sb.append("${item.timestamp},\"$dateStr\",\"$timeStr\",\"$state\",\"$idStr\"\n")
+            }
+
+            val outputStream = context.contentResolver.openOutputStream(uri, "w")
+                ?: return false
+            outputStream.use { stream ->
+                stream.write(sb.toString().toByteArray(Charsets.UTF_8))
+            }
+            return true
+        } catch (_: Exception) {
+            return false
+        }
+    }
 
     private fun sanitizeAndBuildPreferences(sourceJson: JSONObject, editor: android.content.SharedPreferences.Editor) {
         val keys = sourceJson.keys()

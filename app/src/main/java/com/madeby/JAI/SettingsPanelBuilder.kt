@@ -27,6 +27,11 @@ class SettingsPanelBuilder(private val host: MainActivity) {
         with(host) {
         if (captureScrollRef) {
             tabPageCache.keys.removeIf { it.startsWith("ST:") }
+            Thread {
+                kotlinx.coroutines.runBlocking {
+                    CloudSyncManager.syncDataToCloud(this@with)
+                }
+            }.start()
         }
         val settingsRootLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL

@@ -1155,7 +1155,7 @@ class MainActivity : AppCompatActivity() {
     private fun tabDragNeighborExists(side: Int): Boolean {
         return when (currentPanel) {
             AppPanel.STATS -> if (side == 1) currentStatsTab != AppStatsTab.PLANNER else currentStatsTab != AppStatsTab.OVERVIEW
-            AppPanel.SETTINGS -> if (side == 1) currentSettingsTab != AppSettingsTab.THEME else currentSettingsTab != AppSettingsTab.SIMPLE
+            AppPanel.SETTINGS -> if (side == 1) currentSettingsTab != AppSettingsTab.PROFILE else currentSettingsTab != AppSettingsTab.SIMPLE
             else -> false
         }
     }
@@ -1194,7 +1194,11 @@ class MainActivity : AppCompatActivity() {
 
 
             AppPanel.SETTINGS -> {
-                tabDragCommitSettingsTab = if (side == 1) AppSettingsTab.THEME else AppSettingsTab.SIMPLE
+                tabDragCommitSettingsTab = if (side == 1) {
+                    if (currentSettingsTab == AppSettingsTab.SIMPLE) AppSettingsTab.THEME else AppSettingsTab.PROFILE
+                } else {
+                    if (currentSettingsTab == AppSettingsTab.PROFILE) AppSettingsTab.THEME else AppSettingsTab.SIMPLE
+                }
                 settingsTabKey(tabDragCommitSettingsTab)
             }
             else -> return false
@@ -1333,7 +1337,11 @@ class MainActivity : AppCompatActivity() {
         val page = when {
             key.startsWith("ST:") -> {
                 val prev = currentSettingsTab
-                currentSettingsTab = if (key == settingsTabKey(AppSettingsTab.THEME)) AppSettingsTab.THEME else AppSettingsTab.SIMPLE
+                currentSettingsTab = when (key) {
+                    settingsTabKey(AppSettingsTab.THEME) -> AppSettingsTab.THEME
+                    settingsTabKey(AppSettingsTab.PROFILE) -> AppSettingsTab.PROFILE
+                    else -> AppSettingsTab.SIMPLE
+                }
                 buildSettingsPanel(scratch, captureScrollRef = false)
                 currentSettingsTab = prev
                 scratch.getChildAt(0)
@@ -1364,11 +1372,10 @@ class MainActivity : AppCompatActivity() {
                 getOrBuildTabPage(statsTabKey(AppStatsTab.TIMELINE))
                 getOrBuildTabPage(statsTabKey(AppStatsTab.PLANNER))
             }
-
-
             AppPanel.SETTINGS -> {
                 getOrBuildTabPage(settingsTabKey(AppSettingsTab.SIMPLE))
                 getOrBuildTabPage(settingsTabKey(AppSettingsTab.THEME))
+                getOrBuildTabPage(settingsTabKey(AppSettingsTab.PROFILE))
             }
             else -> {}
         }

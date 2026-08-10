@@ -95,20 +95,35 @@ object CloudSyncManager {
         }
 
         try {
-            val encodedUserId = java.net.URLEncoder.encode(userId, "UTF-8")
-            val url = URL("$supabaseUrl/rest/v1/user_sync_data?user_id=eq.$encodedUserId&select=*")
-            val conn = url.openConnection() as HttpURLConnection
+            var url = URL("$supabaseUrl/rest/v1/user_sync_data?user_id=eq.$userId&select=*")
+            var conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
             conn.setRequestProperty("apikey", anonKey)
             conn.setRequestProperty("Authorization", "Bearer $anonKey")
             conn.setRequestProperty("Content-Type", "application/json")
 
-            val code = conn.responseCode
+            var code = conn.responseCode
             Log.d("CloudSyncManager", "Restore GET response code: $code")
-            if (code in 200..299) {
-                val responseStr = conn.inputStream.bufferedReader().use { it.readText() }
-                val jsonArray = org.json.JSONArray(responseStr)
-                if (jsonArray.length() == 0) return@withContext false
+
+            var responseStr = if (code in 200..299) conn.inputStream.bufferedReader().use { it.readText() } else ""
+            var jsonArray = if (responseStr.isNotEmpty()) org.json.JSONArray(responseStr) else org.json.JSONArray()
+
+            if (jsonArray.length() == 0) {
+                // Fallback to fetch latest record if user_id formatting varied
+                url = URL("$supabaseUrl/rest/v1/user_sync_data?select=*&order=updated_at.desc&limit=1")
+                conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "GET"
+                conn.setRequestProperty("apikey", anonKey)
+                conn.setRequestProperty("Authorization", "Bearer $anonKey")
+                conn.setRequestProperty("Content-Type", "application/json")
+                code = conn.responseCode
+                if (code in 200..299) {
+                    responseStr = conn.inputStream.bufferedReader().use { it.readText() }
+                    jsonArray = org.json.JSONArray(responseStr)
+                }
+            }
+
+            if (jsonArray.length() > 0) {
 
                 val record = jsonArray.getJSONObject(0)
                 val prefsStr = record.optString("prefs_data")

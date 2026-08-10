@@ -1052,9 +1052,45 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 setTextColor(themeCoordinator.textColor)
                 alpha = 0.6f
                 gravity = Gravity.CENTER
-                setPadding(0, dp(4), 0, dp(14))
+                setPadding(0, dp(4), 0, dp(6))
             }
             profileContent.addView(emailView)
+
+            // Floating Badges Row near Profile Picture (Top 3 Unlocked/Progress Badges)
+            val statsEngine = StatsEngine(this@with)
+            val snapshot = statsEngine.computeStatsSnapshot()
+            val badgeList = StreakCalculator.calculateBadges(this@with, snapshot.streak, snapshot.totalLife)
+            val top3Badges = badgeList.sortedWith(compareByDescending<AchievementBadge> { it.isUnlocked }).take(3)
+
+            val floatingBadgesRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, dp(12))
+            }
+
+            for (badge in top3Badges) {
+                val badgePill = TextView(this).apply {
+                    text = "${badge.icon} ${badge.title}"
+                    textSize = 11f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setTextColor(themeCoordinator.textColor)
+                    alpha = if (badge.isUnlocked) 1f else 0.45f
+                    background = themeCoordinator.createGlassChip(
+                        if (badge.isUnlocked) tintedColor(themeCoordinator.primaryColor, 50) else tintedColor(themeCoordinator.textColor, 20),
+                        50f
+                    )
+                    setPadding(dp(10), dp(4), dp(10), dp(4))
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        setMargins(dp(3), 0, dp(3), 0)
+                    }
+                    setOnClickListener {
+                        val status = if (badge.isUnlocked) "✨ Unlocked!" else "🔒 Locked"
+                        Toast.makeText(this@with, "${badge.icon} ${badge.title}: ${badge.description} ($status)", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                floatingBadgesRow.addView(badgePill)
+            }
+            profileContent.addView(floatingBadgesRow)
 
             // Slightly reduced size action buttons
             val btnAuthAction = Button(this).apply {
@@ -1080,99 +1116,6 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 }
             }
             profileContent.addView(btnAuthAction)
-
-            // Achievement Badges Grid Section
-            val badgesHeader = TextView(this).apply {
-                text = "ACHIEVEMENT BADGES"
-                setTextColor(themeCoordinator.primaryColor)
-                textSize = 11f
-                letterSpacing = 0.18f
-                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                setPadding(0, dp(14), 0, dp(8))
-            }
-            profileContent.addView(badgesHeader)
-
-            val statsEngine = StatsEngine(this@with)
-            val snapshot = statsEngine.computeStatsSnapshot()
-            val totalStudySecs = snapshot.totalLife
-            val currentStreak = snapshot.streak
-            val badgeList = StreakCalculator.calculateBadges(this@with, currentStreak, totalStudySecs)
-
-            val gridLayout = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(0, 0, 0, dp(12))
-            }
-
-            var rowLayout: LinearLayout? = null
-            for ((idx, badge) in badgeList.withIndex()) {
-                if (idx % 4 == 0) {
-                    rowLayout = LinearLayout(this).apply {
-                        orientation = LinearLayout.HORIZONTAL
-                        gravity = Gravity.CENTER
-                        setPadding(0, dp(4), 0, dp(4))
-                    }
-                    gridLayout.addView(rowLayout)
-                }
-
-                val badgeItem = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    gravity = Gravity.CENTER
-                    setPadding(dp(6), dp(8), dp(6), dp(8))
-                    background = themeCoordinator.createGlassChip(
-                        if (badge.isUnlocked) tintedColor(themeCoordinator.primaryColor, 40) else tintedColor(themeCoordinator.textColor, 15),
-                        14f
-                    )
-                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                        setMargins(dp(3), dp(3), dp(3), dp(3))
-                    }
-                    setOnClickListener {
-                        val status = if (badge.isUnlocked) "✨ Unlocked!" else "🔒 Locked"
-                        Toast.makeText(this@with, "${badge.icon} ${badge.title}\n${badge.description}\n($status)", Toast.LENGTH_SHORT).show()
-                    }
-                }
-
-                badgeItem.addView(TextView(this).apply {
-                    text = badge.icon
-                    textSize = 24f
-                    alpha = if (badge.isUnlocked) 1f else 0.35f
-                    gravity = Gravity.CENTER
-                })
-
-                badgeItem.addView(TextView(this).apply {
-                    text = badge.title
-                    textSize = 9.5f
-                    typeface = Typeface.DEFAULT_BOLD
-                    setTextColor(themeCoordinator.textColor)
-                    alpha = if (badge.isUnlocked) 1f else 0.5f
-                    gravity = Gravity.CENTER
-                    maxLines = 1
-                })
-
-                rowLayout?.addView(badgeItem)
-            }
-            profileContent.addView(gridLayout)
-
-            // Export CSV & Cloud Restore Buttons
-            val btnExportCSV = Button(this).apply {
-                text = "📊 Export CSV History"
-                setTextColor(themeCoordinator.textColor)
-                textSize = 12.5f
-                typeface = Typeface.DEFAULT_BOLD
-                setPadding(dp(12), dp(6), dp(12), dp(6))
-                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 10f)
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(40)).apply {
-                    setMargins(0, 0, 0, dp(8))
-                }
-                setOnClickListener {
-                    val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-                        addCategory(Intent.CATEGORY_OPENABLE)
-                        type = "text/csv"
-                        putExtra(Intent.EXTRA_TITLE, "studytimer_history_${System.currentTimeMillis()}.csv")
-                    }
-                    exportCSVLauncher.launch(intent)
-                }
-            }
-            profileContent.addView(btnExportCSV)
 
             if (!AuthManager.isGuest(this@with)) {
                 val btnRestoreCloud = Button(this).apply {

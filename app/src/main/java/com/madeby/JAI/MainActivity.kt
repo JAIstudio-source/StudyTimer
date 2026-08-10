@@ -621,19 +621,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    internal val exportCSVLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == RESULT_OK) {
-            result.data?.data?.let { uri ->
-                val success = backupManager.exportDataToCSV(uri)
-                if (success) {
-                    Toast.makeText(this, "📊 Session history exported to CSV!", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this, "Failed to export CSV file", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
     internal val csvLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
             result.data?.data?.let { uri ->

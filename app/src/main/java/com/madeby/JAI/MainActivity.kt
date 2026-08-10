@@ -370,7 +370,7 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    internal fun showExpandedAvatarDialog() {
+        internal fun showExpandedAvatarDialog() {
         val dialog = android.app.Dialog(this)
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
 
@@ -386,7 +386,25 @@ class MainActivity : AppCompatActivity() {
         var avatarBitmap: android.graphics.Bitmap? = null
         if (!profileImageUriStr.isNullOrEmpty()) {
             try {
-                if (profileImageUriStr.startsWith("data:image")) {
+                if (profileImageUriStr.startsWith("http://") || profileImageUriStr.startsWith("https://")) {
+                    Thread {
+                        try {
+                            val url = java.net.URL(profileImageUriStr)
+                            val conn = url.openConnection() as java.net.HttpURLConnection
+                            conn.connectTimeout = 5000
+                            conn.readTimeout = 5000
+                            val bmp = android.graphics.BitmapFactory.decodeStream(conn.inputStream)
+                            if (bmp != null) {
+                                runOnUiThread {
+                                    val avatarImgView = frame.findViewById<android.widget.ImageView>(1002)
+                                    if (avatarImgView != null) {
+                                        avatarImgView.setImageBitmap(bmp)
+                                    }
+                                }
+                            }
+                        } catch (_: Exception) {}
+                    }.start()
+                } else if (profileImageUriStr.startsWith("data:image")) {
                     val base64Data = profileImageUriStr.substringAfter("base64,")
                     val decodedBytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
                     avatarBitmap = android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
@@ -405,9 +423,10 @@ class MainActivity : AppCompatActivity() {
             } catch (_: Exception) {}
         }
 
-        if (avatarBitmap != null) {
+        if (avatarBitmap != null || (profileImageUriStr != null && (profileImageUriStr.startsWith("http://") || profileImageUriStr.startsWith("https://")))) {
             val imgView = android.widget.ImageView(this).apply {
-                setImageBitmap(avatarBitmap)
+                id = 1002
+                if (avatarBitmap != null) setImageBitmap(avatarBitmap)
                 scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
@@ -441,6 +460,81 @@ class MainActivity : AppCompatActivity() {
         dialog.window?.setLayout(size, size)
         dialog.show()
     }
+
+    internal fun showSignOutConfirmDialog() {
+        val dialog = android.app.Dialog(this)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = themeCoordinator.createDialogBackground(28f)
+            setPadding(dp(22), dp(22), dp(22), dp(18))
+        }
+
+        content.addView(TextView(this).apply {
+            text = "ACCOUNT"
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 11f
+            letterSpacing = 0.18f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        })
+
+        content.addView(TextView(this).apply {
+            text = "Sign Out"
+            setTextColor(themeCoordinator.textColor)
+            textSize = 18f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(0, dp(6), 0, 0)
+        })
+
+        content.addView(TextView(this).apply {
+            text = "Are you sure you want to sign out of your account?"
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.6f
+            textSize = 13.5f
+            setPadding(0, dp(6), 0, 0)
+        })
+
+        val buttonRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, dp(18), 0, 0)
+        }
+        val cancelBtn = Button(this).apply {
+            text = getString(R.string.btn_cancel_upper)
+            setTextColor(themeCoordinator.textColor)
+            textSize = 12f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 40), 50f)
+            setOnClickListener { dialog.dismiss() }
+            layoutParams = LinearLayout.LayoutParams(0, dp(46), 1f).apply { setMargins(0, 0, dp(8), 0) }
+        }
+        val signOutBtn = Button(this).apply {
+            text = "SIGN OUT"
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = GradientDrawable().apply {
+                cornerRadius = 50f
+                setColor(Color.parseColor("#E53E3E"))
+            }
+            setOnClickListener {
+                dialog.dismiss()
+                AuthManager.logout(this@MainActivity)
+                val intent = Intent(this@MainActivity, LoginActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                startActivity(intent)
+            }
+            layoutParams = LinearLayout.LayoutParams(0, dp(46), 1f).apply { setMargins(dp(8), 0, 0, 0) }
+        }
+        buttonRow.addView(cancelBtn)
+        buttonRow.addView(signOutBtn)
+        content.addView(buttonRow)
+
+        dialog.setContentView(content)
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.88f).toInt(), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+        dialog.show()
+    }
+
     private fun showRestoreConfirmDialog(uri: Uri) {
         val dialog = android.app.Dialog(this)
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)

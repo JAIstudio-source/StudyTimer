@@ -1069,10 +1069,14 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 }
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(42))
                 setOnClickListener {
-                    AuthManager.logout(this@with)
-                    val intent = Intent(this@with, LoginActivity::class.java)
-                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                    startActivity(intent)
+                    if (AuthManager.isGuest(this@with)) {
+                        AuthManager.logout(this@with)
+                        val intent = Intent(this@with, LoginActivity::class.java)
+                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        startActivity(intent)
+                    } else {
+                        showSignOutConfirmDialog()
+                    }
                 }
             }
             profileContent.addView(btnAuthAction)

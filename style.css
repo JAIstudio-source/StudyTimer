@@ -280,7 +280,7 @@ button {
 /* Navbar */
 #navbar {
     position: fixed;
-    top: 16px;
+    top: 10px;
     left: 16px;
     right: 16px;
     width: auto;
@@ -290,7 +290,7 @@ button {
     background: var(--nav-bg);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 22px;
-    padding: 10px 20px;
+    padding: 8px 18px;
     transition: all 0.3s ease;
 }
 
@@ -309,7 +309,12 @@ button {
     color: var(--text);
 }
 
+.nav-brand img,
+.hero-logo,
+.footer-brand img,
 .logo-float {
+    border-radius: 22%;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
     animation: float 4s ease-in-out infinite;
 }
 
@@ -1237,48 +1242,7 @@ button {
     text-align: right;
 }
 
-/* MOBILE STICKY DOWNLOAD BAR */
-.mobile-sticky-bar {
-    position: fixed;
-    bottom: 16px;
-    left: 16px;
-    right: 16px;
-    z-index: 999;
-    padding: 12px 18px;
-    display: none;
-    align-items: center;
-    justify-content: space-between;
-    border-radius: 20px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-}
 
-.sticky-info {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.sticky-info div {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.2;
-}
-
-.sticky-info strong {
-    font-size: 0.92rem;
-}
-
-.sticky-info span {
-    font-size: 0.75rem;
-    color: var(--secondary);
-}
-
-.sticky-download-btn {
-    padding: 8px 16px;
-    font-size: 0.88rem;
-    border-radius: 12px;
-    min-height: 38px;
-}
 
 /* LIGHTBOX & QR MODALS */
 .lightbox, .qr-modal {
@@ -1443,18 +1407,16 @@ button {
 }
 
 @media (max-width: 768px) {
-    .theme-bar-container {
-        justify-content: center;
-    }
-
     #navbar {
-        top: 40px;
-        left: 12px;
-        right: 12px;
+        top: 8px;
+        left: 10px;
+        right: 10px;
+        padding: 6px 12px;
     }
 
     .mobile-menu-toggle {
         display: block;
+        padding: 6px;
     }
 
     .nav-links {
@@ -1462,15 +1424,15 @@ button {
         top: 100%;
         left: 0;
         right: 0;
-        margin-top: 10px;
+        margin-top: 8px;
         background: var(--card);
         border: 1px solid var(--border);
         border-radius: 18px;
-        padding: 20px;
+        padding: 18px;
         flex-direction: column;
-        gap: 16px;
+        gap: 14px;
         display: none;
-        box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.85);
     }
 
     .nav-links.mobile-open {
@@ -1478,15 +1440,45 @@ button {
     }
 
     .nav-actions {
-        display: none;
+        display: flex;
+        align-items: center;
+        margin-left: auto;
+        margin-right: 6px;
+    }
+
+    .nav-download {
+        padding: 6px 12px;
+        font-size: 0.78rem;
+        min-height: 34px;
+        border-radius: 10px;
+    }
+
+    .nav-theme-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        margin-left: 0;
+        width: 100%;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .nav-theme-item .theme-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        width: 100%;
+    }
+
+    .nav-theme-item .theme-pill {
+        flex: 1 1 calc(50% - 6px);
+        justify-content: center;
+        padding: 6px 8px;
+        font-size: 0.75rem;
     }
 
     .hero-title {
-        font-size: 2.3rem;
-    }
-
-    .mobile-sticky-bar {
-        display: flex;
+        font-size: 2.2rem;
     }
 
     .carousel-track {
@@ -1503,6 +1495,6 @@ button {
     .next-btn { right: 5px; }
     
     .footer {
-        padding-bottom: 100px;
+        padding-bottom: 40px;
     }
 }

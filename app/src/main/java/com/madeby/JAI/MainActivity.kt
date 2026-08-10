@@ -1306,16 +1306,15 @@ class MainActivity : AppCompatActivity() {
     internal fun statsTabKey(t: AppStatsTab): String = "S:${t.ordinal}"
     private fun settingsTabKey(t: AppSettingsTab): String = "ST:${t.ordinal}"
 
-    private fun tabThemeSig(): String =
-        "${themeCoordinator.primaryColor}|${themeCoordinator.secondaryColor}|${themeCoordinator.bgColor}|${themeCoordinator.uiStyle}|${themeCoordinator.activeBgMode}"
+    private fun tabThemeSig(): String {
+        val plannerPreset = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).getString("planner_theme_preset", "DEFAULT") ?: "DEFAULT"
+        return "${themeCoordinator.primaryColor}|${themeCoordinator.secondaryColor}|${themeCoordinator.bgColor}|${themeCoordinator.uiStyle}|${themeCoordinator.activeBgMode}|$plannerPreset"
+    }
 
     private fun getOrBuildTabPage(key: String): View {
         val cached = tabPageCache[key]
         if (cached != null) {
-            val valid = when {
-                key.startsWith("ST:") -> cached.themeSig == tabThemeSig()
-                else -> cached.statsGen == statsSnapshotGen
-            }
+            val valid = (cached.themeSig == tabThemeSig()) && (key.startsWith("ST:") || cached.statsGen == statsSnapshotGen)
             if (valid && cached.view.parent == null) return cached.view
         }
         val scratch = FrameLayout(this)
@@ -1344,7 +1343,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
         scratch.removeView(page)
-        tabPageCache[key] = if (key.startsWith("ST:")) CachedTabPage(page, 0, tabThemeSig()) else CachedTabPage(page, statsSnapshotGen, "")
+        tabPageCache[key] = CachedTabPage(page, if (key.startsWith("ST:")) 0 else statsSnapshotGen, tabThemeSig())
         return page
     }
 

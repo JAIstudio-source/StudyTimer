@@ -16,7 +16,7 @@ object CloudSyncManager {
         val userId = AuthManager.getUserId(context)
         val accessToken = AuthManager.getAccessToken(context)
 
-        if (supabaseUrl.isBlank() || anonKey.isBlank() || userId.isNullOrBlank() || accessToken.isNullOrBlank()) {
+        if (supabaseUrl.isBlank() || anonKey.isBlank() || userId.isNullOrBlank()) {
             Log.d("CloudSyncManager", "Skipping cloud sync: Not logged in to Supabase or missing credentials")
             return@withContext false
         }
@@ -90,7 +90,7 @@ object CloudSyncManager {
         val userId = AuthManager.getUserId(context)
         val accessToken = AuthManager.getAccessToken(context)
 
-        if (supabaseUrl.isBlank() || anonKey.isBlank() || userId.isNullOrBlank() || accessToken.isNullOrBlank()) {
+        if (supabaseUrl.isBlank() || anonKey.isBlank() || userId.isNullOrBlank()) {
             return@withContext false
         }
 

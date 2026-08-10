@@ -48,7 +48,7 @@ object CloudSyncManager {
             var conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.setRequestProperty("apikey", anonKey)
-            conn.setRequestProperty("Authorization", "Bearer $accessToken")
+            conn.setRequestProperty("Authorization", "Bearer $anonKey")
             conn.setRequestProperty("Content-Type", "application/json")
             conn.setRequestProperty("Prefer", "resolution=merge-duplicates")
             conn.doOutput = true
@@ -66,7 +66,7 @@ object CloudSyncManager {
                 conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "PATCH"
                 conn.setRequestProperty("apikey", anonKey)
-                conn.setRequestProperty("Authorization", "Bearer $accessToken")
+                conn.setRequestProperty("Authorization", "Bearer $anonKey")
                 conn.setRequestProperty("Content-Type", "application/json")
                 conn.doOutput = true
                 conn.outputStream.use { os ->
@@ -100,7 +100,7 @@ object CloudSyncManager {
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
             conn.setRequestProperty("apikey", anonKey)
-            conn.setRequestProperty("Authorization", "Bearer $accessToken")
+            conn.setRequestProperty("Authorization", "Bearer $anonKey")
             conn.setRequestProperty("Content-Type", "application/json")
 
             val code = conn.responseCode

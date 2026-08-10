@@ -533,7 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 try {
                     await navigator.clipboard.writeText(window.location.href);
-                    alert('Link copied to clipboard! Share it with your classmates.');
+                    alert('Link copied to clipboard! Share it with your friends.');
                 } catch (err) {
                     prompt('Copy this link to share:', window.location.href);
                 }

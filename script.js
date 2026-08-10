@@ -1,6 +1,26 @@
 document.addEventListener('DOMContentLoaded', () => {
     
     // ----------------------------------------------------
+    // Mobile Haptic Feedback Helper (Only for Major Actions)
+    // ----------------------------------------------------
+    function triggerHaptic() {
+        if ('vibrate' in navigator) {
+            try {
+                navigator.vibrate(50);
+            } catch (e) {
+                // Ignore if vibration permission denied
+            }
+        }
+    }
+
+    // Attach Haptic Feedback ONLY to Major APK Download Buttons
+    document.querySelectorAll('.download-link').forEach(link => {
+        link.addEventListener('click', () => {
+            triggerHaptic();
+        });
+    });
+
+    // ----------------------------------------------------
     // 1. Fetch version.json & update release specs
     // ----------------------------------------------------
     async function loadAppVersion() {
@@ -112,20 +132,8 @@ document.addEventListener('DOMContentLoaded', () => {
         pill.addEventListener('click', () => {
             const theme = pill.getAttribute('data-theme-name');
             applyTheme(theme);
-            triggerHaptic();
         });
     });
-
-    // Mobile Haptic Feedback helper
-    function triggerHaptic() {
-        if ('vibrate' in navigator) {
-            try {
-                navigator.vibrate(30);
-            } catch (e) {
-                // Ignore if permission denied
-            }
-        }
-    }
 
     // ----------------------------------------------------
     // 3. Mobile Navigation Drawer Toggle
@@ -136,7 +144,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (menuToggle && navLinks) {
         menuToggle.addEventListener('click', () => {
             navLinks.classList.toggle('mobile-open');
-            triggerHaptic();
         });
 
         // Close menu on link click
@@ -258,9 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTimerUI();
         if (timerStatusText) timerStatusText.textContent = '🎉 Session Completed!';
 
-        if ('vibrate' in navigator) {
-            try { navigator.vibrate([200, 100, 200, 100, 400]); } catch (e) {}
-        }
+        triggerHaptic();
 
         if (isSoundEnabled) {
             playChimeSound();
@@ -295,7 +300,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (timerToggleBtn) {
         timerToggleBtn.addEventListener('click', () => {
-            triggerHaptic();
             if (isRunning) {
                 pauseTimer();
             } else {
@@ -306,7 +310,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (timerResetBtn) {
         timerResetBtn.addEventListener('click', () => {
-            triggerHaptic();
             resetTimer();
         });
     }
@@ -314,14 +317,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (timerSoundBtn) {
         timerSoundBtn.addEventListener('click', () => {
             isSoundEnabled = !isSoundEnabled;
-            triggerHaptic();
             timerSoundBtn.style.opacity = isSoundEnabled ? '1' : '0.4';
         });
     }
 
     modeButtons.forEach(btn => {
         btn.addEventListener('click', () => {
-            triggerHaptic();
             const mode = btn.getAttribute('data-mode');
             const minutes = parseInt(btn.getAttribute('data-minutes'), 10);
             setTimerMode(mode, minutes);
@@ -370,17 +371,14 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             cell.addEventListener('mouseenter', showTooltip);
-            cell.addEventListener('click', () => {
-                triggerHaptic();
-                showTooltip();
-            });
+            cell.addEventListener('click', showTooltip);
 
             heatmapGrid.appendChild(cell);
         }
     }
 
     // ----------------------------------------------------
-    // 6. Screenshot Carousel & Tab Selector
+    // 6. Screenshot Carousel & Tab Selector (Smooth Mobile Native Scroll)
     // ----------------------------------------------------
     const track = document.getElementById('carousel-track');
     const btnPrev = document.querySelector('.prev-btn');
@@ -389,25 +387,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabBtns = document.querySelectorAll('.screenshot-tab-btn');
 
     if (track) {
-        const scrollAmount = track.clientWidth || 340;
+        const getScrollAmount = () => track.clientWidth || 320;
 
         if (btnPrev && btnNext) {
             btnPrev.addEventListener('click', () => {
-                track.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
-                triggerHaptic();
+                track.scrollBy({ left: -getScrollAmount(), behavior: 'smooth' });
             });
 
             btnNext.addEventListener('click', () => {
-                track.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-                triggerHaptic();
+                track.scrollBy({ left: getScrollAmount(), behavior: 'smooth' });
             });
         }
 
-        // Active indicator and tab synchronization
+        // Active indicator and tab synchronization on scroll
         track.addEventListener('scroll', () => {
             const scrollPos = track.scrollLeft;
-            const itemWidth = track.scrollWidth / indicators.length;
-            const index = Math.min(Math.round(scrollPos / itemWidth), indicators.length - 1);
+            const singleWidth = getScrollAmount();
+            const index = Math.min(Math.round(scrollPos / singleWidth), indicators.length - 1);
 
             indicators.forEach((ind, i) => {
                 if (i === index) ind.classList.add('active');
@@ -418,32 +414,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (i === index) tab.classList.add('active');
                 else tab.classList.remove('active');
             });
-        });
+        }, { passive: true });
 
         // Tab click navigation
         tabBtns.forEach((tab, i) => {
             tab.addEventListener('click', () => {
-                triggerHaptic();
-                const itemWidth = track.scrollWidth / tabBtns.length;
-                track.scrollTo({ left: itemWidth * i, behavior: 'smooth' });
+                const singleWidth = getScrollAmount();
+                track.scrollTo({ left: singleWidth * i, behavior: 'smooth' });
             });
         });
 
         // Indicator click navigation
         indicators.forEach((ind, i) => {
             ind.addEventListener('click', () => {
-                triggerHaptic();
-                const itemWidth = track.scrollWidth / indicators.length;
-                track.scrollTo({ left: itemWidth * i, behavior: 'smooth' });
+                const singleWidth = getScrollAmount();
+                track.scrollTo({ left: singleWidth * i, behavior: 'smooth' });
             });
         });
 
-        // Touch & Drag Swipe Scrolling Logic for Mobile Web
+        // Mouse Drag Support for Desktop
         let isDown = false;
         let startX;
         let scrollLeftPos;
 
-        // Mouse Drag Support
         track.addEventListener('mousedown', (e) => {
             isDown = true;
             startX = e.pageX - track.offsetLeft;
@@ -460,35 +453,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const walk = (x - startX) * 2;
             track.scrollLeft = scrollLeftPos - walk;
         });
-
-        // Touch Swipe Support for Mobile Web Browsers
-        let touchStartX = 0;
-        let touchEndX = 0;
-
-        track.addEventListener('touchstart', (e) => {
-            if (e.touches && e.touches.length === 1) {
-                touchStartX = e.touches[0].clientX;
-            }
-        }, { passive: true });
-
-        track.addEventListener('touchend', (e) => {
-            if (e.changedTouches && e.changedTouches.length === 1) {
-                touchEndX = e.changedTouches[0].clientX;
-                const diffX = touchStartX - touchEndX;
-                const slideWidth = track.clientWidth || 320;
-
-                if (Math.abs(diffX) > 35) {
-                    triggerHaptic();
-                    if (diffX > 35) {
-                        // Swiped Left -> Next Screenshot
-                        track.scrollBy({ left: slideWidth, behavior: 'smooth' });
-                    } else if (diffX < -35) {
-                        // Swiped Right -> Previous Screenshot
-                        track.scrollBy({ left: -slideWidth, behavior: 'smooth' });
-                    }
-                }
-            }
-        }, { passive: true });
     }
 
     // ----------------------------------------------------
@@ -503,7 +467,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (lightbox && lightboxImg && lightboxClose) {
         screenshots.forEach(img => {
             img.addEventListener('click', () => {
-                triggerHaptic();
                 lightboxImg.src = img.src;
                 if (lightboxCaption) {
                     lightboxCaption.textContent = img.getAttribute('data-title') || img.alt;
@@ -539,10 +502,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const questionBtn = item.querySelector('.faq-question');
         if (questionBtn) {
             questionBtn.addEventListener('click', () => {
-                triggerHaptic();
                 const isActive = item.classList.contains('active');
-                
-                // Close other FAQ items
                 faqItems.forEach(otherItem => otherItem.classList.remove('active'));
 
                 if (!isActive) {
@@ -561,7 +521,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (qrModal && qrModalBtn && qrCloseBtn) {
         qrModalBtn.addEventListener('click', () => {
-            triggerHaptic();
             qrModal.classList.add('active');
             document.body.style.overflow = 'hidden';
         });
@@ -608,11 +567,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 backToTopBtn.classList.remove('visible');
             }
         }
-    });
+    }, { passive: true });
 
     if (backToTopBtn) {
         backToTopBtn.addEventListener('click', () => {
-            triggerHaptic();
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
     }

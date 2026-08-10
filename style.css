@@ -977,6 +977,7 @@ button {
 .modern-image-wrapper {
     flex: 0 0 100%;
     scroll-snap-align: center;
+    scroll-snap-stop: always;
     position: relative;
     padding: 0 10px;
     text-align: center;
@@ -1414,36 +1415,38 @@ button {
         padding: 6px 12px;
     }
 
+    .nav-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: relative;
+        width: 100%;
+    }
+
     .mobile-menu-toggle {
         display: block;
         padding: 6px;
+        order: 1;
+        margin-right: 0;
     }
 
-    .nav-links {
+    .nav-brand {
+        order: 2;
         position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        margin-top: 8px;
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 18px;
-        padding: 18px;
-        flex-direction: column;
-        gap: 14px;
-        display: none;
-        box-shadow: 0 20px 40px rgba(0,0,0,0.85);
-    }
-
-    .nav-links.mobile-open {
+        left: 50%;
+        transform: translateX(-50%);
+        margin: 0;
         display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.95rem;
     }
 
     .nav-actions {
         display: flex;
         align-items: center;
+        order: 3;
         margin-left: auto;
-        margin-right: 6px;
     }
 
     .nav-download {

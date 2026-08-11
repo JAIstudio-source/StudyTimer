@@ -47,7 +47,7 @@ class ThemeCoordinator(private val context: Context) {
             }
             else -> {
                 bgColor = 0xFF000000.toInt()
-                boxColor = 0xFF121212.toInt()
+                boxColor = 0xFF000000.toInt() // True OLED Black
                 textColor = 0xFFFFFFFF.toInt()
                 accentColor = Color.HSVToColor(floatArrayOf(36f, 0.85f, 0.95f))
             }
@@ -102,9 +102,7 @@ class ThemeCoordinator(private val context: Context) {
             return GradientDrawable().apply {
                 this.cornerRadius = cornerRadius * density
                 setColor(boxColor)
-                if (activeBgMode == "LIGHT") {
-                    setStroke((1 * density).toInt(), Color.argb(30, 15, 23, 42))
-                }
+                setStroke((1 * density).toInt(), if (activeBgMode == "LIGHT") Color.argb(40, 15, 23, 42) else Color.argb(45, 255, 255, 255))
             }
         }
         val fill: Int
@@ -137,22 +135,23 @@ class ThemeCoordinator(private val context: Context) {
             return GradientDrawable().apply {
                 this.cornerRadius = cornerRadius * density
                 setColor(boxColor)
+                setStroke((1 * density).toInt(), if (activeBgMode == "LIGHT") Color.argb(45, 15, 23, 42) else Color.argb(55, 255, 255, 255))
             }
         }
         val fill: Int
         val stroke: Int
         when (activeBgMode) {
             "LIGHT" -> {
-                fill = 0xFFFDFDFF.toInt()
-                stroke = 0x1A0F172A.toInt()
+                fill = 0xF4F8FAFC.toInt()
+                stroke = 0x2A0F172A.toInt()
             }
             "ECLIPSE" -> {
-                fill = 0xFF151A2E.toInt()
-                stroke = 0x2EFFFFFF.toInt()
+                fill = 0xF00F172A.toInt()
+                stroke = 0x3EFFFFFF.toInt()
             }
             else -> {
-                fill = 0xFF121214.toInt()
-                stroke = 0x26FFFFFF.toInt()
+                fill = 0xF2000000.toInt() // True OLED Black Glass Fill
+                stroke = 0x33FFFFFF.toInt()
             }
         }
         return GradientDrawable().apply {
@@ -193,7 +192,8 @@ class ThemeCoordinator(private val context: Context) {
         if (!isGlassStyle()) {
             return GradientDrawable().apply {
                 this.cornerRadius = cornerRadius * density
-                setColor(boxColor)
+                setColor(if (isDarkMode()) Color.argb(35, 255, 255, 255) else Color.argb(20, 15, 23, 42))
+                setStroke((1 * density).toInt(), borderColor)
             }
         }
         val fill = if (isDarkMode()) 0x1EFFFFFF.toInt() else 0xB3FFFFFF.toInt()

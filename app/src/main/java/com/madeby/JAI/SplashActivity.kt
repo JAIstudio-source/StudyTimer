@@ -9,10 +9,21 @@ import androidx.appcompat.app.AppCompatActivity
 
 class SplashActivity : AppCompatActivity() {
 
+    companion object {
+        var isSplashShownThisSession = false
+    }
+
     private lateinit var videoView: VideoView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        if (isSplashShownThisSession && AuthManager.isLoggedIn(this)) {
+            navigateToNextScreen()
+            return
+        }
+        isSplashShownThisSession = true
+
         setContentView(R.layout.activity_splash)
 
         videoView = findViewById(R.id.splashVideoView)
@@ -53,7 +64,9 @@ class SplashActivity : AppCompatActivity() {
 
     private fun navigateToNextScreen() {
         val nextIntent = if (AuthManager.isLoggedIn(this)) {
-            Intent(this, MainActivity::class.java)
+            Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+            }
         } else {
             Intent(this, LoginActivity::class.java)
         }

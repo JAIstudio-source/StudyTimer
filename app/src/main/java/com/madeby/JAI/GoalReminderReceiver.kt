@@ -37,11 +37,18 @@ class GoalReminderReceiver : BroadcastReceiver() {
             context, 0, openIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val soundUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
         val notification = NotificationCompat.Builder(context, GoalReminderScheduler.CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_flame)
             .setContentTitle(context.getString(R.string.goal_reminder_title))
             .setContentText(context.getString(R.string.goal_reminder_text, focus / 3600, (focus % 3600) / 60, context.getString(R.string.duration_h_m, goal / 3600, (goal % 3600) / 60)))
             .setAutoCancel(true)
+            .setSound(soundUri)
+            .setDefaults(NotificationCompat.DEFAULT_SOUND or NotificationCompat.DEFAULT_LIGHTS)
+            .setFullScreenIntent(openPending, true)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_EVENT)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(openPending)
             .build()
 

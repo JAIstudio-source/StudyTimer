@@ -141,6 +141,36 @@ object PlannerHistoryManager {
         return historyMap
     }
 
+    fun deleteGoalHistory(context: Context, goalId: String) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+        val allKeys = prefs.all.keys
+        for (key in allKeys) {
+            if (key.endsWith(SNAPSHOT_KEY_SUFFIX)) {
+                val rawJson = prefs.getString(key, null) ?: continue
+                val snapshots = parseSnapshots(rawJson)
+                val filtered = snapshots.filterNot { it.goalId == goalId }
+                if (filtered.isEmpty()) {
+                    editor.remove(key)
+                } else {
+                    val array = JSONArray()
+                    for (s in filtered) {
+                        array.put(JSONObject().apply {
+                            put("goalId", s.goalId)
+                            put("title", s.title)
+                            put("targetMinutes", s.targetMinutes)
+                            put("completed", s.completed)
+                            put("checkedAt", s.checkedAt)
+                            put("isAchieved", s.isAchieved)
+                        })
+                    }
+                    editor.putString(key, array.toString())
+                }
+            }
+        }
+        editor.apply()
+    }
+
     fun loadGoalHistory(context: Context, goalId: String): Map<String, Boolean> {
         return loadGoalHistoryDetailed(context, goalId).mapValues { it.value == GoalHistoryStatus.ACHIEVED }
     }

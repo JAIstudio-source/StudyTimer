@@ -266,7 +266,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         applyHoldToRepeat(this) {
                             val current = sharedPrefs.getLong("focus_countdown_secs", 1500L)
                             var next = current + delta
-                            next = next.coerceIn(300L, 4 * 3600L)
+                            next = next.coerceIn(300L, 24 * 3600L)
                             sharedPrefs.edit().putLong("focus_countdown_secs", next).apply()
                             durationValueText.text = formatCountdown(next)
                         }

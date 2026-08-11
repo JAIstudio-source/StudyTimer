@@ -12,6 +12,7 @@ import android.view.ViewConfiguration
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.floor
+import android.view.GestureDetector
 import kotlin.math.max
 
 class HeatmapView @JvmOverloads constructor(
@@ -20,6 +21,7 @@ class HeatmapView @JvmOverloads constructor(
 ) : View(context, attrs) {
 
     var onDayTap: ((String) -> Unit)? = null
+    var onDayLongClick: ((String) -> Unit)? = null
     var forcedCellSize: Float = 0f
 
     private val cells = HashMap<String, Long>()
@@ -33,13 +35,23 @@ class HeatmapView @JvmOverloads constructor(
     private var monthRowH = 0f
     private var rowH = 0f
     private val minCellSize = 18f * resources.displayMetrics.density
-    private var downX = 0f
-    private var downY = 0f
 
     private var primary = Color.HSVToColor(floatArrayOf(190f, 0.65f, 0.95f))
     private var textColor = Color.WHITE
     private val emptyColor = Color.argb(20, 255, 255, 255)
     private var goalFor: ((String) -> Long)? = null
+
+    private val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+        override fun onSingleTapUp(e: MotionEvent): Boolean {
+            handleTap(e.x, e.y)
+            performClick()
+            return true
+        }
+
+        override fun onLongPress(e: MotionEvent) {
+            handleLongClick(e.x, e.y)
+        }
+    })
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -81,6 +93,14 @@ class HeatmapView @JvmOverloads constructor(
 
         requestLayout()
         invalidate()
+    }
+
+    fun getTodayScrollX(viewportWidth: Int): Int {
+        val todayIdx = dayDates.indexOf(todayStr)
+        val todayCol = if (todayIdx >= 0) todayIdx / 7 else numCols - 1
+        val todayX = labelW + todayCol * (cellSize + gapPx) + cellSize / 2f
+        val scrollX = (todayX - viewportWidth / 2f).toInt()
+        return max(0, scrollX)
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -159,21 +179,7 @@ class HeatmapView @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                downX = event.x
-                downY = event.y
-            }
-            MotionEvent.ACTION_UP -> {
-                val dx = event.x - downX
-                val dy = event.y - downY
-                val slop = ViewConfiguration.get(context).scaledTouchSlop
-                if (dx * dx + dy * dy <= slop * slop) {
-                    handleTap(event.x, event.y)
-                }
-                performClick()
-            }
-        }
+        gestureDetector.onTouchEvent(event)
         return true
     }
 
@@ -185,6 +191,17 @@ class HeatmapView @JvmOverloads constructor(
             val dateStr = dayDates.getOrNull(idx) ?: return
             if (dateStr > todayStr) return
             onDayTap?.invoke(dateStr)
+        }
+    }
+
+    private fun handleLongClick(x: Float, y: Float) {
+        val col = floor((x - labelW) / (cellSize + gapPx)).toInt()
+        val row = floor((y - topPad - monthRowH) / rowH).toInt()
+        if (col in 0 until numCols && row in 0..6) {
+            val idx = col * 7 + row
+            val dateStr = dayDates.getOrNull(idx) ?: return
+            if (dateStr > todayStr) return
+            onDayLongClick?.invoke(dateStr)
         }
     }
 

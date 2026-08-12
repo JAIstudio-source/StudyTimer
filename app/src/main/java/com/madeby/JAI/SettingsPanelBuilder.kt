@@ -473,6 +473,10 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
             layout.addView(createSectionLabel(getString(R.string.section_about)))
             val aboutCard = createSettingsCard()
+            val guideRow = createSettingsRow("📖", "How to Use / App Guide", "View complete feature walkthrough & tips")
+            guideRow.setOnClickListener { showAppGuideDialog() }
+            aboutCard.addView(guideRow)
+            aboutCard.addView(createDivider())
             val versionRow = createSettingsRow("\uD83D\uDCCB", getString(R.string.version_label), "v${currentVersionName()} \u00B7 build ${currentVersionCodeLong()}")
             aboutCard.addView(versionRow)
             aboutCard.addView(createDivider())
@@ -646,6 +650,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
             layout.addView(createSectionLabel(getString(R.string.section_theme_style)))
 
             val styleCard = createSettingsCard()
+            val isBubble = themeCoordinator.isBubbleStyle()
             val isGlass = themeCoordinator.isGlassStyle()
 
             fun styleRadio(selected: Boolean): View {
@@ -659,6 +664,15 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 }
             }
 
+            val bubbleRow = createSettingsRow("🔮", "3D look", "Inflated tactile 3D buttons & soft depth shadows", styleRadio(isBubble))
+            bubbleRow.setOnClickListener {
+                sharedPrefs.edit().putString("ui_style", "BUBBLE").apply()
+                themeCoordinator.applyThemeCoordinates()
+                navigateToPanel(AppPanel.SETTINGS)
+            }
+            styleCard.addView(bubbleRow)
+            styleCard.addView(createDivider())
+
             val glassRow = createSettingsRow("\u2728", getString(R.string.style_glass), getString(R.string.style_glass_sub), styleRadio(isGlass))
             glassRow.setOnClickListener {
                 sharedPrefs.edit().putString("ui_style", "GLASS").apply()
@@ -667,7 +681,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
             }
             styleCard.addView(glassRow)
             styleCard.addView(createDivider())
-            val classicRow = createSettingsRow("\u25A6", getString(R.string.style_classic), getString(R.string.style_classic_sub), styleRadio(!isGlass))
+            val classicRow = createSettingsRow("\u25A6", getString(R.string.style_classic), getString(R.string.style_classic_sub), styleRadio(!isGlass && !isBubble))
             classicRow.setOnClickListener {
                 sharedPrefs.edit().putString("ui_style", "CLASSIC").apply()
                 themeCoordinator.applyThemeCoordinates()

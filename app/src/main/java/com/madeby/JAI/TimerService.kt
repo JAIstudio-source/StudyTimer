@@ -146,10 +146,16 @@ class TimerService : Service() {
             sharedPrefs.safeInt("customPrimary", 0xFF7DD3FC.toInt())
         }
 
+        val largeIconRes = if (currentTimerState == TimerState.STUDYING) R.drawable.ic_lecture_logo else R.drawable.ic_flame
+        val largeIconBm = runCatching { android.graphics.BitmapFactory.decodeResource(resources, largeIconRes) }.getOrNull()
+
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(content)
-            .setSmallIcon(R.drawable.ic_clock)
+            .setSmallIcon(R.drawable.ic_small_app_logo)
+            .apply {
+                if (largeIconBm != null) setLargeIcon(largeIconBm)
+            }
             .setOngoing(true)
             .setContentIntent(cachedOpenAppPendingIntent)
             .setColor(primaryColor)
@@ -502,7 +508,7 @@ class TimerService : Service() {
         )
         val soundUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
         val notification = NotificationCompat.Builder(this, COMPLETION_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_clock)
+            .setSmallIcon(R.drawable.ic_small_app_logo)
             .setContentTitle("🎓 Scheduled Class Starting")
             .setContentText("Class '$lectureTitle' is in progress. Tap to switch timer.")
             .setAutoCancel(true)

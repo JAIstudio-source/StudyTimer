@@ -106,9 +106,9 @@ class HeatmapView @JvmOverloads constructor(
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = MeasureSpec.getSize(widthMeasureSpec)
         gapPx = 2f * resources.displayMetrics.density
-        labelW = 14f * resources.displayMetrics.density
+        labelW = 20f * resources.displayMetrics.density
         topPad = 4f * resources.displayMetrics.density
-        monthRowH = 14f * resources.displayMetrics.density
+        monthRowH = 16f * resources.displayMetrics.density
         val gridW = width - labelW
         cellSize = if (forcedCellSize > 0f) {
             forcedCellSize
@@ -154,13 +154,13 @@ class HeatmapView @JvmOverloads constructor(
             val x = labelW + col * (cellSize + gapPx)
             val firstDate = dayDates.getOrNull(col * 7) ?: continue
             if (col == 0 || monthSdf.format(parseSafe(firstDate)) != monthSdf.format(parseSafe(dayDates.getOrNull((col - 1) * 7) ?: firstDate))) {
-                textPaint.color = Color.argb(150, Color.red(textColor), Color.green(textColor), Color.blue(textColor))
+                textPaint.color = Color.argb(220, Color.red(textColor), Color.green(textColor), Color.blue(textColor))
                 canvas.drawText(monthSdf.format(parseSafe(firstDate)), x + cellSize / 2f, topPad + monthRowH - 3f * resources.displayMetrics.density, textPaint)
             }
         }
 
         for (row in 0..6) {
-            textPaint.color = Color.argb(120, Color.red(textColor), Color.green(textColor), Color.blue(textColor))
+            textPaint.color = Color.argb(200, Color.red(textColor), Color.green(textColor), Color.blue(textColor))
             val ly = topPad + monthRowH + row * rowH + cellSize / 2f + textPaint.textSize / 3f
             canvas.drawText(weekdayLetters[row], labelW / 2f, ly, textPaint)
 

@@ -32,7 +32,7 @@ class FocusPanelBuilder(private val host: MainActivity) {
             setImageResource(R.drawable.ic_settings) 
             setColorFilter(themeCoordinator.primaryColor)
             setPadding(16, 16, 16, 16)
-            background = if (themeCoordinator.isGlassStyle()) themeCoordinator.createGlassIconBackground(tintedColor(themeCoordinator.primaryColor, 70)) else null
+            background = if (themeCoordinator.isGlassStyle() || themeCoordinator.isBubbleStyle()) themeCoordinator.createGlassIconBackground(tintedColor(themeCoordinator.primaryColor, 70)) else null
             contentDescription = getString(R.string.cd_open_settings)
             setOnClickListener { navigateToPanel(AppPanel.SETTINGS) }
         }
@@ -137,36 +137,45 @@ class FocusPanelBuilder(private val host: MainActivity) {
         }
 
         mainBtn = Button(this).apply {
-            textSize = 15f
+            textSize = 14.5f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(40, 32, 40, 32)
+            setPadding(dp(20), dp(11), dp(20), dp(11))
+            minimumHeight = dp(46)
             isSoundEffectsEnabled = false
-            layoutParams = LinearLayout.LayoutParams(if (isLandscape) 0 else LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, if (isLandscape) 1f else 0f).apply { if (isLandscape) setMargins(10, 0, 10, 0) }
+            layoutParams = LinearLayout.LayoutParams(if (isLandscape) 0 else LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, if (isLandscape) 1f else 0f).apply { 
+                if (isLandscape) setMargins(dp(8), 0, dp(8), 0) else setMargins(dp(28), dp(4), dp(28), dp(4)) 
+            }
             setOnClickListener { handleStateToggle() }
+            applyBubbleTouchAnimation(this)
         }
 
         pauseBtn = Button(this).apply {
             text = getString(R.string.btn_pause)
-            textSize = 15f
+            textSize = 14.5f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(40, 32, 40, 32)
+            setPadding(dp(20), dp(11), dp(20), dp(11))
+            minimumHeight = dp(46)
             isSoundEffectsEnabled = false
             layoutParams = LinearLayout.LayoutParams(if (isLandscape) 0 else LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, if (isLandscape) 1f else 0f).apply {
-                if (isLandscape) setMargins(10, 0, 10, 0) else setMargins(0, 24, 0, 0)
+                if (isLandscape) setMargins(dp(8), 0, dp(8), 0) else setMargins(dp(28), dp(4), dp(28), dp(4))
             }
             setOnClickListener { handlePause() }
+            applyBubbleTouchAnimation(this)
         }
 
         stopBtn = HoldRingButton(this).apply {
             text = getString(R.string.btn_hold_to_end)
             ringColor = themeCoordinator.primaryColor
             setTextColor(themeCoordinator.textColor)
-            textSize = 13f
+            textSize = 14f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             isSoundEffectsEnabled = false
             background = outlinedButtonBackground()
-            setPadding(40, 28, 40, 28)
-            layoutParams = LinearLayout.LayoutParams(if (isLandscape) 0 else LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, if (isLandscape) 1f else 0f).apply { if (isLandscape) setMargins(10, 0, 10, 0) else setMargins(0, 24, 0, 0) }
+            setPadding(dp(20), dp(11), dp(20), dp(11))
+            minimumHeight = dp(46)
+            layoutParams = LinearLayout.LayoutParams(if (isLandscape) 0 else LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, if (isLandscape) 1f else 0f).apply { 
+                if (isLandscape) setMargins(dp(8), 0, dp(8), 0) else setMargins(dp(28), dp(4), dp(28), dp(4)) 
+            }
             setOnTouchListener { v, event ->
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
@@ -203,12 +212,13 @@ class FocusPanelBuilder(private val host: MainActivity) {
             scaleType = ImageView.ScaleType.FIT_CENTER
             setColorFilter(themeCoordinator.primaryColor)
             setPadding(14, 14, 14, 14)
-            background = if (themeCoordinator.isGlassStyle()) themeCoordinator.createGlassIconBackground(tintedColor(themeCoordinator.primaryColor, 70)) else null
+            background = if (themeCoordinator.isGlassStyle() || themeCoordinator.isBubbleStyle()) themeCoordinator.createGlassIconBackground(tintedColor(themeCoordinator.primaryColor, 70)) else null
             contentDescription = getString(R.string.cd_open_insights)
             setOnClickListener { navigateToPanel(AppPanel.STATS) }
+            applyBubbleTouchAnimation(this)
             layoutParams = LinearLayout.LayoutParams(dp(52), dp(52)).apply {
                 gravity = Gravity.END
-                setMargins(0, 0, 10, if (isLandscape) 5 else 20)
+                setMargins(0, 0, dp(16), if (isLandscape) 5 else 20)
             }
         }
 

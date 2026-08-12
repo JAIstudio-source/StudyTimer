@@ -1,7 +1,7 @@
 {
-  "versionCode": 15,
-  "versionName": "2.5.1",
+  "versionCode": 16,
+  "versionName": "2.5.5",
   "url": "https://get-studytimer.vercel.app/?download=true",
   "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-  "releaseNotes": "What's New in Version 2.5.1 🚀\nFloating Heads-Up Banner Notifications: High-priority pop-up cards for class starting, class ended, goal completion, and reminders.\n\nDirect Notification Panel Actions: Switch between study and break directly from the notification shade without opening the app.\n\nPomodoro Focus Continuity: Resuming focus after a break continues from where you left off.\n\nLecture & Stopwatch Dual Mode: Clean manual stopwatch mode without false end popups, plus smart class switch confirmation.\n\nSecure Cloud Sync: Sign in to safely back up your study data and restore it anytime, anywhere.\n\nHabit & Lecture Planner: Dedicated planners to organize your daily routines and study schedule.\n\nPerformance Boosts & UI Optimization: Faster rendering, lower memory overhead, and enhanced stability."
+  "releaseNotes": "What's New in Version 2.5.5 🚀\n3D Look UI & Volumetric Accents: Modern tactile 3D capsule buttons, volumetric depth icons, and customized Focus/Break color accents.\n\n1-Hour Pomodoro Focus Default: Pre-configured 1-hour Pomodoro countdown with seamless active timer tracking.\n\nAutomatic Daily Goal Reset: Goals in your planner auto-reset every midnight for a fresh daily streak & checklist.\n\nHigh-Resolution Notification Logo: Custom app logo badge displayed on status bar and notification tray.\n\nSpacious CSV Log Export: Completely redesigned CSV export with formatted summary tables for Excel & Google Sheets.\n\nInteractive App Guide: Revisit feature guides and tips anytime from Settings -> About -> How to Use / App Guide.\n\nSmooth Performance & Stability: Enhanced theme preservation for app updates, responsive touch animations, and zero-bug stability."
 }

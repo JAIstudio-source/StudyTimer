@@ -520,7 +520,6 @@ document.addEventListener('DOMContentLoaded', () => {
         shareAppBtn.addEventListener('click', async () => {
             const shareData = {
                 title: 'StudyTimer: Focus, Track & Plan',
-                text: 'Crush your academic goals with StudyTimer - clean, distraction-free study timer, lecture manager, and habit planner for Android!',
                 url: window.location.href
             };
 

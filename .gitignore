@@ -38,3 +38,8 @@ google-services.json
 
 # Node.js dependencies
 node_modules/
+
+# Private Admin Dashboard & Secrets (NEVER push to public GitHub)
+/admin/
+*.env
+schema_analytics.sql

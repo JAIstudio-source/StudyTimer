@@ -40,11 +40,11 @@
     
     <link rel="canonical" href="https://get-studytimer.vercel.app/">
     <link rel="icon" href="assets/logo.png" type="image/png">
-    <link rel="apple-touch-icon" href="assets/screenshot/banner.png">
+    <link rel="apple-touch-icon" href="assets/logo.png">
     <meta name="apple-mobile-web-app-title" content="StudyTimer">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="msapplication-TileImage" content="assets/screenshot/banner.png">
+    <meta name="msapplication-TileImage" content="assets/logo.png">
     <meta name="msapplication-TileColor" content="#050505">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -58,14 +58,32 @@
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
       "name": "StudyTimer",
-      "operatingSystem": "Android 9+",
+      "alternateName": "StudyTimer: Focus, Track & Plan",
+      "url": "https://get-studytimer.vercel.app/",
+      "image": "https://get-studytimer.vercel.app/assets/screenshot/banner.png",
+      "logo": "https://get-studytimer.vercel.app/assets/logo.png",
+      "description": "Distraction-free offline study timer, lecture manager, habit planner, and 6-month focus heatmaps for Android.",
       "applicationCategory": "EducationalApplication",
+      "operatingSystem": "Android 9+",
+      "softwareVersion": "2.5.5",
+      "downloadURL": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
+      "installUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
       "offers": {
         "@type": "Offer",
         "price": "0",
         "priceCurrency": "USD"
       },
-      "description": "Distraction-free offline study timer, lecture manager, habit planner, and 6-month focus heatmaps for Android."
+      "publisher": {
+        "@type": "Organization",
+        "name": "Pushkar Studio",
+        "url": "https://get-studytimer.vercel.app/"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Pushkar Saini"
+      },
+      "keywords": "study timer, pomodoro, focus timer, habit planner, lecture manager, offline, ad-free",
+      "inLanguage": "en"
     }
     </script>
 
@@ -119,7 +137,7 @@
             </ul>
 
             <div class="nav-actions">
-                <a href="#" class="btn primary-btn download-link nav-download" id="nav-download">
+                <a href="StudyTimer-release.apk" class="btn primary-btn download-link nav-download" id="nav-download">
                     Download
                 </a>
             </div>
@@ -152,7 +170,7 @@
                     <p class="hero-subtitle">Crush your academic goals with a clean, distraction-free study timer, intelligent lecture manager, and powerful daily habits planner.</p>
 
                     <div class="hero-actions">
-                        <a href="#" class="btn primary-btn glow-btn download-link hero-download" id="hero-download">
+                        <a href="StudyTimer-release.apk" class="btn primary-btn glow-btn download-link hero-download" id="hero-download">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                             <span>Download APK</span>
                             <span class="btn-subtext app-version">v2.5.1</span>
@@ -557,7 +575,7 @@ Performance Boosts & UI Optimization: Ultra-fast rendering, lower memory overhea
                 </div>
 
                 <div class="download-action">
-                    <a href="#" class="btn primary-btn glow-btn download-link w-full main-download-btn">
+                    <a href="StudyTimer-release.apk" class="btn primary-btn glow-btn download-link w-full main-download-btn">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         <span>Download APK Now</span>
                     </a>
@@ -573,6 +591,10 @@ Performance Boosts & UI Optimization: Ultra-fast rendering, lower memory overhea
                     </button>
 
                     <p class="open-source-note">Verified Clean APK • No Ads • 100% Privacy</p>
+
+                    <noscript>
+                        <p class="noscript-note">JavaScript is disabled. Use the button above to download the latest APK directly.</p>
+                    </noscript>
                 </div>
             </div>
         </div>
@@ -629,5 +651,14 @@ Performance Boosts & UI Optimization: Ultra-fast rendering, lower memory overhea
     <!-- Vercel Speed Insights Script -->
     <script type="module" src="speed-insights.js"></script>
     <script src="script.js"></script>
+
+    <!-- Service Worker Registration (offline support) -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('./sw.js').catch(function () {});
+            });
+        }
+    </script>
 </body>
 </html>

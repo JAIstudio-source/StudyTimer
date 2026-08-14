@@ -1265,6 +1265,16 @@ button {
     color: var(--secondary);
 }
 
+.noscript-note {
+    font-size: 0.78rem;
+    color: var(--secondary);
+    margin-top: 12px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+}
+
 /* FOOTER */
 .footer {
     padding: 50px 0 40px 0;

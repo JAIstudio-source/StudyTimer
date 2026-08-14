@@ -1,7 +1,7 @@
 {
-  "versionCode": 16,
-  "versionName": "2.5.5",
+  "versionCode": 17,
+  "versionName": "2.5.6",
   "url": "https://get-studytimer.vercel.app/?download=true",
   "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-  "releaseNotes": "What's New in Version 2.5.5 🚀\n3D Look UI & Volumetric Accents: Modern tactile 3D capsule buttons, volumetric depth icons, and customized Focus/Break color accents.\n\nAutomatic Daily Goal Reset: Goals in your planner auto-reset every midnight for a fresh daily streak & checklist.\n\nInteractive App Guide: Revisit feature guides and tips anytime from Settings -> About -> How to Use / App Guide.\n\nSmooth Performance & Stability: Enhanced theme preservation for app updates, responsive touch animations, and fixed known bug."
+  "releaseNotes": "What's New in Version 2.5.6 🚀\n- Fixed Known Bugs: Enhanced app stability, dashboard metric fixes, and optimized background performance.\n- Added Privacy: Introduced privacy policy transparency, instant 1st launch telemetry report, and privacy controls."
 }

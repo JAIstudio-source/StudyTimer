@@ -3,5 +3,5 @@
   "versionName": "2.5.6",
   "url": "https://get-studytimer.vercel.app/?download=true",
   "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-  "releaseNotes": "What's New in Version 2.5.6 🚀\n- Fixed Known Bugs: Enhanced app stability, dashboard metric fixes, and optimized background performance.\n- Added Privacy: Introduced privacy policy transparency, instant 1st launch telemetry report, and privacy controls."
+  "releaseNotes": "What's New in Version 2.5.6 🚀\n- Fixed Known Bugs: Enhanced app stability, dashboard metric fixes, and optimized background performance.\n- Added Privacy: Introduced privacy controls."
 }

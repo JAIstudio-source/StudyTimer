@@ -42,6 +42,7 @@ object AuthManager {
             if (!userId.isNullOrEmpty()) putString(KEY_USER_ID, userId)
             apply()
         }
+        AppAnalytics.associateUser(context, userId ?: email)
     }
 
     fun updateUserName(context: Context, name: String) {
@@ -62,6 +63,7 @@ object AuthManager {
             putBoolean(KEY_IS_GUEST, true)
             apply()
         }
+        AppAnalytics.associateUser(context, null)
     }
 
     fun getUserEmail(context: Context): String? {
@@ -81,6 +83,16 @@ object AuthManager {
     }
 
     fun logout(context: Context) {
+        AppAnalytics.onLogout(context)
         getPrefs(context).edit().clear().apply()
+    }
+
+    fun deleteLocalUserData(context: Context) {
+        logout(context)
+        context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit().clear().apply()
+        TimelineLogger.importRaw(context, null)
+        try {
+            java.io.File(context.filesDir, "study_timer_backup.dat").delete()
+        } catch (_: Exception) {}
     }
 }

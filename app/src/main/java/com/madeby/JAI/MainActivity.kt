@@ -537,6 +537,95 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
+    internal fun showDeleteAccountConfirmDialog() {
+        val dialog = android.app.Dialog(this)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = themeCoordinator.createDialogBackground(28f)
+            setPadding(dp(22), dp(22), dp(22), dp(18))
+        }
+
+        content.addView(TextView(this).apply {
+            text = "DANGER ZONE"
+            setTextColor(Color.parseColor("#EF4444"))
+            textSize = 11f
+            letterSpacing = 0.18f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        })
+
+        content.addView(TextView(this).apply {
+            text = "Delete Account & Cloud Data"
+            setTextColor(themeCoordinator.textColor)
+            textSize = 18f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(0, dp(6), 0, 0)
+        })
+
+        content.addView(TextView(this).apply {
+            text = "This will permanently delete your cloud backup, habit logs, synced profile, and local study history. This action cannot be undone."
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.7f
+            textSize = 13.5f
+            setPadding(0, dp(6), 0, 0)
+        })
+
+        val buttonRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, dp(18), 0, 0)
+        }
+        val cancelBtn = Button(this).apply {
+            text = getString(R.string.btn_cancel_upper)
+            setTextColor(themeCoordinator.textColor)
+            textSize = 12f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 40), 50f)
+            setOnClickListener { dialog.dismiss() }
+            layoutParams = LinearLayout.LayoutParams(0, dp(46), 1f).apply { setMargins(0, 0, dp(8), 0) }
+        }
+        val deleteBtn = Button(this).apply {
+            text = "HOLD TO DELETE"
+            setTextColor(Color.WHITE)
+            textSize = 11f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = GradientDrawable().apply {
+                cornerRadius = 50f
+                setColor(Color.parseColor("#DC2626"))
+            }
+            setOnClickListener {
+                android.widget.Toast.makeText(this@MainActivity, "Hold button for 1.5s to confirm wipe", android.widget.Toast.LENGTH_SHORT).show()
+            }
+            setOnLongClickListener {
+                try {
+                    rootLayout.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                } catch (_: Exception) {}
+                dialog.dismiss()
+                Thread {
+                    kotlinx.coroutines.runBlocking {
+                        CloudSyncManager.deleteUserCloudData(this@MainActivity)
+                    }
+                    runOnUiThread {
+                        AuthManager.deleteLocalUserData(this@MainActivity)
+                        android.widget.Toast.makeText(this@MainActivity, "Account & all data permanently deleted.", android.widget.Toast.LENGTH_LONG).show()
+                        val intent = Intent(this@MainActivity, LoginActivity::class.java)
+                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        startActivity(intent)
+                    }
+                }.start()
+                true
+            }
+            layoutParams = LinearLayout.LayoutParams(0, dp(46), 1f).apply { setMargins(dp(8), 0, 0, 0) }
+        }
+        buttonRow.addView(cancelBtn)
+        buttonRow.addView(deleteBtn)
+        content.addView(buttonRow)
+
+        dialog.setContentView(content)
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.88f).toInt(), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+        dialog.show()
+    }
+
     private fun showRestoreConfirmDialog(uri: Uri) {
         val dialog = android.app.Dialog(this)
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
@@ -1167,18 +1256,6 @@ class MainActivity : AppCompatActivity() {
         setTheme(R.style.AppTheme_NoActionBar)
         super.onCreate(savedInstanceState)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(true)
-            setTurnScreenOn(true)
-        } else {
-            @Suppress("DEPRECATION")
-            window.addFlags(
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
-            )
-        }
-
         val sharedPrefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
         if (!sharedPrefs.contains("activeBgMode")) {
             sharedPrefs.edit()
@@ -1205,6 +1282,9 @@ class MainActivity : AppCompatActivity() {
         themeCoordinator = ThemeCoordinator(this)
         backupManager = BackupManager(this)
         
+        AppAnalytics.init(this)
+        CrashReporter.init(this)
+
         backupManager.triggerAutoRestoreIfPresent()
         themeCoordinator.applyThemeCoordinates()
 

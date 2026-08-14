@@ -108,23 +108,7 @@ object CloudSyncManager {
             var responseStr = if (code in 200..299) conn.inputStream.bufferedReader().use { it.readText() } else ""
             var jsonArray = if (responseStr.isNotEmpty()) org.json.JSONArray(responseStr) else org.json.JSONArray()
 
-            if (jsonArray.length() == 0) {
-                // Fallback to fetch latest record if user_id formatting varied
-                url = URL("$supabaseUrl/rest/v1/user_sync_data?select=*&order=updated_at.desc&limit=1")
-                conn = url.openConnection() as HttpURLConnection
-                conn.requestMethod = "GET"
-                conn.setRequestProperty("apikey", anonKey)
-                conn.setRequestProperty("Authorization", "Bearer $anonKey")
-                conn.setRequestProperty("Content-Type", "application/json")
-                code = conn.responseCode
-                if (code in 200..299) {
-                    responseStr = conn.inputStream.bufferedReader().use { it.readText() }
-                    jsonArray = org.json.JSONArray(responseStr)
-                }
-            }
-
             if (jsonArray.length() > 0) {
-
                 val record = jsonArray.getJSONObject(0)
                 val prefsStr = record.optString("prefs_data")
                 val timelineStr = record.optString("timeline_data")
@@ -229,5 +213,42 @@ object CloudSyncManager {
             Log.e("CloudSyncManager", "Failed to upload image to Supabase Storage", e)
         }
         null
+    }
+
+    suspend fun deleteUserCloudData(context: Context): Boolean = withContext(Dispatchers.IO) {
+        val supabaseUrl = BuildConfig.SUPABASE_URL
+        val anonKey = BuildConfig.SUPABASE_ANON_KEY
+        val userId = AuthManager.getUserId(context)
+
+        if (supabaseUrl.isBlank() || anonKey.isBlank() || userId.isNullOrBlank()) {
+            return@withContext true
+        }
+
+        var deletedSync = false
+        try {
+            val url = URL("$supabaseUrl/rest/v1/user_sync_data?user_id=eq.$userId")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "DELETE"
+            conn.setRequestProperty("apikey", anonKey)
+            conn.setRequestProperty("Authorization", "Bearer $anonKey")
+            deletedSync = conn.responseCode in 200..299
+        } catch (e: Exception) {
+            Log.e("CloudSyncManager", "Failed to delete user_sync_data", e)
+        }
+
+        try {
+            val fileName = "$userId.jpg"
+            val bucketName = "profile-pictures"
+            val url = URL("$supabaseUrl/storage/v1/object/$bucketName/$fileName")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "DELETE"
+            conn.setRequestProperty("apikey", anonKey)
+            conn.setRequestProperty("Authorization", "Bearer $anonKey")
+            conn.responseCode
+        } catch (e: Exception) {
+            Log.e("CloudSyncManager", "Failed to delete profile picture storage object", e)
+        }
+
+        deletedSync
     }
 }

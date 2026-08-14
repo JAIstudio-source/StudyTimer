@@ -108,6 +108,8 @@ class FocusPanelBuilder(private val host: MainActivity) {
 
         studyTimerDisplay = TextView(this).apply {
             text = "00:00:00"
+            isSingleLine = true
+            maxLines = 1
             textSize = if (isLandscape) 96f else 54f 
             typeface = Typeface.MONOSPACE
             gravity = Gravity.CENTER
@@ -118,6 +120,8 @@ class FocusPanelBuilder(private val host: MainActivity) {
 
         breakTimerDisplay = TextView(this).apply {
             text = "00:00:00"
+            isSingleLine = true
+            maxLines = 1
             textSize = if (isLandscape) 24f else 20f
             typeface = Typeface.MONOSPACE
             gravity = Gravity.CENTER

@@ -1125,9 +1125,44 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     }
                 }
                 profileContent.addView(btnRestoreCloud)
+
+                val btnDeleteAccount = TextView(this).apply {
+                    text = "⚠️ Delete Account & Cloud Data"
+                    setTextColor(Color.parseColor("#EF4444"))
+                    textSize = 12f
+                    gravity = Gravity.CENTER
+                    setPadding(0, dp(14), 0, dp(4))
+                    setOnClickListener {
+                        showDeleteAccountConfirmDialog()
+                    }
+                }
+                profileContent.addView(btnDeleteAccount)
             }
             profileCard.addView(profileContent)
             layout.addView(profileCard)
+
+            layout.addView(createSectionLabel("PRIVACY & DATA"))
+            val privacyCard = createSettingsCard().apply {
+                val pRow = LinearLayout(this@with).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(dp(18), dp(14), dp(18), dp(14))
+                }
+                pRow.addView(TextView(this@with).apply {
+                    text = "🔒 Privacy-First App"
+                    setTextColor(themeCoordinator.textColor)
+                    textSize = 14f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                })
+                pRow.addView(TextView(this@with).apply {
+                    text = "No private notes, task titles, contacts, microphone, or hardware fingerprints are collected. Anonymous ID: ${AppAnalytics.getAnonymousId(this@with).take(8)}..."
+                    setTextColor(themeCoordinator.textColor)
+                    alpha = 0.6f
+                    textSize = 11.5f
+                    setPadding(0, dp(4), 0, 0)
+                })
+                addView(pRow)
+            }
+            layout.addView(privacyCard)
         }
 
         val pushToBottomSpacer = View(this).apply { layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f) }

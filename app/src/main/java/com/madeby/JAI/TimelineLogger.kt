@@ -45,6 +45,95 @@ object TimelineLogger {
         }
     }
 
+    fun addBlock(context: Context, startMs: Long, endMs: Long, state: String) {
+        if (endMs <= startMs) return
+        synchronized(this) {
+            val list = load(context).toMutableList()
+            list.removeAll { it.timestamp == startMs || it.timestamp == endMs }
+            var updated = insertEntrySorted(list, TimelineEntry(startMs, state))
+            updated = insertEntrySorted(updated, TimelineEntry(endMs, "IDLE"))
+            persist(context, updated)
+        }
+    }
+
+    fun replaceBlock(context: Context, oldStartMs: Long, oldEndMs: Long, newStartMs: Long, newEndMs: Long, state: String) {
+        if (newEndMs <= newStartMs) return
+        synchronized(this) {
+            val list = load(context).toMutableList()
+            list.removeAll { it.timestamp == oldStartMs }
+            val atOldEnd = list.firstOrNull { it.timestamp == oldEndMs }
+            if (atOldEnd != null && atOldEnd.state == "IDLE") {
+                list.remove(atOldEnd)
+            }
+            list.removeAll { it.timestamp == newStartMs || it.timestamp == newEndMs }
+            var updated = insertEntrySorted(list, TimelineEntry(newStartMs, state))
+            updated = insertEntrySorted(updated, TimelineEntry(newEndMs, "IDLE"))
+            persist(context, updated)
+        }
+    }
+
+    fun deleteBlock(context: Context, startMs: Long, endMs: Long) {
+        synchronized(this) {
+            val list = load(context).toMutableList()
+            list.removeAll { it.timestamp == startMs }
+            val atEnd = list.firstOrNull { it.timestamp == endMs }
+            if (atEnd != null && atEnd.state == "IDLE") {
+                list.remove(atEnd)
+            }
+            persist(context, list)
+        }
+    }
+
+    fun appendBlockForDay(context: Context, dateStr: String, durationSecs: Long, state: String): Pair<Long, Long> {
+        if (durationSecs <= 0) return 0L to 0L
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val parsed = runCatching { sdf.parse(dateStr) }.getOrNull() ?: Date()
+        val startCal = java.util.Calendar.getInstance().apply {
+            time = parsed
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        val dayStartMs = startCal.timeInMillis
+        val dayEndMs = dayStartMs + 24L * 3600_000L - 1000L
+        val durationMs = durationSecs * 1000L
+
+        synchronized(this) {
+            val entries = load(context)
+            val dayEntries = entries.filter { it.timestamp in dayStartMs..dayEndMs }.sortedBy { it.timestamp }
+            val maxTs = dayEntries.maxOfOrNull { it.timestamp }
+            val isToday = dateStr == sdf.format(Date())
+            val nowMs = System.currentTimeMillis()
+
+            var candidateStart = if (maxTs != null) {
+                maxOf(maxTs + 1000L, dayStartMs)
+            } else {
+                if (isToday) {
+                    val defaultStart = nowMs - durationMs
+                    defaultStart.coerceIn(dayStartMs, dayEndMs - durationMs)
+                } else {
+                    dayStartMs + 9L * 3600_000L
+                }
+            }
+
+            if (maxTs != null && candidateStart <= maxTs) {
+                candidateStart = maxTs + 1000L
+            }
+
+            if (candidateStart + durationMs > dayEndMs) {
+                candidateStart = (dayEndMs - durationMs).coerceAtLeast(dayStartMs)
+                if (maxTs != null && candidateStart <= maxTs) {
+                    candidateStart = maxTs + 1000L
+                }
+            }
+
+            val candidateEnd = candidateStart + durationMs
+            addBlock(context, candidateStart, candidateEnd, state)
+            return candidateStart to candidateEnd
+        }
+    }
+
     fun deleteEntry(context: Context, startMs: Long) {
         synchronized(this) {
             persist(context, removeEntryWithTs(load(context), startMs))

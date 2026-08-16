@@ -1,6 +1,7 @@
 package com.madeby.JAI
 
 import android.app.Dialog
+import android.view.Window
 import android.app.NotificationChannel
 import android.Manifest
 import android.content.pm.PackageManager
@@ -214,7 +215,7 @@ class MainActivity : AppCompatActivity() {
 
     internal lateinit var themeCoordinator: ThemeCoordinator
     private lateinit var backupManager: BackupManager
-    private val statsEngine by lazy { StatsEngine(this) }
+    internal val statsEngine by lazy { StatsEngine(this) }
     internal val dateKeyFmt by lazy { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
 
     private lateinit var rootLayout: LinearLayout
@@ -1143,7 +1144,7 @@ class MainActivity : AppCompatActivity() {
         return Color.HSVToColor(hsv)
     }
 
-    private fun rippleBackground(color: Int): android.graphics.drawable.Drawable {
+    internal fun rippleBackground(color: Int): android.graphics.drawable.Drawable {
         if (themeCoordinator.isBubbleStyle()) {
             return themeCoordinator.createButtonBackground(color)
         }
@@ -1335,9 +1336,6 @@ class MainActivity : AppCompatActivity() {
         migrateHistoricalDailyGoals(this)
         checkAndResetGoalsForNewDay()
 
-        if (!sharedPrefs.getBoolean("has_seen_app_guide", false)) {
-            rootLayout.post { showAppGuideDialog() }
-        }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             private var lastBackTime = 0L
@@ -1367,7 +1365,7 @@ class MainActivity : AppCompatActivity() {
 
         applyImmersiveModeForLandscape()
 
-        maybeShowOnboarding()
+        rootLayout.post { maybeShowOnboarding() }
 
     }
 
@@ -2033,6 +2031,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun buildFocusPanel() {
+        panelContainer.removeAllViews()
         FocusPanelBuilder(this).build()
     }
 
@@ -2171,6 +2170,7 @@ class MainActivity : AppCompatActivity() {
                     .remove("daily_goal_sec_$dateStr")
                     .apply()
                 TimelineLogger.deleteDay(this@MainActivity, dateStr)
+                SubjectTagManager.clearTodaySubjectDurations(this@MainActivity, dateStr)
                 statsSnapshotCache = null
                 tabPageCache.remove(statsTabKey(AppStatsTab.OVERVIEW))
                 tabPageCache.remove(statsTabKey(AppStatsTab.TIMELINE))
@@ -2255,6 +2255,7 @@ class MainActivity : AppCompatActivity() {
                 background = if (currentStatsTab == tab) themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 110), 16f) else null
                 setOnClickListener {
                     currentStatsTab = tab
+                    tabPageCache.clear()
                     navigateToPanel(AppPanel.STATS)
                 }
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(dp(4), 0, dp(4), 0) }
@@ -2602,6 +2603,229 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        buildChart(selectedDaysFilter)
+
+        // DUAL-MODE PIE CHART CARD (Placed strictly BELOW Focus Pattern Chart)
+        val pieCard = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            background = themeCoordinator.createCardBackground()
+            setPadding(dp(18), dp(16), dp(18), dp(16))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, dp(14)) }
+        }
+
+        val pieHeaderRow = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, 0, 0, dp(10))
+        }
+
+        pieHeaderRow.addView(TextView(this@MainActivity).apply {
+            text = "📊 ANALYTICS DISTRIBUTION"
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 11f
+            letterSpacing = 0.18f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+
+        val tapDetailsBtn = TextView(this@MainActivity).apply {
+            text = "Tap chart for details ↗"
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 11f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(dp(10), dp(4), dp(10), dp(4))
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 40), 12f)
+        }
+
+        pieHeaderRow.addView(tapDetailsBtn)
+        pieCard.addView(pieHeaderRow)
+
+        val pieModeRow = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, 0, 0, dp(12))
+        }
+
+        var currentPieMode = sharedPrefs.safeInt("pie_chart_mode", 0) // 0: Subject Sessions, 1: Focus Depth & Quality Ratio
+
+        fun updatePieChartContent(mode: Int, container: LinearLayout) {
+            container.removeAllViews()
+            val pieView = SubjectPieChartView(this@MainActivity).apply {
+                primaryColor = themeCoordinator.primaryColor
+                textColor = themeCoordinator.textColor
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(360))
+                setOnClickListener { showPieChartDetailsModal() }
+            }
+
+            val slicesList = ArrayList<SubjectPieChartView.PieSlice>()
+
+            if (mode == 0) {
+                // Mode 1: Subject Sessions Breakdown
+                val subjectDurations = SubjectTagManager.getSubjectDurations(this@MainActivity)
+                val allSubjects = SubjectTagManager.getAllSubjects(this@MainActivity)
+                val totalSecsAll = subjectDurations.values.sum()
+
+                if (subjectDurations.isEmpty() || totalSecsAll < 60L) {
+                    val emptyBox = LinearLayout(this@MainActivity).apply {
+                        orientation = LinearLayout.VERTICAL
+                        gravity = Gravity.CENTER
+                        setPadding(0, dp(24), 0, dp(24))
+                    }
+                    emptyBox.addView(TextView(this@MainActivity).apply {
+                        text = "📊 Not Enough Data"
+                        setTextColor(themeCoordinator.textColor)
+                        textSize = 15f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        gravity = Gravity.CENTER
+                    })
+                    emptyBox.addView(TextView(this@MainActivity).apply {
+                        text = "Log at least 1 minute of focus time in Subject Mode to track your subject breakdown."
+                        setTextColor(themeCoordinator.textColor)
+                        alpha = 0.55f
+                        textSize = 12.5f
+                        gravity = Gravity.CENTER
+                        setPadding(0, dp(4), 0, 0)
+                    })
+                    container.addView(emptyBox)
+                } else {
+                    val sortedSubjects = allSubjects
+                        .map { it to (subjectDurations[it.id] ?: 0L) }
+                        .filter { it.second > 0L }
+                        .sortedByDescending { it.second }
+
+                    for ((subj, secs) in sortedSubjects) {
+                        slicesList.add(SubjectPieChartView.PieSlice(subj.name, subj.iconEmoji, secs.toDouble(), subj.colorHex))
+                    }
+
+                    pieView.setData(slicesList)
+                    container.addView(pieView)
+                }
+            } else {
+                // Mode 2: Session Quality & Focus Depth Ratio (Deep Focus vs Standard Focus vs Light Focus)
+                val totalFocusSecs = snap.todayFocus
+                if (totalFocusSecs < 60L) {
+                    val emptyBox = LinearLayout(this@MainActivity).apply {
+                        orientation = LinearLayout.VERTICAL
+                        gravity = Gravity.CENTER
+                        setPadding(0, dp(24), 0, dp(24))
+                    }
+                    emptyBox.addView(TextView(this@MainActivity).apply {
+                        text = "📊 Not Enough Data"
+                        setTextColor(themeCoordinator.textColor)
+                        textSize = 15f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        gravity = Gravity.CENTER
+                    })
+                    emptyBox.addView(TextView(this@MainActivity).apply {
+                        text = "Log at least 1 minute of focus time to analyze your session quality and focus depth."
+                        setTextColor(themeCoordinator.textColor)
+                        alpha = 0.55f
+                        textSize = 12.5f
+                        gravity = Gravity.CENTER
+                        setPadding(0, dp(4), 0, 0)
+                    })
+                    container.addView(emptyBox)
+                } else {
+                    // Compute Focus Depth Distribution strictly from real session block durations
+                    val todayStr = dateKeyFmt.format(Date())
+                    val (daySessions, _) = statsEngine.dayBlocks(todayStr)
+                    var deepSecs = 0L
+                    var stdSecs = 0L
+                    var lightSecs = 0L
+
+                    for (b in daySessions) {
+                        val durationSecs = b.secs
+                        when {
+                            durationSecs >= 2400L -> deepSecs += durationSecs // >= 40 mins (Deep Focus)
+                            durationSecs >= 900L -> stdSecs += durationSecs   // 15 to 40 mins (Standard Focus)
+                            else -> lightSecs += durationSecs                 // < 15 mins (Light Focus)
+                        }
+                    }
+
+                    val isCurrentlyStudying = (currentTimerState == TimerState.STUDYING)
+                    if (isCurrentlyStudying && accumulatedStudy > 0L) {
+                        when {
+                            accumulatedStudy >= 2400L -> deepSecs += accumulatedStudy
+                            accumulatedStudy >= 900L -> stdSecs += accumulatedStudy
+                            else -> lightSecs += accumulatedStudy
+                        }
+                    }
+
+                    val sumCalc = deepSecs + stdSecs + lightSecs
+                    if (sumCalc < totalFocusSecs && totalFocusSecs > 0L) {
+                        val diff = totalFocusSecs - sumCalc
+                        if (sumCalc > 0L) {
+                            deepSecs += (diff * (deepSecs.toDouble() / sumCalc)).toLong()
+                            stdSecs += (diff * (stdSecs.toDouble() / sumCalc)).toLong()
+                            lightSecs = max(0L, totalFocusSecs - deepSecs - stdSecs)
+                        } else {
+                            if (totalFocusSecs >= 2400L) deepSecs = totalFocusSecs
+                            else if (totalFocusSecs >= 900L) stdSecs = totalFocusSecs
+                            else lightSecs = totalFocusSecs
+                        }
+                    }
+
+                    if (deepSecs > 0L) {
+                        slicesList.add(SubjectPieChartView.PieSlice("Deep Focus (≥40m)", "🔥", deepSecs.toDouble(), "#10B981"))
+                    }
+                    if (stdSecs > 0L) {
+                        slicesList.add(SubjectPieChartView.PieSlice("Standard Focus (15-40m)", "⚡", stdSecs.toDouble(), "#3B82F6"))
+                    }
+                    if (lightSecs > 0L) {
+                        slicesList.add(SubjectPieChartView.PieSlice("Light Focus (<15m)", "☕", lightSecs.toDouble(), "#F59E0B"))
+                    }
+
+                    pieView.setData(slicesList)
+                    container.addView(pieView)
+                }
+            }
+        }
+
+        val pieContentContainer = LinearLayout(this@MainActivity).apply { orientation = LinearLayout.VERTICAL }
+
+        val m1Btn = TextView(this@MainActivity).apply {
+            text = "🏷️ Subject Sessions"
+            textSize = 12f
+            setPadding(dp(12), dp(6), dp(12), dp(6))
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        }
+
+        val m2Btn = TextView(this@MainActivity).apply {
+            text = "🔥 Focus Depth & Quality"
+            textSize = 12f
+            setPadding(dp(12), dp(6), dp(12), dp(6))
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        }
+
+        fun refreshModeButtons() {
+            m1Btn.setTextColor(if (currentPieMode == 0) themeCoordinator.primaryColor else themeCoordinator.textColor)
+            m1Btn.alpha = if (currentPieMode == 0) 1f else 0.5f
+            m1Btn.background = if (currentPieMode == 0) themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 100), 14f) else null
+
+            m2Btn.setTextColor(if (currentPieMode == 1) themeCoordinator.primaryColor else themeCoordinator.textColor)
+            m2Btn.alpha = if (currentPieMode == 1) 1f else 0.5f
+            m2Btn.background = if (currentPieMode == 1) themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 100), 14f) else null
+        }
+
+        m1Btn.setOnClickListener {
+            currentPieMode = 0
+            sharedPrefs.edit().putInt("pie_chart_mode", 0).apply()
+            refreshModeButtons()
+            updatePieChartContent(0, pieContentContainer)
+        }
+
+        m2Btn.setOnClickListener {
+            currentPieMode = 1
+            sharedPrefs.edit().putInt("pie_chart_mode", 1).apply()
+            refreshModeButtons()
+            updatePieChartContent(1, pieContentContainer)
+        }
+
+        refreshModeButtons()
+        pieModeRow.addView(m1Btn)
+        pieModeRow.addView(m2Btn)
+        pieCard.addView(pieModeRow)
+        pieCard.addView(pieContentContainer)
+        updatePieChartContent(currentPieMode, pieContentContainer)
         val totalLifeFocus = snap.totalLifeFocus
         val totalLifeBreak = snap.totalLifeBreak
         val totalLife = snap.totalLife
@@ -2766,12 +2990,13 @@ class MainActivity : AppCompatActivity() {
                     })
                 })
             } else {
+            (heroCard.parent as? android.view.ViewGroup)?.removeView(heroCard)
+            (chartCard.parent as? android.view.ViewGroup)?.removeView(chartCard)
             content.addView(heroCard)
             content.addView(chartCard)
             buildChart(selectedDaysFilter)
 
             val showHeatmap = snap.showHeatmap
-            val showPattern = snap.showPattern
 
             if (showHeatmap) {
                 val heatmapData = snap.heatmapData
@@ -2857,7 +3082,6 @@ class MainActivity : AppCompatActivity() {
                 content.addView(heatmapCard)
             }
 
-            if (showPattern) {
             var using7 = true
 
             val patternCard = LinearLayout(this).apply {
@@ -3077,7 +3301,15 @@ class MainActivity : AppCompatActivity() {
                 rebuildCells()
             }
             rebuildCells()
+            (patternCard.parent as? android.view.ViewGroup)?.removeView(patternCard)
             content.addView(patternCard)
+
+            val shouldShowPieCard = true
+
+            if (shouldShowPieCard) {
+                (pieCard.parent as? android.view.ViewGroup)?.removeView(pieCard)
+                content.addView(pieCard)
+            }
             }
 
             content.addView(LinearLayout(this).apply { layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(6)) })
@@ -3102,7 +3334,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             content.addView(exportCardBtn)
-            }
         } else if (tab == AppStatsTab.PLANNER) {
             renderPlannerTabContent(content, snap)
         } else {
@@ -4454,6 +4685,9 @@ class MainActivity : AppCompatActivity() {
         }
         content.addView(closeBtn)
 
+        dialog.setOnDismissListener {
+            getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit().putBoolean("has_seen_app_guide", true).apply()
+        }
         dialog.setContentView(content)
         dialog.window?.apply {
             setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
@@ -4818,7 +5052,7 @@ class MainActivity : AppCompatActivity() {
         val dialog = Dialog(this)
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
 
-        val (plannerPrimary, plannerSecondary) = resolvePlannerColors()
+        val (plannerPrimary, _) = resolvePlannerColors()
 
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -4942,7 +5176,8 @@ class MainActivity : AppCompatActivity() {
                     title = obj.optString("title", "Lecture"),
                     startTime = obj.optString("startTime", "09:00"),
                     endTime = obj.optString("endTime", "10:00"),
-                    enabled = obj.optBoolean("enabled", true)
+                    enabled = obj.optBoolean("enabled", true),
+                    subjectId = obj.optString("subjectId", "general")
                 ))
             }
             list
@@ -4960,6 +5195,7 @@ class MainActivity : AppCompatActivity() {
                 put("startTime", item.startTime)
                 put("endTime", item.endTime)
                 put("enabled", item.enabled)
+                put("subjectId", item.subjectId)
             }
             array.put(obj)
         }
@@ -4984,6 +5220,7 @@ class MainActivity : AppCompatActivity() {
         val dialog = Dialog(this)
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
 
+        val contentWidth = (resources.displayMetrics.widthPixels * 0.82).toInt()
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = themeCoordinator.createDialogBackground(24f)
@@ -5052,8 +5289,10 @@ class MainActivity : AppCompatActivity() {
                     orientation = LinearLayout.VERTICAL
                     layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 }
+                val allSubjects = SubjectTagManager.getAllSubjects(this@MainActivity)
+                val itemSub = allSubjects.find { it.id == item.subjectId } ?: SubjectTagManager.DEFAULT_SUBJECTS[0]
                 textCol.addView(TextView(this).apply {
-                    text = item.title
+                    text = "${itemSub.iconEmoji} ${item.title}"
                     setTextColor(themeCoordinator.textColor)
                     textSize = 15f
                     typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
@@ -5117,259 +5356,341 @@ class MainActivity : AppCompatActivity() {
             setOnClickListener { dialog.dismiss() }
         }
         content.addView(closeBtn)
-
         dialog.setContentView(content)
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
         dialog.show()
+        dialog.window?.setLayout(contentWidth, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
     internal fun showAddLectureScheduleDialog(editItem: LectureScheduleItem? = null) {
-        val dialog = Dialog(this)
-        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        try {
+            val dialog = Dialog(this)
+            dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
 
-        val content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            background = themeCoordinator.createDialogBackground(24f)
-            setPadding(dp(22), dp(22), dp(22), dp(20))
-        }
-
-        content.addView(TextView(this).apply {
-            text = if (editItem != null) "Edit Class Schedule" else "Add Class Schedule"
-            setTextColor(themeCoordinator.primaryColor)
-            textSize = 18f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-        })
-
-        val titleInput = android.widget.EditText(this).apply {
-            hint = "Class Title (max 100 chars)"
-            if (editItem != null) setText(editItem.title)
-            filters = arrayOf(android.text.InputFilter.LengthFilter(100))
-            setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
-            setTextColor(themeCoordinator.textColor)
-            textSize = 14f
-            background = themeCoordinator.createCardBackground()
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(14), 0, dp(10)) }
-        }
-        content.addView(titleInput)
-
-        fun parseIsPm(time24: String?): Boolean {
-            if (time24.isNullOrBlank()) return false
-            val parts = time24.split(":")
-            if (parts.size == 2) {
-                val h = parts[0].toIntOrNull() ?: 0
-                return h >= 12
-            }
-            return false
-        }
-
-        var startIsPm = parseIsPm(editItem?.startTime)
-        var endIsPm = parseIsPm(editItem?.endTime)
-
-        fun createTimeInputGroup(initTime24: String?): Triple<LinearLayout, android.widget.EditText, android.widget.EditText> {
-            val group = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(0, 0, dp(8), 0) }
+            val contentWidth = (resources.displayMetrics.widthPixels * 0.75).toInt()
+            val content = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                background = themeCoordinator.createDialogBackground(24f)
+                setPadding(dp(20), dp(18), dp(20), dp(18))
             }
 
-            var hInit = ""
-            var mInit = ""
-            if (!initTime24.isNullOrBlank()) {
-                val parts = initTime24.split(":")
-                if (parts.size == 2) {
-                    val h24 = parts[0].toIntOrNull() ?: 0
-                    val h12 = if (h24 % 12 == 0) 12 else h24 % 12
-                    hInit = String.format(Locale.US, "%02d", h12)
-                    mInit = parts[1]
-                }
-            }
-
-            val hourEdit = android.widget.EditText(this).apply {
-                hint = "10"
-                if (hInit.isNotBlank()) setText(hInit)
-                inputType = android.text.InputType.TYPE_CLASS_NUMBER
-                filters = arrayOf(android.text.InputFilter.LengthFilter(2))
-                setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
-                setTextColor(themeCoordinator.textColor)
-                textSize = 15f
-                typeface = Typeface.MONOSPACE
-                gravity = Gravity.CENTER
-                background = themeCoordinator.createCardBackground()
-                setPadding(dp(8), dp(10), dp(8), dp(10))
-                layoutParams = LinearLayout.LayoutParams(dp(48), LinearLayout.LayoutParams.WRAP_CONTENT)
-            }
-
-            val colonLabel = TextView(this).apply {
-                text = ":"
+            content.addView(TextView(this).apply {
+                text = if (editItem != null) "Edit Class Schedule" else "Add Class Schedule"
                 setTextColor(themeCoordinator.primaryColor)
-                textSize = 18f
+                textSize = 17f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                setPadding(dp(4), 0, dp(4), 0)
-            }
-
-            val minEdit = android.widget.EditText(this).apply {
-                hint = "00"
-                if (mInit.isNotBlank()) setText(mInit)
-                inputType = android.text.InputType.TYPE_CLASS_NUMBER
-                filters = arrayOf(android.text.InputFilter.LengthFilter(2))
-                setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
-                setTextColor(themeCoordinator.textColor)
-                textSize = 15f
-                typeface = Typeface.MONOSPACE
-                gravity = Gravity.CENTER
-                background = themeCoordinator.createCardBackground()
-                setPadding(dp(8), dp(10), dp(8), dp(10))
-                layoutParams = LinearLayout.LayoutParams(dp(48), LinearLayout.LayoutParams.WRAP_CONTENT)
-            }
-
-            hourEdit.addTextChangedListener(object : android.text.TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-                override fun afterTextChanged(s: android.text.Editable?) {
-                    if (s?.length == 2) {
-                        minEdit.requestFocus()
-                    }
-                }
+                setPadding(0, 0, 0, dp(14))
             })
 
-            group.addView(hourEdit)
-            group.addView(colonLabel)
-            group.addView(minEdit)
-            return Triple(group, hourEdit, minEdit)
-        }
-
-        content.addView(TextView(this).apply {
-            text = "Start Time"
-            setTextColor(themeCoordinator.textColor)
-            textSize = 12f
-            setPadding(0, dp(4), 0, dp(4))
-        })
-        val startRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        val (startGroup, startHEdit, startMEdit) = createTimeInputGroup(editItem?.startTime)
-        startRow.addView(startGroup)
-
-        val startAmBtn = TextView(this).apply {
-            text = "AM"
-            textSize = 13f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-        }
-        val startPmBtn = TextView(this).apply {
-            text = "PM"
-            textSize = 13f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-        }
-        startAmBtn.setOnClickListener { startIsPm = false; startAmBtn.setTextColor(themeCoordinator.bgColor); startAmBtn.background = rippleBackground(themeCoordinator.primaryColor); startPmBtn.setTextColor(themeCoordinator.textColor); startPmBtn.background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 20), 10f) }
-        startPmBtn.setOnClickListener { startIsPm = true; startPmBtn.setTextColor(themeCoordinator.bgColor); startPmBtn.background = rippleBackground(themeCoordinator.primaryColor); startAmBtn.setTextColor(themeCoordinator.textColor); startAmBtn.background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 20), 10f) }
-        
-        startAmBtn.setTextColor(if (!startIsPm) themeCoordinator.bgColor else themeCoordinator.textColor)
-        startAmBtn.background = if (!startIsPm) rippleBackground(themeCoordinator.primaryColor) else themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 20), 10f)
-        startPmBtn.setTextColor(if (startIsPm) themeCoordinator.bgColor else themeCoordinator.textColor)
-        startPmBtn.background = if (startIsPm) rippleBackground(themeCoordinator.primaryColor) else themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 20), 10f)
-
-        startRow.addView(startAmBtn)
-        startRow.addView(startPmBtn)
-        content.addView(startRow)
-
-        content.addView(TextView(this).apply {
-            text = "End Time"
-            setTextColor(themeCoordinator.textColor)
-            textSize = 12f
-            setPadding(0, dp(8), 0, dp(4))
-        })
-        val endRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        val (endGroup, endHEdit, endMEdit) = createTimeInputGroup(editItem?.endTime)
-        endRow.addView(endGroup)
-
-        val endAmBtn = TextView(this).apply {
-            text = "AM"
-            textSize = 13f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-        }
-        val endPmBtn = TextView(this).apply {
-            text = "PM"
-            textSize = 13f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-        }
-        endAmBtn.setOnClickListener { endIsPm = false; endAmBtn.setTextColor(themeCoordinator.bgColor); endAmBtn.background = rippleBackground(themeCoordinator.primaryColor); endPmBtn.setTextColor(themeCoordinator.textColor); endPmBtn.background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 20), 10f) }
-        endPmBtn.setOnClickListener { endIsPm = true; endPmBtn.setTextColor(themeCoordinator.bgColor); endPmBtn.background = rippleBackground(themeCoordinator.primaryColor); endAmBtn.setTextColor(themeCoordinator.textColor); endAmBtn.background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 20), 10f) }
-
-        endAmBtn.setTextColor(if (!endIsPm) themeCoordinator.bgColor else themeCoordinator.textColor)
-        endAmBtn.background = if (!endIsPm) rippleBackground(themeCoordinator.primaryColor) else themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 20), 10f)
-        endPmBtn.setTextColor(if (endIsPm) themeCoordinator.bgColor else themeCoordinator.textColor)
-        endPmBtn.background = if (endIsPm) rippleBackground(themeCoordinator.primaryColor) else themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 20), 10f)
-
-        endRow.addView(endAmBtn)
-        endRow.addView(endPmBtn)
-        content.addView(endRow)
-
-        fun convertTo24h(hEdit: android.widget.EditText, mEdit: android.widget.EditText, isPm: Boolean): String {
-            val rawH = hEdit.text.toString().trim().toIntOrNull() ?: return ""
-            val rawM = mEdit.text.toString().trim().toIntOrNull() ?: 0
-            val h12 = rawH.coerceIn(1, 12)
-            val m = rawM.coerceIn(0, 59)
-            val h24 = when {
-                isPm && h12 < 12 -> h12 + 12
-                !isPm && h12 == 12 -> 0
-                else -> h12
+            val titleInput = android.widget.EditText(this).apply {
+                hint = "Class Title (e.g. Physics 101)"
+                if (editItem != null) setText(editItem.title)
+                filters = arrayOf(android.text.InputFilter.LengthFilter(100))
+                setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
+                setTextColor(themeCoordinator.textColor)
+                textSize = 14f
+                background = themeCoordinator.createCardBackground()
+                setPadding(dp(14), dp(11), dp(14), dp(11))
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, dp(14)) }
             }
-            return String.format(Locale.US, "%02d:%02d", h24, m)
-        }
+            content.addView(titleInput)
 
-        val btnRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.END
-            setPadding(0, dp(16), 0, 0)
-        }
-        btnRow.addView(Button(this).apply {
-            text = "Cancel"
-            setTextColor(themeCoordinator.textColor)
-            background = null
-            setOnClickListener {
-                dialog.dismiss()
-                showLectureScheduleManagerDialog()
+            fun parseIsPm(time24: String?): Boolean {
+                if (time24.isNullOrBlank()) return false
+                val parts = time24.split(":")
+                if (parts.size == 2) {
+                    val h = parts[0].toIntOrNull() ?: 0
+                    return h >= 12
+                }
+                return false
             }
-        })
-        btnRow.addView(Button(this).apply {
-            text = if (editItem != null) "Update Class" else "Save Class"
-            setTextColor(themeCoordinator.bgColor)
-            background = rippleBackground(themeCoordinator.primaryColor)
-            setOnClickListener {
-                val titleText = titleInput.text.toString().trim().take(100)
-                val startText = convertTo24h(startHEdit, startMEdit, startIsPm)
-                val endText = convertTo24h(endHEdit, endMEdit, endIsPm)
-                if (titleText.isNotBlank() && startText.isNotBlank() && endText.isNotBlank()) {
-                    val currentSchedules = loadLectureSchedulesFromJson(getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).getString("lecture_schedules_json", "[]") ?: "[]").toMutableList()
-                    if (editItem != null) {
-                        val idx = currentSchedules.indexOfFirst { it.id == editItem.id }
-                        if (idx != -1) {
-                            currentSchedules[idx] = editItem.copy(title = titleText, startTime = startText, endTime = endText)
-                        }
-                    } else {
-                        currentSchedules.add(LectureScheduleItem(title = titleText, startTime = startText, endTime = endText))
-                    }
-                    saveLectureSchedulesToJson(currentSchedules)
 
-                    val serviceIntent = Intent(this@MainActivity, TimerService::class.java)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        startForegroundService(serviceIntent)
-                    } else {
-                        startService(serviceIntent)
+            var startIsPm = parseIsPm(editItem?.startTime)
+            var endIsPm = parseIsPm(editItem?.endTime)
+
+            fun createTimeInputGroup(initTime24: String?): Triple<LinearLayout, android.widget.EditText, android.widget.EditText> {
+                val group = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                }
+
+                var hInit = ""
+                var mInit = ""
+                if (!initTime24.isNullOrBlank()) {
+                    val parts = initTime24.split(":")
+                    if (parts.size == 2) {
+                        val h24 = parts[0].toIntOrNull() ?: 0
+                        val h12 = if (h24 % 12 == 0) 12 else h24 % 12
+                        hInit = String.format(Locale.US, "%02d", h12)
+                        mInit = parts[1]
                     }
                 }
-                dialog.dismiss()
-                showLectureScheduleManagerDialog()
-            }
-        })
-        content.addView(btnRow)
 
-        dialog.setContentView(content)
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-        dialog.show()
+                val hourEdit = android.widget.EditText(this).apply {
+                    hint = "10"
+                    if (hInit.isNotBlank()) setText(hInit)
+                    inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                    filters = arrayOf(android.text.InputFilter.LengthFilter(2))
+                    setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
+                    setTextColor(themeCoordinator.textColor)
+                    textSize = 15f
+                    typeface = Typeface.MONOSPACE
+                    gravity = Gravity.CENTER
+                    background = themeCoordinator.createCardBackground()
+                    setPadding(dp(8), dp(9), dp(8), dp(9))
+                    layoutParams = LinearLayout.LayoutParams(dp(48), LinearLayout.LayoutParams.WRAP_CONTENT)
+                }
+
+                val colonLabel = TextView(this).apply {
+                    text = ":"
+                    setTextColor(themeCoordinator.primaryColor)
+                    textSize = 18f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    setPadding(dp(4), 0, dp(4), 0)
+                }
+
+                val minEdit = android.widget.EditText(this).apply {
+                    hint = "00"
+                    if (mInit.isNotBlank()) setText(mInit)
+                    inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                    filters = arrayOf(android.text.InputFilter.LengthFilter(2))
+                    setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
+                    setTextColor(themeCoordinator.textColor)
+                    textSize = 15f
+                    typeface = Typeface.MONOSPACE
+                    gravity = Gravity.CENTER
+                    background = themeCoordinator.createCardBackground()
+                    setPadding(dp(8), dp(9), dp(8), dp(9))
+                    layoutParams = LinearLayout.LayoutParams(dp(48), LinearLayout.LayoutParams.WRAP_CONTENT)
+                }
+
+                hourEdit.addTextChangedListener(object : android.text.TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                    override fun afterTextChanged(s: android.text.Editable?) {
+                        if (s?.length == 2) {
+                            minEdit.requestFocus()
+                        }
+                    }
+                })
+
+                group.addView(hourEdit)
+                group.addView(colonLabel)
+                group.addView(minEdit)
+                return Triple(group, hourEdit, minEdit)
+            }
+
+            content.addView(TextView(this).apply {
+                text = "Start Time"
+                setTextColor(themeCoordinator.textColor)
+                textSize = 12f
+                setPadding(0, 0, 0, dp(4))
+            })
+            val startRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, dp(12)) }
+            }
+            val (startGroup, startHEdit, startMEdit) = createTimeInputGroup(editItem?.startTime)
+            startRow.addView(startGroup)
+
+            val startAmBtn = TextView(this).apply {
+                text = "AM"
+                textSize = 13f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setPadding(dp(14), dp(9), dp(14), dp(9))
+            }
+            val startPmBtn = TextView(this).apply {
+                text = "PM"
+                textSize = 13f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setPadding(dp(14), dp(9), dp(14), dp(9))
+            }
+            startAmBtn.setOnClickListener { startIsPm = false; startAmBtn.setTextColor(themeCoordinator.bgColor); startAmBtn.background = rippleBackground(themeCoordinator.primaryColor); startPmBtn.setTextColor(themeCoordinator.textColor); startPmBtn.background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 20), 10f) }
+            startPmBtn.setOnClickListener { startIsPm = true; startPmBtn.setTextColor(themeCoordinator.bgColor); startPmBtn.background = rippleBackground(themeCoordinator.primaryColor); startAmBtn.setTextColor(themeCoordinator.textColor); startAmBtn.background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 20), 10f) }
+
+            startAmBtn.setTextColor(if (!startIsPm) themeCoordinator.bgColor else themeCoordinator.textColor)
+            startAmBtn.background = if (!startIsPm) rippleBackground(themeCoordinator.primaryColor) else themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 20), 10f)
+            startPmBtn.setTextColor(if (startIsPm) themeCoordinator.bgColor else themeCoordinator.textColor)
+            startPmBtn.background = if (startIsPm) rippleBackground(themeCoordinator.primaryColor) else themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 20), 10f)
+
+            val startToggleRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(dp(14), 0, 0, 0) }
+            }
+            startToggleRow.addView(startAmBtn)
+            startToggleRow.addView(startPmBtn)
+            startRow.addView(startToggleRow)
+            content.addView(startRow)
+
+            content.addView(TextView(this).apply {
+                text = "End Time"
+                setTextColor(themeCoordinator.textColor)
+                textSize = 12f
+                setPadding(0, 0, 0, dp(4))
+            })
+            val endRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, dp(12)) }
+            }
+            val (endGroup, endHEdit, endMEdit) = createTimeInputGroup(editItem?.endTime)
+            endRow.addView(endGroup)
+
+            val endAmBtn = TextView(this).apply {
+                text = "AM"
+                textSize = 13f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setPadding(dp(14), dp(9), dp(14), dp(9))
+            }
+            val endPmBtn = TextView(this).apply {
+                text = "PM"
+                textSize = 13f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setPadding(dp(14), dp(9), dp(14), dp(9))
+            }
+            endAmBtn.setOnClickListener { endIsPm = false; endAmBtn.setTextColor(themeCoordinator.bgColor); endAmBtn.background = rippleBackground(themeCoordinator.primaryColor); endPmBtn.setTextColor(themeCoordinator.textColor); endPmBtn.background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 20), 10f) }
+            endPmBtn.setOnClickListener { endIsPm = true; endPmBtn.setTextColor(themeCoordinator.bgColor); endPmBtn.background = rippleBackground(themeCoordinator.primaryColor); endAmBtn.setTextColor(themeCoordinator.textColor); endAmBtn.background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 20), 10f) }
+
+            endAmBtn.setTextColor(if (!endIsPm) themeCoordinator.bgColor else themeCoordinator.textColor)
+            endAmBtn.background = if (!endIsPm) rippleBackground(themeCoordinator.primaryColor) else themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 20), 10f)
+            endPmBtn.setTextColor(if (endIsPm) themeCoordinator.bgColor else themeCoordinator.textColor)
+            endPmBtn.background = if (endIsPm) rippleBackground(themeCoordinator.primaryColor) else themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 20), 10f)
+
+            val endToggleRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(dp(14), 0, 0, 0) }
+            }
+            endToggleRow.addView(endAmBtn)
+            endToggleRow.addView(endPmBtn)
+            endRow.addView(endToggleRow)
+            content.addView(endRow)
+
+            content.addView(TextView(this).apply {
+                text = "Subject Tag"
+                setTextColor(themeCoordinator.textColor)
+                textSize = 12f
+                setPadding(0, 0, 0, dp(4))
+            })
+
+            val availableSubjects = SubjectTagManager.getAllSubjects(this)
+            val initSubId = editItem?.subjectId ?: SubjectTagManager.getSelectedSubject(this).id
+            var chosenSubIdx = availableSubjects.indexOfFirst { it.id == initSubId }.coerceAtLeast(0)
+
+            val subjectSelectBtn = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                background = themeCoordinator.createCardBackground()
+                setPadding(dp(12), dp(8), dp(12), dp(8))
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, dp(14)) }
+            }
+
+            val subjectLabelTv = TextView(this).apply {
+                val cur = availableSubjects[chosenSubIdx]
+                text = "${cur.iconEmoji} ${cur.name}"
+                setTextColor(themeCoordinator.textColor)
+                textSize = 13f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setSingleLine(true)
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            }
+
+            val subjectArrowTv = TextView(this).apply {
+                text = " ▾"
+                setTextColor(themeCoordinator.primaryColor)
+                textSize = 13f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            }
+
+            subjectSelectBtn.addView(subjectLabelTv)
+            subjectSelectBtn.addView(subjectArrowTv)
+
+            subjectSelectBtn.setOnClickListener {
+                val popup = android.widget.PopupMenu(this, subjectSelectBtn)
+                for (i in availableSubjects.indices) {
+                    val s = availableSubjects[i]
+                    popup.menu.add(0, i, i, "${s.iconEmoji} ${s.name}")
+                }
+                popup.setOnMenuItemClickListener { menuItem ->
+                    chosenSubIdx = menuItem.itemId
+                    val sel = availableSubjects[chosenSubIdx]
+                    subjectLabelTv.text = "${sel.iconEmoji} ${sel.name}"
+                    true
+                }
+                popup.show()
+            }
+            content.addView(subjectSelectBtn)
+
+            fun convertTo24h(hEdit: android.widget.EditText, mEdit: android.widget.EditText, isPm: Boolean): String {
+                val rawH = hEdit.text.toString().trim().toIntOrNull() ?: return ""
+                val rawM = mEdit.text.toString().trim().toIntOrNull() ?: 0
+                val h12 = rawH.coerceIn(1, 12)
+                val m = rawM.coerceIn(0, 59)
+                val h24 = when {
+                    isPm && h12 < 12 -> h12 + 12
+                    !isPm && h12 == 12 -> 0
+                    else -> h12
+                }
+                return String.format(Locale.US, "%02d:%02d", h24, m)
+            }
+
+            val btnRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.END
+                setPadding(0, dp(10), 0, 0)
+            }
+            btnRow.addView(Button(this).apply {
+                text = "Cancel"
+                setTextColor(themeCoordinator.textColor)
+                background = null
+                setOnClickListener {
+                    dialog.dismiss()
+                    showLectureScheduleManagerDialog()
+                }
+            })
+            btnRow.addView(Button(this).apply {
+                text = if (editItem != null) "Update Class" else "Save Class"
+                setTextColor(themeCoordinator.bgColor)
+                background = rippleBackground(themeCoordinator.primaryColor)
+                setOnClickListener {
+                    val titleText = titleInput.text.toString().trim().take(100)
+                    val startText = convertTo24h(startHEdit, startMEdit, startIsPm)
+                    val endText = convertTo24h(endHEdit, endMEdit, endIsPm)
+                    val selectedSubjectId = availableSubjects[chosenSubIdx].id
+
+                    if (titleText.isNotBlank() && startText.isNotBlank() && endText.isNotBlank()) {
+                        val currentSchedules = loadLectureSchedulesFromJson(getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).getString("lecture_schedules_json", "[]") ?: "[]").toMutableList()
+                        if (editItem != null) {
+                            val idx = currentSchedules.indexOfFirst { it.id == editItem.id }
+                            if (idx != -1) {
+                                currentSchedules[idx] = editItem.copy(title = titleText, startTime = startText, endTime = endText, subjectId = selectedSubjectId)
+                            }
+                        } else {
+                            currentSchedules.add(LectureScheduleItem(title = titleText, startTime = startText, endTime = endText, subjectId = selectedSubjectId))
+                        }
+                        saveLectureSchedulesToJson(currentSchedules)
+
+                        val serviceIntent = Intent(this@MainActivity, TimerService::class.java)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            startForegroundService(serviceIntent)
+                        } else {
+                            startService(serviceIntent)
+                        }
+                    }
+                    dialog.dismiss()
+                    showLectureScheduleManagerDialog()
+                }
+            })
+            content.addView(btnRow)
+
+            dialog.setContentView(content)
+            dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+            dialog.show()
+            dialog.window?.setLayout(contentWidth, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+        } catch (e: Exception) {
+            android.util.Log.e("StudyTimer", "Error in showAddLectureScheduleDialog", e)
+        }
     }
 
 
@@ -5377,7 +5698,7 @@ class MainActivity : AppCompatActivity() {
 
 
 
-    private fun showConfirmDialog(title: String, message: String, onConfirm: () -> Unit) {
+    internal fun showConfirmDialog(title: String, message: String, onConfirm: () -> Unit) {
 
         val dialog = android.app.Dialog(this)
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
@@ -5640,9 +5961,9 @@ class MainActivity : AppCompatActivity() {
         statsEngine.reconcileDayTotals(dateStr)
     }
 
-    private fun msForDateAndTime(dateStr: String, h: Int, m: Int): Long = statsEngine.msForDateAndTime(dateStr, h, m)
+    internal fun msForDateAndTime(dateStr: String, h: Int, m: Int): Long = statsEngine.msForDateAndTime(dateStr, h, m)
 
-    private fun applyBlockEdit(dateStr: String, block: BlockInfo, isBreak: Boolean, newStartMs: Long, newEndMs: Long) {
+    internal fun applyBlockEdit(dateStr: String, block: BlockInfo, isBreak: Boolean, newStartMs: Long, newEndMs: Long) {
         statsEngine.applyBlockEdit(dateStr, block, isBreak, newStartMs, newEndMs)
         statsDirty = true
     }
@@ -5680,247 +6001,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     internal fun showDevTimelineEditor() {
-        val dateSdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val displaySdf = SimpleDateFormat("EEE, MMM d", Locale.getDefault())
-        val todayStr = dateSdf.format(Date())
-        var selectedStr = todayStr
-
-        val dialog = android.app.Dialog(this)
-        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
-        val content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            background = themeCoordinator.createDialogBackground(28f)
-            setPadding(dp(20), dp(20), dp(20), dp(18))
-        }
-        content.addView(TextView(this).apply {
-            text = getString(R.string.timeline_editor)
-            setTextColor(themeCoordinator.primaryColor)
-            textSize = 11f
-            letterSpacing = 0.18f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-        })
-
-        var render: () -> Unit = {}
-        var addBlock: (Boolean) -> Unit = {}
-
-        fun parseSelected(): Calendar {
-            val c = Calendar.getInstance()
-            c.time = try { dateSdf.parse(selectedStr) ?: Date() } catch (_: Exception) { Date() }
-            return c
-        }
-
-        val dateLabel = TextView(this).apply {
-            gravity = Gravity.CENTER
-            textSize = 13f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setTextColor(themeCoordinator.textColor)
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            setOnClickListener {
-                val c = parseSelected()
-                android.app.DatePickerDialog(
-                    this@MainActivity,
-                    { _, y, m, d ->
-                        val nc = Calendar.getInstance()
-                        nc.set(y, m, d, 0, 0, 0)
-                        nc.set(Calendar.MILLISECOND, 0)
-                        selectedStr = dateSdf.format(nc.time)
-                        render()
-                    },
-                    c.get(Calendar.YEAR),
-                    c.get(Calendar.MONTH),
-                    c.get(Calendar.DAY_OF_MONTH)
-                ).show()
-            }
-        }
-        fun makeDayNav(label: String, delta: Int): TextView = TextView(this).apply {
-            text = label
-            textSize = 16f
-            gravity = Gravity.CENTER
-            setTextColor(themeCoordinator.primaryColor)
-            setPadding(dp(14), dp(8), dp(14), dp(8))
-            setOnClickListener {
-                val c = parseSelected()
-                c.add(Calendar.DAY_OF_YEAR, delta)
-                selectedStr = dateSdf.format(c.time)
-                render()
-            }
-        }
-        val todayBtn = TextView(this).apply {
-            text = getString(R.string.today_label)
-            textSize = 10f
-            gravity = Gravity.CENTER
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setTextColor(themeCoordinator.primaryColor)
-            setPadding(dp(8), dp(4), dp(8), dp(4))
-            setOnClickListener {
-                selectedStr = todayStr
-                render()
-            }
-        }
-        val dateRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(10), 0, 0) }
-        }
-        dateRow.addView(makeDayNav("\u25C0", -1))
-        dateRow.addView(dateLabel)
-        dateRow.addView(makeDayNav("\u25B6", 1))
-        dateRow.addView(todayBtn)
-        content.addView(dateRow)
-        content.addView(TextView(this).apply {
-            text = getString(R.string.dev_editor_hint)
-            setTextColor(themeCoordinator.textColor)
-            alpha = 0.45f
-            textSize = 11f
-            setPadding(0, dp(2), 0, 0)
-        })
-
-        val blockList = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        }
-        val scroll = ScrollView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(320)).apply { setMargins(0, dp(8), 0, 0) }
-            addView(blockList)
-        }
-        content.addView(scroll)
-
-        val addRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(8), 0, 0) }
-        }
-        fun makeAddBtn(label: String, isBreak: Boolean): TextView = TextView(this).apply {
-            text = label
-            gravity = Gravity.CENTER
-            textSize = 12f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setTextColor(themeCoordinator.primaryColor)
-            background = GradientDrawable().apply { cornerRadius = 14f; setColor(tintedColor(themeCoordinator.primaryColor, 26)) }
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(3, 0, 3, 0) }
-            setOnClickListener { addBlock(isBreak) }
-        }
-        addRow.addView(makeAddBtn("＋  Add focus block", false))
-        addRow.addView(makeAddBtn("＋  Add break block", true))
-        content.addView(addRow)
-
-        render = {
-            val isToday = selectedStr == todayStr
-            val parsed = try { dateSdf.parse(selectedStr) } catch (_: Exception) { null }
-            val display = if (parsed != null) displaySdf.format(parsed) else selectedStr
-            dateLabel.text = if (isToday) getString(R.string.today_prefix, display) else display
-            dateLabel.setTextColor(if (isToday) themeCoordinator.primaryColor else themeCoordinator.textColor)
-            blockList.removeAllViews()
-            val (sessions, breaks) = dayBlocks(selectedStr)
-            val rows = ArrayList<Pair<BlockInfo, Boolean>>()
-            for (s in sessions) rows.add(Pair(s, false))
-            for (b in breaks) rows.add(Pair(b, true))
-            rows.sortBy { it.first.startMs }
-            if (rows.isEmpty()) {
-                blockList.addView(TextView(this).apply {
-                    text = getString(R.string.no_blocks_for_day)
-                    setTextColor(themeCoordinator.textColor)
-                    alpha = 0.45f
-                    textSize = 12f
-                    setPadding(0, dp(6), 0, 0)
-                })
-            }
-            for ((b, isBreak) in rows) {
-                val row = LinearLayout(this).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER_VERTICAL
-                    setPadding(0, dp(3), 0, 0)
-                }
-                val label = when {
-                    b.manual -> getString(R.string.block_manual)
-                    isBreak -> getString(R.string.block_break)
-                    else -> getString(R.string.block_focus)
-                }
-                row.addView(TextView(this).apply {
-                    text = label + "  " + formatBlockRow(b.startMs, b.endMs, b.secs)
-                    setTextColor(if (isBreak) themeCoordinator.secondaryColor else themeCoordinator.primaryColor)
-                    textSize = 12f
-                    typeface = Typeface.MONOSPACE
-                    alpha = 0.85f
-                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                })
-                row.addView(TextView(this).apply {
-                    text = "\u270E"
-                    setTextColor(themeCoordinator.textColor)
-                    textSize = 12f
-                    alpha = if (b.running) 0.2f else 0.55f
-                    setPadding(dp(10), 0, 0, 0)
-                    setOnClickListener {
-                        if (b.running) {
-                            Toast.makeText(this@MainActivity, getString(R.string.toast_open_block_hint), Toast.LENGTH_SHORT).show()
-                        } else {
-                            showBlockEditDialog(selectedStr, b, isBreak) { render() }
-                        }
-                    }
-                })
-                blockList.addView(row)
-            }
-        }
-        render()
-
-        addBlock = { isBreak ->
-            val kind = if (isBreak) "break" else "focus"
-            val is24 = TimeFormat.is24Hour(this)
-            val nowCal = Calendar.getInstance()
-            android.app.TimePickerDialog(
-                this,
-                { _, h, m ->
-                    val newStartMs = msForDateAndTime(selectedStr, h, m)
-                    android.app.TimePickerDialog(
-                        this,
-                        { _, h2, m2 ->
-                            val newEndMs = msForDateAndTime(selectedStr, h2, m2)
-                            if (newEndMs <= newStartMs) {
-                                Toast.makeText(this, getString(R.string.toast_end_after_start), Toast.LENGTH_SHORT).show()
-                            } else {
-                                val state = if (isBreak) "MANUAL_BREAK" else "MANUAL_FOCUS"
-                                TimelineLogger.recordRaw(this, state, newStartMs)
-                                TimelineLogger.recordRaw(this, "IDLE", newEndMs)
-                                getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit()
-                                    .putLong("${selectedStr}_focus_manual", 0L)
-                                    .putLong("${selectedStr}_break_manual", 0L)
-                                    .apply()
-                                reconcileDayTotals(selectedStr)
-                                statsDirty = true
-                                recalculateStreak()
-                                render()
-                                Toast.makeText(this, getString(R.string.toast_kind_block_added, kind), Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        nowCal.get(Calendar.HOUR_OF_DAY),
-                        nowCal.get(Calendar.MINUTE),
-                        is24
-                    ).apply { setTitle(getString(R.string.block_end)) }.show()
-                },
-                nowCal.get(Calendar.HOUR_OF_DAY),
-                nowCal.get(Calendar.MINUTE),
-                is24
-            ).apply { setTitle(getString(R.string.block_start)) }.show()
-        }
-
-        content.addView(TextView(this).apply {
-            text = getString(R.string.btn_close)
-            gravity = Gravity.CENTER
-            setTextColor(themeCoordinator.primaryColor)
-            textSize = 12f
-            letterSpacing = 0.18f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            background = GradientDrawable().apply { cornerRadius = 20f; setColor(tintedColor(themeCoordinator.primaryColor, 26)) }
-            setPadding(dp(16), dp(10), dp(16), dp(10))
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(14), 0, 0) }
-            setOnClickListener { dialog.dismiss() }
-        })
-        dialog.setContentView(content)
-        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
-        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.9f).toInt(), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
-        dialog.show()
+        DeveloperToolsHelper.showDevTimelineEditor(this, themeCoordinator)
     }
+
 
     private fun formatBlockRow(startMs: Long, endMs: Long, secs: Long): String {
         val dur = when {
@@ -6034,16 +6117,22 @@ class MainActivity : AppCompatActivity() {
             getString(R.string.confirm_delete_block, kind),
             getString(R.string.confirm_delete_block_msg, formatBlockRow(block.startMs, block.endMs, block.secs))
         ) {
-            val timelineTs = TimelineLogger.load(this).map { it.timestamp }.toHashSet()
-            val startTs = block.startMs
-            val endBoundary = if (timelineTs.contains(block.endMs)) block.endMs else timelineTs.filter { it > startTs }.minOrNull()
-            TimelineLogger.deleteEntry(this, startTs)
-            if (endBoundary != null) TimelineLogger.deleteEntry(this, endBoundary)
-            reconcileDayTotals(dateStr)
-            Toast.makeText(this, getString(R.string.toast_kind_block_deleted, kind), Toast.LENGTH_SHORT).show()
+            TimelineLogger.deleteBlock(this, block.startMs, block.endMs)
+            statsEngine.forceReconcileDayTotals(dateStr)
+            if (!isBreak) {
+                val s = SubjectTagManager.getSelectedSubject(this)
+                val curSubjMap = SubjectTagManager.getSubjectDurationsForDate(this, dateStr)
+                val curSubjSecs = curSubjMap[s.id] ?: 0L
+                val deduct = Math.min(curSubjSecs, block.secs)
+                if (deduct > 0) SubjectTagManager.recordSubjectStudyTime(this, s.id, -deduct, dateStr)
+            }
             statsDirty = true
+            statsSnapshotCache = null
+            tabPageCache.clear()
             recalculateStreak()
-            navigateToPanel(AppPanel.STATS)
+            checkCelebration()
+            StudyWidgetProvider.refresh(this)
+            Toast.makeText(this, getString(R.string.toast_kind_block_deleted, kind), Toast.LENGTH_SHORT).show()
             onDone()
         }
     }
@@ -6060,6 +6149,7 @@ class MainActivity : AppCompatActivity() {
                 remove("${dateStr}_break_manual")
             }.apply()
             TimelineLogger.deleteDay(this, dateStr)
+            SubjectTagManager.clearTodaySubjectDurations(this, dateStr)
             Toast.makeText(this, getString(R.string.toast_day_deleted), Toast.LENGTH_SHORT).show()
             recalculateStreak()
             navigateToPanel(AppPanel.STATS)
@@ -6184,6 +6274,22 @@ class MainActivity : AppCompatActivity() {
                 logsChevron.text = if (show) "\u25B4" else "\u25BE"
             }
         }
+
+        val seePieChartBtn = TextView(this).apply {
+            text = "See Full Chart 📊"
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 13.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 40), 16f)
+            setPadding(dp(16), dp(10), dp(16), dp(10))
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(14), 0, 0) }
+            setOnClickListener {
+                dialog.dismiss()
+                showPieChartDetailsModal(dateStr)
+            }
+        }
+        content.addView(seePieChartBtn)
         content.addView(TextView(this).apply {
             text = getString(R.string.btn_close)
             gravity = Gravity.CENTER
@@ -6931,6 +7037,9 @@ class MainActivity : AppCompatActivity() {
                     updateVisualStyles()
                 }
                 updatePauseBlink()
+                if (currentTimerState == TimerState.STUDYING && accumulatedStudy > 0L) {
+                    checkCelebration()
+                }
             }
             handler.postDelayed(updateRunnable, 500)
         }
@@ -7266,6 +7375,7 @@ class MainActivity : AppCompatActivity() {
             breakTimerDisplay.text = getString(R.string.break_prefix, "00:00:00")
         }
         StudyWidgetProvider.refresh(this)
+        checkCelebration()
     }
 
     internal fun updateKeepScreenOn() {
@@ -7555,6 +7665,7 @@ class MainActivity : AppCompatActivity() {
     private fun maybeShowOnboarding() {
         val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
         if (prefs.getBoolean("has_seen_app_guide", false)) return
+        prefs.edit().putBoolean("has_seen_app_guide", true).apply()
         showAppGuideDialog()
     }
 
@@ -7584,6 +7695,21 @@ class MainActivity : AppCompatActivity() {
         applyImmersiveModeForLandscape()
         StudyWidgetProvider.refresh(this)
         checkOngoingScheduledLecturePrompt()
+        checkCelebration()
+    }
+
+    internal fun checkCelebration() {
+        if (isFinishing || isDestroyed) return
+        val snap = computeStatsSnapshot()
+        val dailyGoal = getSharedPreferences("StudyTimerPrefs", MODE_PRIVATE).getLong("daily_goal_secs", 2700L)
+        val todayTotal = snap.todayFocus + (if (currentTimerState == TimerState.STUDYING) accumulatedStudy else 0L)
+        CelebrationEngine.checkAndCelebrate(
+            activity = this,
+            sessionSecs = accumulatedStudy,
+            todayTotalSecs = todayTotal,
+            dailyGoalSecs = dailyGoal,
+            currentStreak = snap.streak
+        )
     }
 
     private var ongoingLectureDialogShowing = false
@@ -7727,6 +7853,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        try {
+            if (updateDialogRef?.isShowing == true) updateDialogRef?.dismiss()
+            if (batteryOptDialogRef?.isShowing == true) batteryOptDialogRef?.dismiss()
+        } catch (_: Exception) {}
         handler.removeCallbacks(holdToEndRunnable)
         pauseBlinkAnimator?.cancel()
         pauseBlinkAnimator = null
@@ -7822,89 +7952,675 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-}
-
-internal class HoldRingButton(context: Context) : androidx.appcompat.widget.AppCompatButton(context) {
-
-    var progress: Float = 0f
-        set(value) {
-            field = value.coerceIn(0f, 1f)
-            invalidate()
+    val customAudioPickerLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (_: Exception) {}
+            AmbientSoundEngine.selectPreset(this, AmbientSoundEngine.Preset.CUSTOM, uri)
+            buildFocusPanel()
         }
-
-    var ringColor: Int = Color.WHITE
-        set(value) {
-            field = value
-            invalidate()
-        }
-
-    override fun setPressed(pressed: Boolean) {
-        super.setPressed(pressed)
-        (background as? Soft3DBubbleDrawable)?.isPressed = pressed
     }
 
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 6f * resources.displayMetrics.density
-        strokeCap = Paint.Cap.ROUND
+    fun showSubjectPickerDialog() {
+        try {
+            val dialog = Dialog(this)
+            dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+            dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+            val container = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                background = themeCoordinator.createDialogBackground(28f)
+                setPadding(dp(22), dp(22), dp(22), dp(20))
+                layoutParams = LinearLayout.LayoutParams(
+                    (resources.displayMetrics.widthPixels * 0.90f).toInt().coerceAtMost(dp(420)),
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            }
+
+            val title = TextView(this).apply {
+                text = "🏷️ Select Study Subject"
+                textSize = 18f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(themeCoordinator.textColor)
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, dp(4))
+            }
+            container.addView(title)
+
+            val subtitle = TextView(this).apply {
+                text = "Tap to select · Hold any subject to delete"
+                textSize = 12f
+                setTextColor(themeCoordinator.textColor)
+                alpha = 0.5f
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, dp(14))
+            }
+            container.addView(subtitle)
+
+            val scrollContainer = android.widget.ScrollView(this).apply {
+                isVerticalScrollBarEnabled = true
+                overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(280)
+                )
+            }
+
+            val subjectsListContainer = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT
+                )
+            }
+
+            val currentSelectedSubj = SubjectTagManager.getSelectedSubject(this)
+            val subjectsList = SubjectTagManager.getAllSubjects(this)
+            for (subj in subjectsList) {
+                val isSelected = subj.id == currentSelectedSubj.id
+                val btn = Button(this).apply {
+                    text = if (isSelected) "✓  ${subj.iconEmoji} ${subj.name}" else "${subj.iconEmoji} ${subj.name}"
+                    textSize = 14f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    setTextColor(Color.WHITE)
+                    background = GradientDrawable().apply {
+                        val baseColor = try { Color.parseColor(subj.colorHex) } catch (_: Exception) { themeCoordinator.primaryColor }
+                        setColor(baseColor)
+                        cornerRadius = dp(14).toFloat()
+                        if (isSelected) {
+                            setStroke(dp(2), Color.WHITE)
+                        }
+                    }
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        setMargins(0, dp(3), 0, dp(3))
+                    }
+                    setOnClickListener {
+                        SubjectTagManager.setSelectedSubject(this@MainActivity, subj.id)
+                        dialog.dismiss()
+                        buildFocusPanel()
+                    }
+                    setOnLongClickListener {
+                        if (subj.id != "general") {
+                            dialog.dismiss()
+                            showDeleteSubjectConfirmDialog(subj)
+                        } else {
+                            Toast.makeText(this@MainActivity, "General subject cannot be deleted", Toast.LENGTH_SHORT).show()
+                        }
+                        true
+                    }
+                }
+                subjectsListContainer.addView(btn)
+            }
+
+            scrollContainer.addView(subjectsListContainer)
+            container.addView(scrollContainer)
+
+            val addBtn = Button(this).apply {
+                text = "➕ Add Custom Subject"
+                textSize = 13.5f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(themeCoordinator.primaryColor)
+                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 40), 14f)
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(0, dp(14), 0, 0)
+                }
+                setOnClickListener {
+                    dialog.dismiss()
+                    showAddCustomSubjectDialog()
+                }
+            }
+            container.addView(addBtn)
+
+            dialog.setContentView(container)
+            dialog.show()
+        } catch (_: Exception) {}
     }
 
-    private val cornerRadius = 80f
+    private fun showDeleteSubjectConfirmDialog(subj: SubjectTag) {
+        try {
+            val dialog = Dialog(this)
+            dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+            dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-        if (progress <= 0.05f) return
-        paint.color = ringColor
-        val inset = paint.strokeWidth / 2f
-        val left = inset
-        val top = inset
-        val right = width - inset
-        val bottom = height - inset
-        val w = right - left
-        val h = bottom - top
-        val r = min(cornerRadius, min(w, h) / 2f)
-        val arcLen = (PI * r / 2f).toFloat()
-        val edgeW = w - 2f * r
-        val edgeH = h - 2f * r
-        val totalLen = 2f * (edgeW + edgeH) + 4f * arcLen
-        var remaining = progress * totalLen
-        val path = Path()
+            val container = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                background = themeCoordinator.createDialogBackground(24f)
+                setPadding(dp(22), dp(22), dp(22), dp(22))
+            }
 
-        fun lineSegment(fullLen: Float, startX: Float, startY: Float, endX: Float, endY: Float) {
-            if (remaining <= 0f || fullLen <= 0f) return
-            if (remaining >= fullLen) {
-                path.moveTo(startX, startY)
-                path.lineTo(endX, endY)
-                remaining -= fullLen
+            val title = TextView(this).apply {
+                text = "Delete '${subj.name}' Subject?"
+                textSize = 17f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(themeCoordinator.textColor)
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, dp(8))
+            }
+            container.addView(title)
+
+            val msg = TextView(this).apply {
+                text = "Are you sure you want to remove ${subj.iconEmoji} ${subj.name}? Existing recorded stats for this subject will remain saved."
+                textSize = 13f
+                setTextColor(themeCoordinator.textColor)
+                alpha = 0.7f
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, dp(18))
+            }
+            container.addView(msg)
+
+            val btnRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+            }
+
+            val cancelBtn = Button(this).apply {
+                text = "Cancel"
+                textSize = 13.5f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(themeCoordinator.textColor)
+                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 12f)
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                    setMargins(0, 0, dp(6), 0)
+                }
+                setOnClickListener {
+                    dialog.dismiss()
+                    showSubjectPickerDialog()
+                }
+            }
+
+            val delBtn = Button(this).apply {
+                text = "Delete"
+                textSize = 13.5f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(Color.WHITE)
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#EF4444"))
+                    cornerRadius = dp(12).toFloat()
+                }
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                    setMargins(dp(6), 0, 0, 0)
+                }
+                setOnClickListener {
+                    SubjectTagManager.removeSubject(this@MainActivity, subj.id)
+                    dialog.dismiss()
+                    buildFocusPanel()
+                    showSubjectPickerDialog()
+                }
+            }
+
+            btnRow.addView(cancelBtn)
+            btnRow.addView(delBtn)
+            container.addView(btnRow)
+
+            dialog.setContentView(container)
+            dialog.show()
+        } catch (_: Exception) {}
+    }
+
+    private fun showAddCustomSubjectDialog() {
+        try {
+            val dialog = Dialog(this)
+            dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+            dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+            val container = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                background = themeCoordinator.createDialogBackground(24f)
+                setPadding(dp(20), dp(20), dp(20), dp(20))
+            }
+
+            val title = TextView(this).apply {
+                text = "➕ Add New Subject"
+                textSize = 17f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(themeCoordinator.textColor)
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, dp(14))
+            }
+            container.addView(title)
+
+            val input = android.widget.EditText(this).apply {
+                hint = "Subject Name (max 25 chars)"
+                setHintTextColor(tintedColor(themeCoordinator.textColor, 120))
+                setTextColor(themeCoordinator.textColor)
+                textSize = 14f
+                filters = arrayOf(android.text.InputFilter.LengthFilter(25))
+                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 12f)
+                setPadding(dp(14), dp(12), dp(14), dp(12))
+            }
+            container.addView(input)
+
+            val saveBtn = Button(this).apply {
+                text = "Save Subject"
+                textSize = 14f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(Color.WHITE)
+                background = GradientDrawable().apply {
+                    setColor(themeCoordinator.primaryColor)
+                    cornerRadius = dp(12).toFloat()
+                }
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(0, dp(16), 0, 0)
+                }
+                setOnClickListener {
+                    val name = input.text.toString().trim()
+                    if (name.isNotEmpty()) {
+                        SubjectTagManager.addCustomSubject(this@MainActivity, name)
+                        dialog.dismiss()
+                        buildFocusPanel()
+                    }
+                }
+            }
+            container.addView(saveBtn)
+
+            dialog.setContentView(container)
+            dialog.show()
+        } catch (_: Exception) {}
+    }
+
+    fun showAmbientSoundDialog(context: Context = this) {
+        try {
+            val dialog = Dialog(this)
+            dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+            dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+            val container = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                background = themeCoordinator.createDialogBackground(28f)
+                setPadding(dp(22), dp(22), dp(22), dp(20))
+                layoutParams = LinearLayout.LayoutParams(
+                    (resources.displayMetrics.widthPixels * 0.90f).toInt().coerceAtMost(dp(420)),
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            }
+
+            val title = TextView(this).apply {
+                text = "🎧 Ambient Focus Soundscapes"
+                textSize = 18f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(themeCoordinator.textColor)
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, dp(14))
+            }
+            container.addView(title)
+
+            val scrollContainer = android.widget.ScrollView(this).apply {
+                isVerticalScrollBarEnabled = true
+                overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(280)
+                )
+            }
+
+            val soundsListContainer = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT
+                )
+            }
+
+            for (preset in AmbientSoundEngine.Preset.values()) {
+                if (preset == AmbientSoundEngine.Preset.CUSTOM) continue
+                val isSelected = AmbientSoundEngine.getActivePreset() == preset
+                val btn = Button(this).apply {
+                    text = preset.displayName
+                    textSize = 13.5f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    setTextColor(if (isSelected) Color.WHITE else themeCoordinator.textColor)
+                    background = if (isSelected) {
+                        GradientDrawable().apply {
+                            setColor(themeCoordinator.primaryColor)
+                            cornerRadius = dp(14).toFloat()
+                        }
+                    } else {
+                        themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 14f)
+                    }
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        setMargins(0, dp(3), 0, dp(3))
+                    }
+                    setOnClickListener {
+                        AmbientSoundEngine.selectPreset(this@MainActivity, preset)
+                        dialog.dismiss()
+                        buildFocusPanel()
+                    }
+                }
+                soundsListContainer.addView(btn)
+            }
+
+            scrollContainer.addView(soundsListContainer)
+            container.addView(scrollContainer)
+
+            val importBtn = Button(this).apply {
+                text = "📁 Import Custom Audio File (.mp3/.wav)"
+                textSize = 13.5f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(themeCoordinator.accentColor)
+                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.accentColor, 40), 14f)
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(0, dp(14), 0, 0)
+                }
+                setOnClickListener {
+                    dialog.dismiss()
+                    customAudioPickerLauncher.launch("audio/*")
+                }
+            }
+            container.addView(importBtn)
+
+            dialog.setContentView(container)
+            dialog.show()
+        } catch (_: Exception) {}
+    }
+
+    private fun showPieChartDetailsModal(initialDateKey: String = SubjectTagManager.getTodayKey()) {
+        val dialog = Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        var currentDateKey = initialDateKey
+        val sdfKey = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val sdfDisplay = SimpleDateFormat("EEE, dd MMM yyyy", Locale.getDefault())
+        val todayKey = SubjectTagManager.getTodayKey()
+
+        val rootLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.parseColor("#090C15"))
+            setPadding(dp(20), dp(36), dp(20), dp(20))
+        }
+
+        val headerRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, 0, 0, dp(12))
+        }
+
+        headerRow.addView(TextView(this).apply {
+            text = "📊 Detailed Session Analytics"
+            setTextColor(themeCoordinator.textColor)
+            textSize = 20f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+
+        val closeBtn = TextView(this).apply {
+            text = "✕ Close"
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 14f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(dp(16), dp(8), dp(16), dp(8))
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 110), 20f)
+            setOnClickListener { dialog.dismiss() }
+        }
+        headerRow.addView(closeBtn)
+        rootLayout.addView(headerRow)
+
+        // Date Navigation Row (< 📅 16 Aug 2026 >)
+        val dateNavRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, 0, 0, dp(16))
+        }
+
+        val prevBtn = TextView(this).apply {
+            text = "◄"
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 16f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(dp(16), dp(8), dp(16), dp(8))
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 50), 16f)
+        }
+
+        val dateTitleBtn = TextView(this).apply {
+            gravity = Gravity.CENTER
+            setTextColor(themeCoordinator.textColor)
+            textSize = 15f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 25), 16f)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(dp(8), 0, dp(8), 0) }
+        }
+
+        val nextBtn = TextView(this).apply {
+            text = "►"
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 16f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(dp(16), dp(8), dp(16), dp(8))
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 50), 16f)
+        }
+
+        dateNavRow.addView(prevBtn)
+        dateNavRow.addView(dateTitleBtn)
+        dateNavRow.addView(nextBtn)
+        rootLayout.addView(dateNavRow)
+
+        val scrollView = ScrollView(this).apply {
+            isVerticalScrollBarEnabled = false
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+        }
+
+        val scrollContent = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, 0, 0, dp(24))
+        }
+        scrollView.addView(scrollContent)
+        rootLayout.addView(scrollView)
+
+        fun updateDateView() {
+            val parsedDate = try { sdfKey.parse(currentDateKey) } catch (_: Exception) { Date() } ?: Date()
+            val formattedTitle = if (currentDateKey == todayKey) "📅 Today (${sdfDisplay.format(parsedDate)})" else "📅 ${sdfDisplay.format(parsedDate)}"
+            dateTitleBtn.text = formattedTitle
+
+            val isToday = (currentDateKey == todayKey)
+            nextBtn.alpha = if (isToday) 0.3f else 1.0f
+            nextBtn.isEnabled = !isToday
+
+            scrollContent.removeAllViews()
+
+            val topChartCard = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                background = themeCoordinator.createCardBackground()
+                setPadding(dp(16), dp(16), dp(16), dp(16))
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, dp(20)) }
+            }
+
+            val largePieView = SubjectPieChartView(this).apply {
+                primaryColor = themeCoordinator.primaryColor
+                textColor = themeCoordinator.textColor
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(340))
+            }
+
+            val subjectDurations = SubjectTagManager.getSubjectDurationsForDate(this, currentDateKey)
+            val subjectBreakDurations = SubjectTagManager.getSubjectBreakDurationsForDate(this, currentDateKey)
+            val allSubjects = SubjectTagManager.getAllSubjects(this)
+            val activeSubjectsSorted = allSubjects
+                .map { it to (subjectDurations[it.id] ?: 0L) }
+                .filter { it.second > 0L }
+                .sortedByDescending { it.second }
+
+            val slicesList = ArrayList<SubjectPieChartView.PieSlice>()
+
+            for ((subj, secs) in activeSubjectsSorted) {
+                slicesList.add(SubjectPieChartView.PieSlice(subj.name, subj.iconEmoji, secs.toDouble(), subj.colorHex))
+            }
+
+            if (slicesList.isNotEmpty()) {
+                largePieView.setData(slicesList)
+                topChartCard.addView(largePieView)
             } else {
-                val t = remaining / fullLen
-                path.moveTo(startX, startY)
-                path.lineTo(startX + (endX - startX) * t, startY + (endY - startY) * t)
-                remaining = 0f
+                topChartCard.addView(TextView(this).apply {
+                    text = "📊 No Subject Session Data For This Date"
+                    setTextColor(themeCoordinator.textColor)
+                    textSize = 15f
+                    gravity = Gravity.CENTER
+                    setPadding(0, dp(40), 0, dp(40))
+                })
+            }
+
+            scrollContent.addView(topChartCard)
+
+            scrollContent.addView(TextView(this).apply {
+                text = "⏱️ DETAILED SESSION LOGS ($currentDateKey)"
+                setTextColor(themeCoordinator.primaryColor)
+                textSize = 12f
+                letterSpacing = 0.15f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setPadding(dp(4), 0, 0, dp(12))
+            })
+
+            val totalSecsAll = subjectDurations.values.sum()
+            val sdfTime = SimpleDateFormat("hh:mm a", Locale.getDefault())
+
+            if (slicesList.isEmpty()) {
+                val emptyCard = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    background = themeCoordinator.createCardBackground()
+                    setPadding(dp(20), dp(24), dp(20), dp(24))
+                    gravity = Gravity.CENTER
+                }
+                emptyCard.addView(TextView(this).apply {
+                    text = "📖 No Active Subject Sessions"
+                    setTextColor(themeCoordinator.textColor)
+                    textSize = 15f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                })
+                emptyCard.addView(TextView(this).apply {
+                    text = "No focus activity with subject tags logged for this specific day."
+                    setTextColor(themeCoordinator.textColor)
+                    alpha = 0.6f
+                    textSize = 13f
+                    gravity = Gravity.CENTER
+                    setPadding(0, dp(6), 0, 0)
+                })
+                scrollContent.addView(emptyCard)
+            } else {
+                val nowMs = System.currentTimeMillis()
+                var cumMs = 0L
+                val (daySessions, _) = StatsEngine(this).dayBlocks(currentDateKey)
+                val usedSessionIndices = HashSet<Int>()
+
+                for ((subj, secs) in activeSubjectsSorted) {
+
+                    val subjCard = LinearLayout(this).apply {
+                        orientation = LinearLayout.VERTICAL
+                        background = themeCoordinator.createCardBackground()
+                        setPadding(dp(18), dp(16), dp(18), dp(16))
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, dp(12)) }
+                    }
+
+                    val headerRowSubj = LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER_VERTICAL
+                    }
+
+                    val colorCircle = FrameLayout(this).apply {
+                        background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(try { Color.parseColor(subj.colorHex) } catch (_: Exception) { themeCoordinator.primaryColor }) }
+                        layoutParams = LinearLayout.LayoutParams(dp(14), dp(14)).apply { setMargins(0, 0, dp(10), 0) }
+                    }
+
+                    headerRowSubj.addView(colorCircle)
+                    headerRowSubj.addView(TextView(this).apply {
+                        text = "${subj.iconEmoji} ${subj.name}"
+                        setTextColor(themeCoordinator.textColor)
+                        textSize = 17f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    })
+
+                    val pct = if (totalSecsAll > 0) ((secs.toDouble() / totalSecsAll.toDouble()) * 100).toInt() else 0
+                    headerRowSubj.addView(TextView(this).apply {
+                        text = "$pct% Share"
+                        setTextColor(themeCoordinator.primaryColor)
+                        textSize = 13f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    })
+
+                    subjCard.addView(headerRowSubj)
+
+                    val matchedIdx = daySessions.indices.firstOrNull { idx ->
+                        idx !in usedSessionIndices && kotlin.math.abs(daySessions[idx].secs - secs) <= 5L
+                    } ?: daySessions.indices.firstOrNull { it !in usedSessionIndices }
+
+                    val startMs: Long
+                    val endMs: Long
+
+                    if (matchedIdx != null) {
+                        usedSessionIndices.add(matchedIdx)
+                        val b = daySessions[matchedIdx]
+                        startMs = b.startMs
+                        endMs = b.endMs
+                    } else {
+                        endMs = nowMs - cumMs
+                        startMs = endMs - (secs * 1000L)
+                        cumMs += (secs * 1000L)
+                    }
+
+                    val startTimeStr = sdfTime.format(Date(startMs))
+                    val endTimeStr = sdfTime.format(Date(endMs))
+                    val hrs = secs / 3600L
+                    val mins = (secs % 3600L) / 60L
+                    val remSecs = secs % 60L
+                    val focusTimeStr = if (hrs > 0) "${hrs}h ${mins}m ${remSecs}s" else "${mins}m ${remSecs}s"
+
+                    val bSecs = subjectBreakDurations[subj.id] ?: 0L
+                    val bHrs = bSecs / 3600L
+                    val bMins = (bSecs % 3600L) / 60L
+                    val bRemSecs = bSecs % 60L
+                    val breakTimeStr = if (bHrs > 0) "${bHrs}h ${bMins}m ${bRemSecs}s" else "${bMins}m ${bRemSecs}s"
+
+                    val detailsText = TextView(this).apply {
+                        text = "⏱️ Focus Duration: $focusTimeStr\n☕ Break Duration: $breakTimeStr\n⏰ Timing: $startTimeStr — $endTimeStr"
+                        setTextColor(themeCoordinator.textColor)
+                        alpha = 0.75f
+                        textSize = 13.5f
+                        setLineSpacing(dp(4).toFloat(), 1.1f)
+                        setPadding(0, dp(10), 0, 0)
+                    }
+                    subjCard.addView(detailsText)
+
+                    scrollContent.addView(subjCard)
+                }
             }
         }
 
-        fun cornerArc(arcBounds: RectF, startAngle: Float) {
-            if (remaining <= 0f || arcLen <= 0f) return
-            if (remaining >= arcLen) {
-                path.addArc(arcBounds, startAngle, 90f)
-                remaining -= arcLen
-            } else {
-                path.addArc(arcBounds, startAngle, (remaining / arcLen) * 90f)
-                remaining = 0f
+        prevBtn.setOnClickListener {
+            val cal = Calendar.getInstance().apply { time = try { sdfKey.parse(currentDateKey) } catch(_: Exception) { Date() } ?: Date() }
+            cal.add(Calendar.DAY_OF_YEAR, -1)
+            currentDateKey = sdfKey.format(cal.time)
+            updateDateView()
+        }
+
+        nextBtn.setOnClickListener {
+            val cal = Calendar.getInstance().apply { time = try { sdfKey.parse(currentDateKey) } catch(_: Exception) { Date() } ?: Date() }
+            cal.add(Calendar.DAY_OF_YEAR, 1)
+            val newKey = sdfKey.format(cal.time)
+            if (newKey <= todayKey) {
+                currentDateKey = newKey
+                updateDateView()
             }
         }
 
-        lineSegment(edgeW, left + r, top, right - r, top)
-        cornerArc(RectF(right - 2f * r, top, right, top + 2f * r), 270f)
-        lineSegment(edgeH, right, top + r, right, bottom - r)
-        cornerArc(RectF(right - 2f * r, bottom - 2f * r, right, bottom), 0f)
-        lineSegment(edgeW, right - r, bottom, left + r, bottom)
-        cornerArc(RectF(left, bottom - 2f * r, left + 2f * r, bottom), 90f)
-        lineSegment(edgeH, left, bottom - r, left, top + r)
-        cornerArc(RectF(left, top, left + 2f * r, top + 2f * r), 180f)
+        dateTitleBtn.setOnClickListener {
+            val cal = Calendar.getInstance().apply { time = try { sdfKey.parse(currentDateKey) } catch(_: Exception) { Date() } ?: Date() }
+            android.app.DatePickerDialog(this, { _, y: Int, m: Int, d: Int ->
+                val selCal = Calendar.getInstance().apply {
+                    set(Calendar.YEAR, y)
+                    set(Calendar.MONTH, m)
+                    set(Calendar.DAY_OF_MONTH, d)
+                }
+                val selKey = sdfKey.format(selCal.time)
+                if (selKey <= todayKey) {
+                    currentDateKey = selKey
+                    updateDateView()
+                }
+            }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
+        }
 
-        canvas.drawPath(path, paint)
+        updateDateView()
+        dialog.setContentView(rootLayout)
+        dialog.show()
     }
 
 }
+
+
+
+

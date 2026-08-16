@@ -39,7 +39,7 @@ class StatsEngine(private val context: Context) {
             }) else null
         )
 
-        if (streak == prefs.getInt("current_streak", 0) && prefs.getString("streak_last_calculated", null) == todayStr) return
+        if (streak == prefs.safeInt("current_streak", 0) && prefs.getString("streak_last_calculated", null) == todayStr) return
         prefs.edit()
             .putInt("current_streak", streak)
             .putString("streak_last_calculated", todayStr)
@@ -88,7 +88,10 @@ class StatsEngine(private val context: Context) {
         }
         val focusManual = prefs.getLong("${dateStr}_focus_manual", 0L)
         val breakManual = prefs.getLong("${dateStr}_break_manual", 0L)
-        if (focusManual != 0L) {
+        val hasRawManualFocus = entries.any { it.state == "MANUAL_FOCUS" }
+        val hasRawManualBreak = entries.any { it.state == "MANUAL_BREAK" }
+
+        if (focusManual != 0L && !hasRawManualFocus) {
             if (sessions.isNotEmpty()) {
                 val last = sessions.last()
                 val adj = max(0L, last.secs + focusManual)
@@ -98,7 +101,7 @@ class StatsEngine(private val context: Context) {
                 sessions.add(BlockInfo(lastEnd, lastEnd + focusManual * 1000L, focusManual, manual = true))
             }
         }
-        if (breakManual != 0L) {
+        if (breakManual != 0L && !hasRawManualBreak) {
             if (breaks.isNotEmpty()) {
                 val last = breaks.last()
                 val adj = max(0L, last.secs + breakManual)
@@ -120,6 +123,18 @@ class StatsEngine(private val context: Context) {
         val focusKey = "${dateStr}_focus_total"
         val breakKey = "${dateStr}_break_total"
         if (prefs.getLong(focusKey, 0L) == focusSum && prefs.getLong(breakKey, 0L) == breakSum) return
+        prefs.edit()
+            .putLong(focusKey, focusSum)
+            .putLong(breakKey, breakSum)
+            .apply()
+    }
+
+    fun forceReconcileDayTotals(dateStr: String) {
+        val (sessions, breaks) = dayBlocks(dateStr)
+        val focusSum = sessions.filter { !it.running }.sumOf { it.secs }
+        val breakSum = breaks.filter { !it.running }.sumOf { it.secs }
+        val focusKey = "${dateStr}_focus_total"
+        val breakKey = "${dateStr}_break_total"
         prefs.edit()
             .putLong(focusKey, focusSum)
             .putLong(breakKey, breakSum)
@@ -385,26 +400,24 @@ class StatsEngine(private val context: Context) {
     }
 
     fun applyBlockEdit(dateStr: String, block: BlockInfo, isBreak: Boolean, newStartMs: Long, newEndMs: Long) {
-        val entries = TimelineLogger.load(context).sortedBy { it.timestamp }
-        val startIdx = entries.indexOfFirst { it.timestamp == block.startMs }
-        if (startIdx >= 0) {
-            val endEntry = entries.getOrNull(startIdx + 1)
-            TimelineLogger.moveEntry(context, block.startMs, newStartMs)
-            if (endEntry != null) {
-                TimelineLogger.moveEntry(context, endEntry.timestamp, newEndMs)
-            } else {
-                TimelineLogger.recordRaw(context, "IDLE", newEndMs)
+        val startState = if (isBreak) "MANUAL_BREAK" else "MANUAL_FOCUS"
+        TimelineLogger.replaceBlock(context, block.startMs, block.endMs, newStartMs, newEndMs, startState)
+
+        if (!isBreak) {
+            val oldSecs = block.secs
+            val newSecs = (newEndMs - newStartMs) / 1000L
+            val delta = newSecs - oldSecs
+            val selectedSubject = SubjectTagManager.getSelectedSubject(context)
+            if (delta != 0L) {
+                SubjectTagManager.recordSubjectStudyTime(context, selectedSubject.id, delta, dateStr)
             }
-        } else {
-            val startState = if (isBreak) "MANUAL_BREAK" else "MANUAL_FOCUS"
-            TimelineLogger.recordRaw(context, startState, newStartMs)
-            TimelineLogger.recordRaw(context, "IDLE", newEndMs)
         }
+
         prefs.edit()
             .putLong("${dateStr}_focus_manual", 0L)
             .putLong("${dateStr}_break_manual", 0L)
             .apply()
-        reconcileDayTotals(dateStr)
+        forceReconcileDayTotals(dateStr)
         recalculateStreak()
     }
 }

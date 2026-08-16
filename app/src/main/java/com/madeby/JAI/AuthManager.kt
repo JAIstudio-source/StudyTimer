@@ -15,6 +15,10 @@ object AuthManager {
 
     private const val KEY_PROFILE_IMAGE_URI = "profile_image_uri"
 
+    private const val KEY_DEVICE_LINKED_USER_ID = "device_linked_user_id"
+    private const val KEY_DEVICE_LINKED_USER_NAME = "device_linked_user_name"
+    private const val KEY_DEVICE_LINKED_USER_EMAIL = "device_linked_user_email"
+
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
     }
@@ -29,7 +33,9 @@ object AuthManager {
     }
 
     fun saveUserSession(context: Context, email: String?, name: String?, token: String?, userId: String? = null) {
-        getPrefs(context).edit().apply {
+        val actualUserId = if (!userId.isNullOrEmpty()) userId else email
+        val prefs = getPrefs(context)
+        prefs.edit().apply {
             putBoolean(KEY_IS_LOGGED_IN, true)
             putBoolean(KEY_IS_GUEST, false)
             putString(KEY_USER_EMAIL, email)
@@ -39,14 +45,24 @@ object AuthManager {
                 putString(KEY_USER_NAME, name)
             }
             putString(KEY_ACCESS_TOKEN, token)
-            if (!userId.isNullOrEmpty()) putString(KEY_USER_ID, userId)
+            if (!actualUserId.isNullOrEmpty()) {
+                putString(KEY_USER_ID, actualUserId)
+                putString(KEY_DEVICE_LINKED_USER_ID, actualUserId)
+            }
+            if (!email.isNullOrEmpty()) putString(KEY_DEVICE_LINKED_USER_EMAIL, email)
+            if (!name.isNullOrEmpty()) putString(KEY_DEVICE_LINKED_USER_NAME, name)
             apply()
         }
-        AppAnalytics.associateUser(context, userId ?: email)
+        AppAnalytics.associateUser(context, actualUserId)
     }
 
     fun updateUserName(context: Context, name: String) {
-        getPrefs(context).edit().putString(KEY_USER_NAME, name).apply()
+        getPrefs(context).edit().apply {
+            putString(KEY_USER_NAME, name)
+            putString(KEY_DEVICE_LINKED_USER_NAME, name)
+            apply()
+        }
+        AppAnalytics.associateUser(context, getUserId(context))
     }
 
     fun saveProfileImageUri(context: Context, uriString: String) {
@@ -63,7 +79,7 @@ object AuthManager {
             putBoolean(KEY_IS_GUEST, true)
             apply()
         }
-        AppAnalytics.associateUser(context, null)
+        AppAnalytics.associateUser(context, getLinkedUserId(context))
     }
 
     fun getUserEmail(context: Context): String? {
@@ -78,13 +94,35 @@ object AuthManager {
         return getPrefs(context).getString(KEY_USER_ID, null) ?: getUserEmail(context)
     }
 
+    fun getLinkedUserId(context: Context): String? {
+        return getUserId(context) ?: getPrefs(context).getString(KEY_DEVICE_LINKED_USER_ID, null) ?: getUserEmail(context) ?: getPrefs(context).getString(KEY_DEVICE_LINKED_USER_EMAIL, null)
+    }
+
+    fun getLinkedUserName(context: Context): String? {
+        return getUserName(context) ?: getPrefs(context).getString(KEY_DEVICE_LINKED_USER_NAME, null)
+    }
+
+    fun getLinkedUserEmail(context: Context): String? {
+        return getUserEmail(context) ?: getPrefs(context).getString(KEY_DEVICE_LINKED_USER_EMAIL, null)
+    }
+
     fun getAccessToken(context: Context): String? {
         return getPrefs(context).getString(KEY_ACCESS_TOKEN, null)
     }
 
     fun logout(context: Context) {
         AppAnalytics.onLogout(context)
-        getPrefs(context).edit().clear().apply()
+        val linkedId = getPrefs(context).getString(KEY_DEVICE_LINKED_USER_ID, null)
+        val linkedName = getPrefs(context).getString(KEY_DEVICE_LINKED_USER_NAME, null)
+        val linkedEmail = getPrefs(context).getString(KEY_DEVICE_LINKED_USER_EMAIL, null)
+        
+        getPrefs(context).edit().apply {
+            clear()
+            if (!linkedId.isNullOrEmpty()) putString(KEY_DEVICE_LINKED_USER_ID, linkedId)
+            if (!linkedName.isNullOrEmpty()) putString(KEY_DEVICE_LINKED_USER_NAME, linkedName)
+            if (!linkedEmail.isNullOrEmpty()) putString(KEY_DEVICE_LINKED_USER_EMAIL, linkedEmail)
+            apply()
+        }
     }
 
     fun deleteLocalUserData(context: Context) {

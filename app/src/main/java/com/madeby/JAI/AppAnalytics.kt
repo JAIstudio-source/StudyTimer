@@ -169,24 +169,42 @@ object AppAnalytics {
     fun trackEvent(context: Context, eventName: String, properties: Map<String, Any>) {
         try {
             val anonId = getAnonymousId(context)
-            val userId = AuthManager.getUserId(context)
-            val isAuth = !AuthManager.isGuest(context) && !userId.isNullOrBlank()
+            val isCurrentlyLoggedIn = AuthManager.isLoggedIn(context) && !AuthManager.isGuest(context)
+            val currentUserId = AuthManager.getUserId(context)
+            val linkedName = AuthManager.getLinkedUserName(context)
+            val linkedEmail = AuthManager.getLinkedUserEmail(context)
+            val now = System.currentTimeMillis()
+            val eventId = "${anonId}_${eventName}_${now}_${UUID.randomUUID().toString().substring(0, 6)}"
 
             val eventJson = JSONObject().apply {
+                put("event_id", eventId)
                 put("anonymous_id", anonId)
-                put("user_id", if (isAuth) userId else JSONObject.NULL)
-                put("is_authenticated", isAuth)
+                put("user_id", if (isCurrentlyLoggedIn && !currentUserId.isNullOrBlank()) currentUserId else JSONObject.NULL)
+                put("user_name", if (!linkedName.isNullOrBlank()) linkedName else JSONObject.NULL)
+                put("user_email", if (!linkedEmail.isNullOrBlank()) linkedEmail else JSONObject.NULL)
+                put("is_authenticated", isCurrentlyLoggedIn)
                 put("event_name", eventName)
                 put("app_version", BuildConfig.VERSION_NAME)
                 put("version_code", BuildConfig.VERSION_CODE)
                 put("android_sdk", Build.VERSION.SDK_INT)
-                put("device_model", "${Build.MANUFACTURER} ${Build.MODEL}".trim())
-                put("timestamp", System.currentTimeMillis())
+                put("device_model", getDeviceName())
+                put("timestamp", now)
                 put("properties", JSONObject(properties))
             }
 
             enqueueEvent(context, eventJson)
+            flushEvents(context, force = true)
         } catch (_: Exception) {}
+    }
+
+    private fun getDeviceName(): String {
+        val manufacturer = Build.MANUFACTURER.orEmpty().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.US) else it.toString() }
+        val model = Build.MODEL.orEmpty()
+        return if (model.startsWith(manufacturer, ignoreCase = true)) {
+            model.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.US) else it.toString() }
+        } else {
+            "$manufacturer $model".trim()
+        }
     }
 
     private fun enqueueEvent(context: Context, event: JSONObject) {
@@ -194,7 +212,19 @@ object AppAnalytics {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val existingStr = prefs.getString(KEY_OFFLINE_EVENTS, "[]") ?: "[]"
             val array = try { JSONArray(existingStr) } catch (_: Exception) { JSONArray() }
-            if (array.length() >= 150) {
+            
+            // Check for duplicate event_id in local queue
+            val newEventId = event.optString("event_id", "")
+            if (!newEventId.isNullOrEmpty()) {
+                for (i in 0 until array.length()) {
+                    val existingEvt = array.optJSONObject(i)
+                    if (existingEvt != null && existingEvt.optString("event_id") == newEventId) {
+                        return // Skip duplicate action in local buffer
+                    }
+                }
+            }
+
+            if (array.length() >= 100) {
                 array.remove(0)
             }
             array.put(event)
@@ -207,7 +237,6 @@ object AppAnalytics {
     }
 
     fun flushEvents(context: Context, force: Boolean = false) {
-        if (!isFlushing.compareAndSet(false, true)) return
         scope.launch {
             try {
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -215,14 +244,12 @@ object AppAnalytics {
                 val now = System.currentTimeMillis()
 
                 if (!force && (now - lastFlush) < MIN_FLUSH_INTERVAL_MS) {
-                    isFlushing.set(false)
                     return@launch
                 }
 
                 val supabaseUrl = BuildConfig.SUPABASE_URL
                 val anonKey = BuildConfig.SUPABASE_ANON_KEY
                 if (supabaseUrl.isBlank() || anonKey.isBlank()) {
-                    isFlushing.set(false)
                     return@launch
                 }
 
@@ -230,14 +257,12 @@ object AppAnalytics {
                 synchronized(AppAnalytics) {
                     val existingStr = prefs.getString(KEY_OFFLINE_EVENTS, "[]") ?: "[]"
                     val array = try { JSONArray(existingStr) } catch (_: Exception) { JSONArray() }
+                    if (array.length() == 0) return@launch
                     for (i in 0 until array.length()) {
                         eventsToSend.add(array.getJSONObject(i))
                     }
-                }
-
-                if (eventsToSend.isEmpty()) {
-                    isFlushing.set(false)
-                    return@launch
+                    // Immediately clear local queue so events are never re-uploaded if server is cleared
+                    prefs.edit().putString(KEY_OFFLINE_EVENTS, "[]").putLong(KEY_LAST_FLUSH_TIME, now).apply()
                 }
 
                 val payload = JSONArray()
@@ -251,7 +276,6 @@ object AppAnalytics {
                 conn.setRequestProperty("apikey", anonKey)
                 conn.setRequestProperty("Authorization", "Bearer $anonKey")
                 conn.setRequestProperty("Content-Type", "application/json")
-                conn.setRequestProperty("Prefer", "resolution=ignore-duplicates")
                 conn.connectTimeout = 7000
                 conn.readTimeout = 7000
                 conn.doOutput = true
@@ -261,17 +285,9 @@ object AppAnalytics {
                 }
 
                 val code = conn.responseCode
-                if (code in 200..299) {
-                    synchronized(AppAnalytics) {
-                        prefs.edit()
-                            .putString(KEY_OFFLINE_EVENTS, "[]")
-                            .putLong(KEY_LAST_FLUSH_TIME, now)
-                            .apply()
-                    }
-                }
-            } catch (_: Exception) {
-            } finally {
-                isFlushing.set(false)
+                android.util.Log.d("AppAnalytics", "flushEvents HTTP response code: $code")
+            } catch (e: Exception) {
+                android.util.Log.e("AppAnalytics", "flushEvents error", e)
             }
         }
     }
@@ -292,8 +308,10 @@ object AppAnalytics {
 
             try {
                 val anonId = getAnonymousId(context)
-                val userId = AuthManager.getUserId(context)
-                val isAuth = !AuthManager.isGuest(context) && !userId.isNullOrBlank()
+                val isCurrentlyLoggedIn = AuthManager.isLoggedIn(context) && !AuthManager.isGuest(context)
+                val currentUserId = AuthManager.getUserId(context)
+                val linkedName = AuthManager.getLinkedUserName(context)
+                val linkedEmail = AuthManager.getLinkedUserEmail(context)
                 val firstSeen = prefs.getLong(KEY_FIRST_SEEN, now)
                 val totalStudySecs = prefs.getLong(KEY_TOTAL_STUDY_SECS, 0L)
                 val totalSessions = prefs.getLong(KEY_TOTAL_SESSIONS, 0L)
@@ -301,15 +319,17 @@ object AppAnalytics {
 
                 val payload = JSONObject().apply {
                     put("anonymous_id", anonId)
-                    put("user_id", if (isAuth) userId else JSONObject.NULL)
-                    put("is_authenticated", isAuth)
+                    put("user_id", if (isCurrentlyLoggedIn && !currentUserId.isNullOrBlank()) currentUserId else JSONObject.NULL)
+                    put("user_name", if (!linkedName.isNullOrBlank()) linkedName else JSONObject.NULL)
+                    put("user_email", if (!linkedEmail.isNullOrBlank()) linkedEmail else JSONObject.NULL)
+                    put("is_authenticated", isCurrentlyLoggedIn)
                     put("first_seen", firstSeen)
                     put("last_active_at", now)
                     put("last_active_date", todayStr)
                     put("app_version", BuildConfig.VERSION_NAME)
                     put("version_code", BuildConfig.VERSION_CODE)
                     put("android_sdk", Build.VERSION.SDK_INT)
-                    put("device_model", "${Build.MANUFACTURER} ${Build.MODEL}".trim())
+                    put("device_model", getDeviceName())
                     put("total_study_secs", totalStudySecs)
                     put("total_sessions", totalSessions)
                     put("updated_at", now)

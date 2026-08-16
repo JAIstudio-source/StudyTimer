@@ -13,7 +13,7 @@ object GoalReminderScheduler {
 
     const val CHANNEL_ID = "goal_reminders_v4"
     private const val REQUEST_CODE = 2001
-    private const val REMIND_HOUR = 21
+    private const val REMIND_HOUR = 20
     private const val REMIND_MINUTE = 0
 
     fun ensureChannel(context: Context) {

@@ -1,5 +1,6 @@
 package com.madeby.JAI
 
+import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
@@ -215,6 +216,8 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 }
             }
 
+            val isSubject = timerMode == "SUBJECT"
+
             val stopwatchRow = createSettingsRow("\u23F1\uFE0F", getString(R.string.mode_stopwatch), getString(R.string.mode_stopwatch_sub), modeRadio(isStopwatch))
             stopwatchRow.setOnClickListener {
                 sharedPrefs.edit().putString("timer_mode", "STOPWATCH").putBoolean("lecture_mode_enabled", false).apply()
@@ -231,6 +234,15 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 navigateToPanel(AppPanel.SETTINGS)
             }
             timerModeCard.addView(countdownRow)
+            timerModeCard.addView(createDivider())
+
+            val subjectRow = createSettingsRow("📚", "Subject-wise Timer Mode", "Dedicated timer mode to tag and track focus time by subject (Math, Coding, Physics)", modeRadio(isSubject))
+            subjectRow.setOnClickListener {
+                sharedPrefs.edit().putString("timer_mode", "SUBJECT").putBoolean("lecture_mode_enabled", false).putBoolean("show_subject_pie_chart", true).apply()
+                timerMode = "SUBJECT"
+                navigateToPanel(AppPanel.SETTINGS)
+            }
+            timerModeCard.addView(subjectRow)
             timerModeCard.addView(createDivider())
 
             val lectureRow = createSettingsRow("\uD83C\uDF93", "Scheduled Lecture Mode", "Auto-starts & auto-ends focus based on your fixed class timetable", modeRadio(isLecture))
@@ -320,7 +332,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
             }
             reminderCard.addView(createSettingsRow("\uD83D\uDD14", getString(R.string.reminder_evening), getString(R.string.reminder_evening_sub), reminderSwitch))
             reminderCard.addView(createDivider())
-            val reminderHour = sharedPrefs.safeInt("reminder_hour", 21)
+            val reminderHour = sharedPrefs.safeInt("reminder_hour", 20)
             val reminderMinute = sharedPrefs.safeInt("reminder_minute", 0)
             val timeLabel = TimeFormat.formatHourMinute(host, reminderHour, reminderMinute)
             val reminderTimeRow = createSettingsRow("\u23F0", getString(R.string.reminder_time), getString(R.string.reminder_time_sub), null)
@@ -342,6 +354,21 @@ class SettingsPanelBuilder(private val host: MainActivity) {
             }
             reminderCard.addView(reminderTimeRow)
             layout.addView(reminderCard)
+
+            layout.addView(createSectionLabel("FOCUS TOOLS & CONTROLS"))
+            val toolsCard = createSettingsCard()
+            val ambientEnabled = sharedPrefs.safeBoolean("enable_ambient_sounds", false)
+            val ambientSwitch = SwitchMaterial(this).apply {
+                isChecked = ambientEnabled
+                setOnCheckedChangeListener { _, isChecked ->
+                    sharedPrefs.edit().putBoolean("enable_ambient_sounds", isChecked).apply()
+                    if (!isChecked) {
+                        AmbientSoundEngine.stop()
+                    }
+                }
+            }
+            toolsCard.addView(createSettingsRow("🎧", "Ambient Focus Soundscapes", "Show ambient soundscapes and custom audio controls on timer screen", ambientSwitch))
+            layout.addView(toolsCard)
 
             layout.addView(createSectionLabel(getString(R.string.section_display)))
             val displayCard = createSettingsCard()
@@ -432,6 +459,15 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 }
             }
             displayCard.addView(createSettingsRow("\u23F8\uFE0F", getString(R.string.pause_button), getString(R.string.pause_button_sub), pauseButtonSwitch))
+            displayCard.addView(createDivider())
+            val isPieChartEnabled = sharedPrefs.safeBoolean("show_subject_pie_chart", false)
+            val pieChartSwitch = SwitchMaterial(this).apply {
+                isChecked = isPieChartEnabled
+                setOnCheckedChangeListener { _, isChecked ->
+                    sharedPrefs.edit().putBoolean("show_subject_pie_chart", isChecked).apply()
+                }
+            }
+            displayCard.addView(createSettingsRow("📊", "Subject Pie Chart", "Show subject breakdown chart in Insights overview", pieChartSwitch))
             layout.addView(displayCard)
 
             layout.addView(createSectionLabel(getString(R.string.section_data_management)))
@@ -477,7 +513,16 @@ class SettingsPanelBuilder(private val host: MainActivity) {
             guideRow.setOnClickListener { showAppGuideDialog() }
             aboutCard.addView(guideRow)
             aboutCard.addView(createDivider())
+            var versionTapCount = 0
             val versionRow = createSettingsRow("\uD83D\uDCCB", getString(R.string.version_label), "v${currentVersionName()} \u00B7 build ${currentVersionCodeLong()}")
+            versionRow.setOnClickListener {
+                versionTapCount++
+                if (versionTapCount >= 5) {
+                    isDevModeUnlocked = true
+                    Toast.makeText(this, getString(R.string.toast_dev_config_enabled), Toast.LENGTH_SHORT).show()
+                    navigateToPanel(AppPanel.SETTINGS)
+                }
+            }
             aboutCard.addView(versionRow)
             aboutCard.addView(createDivider())
             val updateRow = createSettingsRow("\uD83D\uDD04", getString(R.string.check_updates), getString(R.string.check_updates_sub))
@@ -505,6 +550,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
                     getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit().apply { remove("${todayStr}_focus_total"); remove("${todayStr}_break_total"); remove("${todayStr}_focus_manual"); remove("${todayStr}_break_manual"); apply() }
                     TimelineLogger.deleteDay(context, todayStr)
+                    SubjectTagManager.clearTodaySubjectDurations(context, todayStr)
                     handleStopSession(silent = true)
                     Toast.makeText(context, getString(R.string.toast_logs_cleared), Toast.LENGTH_SHORT).show()
                     true
@@ -516,72 +562,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
             if (isDevModeUnlocked) {
                 layout.addView(createSectionLabel(getString(R.string.section_developer)))
-                val devCard = createSettingsCard().apply { setPadding(20, 20, 20, 20) }
-                devCard.addView(TextView(this).apply {
-                    text = getString(R.string.dev_tools_hint)
-                    setTextColor(themeCoordinator.textColor)
-                    alpha = 0.7f
-                    textSize = 12f
-                    setPadding(0, 0, 0, dp(10))
-                })
-                val toolRow = LinearLayout(this).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER_VERTICAL
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(2), 0, 0) }
-                }
-                val editorBtn = TextView(this).apply {
-                    text = getString(R.string.edit_timeline)
-                    gravity = Gravity.CENTER
-                    setTextColor(themeCoordinator.bgColor)
-                    textSize = 13f
-                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                    background = themeCoordinator.createButtonBackground(themeCoordinator.primaryColor)
-                    setPadding(dp(10), dp(12), dp(10), dp(12))
-                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                    setOnClickListener { showDevTimelineEditor() }
-                }
-                val modeToggleBtn = TextView(this).apply {
-                    text = if (isAdjustingFocusMode) "\uD83C\uDFAF Focus Pool" else "\u2615 Break Pool"
-                    gravity = Gravity.CENTER
-                    setTextColor(themeCoordinator.bgColor)
-                    textSize = 13f
-                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                    background = themeCoordinator.createButtonBackground(themeCoordinator.primaryColor)
-                    setPadding(dp(10), dp(12), dp(10), dp(12))
-                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                    setOnClickListener { isAdjustingFocusMode = !isAdjustingFocusMode; text = if (isAdjustingFocusMode) "\uD83C\uDFAF Focus Pool" else "\u2615 Break Pool" }
-                }
-                toolRow.addView(editorBtn)
-                toolRow.addView(modeToggleBtn)
-                devCard.addView(toolRow)
-                devCard.addView(TextView(this).apply {
-                    text = getString(R.string.shift_block_hint)
-                    setTextColor(themeCoordinator.textColor)
-                    alpha = 0.6f
-                    textSize = 11f
-                    setPadding(0, dp(10), 0, 0)
-                })
-
-                fun applyShift(ds: Long) {
-                    val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-                    val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                    val isFocus = isAdjustingFocusMode
-                    val key = if (isFocus) "${todayStr}_focus_total" else "${todayStr}_break_total"
-                    val manualKey = if (isFocus) "${todayStr}_focus_manual" else "${todayStr}_break_manual"
-                    var cv = prefs.getLong(key, 0L)
-                    cv = max(0L, cv + ds)
-                    prefs.edit().putLong(key, cv).putLong(manualKey, prefs.getLong(manualKey, 0L) + ds).apply()
-                    statsDirty = true
-                    recalculateStreak()
-                    val what = if (isFocus) "focus" else "break"
-                    Toast.makeText(this, getString(R.string.toast_block_shifted, what), Toast.LENGTH_SHORT).show()
-                }
-                fun makeIncBtn(l: String, ds: Long): Button { return Button(this).apply { text = l; setTextColor(themeCoordinator.textColor); textSize = 12f; typeface = Typeface.MONOSPACE; background = themeCoordinator.createButtonBackground(themeCoordinator.bgColor); layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(6, 6, 6, 6) }; setOnClickListener { applyShift(ds) } } }
-                val row1 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; weightSum = 2f; layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 6, 0, 0) } }
-                row1.addView(makeIncBtn("- 1h", -3600L)); row1.addView(makeIncBtn("-15m", -900L))
-                val row2 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; weightSum = 2f; layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT) }
-                row2.addView(makeIncBtn("+15m", 900L)); row2.addView(makeIncBtn("+ 1h", 3600L))
-                devCard.addView(row1); devCard.addView(row2)
+                val devCard = DeveloperToolsHelper.buildDevCard(host, themeCoordinator)
                 layout.addView(devCard)
             }
         } else if (currentSettingsTab == AppSettingsTab.THEME) {
@@ -771,8 +752,8 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
                 val primaryHueBar = SeekBar(this).apply {
                     max = 360; progress = currentHue; background = spectrumTrack
-                    setPadding(20, 14, 20, 14)
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(dp(8), 8, dp(8), 12) }
+                    setPadding(dp(14), dp(10), dp(14), dp(10))
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(dp(8), dp(8), dp(8), dp(12)) }
                     setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                         override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                             primaryHueValue.text = "${progress}\u00B0"
@@ -804,7 +785,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 }
                 swatchContainer.addView(View(this).apply {
-                    layoutParams = LinearLayout.LayoutParams(56, 56)
+                    layoutParams = LinearLayout.LayoutParams(dp(32), dp(32))
                     background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(colorHex) }
                     setOnClickListener {
                         val hsv = FloatArray(3)
@@ -864,8 +845,8 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
                 val secondaryHueBar = SeekBar(this).apply {
                     max = 360; progress = currentSecHue; background = spectrumTrack
-                    setPadding(20, 14, 20, 14)
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(dp(8), 8, dp(8), 12) }
+                    setPadding(dp(14), dp(10), dp(14), dp(10))
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(dp(8), dp(8), dp(8), dp(12)) }
                     setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                         override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                             secondaryHueValue.text = "${progress}\u00B0"
@@ -897,7 +878,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 }
                 swatchContainer.addView(View(this).apply {
-                    layoutParams = LinearLayout.LayoutParams(56, 56)
+                    layoutParams = LinearLayout.LayoutParams(dp(32), dp(32))
                     background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(colorHex) }
                     setOnClickListener {
                         val hsv = FloatArray(3)

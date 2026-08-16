@@ -79,11 +79,11 @@ class LoginActivity : AppCompatActivity() {
                 val credential = result.credential
                 val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
                 val idToken = googleIdTokenCredential.idToken
-                val displayName = googleIdTokenCredential.displayName
-                val id = googleIdTokenCredential.id
+                val displayName = googleIdTokenCredential.displayName ?: googleIdTokenCredential.id
+                val googleEmail = googleIdTokenCredential.id
 
                 // Exchange Google ID Token with Supabase Auth API
-                exchangeTokenWithSupabase(idToken, displayName ?: id)
+                exchangeTokenWithSupabase(idToken, displayName, googleEmail)
 
             } catch (e: GetCredentialException) {
                 Log.e("LoginActivity", "Credential Manager failed", e)
@@ -108,14 +108,19 @@ class LoginActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
-    private fun exchangeTokenWithSupabase(idToken: String, displayName: String) {
+    private fun exchangeTokenWithSupabase(idToken: String, displayName: String, googleEmail: String) {
         val supabaseUrl = BuildConfig.SUPABASE_URL
         val anonKey = BuildConfig.SUPABASE_ANON_KEY
 
         if (supabaseUrl.isBlank() || anonKey.isBlank()) {
             // If Supabase API config is missing, save Google identity directly locally
-            AuthManager.saveUserSession(this, displayName, displayName, idToken)
-            proceedToMain()
+            AuthManager.saveUserSession(this, googleEmail, displayName, idToken, googleEmail)
+            lifecycleScope.launch(Dispatchers.IO) {
+                CloudSyncManager.syncDataToCloud(this@LoginActivity)
+                withContext(Dispatchers.Main) {
+                    proceedToMain()
+                }
+            }
             return
         }
 
@@ -143,15 +148,20 @@ class LoginActivity : AppCompatActivity() {
                     val json = JSONObject(responseStr)
                     val accessToken = json.optString("access_token")
                     val userObj = json.optJSONObject("user")
-                    val email = userObj?.optString("email") ?: displayName
-                    val userId = userObj?.optString("id") ?: email
+                    val metaObj = userObj?.optJSONObject("user_metadata") ?: userObj?.optJSONObject("raw_user_meta_data")
+                    val fetchedName = metaObj?.optString("full_name")?.takeIf { it.isNotBlank() }
+                        ?: metaObj?.optString("name")?.takeIf { it.isNotBlank() }
+                        ?: displayName
+                    val email = userObj?.optString("email")?.takeIf { it.isNotBlank() } ?: googleEmail
+                    val userId = userObj?.optString("id")?.takeIf { it.isNotBlank() } ?: email
 
                     withContext(Dispatchers.Main) {
-                        AuthManager.saveUserSession(this@LoginActivity, email, displayName, accessToken, userId)
-                        Toast.makeText(this@LoginActivity, "Welcome, $displayName!", Toast.LENGTH_SHORT).show()
+                        AuthManager.saveUserSession(this@LoginActivity, email, fetchedName, accessToken, userId)
+                        Toast.makeText(this@LoginActivity, "Welcome, $fetchedName!", Toast.LENGTH_SHORT).show()
                     }
 
-                    // Restore user's cloud data if present
+                    // Sync local data to cloud and restore existing cloud data
+                    CloudSyncManager.syncDataToCloud(this@LoginActivity)
                     CloudSyncManager.restoreDataFromCloud(this@LoginActivity)
 
                     withContext(Dispatchers.Main) {
@@ -159,15 +169,23 @@ class LoginActivity : AppCompatActivity() {
                     }
                 } else {
                     withContext(Dispatchers.Main) {
-                        // Save local session on API error fallback
-                        AuthManager.saveUserSession(this@LoginActivity, displayName, displayName, idToken)
+                        // Save local session on API fallback
+                        AuthManager.saveUserSession(this@LoginActivity, googleEmail, displayName, idToken, googleEmail)
+                        Toast.makeText(this@LoginActivity, "Welcome, $displayName!", Toast.LENGTH_SHORT).show()
+                    }
+                    CloudSyncManager.syncDataToCloud(this@LoginActivity)
+                    withContext(Dispatchers.Main) {
                         proceedToMain()
                     }
                 }
             } catch (e: Exception) {
                 Log.e("LoginActivity", "Supabase token exchange error", e)
                 withContext(Dispatchers.Main) {
-                    AuthManager.saveUserSession(this@LoginActivity, displayName, displayName, idToken)
+                    AuthManager.saveUserSession(this@LoginActivity, googleEmail, displayName, idToken, googleEmail)
+                    Toast.makeText(this@LoginActivity, "Welcome, $displayName!", Toast.LENGTH_SHORT).show()
+                }
+                CloudSyncManager.syncDataToCloud(this@LoginActivity)
+                withContext(Dispatchers.Main) {
                     proceedToMain()
                 }
             }

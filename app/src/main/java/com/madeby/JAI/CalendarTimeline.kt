@@ -52,47 +52,78 @@ class CalendarTimeline(private val host: MainActivity) {
                 navigateToPanel(AppPanel.STATS)
             }
 
-            val navRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(4), dp(2), dp(4), dp(2)) }
+            // Outer Premium Theme Card
+            val calendarCard = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                background = themeCoordinator.createCardBackground()
+                setPadding(dp(18), dp(18), dp(18), dp(18))
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(0, 0, 0, dp(16))
+                }
+            }
+
+            // Card Section Header
+            calendarCard.addView(TextView(this).apply {
+                text = "📅 HISTORY CALENDAR & FOCUS LOGS"
+                setTextColor(themeCoordinator.primaryColor)
+                textSize = 11f
+                letterSpacing = 0.18f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setPadding(0, 0, 0, dp(14))
+            })
+
+            // Navigation Row
+            val navRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, 0, 0, dp(14))
+            }
             val canPrev = !atMinBound()
             val canNext = !atMaxBound()
-            val disabledTint = tintedColor(themeCoordinator.textColor, 45)
-            navRow.addView(TextView(this).apply {
-                text = getString(R.string.cal_prev)
+            val disabledTint = tintedColor(themeCoordinator.textColor, 30)
+
+            val prevBtn = TextView(this).apply {
+                text = "◄"
                 gravity = Gravity.CENTER
                 setTextColor(if (canPrev) themeCoordinator.primaryColor else disabledTint)
-                alpha = if (canPrev) 1f else 0.4f
-                textSize = 26f
-                setPadding(dp(14), dp(4), dp(14), dp(4))
-                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 110), 22f)
+                alpha = if (canPrev) 1f else 0.35f
+                textSize = 14f
+                setPadding(dp(14), dp(8), dp(14), dp(8))
+                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, if (canPrev) 50 else 20), 16f)
                 if (canPrev) setOnClickListener { shiftMonth(-1) }
-            })
-            navRow.addView(TextView(this).apply {
+            }
+
+            val monthTitle = TextView(this).apply {
                 text = monthLabelSdf.format(anchor.time)
                 gravity = Gravity.CENTER
                 setTextColor(themeCoordinator.textColor)
-                textSize = 16f
+                textSize = 17f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            })
-            navRow.addView(TextView(this).apply {
-                text = getString(R.string.cal_next)
+            }
+
+            val nextBtn = TextView(this).apply {
+                text = "►"
                 gravity = Gravity.CENTER
                 setTextColor(if (canNext) themeCoordinator.primaryColor else disabledTint)
-                alpha = if (canNext) 1f else 0.4f
-                textSize = 26f
-                setPadding(dp(14), dp(4), dp(14), dp(4))
-                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 110), 22f)
+                alpha = if (canNext) 1f else 0.35f
+                textSize = 14f
+                setPadding(dp(14), dp(8), dp(14), dp(8))
+                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, if (canNext) 50 else 20), 16f)
                 if (canNext) setOnClickListener { shiftMonth(1) }
-            })
-            navRow.addView(TextView(this).apply {
-                text = getString(R.string.cal_today)
+            }
+
+            val todayBtn = TextView(this).apply {
+                text = "Today 🎯"
                 gravity = Gravity.CENTER
                 setTextColor(themeCoordinator.primaryColor)
-                textSize = 10f
-                letterSpacing = 0.12f
+                textSize = 11f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                 setPadding(dp(12), dp(8), dp(12), dp(8))
-                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 110), 22f)
+                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 60), 16f)
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(dp(6), 0, 0, 0)
+                }
                 setOnClickListener {
                     val todayCal = Calendar.getInstance()
                     if (calendarYear != todayCal.get(Calendar.YEAR) || calendarMonth != todayCal.get(Calendar.MONTH)) {
@@ -102,26 +133,41 @@ class CalendarTimeline(private val host: MainActivity) {
                         navigateToPanel(AppPanel.STATS)
                     }
                 }
-            })
-            content.addView(navRow)
+            }
 
-            val wdRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(4), dp(8), dp(4), dp(2)) }
+            navRow.addView(prevBtn)
+            navRow.addView(monthTitle)
+            navRow.addView(nextBtn)
+            navRow.addView(todayBtn)
+            calendarCard.addView(navRow)
+
+            // Styled Weekday Headers Row
+            val wdRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 15), 12f)
+                setPadding(dp(2), dp(6), dp(2), dp(6))
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(0, 0, 0, dp(10))
+                }
+            }
             val wdBase = WeekHelper.mondayOf(Calendar.getInstance())
             val wdSdf = SimpleDateFormat("EE", Locale.getDefault())
             for (i in 0 until 7) {
                 val wdCal = (wdBase.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, i) }
+                val isWeekend = (i >= 5)
                 wdRow.addView(TextView(this).apply {
-                    text = wdSdf.format(wdCal.time).replace(".", "")
+                    text = wdSdf.format(wdCal.time).replace(".", "").take(3)
                     gravity = Gravity.CENTER
-                    setTextColor(themeCoordinator.textColor)
-                    alpha = 0.45f
-                    textSize = 11f
+                    setTextColor(if (isWeekend) themeCoordinator.primaryColor else themeCoordinator.textColor)
+                    alpha = if (isWeekend) 0.9f else 0.6f
+                    textSize = 11.5f
                     typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                    layoutParams = LinearLayout.LayoutParams(0, dp(24), 1f)
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 })
             }
-            content.addView(wdRow)
+            calendarCard.addView(wdRow)
 
+            // Days Grid
             val grid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
             var firstDow = anchor.get(Calendar.DAY_OF_WEEK)
             var offset = firstDow - Calendar.MONDAY
@@ -129,24 +175,33 @@ class CalendarTimeline(private val host: MainActivity) {
             val daysInMonth = anchor.getActualMaximum(Calendar.DAY_OF_MONTH)
             val rows = (offset + daysInMonth + 6) / 7
             var dayNum = 1
+            val todayDateKey = todayStr
+
             for (r in 0 until rows) {
-                val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                val row = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        setMargins(0, 0, 0, dp(4))
+                    }
+                }
                 for (c in 0 until 7) {
                     val idx = r * 7 + c
                     if (idx < offset || dayNum > daysInMonth) {
-                        row.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(0, dp(48), 1f) })
+                        row.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(0, dp(58), 1f) })
                     } else {
                         val dateStr = dateKey(year, month, dayNum)
                         val focusSecs = snap.dayFocus[dateStr] ?: 0L
                         val goalSecs = resolveGoalFor(dateStr)
-                        row.addView(buildCalendarDayCell(dateStr, dayNum, focusSecs, goalSecs, dateStr == todayStr))
+                        val isFuture = dateStr > todayDateKey
+                        row.addView(buildCalendarDayCell(dateStr, dayNum, focusSecs, goalSecs, dateStr == todayStr, isFuture))
                         dayNum++
                     }
                 }
                 grid.addView(row)
             }
-            content.addView(grid)
+            calendarCard.addView(grid)
 
+            // Monthly Summary Footer Badges (Clean Sans-Serif / Monospaced Typography)
             var monthFocus = 0L
             var goalDays = 0
             for (d in 1..daysInMonth) {
@@ -155,35 +210,45 @@ class CalendarTimeline(private val host: MainActivity) {
                 if (f > 0L) monthFocus += f
                 if (f >= resolveGoalFor(dateStr)) goalDays++
             }
-            val summaryRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(4), dp(10), dp(4), 0) }
+
+            val summaryRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(12), 0, 0)
+                gravity = Gravity.CENTER_VERTICAL
+            }
             if (monthFocus > 0L) {
                 summaryRow.addView(TextView(this).apply {
-                    text = getString(R.string.cal_goal_days, goalDays)
-                    setTextColor(themeCoordinator.primaryColor)
-                    textSize = 11f
+                    text = "🎯 ${goalDays} Goal Days"
+                    setTextColor(Color.parseColor("#43D36E"))
+                    textSize = 12f
                     typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                    setPadding(dp(12), dp(7), dp(12), dp(7))
-                    background = GradientDrawable().apply { cornerRadius = dp(14).toFloat(); setColor(tintedColor(themeCoordinator.primaryColor, 26)) }
+                    setPadding(dp(12), dp(8), dp(12), dp(8))
+                    background = themeCoordinator.createGlassChip(Color.parseColor("#1543D36E"), 14f)
                 })
                 summaryRow.addView(LinearLayout(this).apply { layoutParams = LinearLayout.LayoutParams(dp(8), 0) })
+                val hrs = monthFocus / 3600
+                val mins = (monthFocus % 3600) / 60
                 summaryRow.addView(TextView(this).apply {
-                    text = getString(R.string.cal_month_focus, monthFocus / 3600, (monthFocus % 3600) / 60)
-                    setTextColor(themeCoordinator.textColor)
-                    textSize = 11f
+                    text = "⏱️ ${hrs}h ${mins}m Total"
+                    setTextColor(themeCoordinator.primaryColor)
+                    textSize = 12f
                     typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                    setPadding(dp(12), dp(7), dp(12), dp(7))
-                    background = GradientDrawable().apply { cornerRadius = dp(14).toFloat(); setColor(tintedColor(themeCoordinator.textColor, 26)) }
+                    setPadding(dp(12), dp(8), dp(12), dp(8))
+                    background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 40), 14f)
                 })
             } else {
                 summaryRow.addView(TextView(this).apply {
-                    text = getString(R.string.cal_month_empty)
+                    text = "📖 No study activity recorded for this month"
                     setTextColor(themeCoordinator.textColor)
-                    alpha = 0.4f
-                    textSize = 12f
-                    setPadding(dp(6), dp(4), 0, 0)
+                    alpha = 0.5f
+                    textSize = 12.5f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+                    setPadding(dp(4), dp(4), 0, 0)
                 })
             }
-            content.addView(summaryRow)
+            calendarCard.addView(summaryRow)
+
+            content.addView(calendarCard)
         }
     }
 
@@ -221,14 +286,14 @@ class CalendarTimeline(private val host: MainActivity) {
         }
     }
 
-    private fun buildCalendarDayCell(dateStr: String, day: Int, focusSecs: Long, goalSecs: Long, isToday: Boolean): View {
+    private fun buildCalendarDayCell(dateStr: String, day: Int, focusSecs: Long, goalSecs: Long, isToday: Boolean, isFuture: Boolean): View {
         return with(host) {
             val green = 0xFF43D36E.toInt()
             val red = 0xFFFF4D4D.toInt()
             val goalReached = goalSecs > 0L && focusSecs >= goalSecs
             val pct = if (goalSecs > 0L) (focusSecs.toFloat() / goalSecs.toFloat()).coerceIn(0f, 1f) else 0f
-            val ringSize = dp(32)
-            val ringWrapSize = dp(36)
+            val ringSize = dp(26)
+            val ringWrapSize = dp(30)
             val stroke = dp(3)
             val parsed = try { dateKeyFmt.parse(dateStr) } catch (_: Exception) { null }
             val lbl = if (parsed != null) dayCellFmt.format(parsed) else dateStr
@@ -236,31 +301,44 @@ class CalendarTimeline(private val host: MainActivity) {
             val cell = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER_HORIZONTAL
-                layoutParams = LinearLayout.LayoutParams(0, dp(54), 1f)
-                setOnClickListener { showDayDialog(dateStr, lbl) }
-                setOnLongClickListener {
-                    if (dateStr != dateKeyFmt.format(Date())) {
-                        confirmDeleteDay(dateStr, lbl)
-                        true
-                    } else false
+                layoutParams = LinearLayout.LayoutParams(0, dp(58), 1f).apply { setMargins(dp(1), dp(1), dp(1), dp(1)) }
+                background = if (isToday) {
+                    themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 60), 12f)
+                } else {
+                    themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 10), 10f)
+                }
+                setPadding(0, dp(4), 0, dp(4))
+                if (isFuture) {
+                    alpha = 0.35f
+                } else {
+                    setOnClickListener { showDayDialog(dateStr, lbl) }
+                    setOnLongClickListener {
+                        if (dateStr != dateKeyFmt.format(Date())) {
+                            confirmDeleteDay(dateStr, lbl)
+                            true
+                        } else false
+                    }
                 }
             }
+
             cell.addView(TextView(this).apply {
                 text = day.toString()
                 gravity = Gravity.CENTER
                 textSize = 12f
                 setTextColor(if (isToday) themeCoordinator.primaryColor else themeCoordinator.textColor)
-                typeface = Typeface.create("sans-serif-medium", if (isToday) Typeface.BOLD else Typeface.NORMAL)
-                if (!goalReached && focusSecs <= 0L && !isToday) alpha = 0.5f
+                typeface = Typeface.create("sans-serif-medium", if (isToday || goalReached) Typeface.BOLD else Typeface.NORMAL)
+                if (!goalReached && focusSecs <= 0L && !isToday && !isFuture) alpha = 0.65f
             })
+
             val ringWrap = FrameLayout(this).apply {
                 layoutParams = LinearLayout.LayoutParams(ringWrapSize, ringWrapSize)
-                setPadding(0, dp(3), 0, 0)
+                setPadding(0, dp(2), 0, 0)
             }
+
             if (goalReached) {
                 ringWrap.addView(View(this).apply {
-                    background = containedGlow(green, 22, 130)
-                    layoutParams = FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER)
+                    background = containedGlow(green, 20, 130)
+                    layoutParams = FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER)
                 })
                 ringWrap.addView(SegmentRing(
                     listOf(1f to green),
@@ -269,29 +347,42 @@ class CalendarTimeline(private val host: MainActivity) {
                     null
                 ), FrameLayout.LayoutParams(ringSize, ringSize, Gravity.CENTER))
                 ringWrap.addView(TextView(this).apply {
-                    text = "\u2713"
+                    text = "✓"
                     gravity = Gravity.CENTER
                     setTextColor(lightenColor(green, 0.7f))
-                    textSize = 13f
+                    textSize = 12f
                     typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                     layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
                 })
-            } else {
-                if (pct > 0f) {
-                    ringWrap.addView(View(this).apply {
-                        background = containedGlow(red, 22, 110)
-                        layoutParams = FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER)
-                    })
-                }
-                val segments = if (pct > 0f) listOf(pct to red) else emptyList()
+                cell.addView(ringWrap)
+            } else if (focusSecs > 0L) {
+                val ringColor = if (pct > 0f) red else themeCoordinator.primaryColor
+                val segments = if (pct > 0f) listOf(pct to red) else listOf(1f to themeCoordinator.primaryColor)
+                ringWrap.addView(View(this).apply {
+                    background = containedGlow(ringColor, 20, 110)
+                    layoutParams = FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER)
+                })
                 ringWrap.addView(SegmentRing(
                     segments,
-                    tintedColor(themeCoordinator.textColor, 65),
+                    tintedColor(themeCoordinator.textColor, 50),
                     stroke,
                     null
                 ), FrameLayout.LayoutParams(ringSize, ringSize, Gravity.CENTER))
+                cell.addView(ringWrap)
+            } else {
+                // Minimal clean dot for inactive days (No hollow rings!)
+                val dotView = View(this).apply {
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(tintedColor(themeCoordinator.textColor, 35))
+                    }
+                    layoutParams = FrameLayout.LayoutParams(dp(4), dp(4), Gravity.CENTER)
+                    alpha = if (isFuture) 0.2f else 0.4f
+                }
+                ringWrap.addView(dotView)
+                cell.addView(ringWrap)
             }
-            cell.addView(ringWrap)
+
             cell
         }
     }

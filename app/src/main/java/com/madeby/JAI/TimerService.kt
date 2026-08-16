@@ -362,7 +362,8 @@ class TimerService : Service() {
                     title = obj.optString("title", "Lecture"),
                     startTime = obj.optString("startTime", "09:00"),
                     endTime = obj.optString("endTime", "10:00"),
-                    enabled = obj.optBoolean("enabled", true)
+                    enabled = obj.optBoolean("enabled", true),
+                    subjectId = obj.optString("subjectId", "general")
                 ))
             }
             list
@@ -433,6 +434,8 @@ class TimerService : Service() {
                 val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.time)
                 val skipKey = "skipped_lecture_${todayStr}_${item.title}_${item.startTime}"
                 if (sharedPrefs.getBoolean(skipKey, false)) continue
+
+                sharedPrefs.edit().putString("active_lecture_subject_id", item.subjectId).apply()
 
                 // Already running this lecture — no action needed
                 if (timerMode == "LECTURE" && currentTimerState == TimerState.STUDYING && lectureModeEnabled) break
@@ -583,6 +586,13 @@ class TimerService : Service() {
                     when (currentTimerState) {
                         TimerState.STUDYING -> {
                             accumulatedStudy += gap
+                            val sp = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+                            val activeSubjId = if (timerMode == "LECTURE") {
+                                sp.getString("active_lecture_subject_id", null) ?: SubjectTagManager.getSelectedSubject(this@TimerService).id
+                            } else {
+                                SubjectTagManager.getSelectedSubject(this@TimerService).id
+                            }
+                            SubjectTagManager.recordSubjectStudyTime(this@TimerService, activeSubjId, gap)
                             if (timerMode == "COUNTDOWN" || (timerMode == "LECTURE" && lectureModeEnabled)) {
                                 focusRemainingSecs -= gap
                                 if (focusRemainingSecs <= 0L) {
@@ -628,6 +638,13 @@ class TimerService : Service() {
                         }
                         TimerState.BREAK -> {
                             currentBreakSeconds += gap
+                            val sp = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+                            val activeSubjId = if (timerMode == "LECTURE") {
+                                sp.getString("active_lecture_subject_id", null) ?: SubjectTagManager.getSelectedSubject(this@TimerService).id
+                            } else {
+                                SubjectTagManager.getSelectedSubject(this@TimerService).id
+                            }
+                            SubjectTagManager.recordSubjectBreakTime(this@TimerService, activeSubjId, gap)
                             // Only auto-stop break if in COUNTDOWN mode with an active break countdown
                             if (timerMode == "COUNTDOWN" && breakRemainingSecs > 0L) {
                                 breakRemainingSecs -= gap

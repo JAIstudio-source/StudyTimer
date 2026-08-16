@@ -14,7 +14,6 @@ object CloudSyncManager {
         val supabaseUrl = BuildConfig.SUPABASE_URL
         val anonKey = BuildConfig.SUPABASE_ANON_KEY
         val userId = AuthManager.getUserId(context)
-        val accessToken = AuthManager.getAccessToken(context)
 
         if (supabaseUrl.isBlank() || anonKey.isBlank() || userId.isNullOrBlank()) {
             Log.d("CloudSyncManager", "Skipping cloud sync: Not logged in to Supabase or missing credentials")
@@ -25,23 +24,59 @@ object CloudSyncManager {
             val sharedPrefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
             val prefsJson = JSONObject()
             for ((key, value) in sharedPrefs.all) {
-                prefsJson.put(key, value)
+                if (value != null) {
+                    when (value) {
+                        is Boolean -> prefsJson.put(key, value)
+                        is Int -> prefsJson.put(key, value)
+                        is Long -> prefsJson.put(key, value)
+                        is Float -> prefsJson.put(key, value.toDouble())
+                        is Double -> prefsJson.put(key, value)
+                        else -> prefsJson.put(key, value.toString())
+                    }
+                }
             }
             AuthManager.getUserName(context)?.let { prefsJson.put("auth_user_name", it) }
             AuthManager.getProfileImageUri(context)?.let { prefsJson.put("auth_profile_image_uri", it) }
-            val timelineJson = timelineToJsonString(TimelineLogger.load(context))
 
-            val userName = AuthManager.getUserName(context) ?: ""
-            val profileImg = AuthManager.getProfileImageUri(context) ?: ""
-
-            val payload = JSONObject().apply {
-                put("user_id", userId)
-                put("user_name", userName)
-                put("profile_image_uri", profileImg)
-                put("prefs_data", prefsJson.toString())
-                put("timeline_data", timelineJson)
-                put("updated_at", System.currentTimeMillis())
+            val entries = TimelineLogger.load(context)
+            val timelineArr = org.json.JSONArray()
+            for (e in entries) {
+                val obj = JSONObject()
+                obj.put("t", e.timestamp)
+                obj.put("s", e.state)
+                e.id?.let { obj.put("id", it) }
+                timelineArr.put(obj)
             }
+            val timelineJsonStr = timelineArr.toString()
+
+            val subjectPrefs = context.getSharedPreferences("studytimer_subject_tags", Context.MODE_PRIVATE)
+            val subjectPrefsJson = JSONObject()
+            for ((key, value) in subjectPrefs.all) {
+                if (value != null) {
+                    when (value) {
+                        is Boolean -> subjectPrefsJson.put(key, value)
+                        is Int -> subjectPrefsJson.put(key, value)
+                        is Long -> subjectPrefsJson.put(key, value)
+                        is Float -> subjectPrefsJson.put(key, value.toDouble())
+                        is Double -> subjectPrefsJson.put(key, value)
+                        else -> subjectPrefsJson.put(key, value.toString())
+                    }
+                }
+            }
+
+            val userName: String = AuthManager.getUserName(context) ?: ""
+            val userEmail: String = AuthManager.getUserEmail(context) ?: ""
+            val profileImg: String = AuthManager.getProfileImageUri(context) ?: ""
+
+            val payload = JSONObject()
+            payload.put("user_id", userId as String)
+            payload.put("user_name", userName)
+            payload.put("user_email", userEmail)
+            payload.put("profile_image_uri", profileImg)
+            payload.put("prefs_data", prefsJson.toString())
+            payload.put("subject_tags_data", subjectPrefsJson.toString())
+            payload.put("timeline_data", timelineJsonStr)
+            payload.put("updated_at", System.currentTimeMillis())
 
             // Try Upsert POST
             var url = URL("$supabaseUrl/rest/v1/user_sync_data?on_conflict=user_id")
@@ -88,7 +123,6 @@ object CloudSyncManager {
         val supabaseUrl = BuildConfig.SUPABASE_URL
         val anonKey = BuildConfig.SUPABASE_ANON_KEY
         val userId = AuthManager.getUserId(context)
-        val accessToken = AuthManager.getAccessToken(context)
 
         if (supabaseUrl.isBlank() || anonKey.isBlank() || userId.isNullOrBlank()) {
             return@withContext false
@@ -168,6 +202,24 @@ object CloudSyncManager {
                         AuthManager.saveProfileImageUri(context, cloudImg)
                     }
                     editor.commit()
+                }
+
+                val subjectTagsStr = record.optString("subject_tags_data")
+                if (subjectTagsStr.isNotEmpty()) {
+                    val subPrefs = context.getSharedPreferences("studytimer_subject_tags", Context.MODE_PRIVATE)
+                    val subEditor = subPrefs.edit()
+                    val subObj = JSONObject(subjectTagsStr)
+                    val subKeys = subObj.keys()
+                    while (subKeys.hasNext()) {
+                        val k = subKeys.next()
+                        val v = subObj.get(k)
+                        when (v) {
+                            is Boolean -> subEditor.putBoolean(k, v)
+                            is String -> subEditor.putString(k, v)
+                            is Number -> subEditor.putLong(k, v.toLong())
+                        }
+                    }
+                    subEditor.commit()
                 }
 
                 if (timelineStr.isNotEmpty()) {

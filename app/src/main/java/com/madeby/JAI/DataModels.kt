@@ -1,5 +1,7 @@
 package com.madeby.JAI
 
+import java.util.UUID
+
 enum class AppPanel { FOCUS, STATS, SETTINGS, HEATMAP }
 enum class TimerState { IDLE, STUDYING, BREAK, PAUSED, LECTURE_ENDED }
 enum class AppStatsTab { OVERVIEW, TIMELINE, PLANNER }
@@ -36,7 +38,8 @@ data class LectureScheduleItem(
     val title: String,
     val startTime: String, // "HH:mm" e.g. "10:00"
     val endTime: String,   // "HH:mm" e.g. "11:00"
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
+    val subjectId: String = "general"
 )
 
 data class AchievementBadge(
@@ -46,6 +49,8 @@ data class AchievementBadge(
     val icon: String,
     val isUnlocked: Boolean
 )
+
+
 
 
 

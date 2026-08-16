@@ -31,7 +31,7 @@ class FocusPanelBuilder(private val host: MainActivity) {
         val settingsIconView = ImageView(this).apply {
             setImageResource(R.drawable.ic_settings) 
             setColorFilter(themeCoordinator.primaryColor)
-            setPadding(16, 16, 16, 16)
+            setPadding(dp(14), dp(14), dp(14), dp(14))
             background = if (themeCoordinator.isGlassStyle() || themeCoordinator.isBubbleStyle()) themeCoordinator.createGlassIconBackground(tintedColor(themeCoordinator.primaryColor, 70)) else null
             contentDescription = getString(R.string.cd_open_settings)
             setOnClickListener { navigateToPanel(AppPanel.SETTINGS) }
@@ -44,6 +44,7 @@ class FocusPanelBuilder(private val host: MainActivity) {
             layoutParams = LinearLayout.LayoutParams(0, 1, 1f)
         }
         navHeader.addView(headerSpacer)
+
 
         val centerClocksWrapper = FrameLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
@@ -134,10 +135,61 @@ class FocusPanelBuilder(private val host: MainActivity) {
         centerClocksWrapper.addView(studyTimerDisplay)
         centerClocksWrapper.addView(breakTimerDisplay)
 
+        val sharedPrefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val timerModeSetting = sharedPrefs.getString("timer_mode", "COUNTDOWN") ?: "COUNTDOWN"
+        val showSubjectTagging = sharedPrefs.getBoolean("enable_subject_tagging", true) && timerModeSetting != "STOPWATCH"
+        val showAmbientSounds = sharedPrefs.safeBoolean("enable_ambient_sounds", false)
+
+        val extraControlsContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, dp(6), 0, dp(6))
+            }
+        }
+
+        if (showSubjectTagging) {
+            val currentSubject = SubjectTagManager.getSelectedSubject(this)
+            val subjectTagBtn = TextView(this).apply {
+                text = "${currentSubject.iconEmoji} ${currentSubject.name}  ▾"
+                textSize = 12f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(themeCoordinator.textColor)
+                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 90), 12f)
+                setPadding(dp(12), dp(4), dp(12), dp(4))
+                setSingleLine(true)
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                gravity = Gravity.CENTER
+                setOnClickListener { host.showSubjectPickerDialog() }
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(dp(6), 0, dp(6), 0)
+                }
+            }
+            extraControlsContainer.addView(subjectTagBtn)
+        }
+
+        if (showAmbientSounds) {
+            val activePreset = AmbientSoundEngine.getActivePreset()
+            val ambientSoundBtn = TextView(this).apply {
+                text = "🎧 ${activePreset.displayName}"
+                textSize = 12.5f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(themeCoordinator.textColor)
+                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.accentColor, 90), 16f)
+                setPadding(dp(14), dp(6), dp(14), dp(6))
+                gravity = Gravity.CENTER
+                setOnClickListener { host.showAmbientSoundDialog(host) }
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(dp(6), 0, dp(6), 0)
+                }
+            }
+            extraControlsContainer.addView(ambientSoundBtn)
+        }
+
         controlActionContainer = LinearLayout(this).apply {
             orientation = if (isLandscape) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 20, 0, if (isLandscape) 10 else 30) }
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 10, 0, if (isLandscape) 10 else 20) }
         }
 
         mainBtn = Button(this).apply {
@@ -215,12 +267,11 @@ class FocusPanelBuilder(private val host: MainActivity) {
             setImageResource(R.drawable.ic_insights)
             scaleType = ImageView.ScaleType.FIT_CENTER
             setColorFilter(themeCoordinator.primaryColor)
-            setPadding(14, 14, 14, 14)
+            setPadding(dp(12), dp(12), dp(12), dp(12))
             background = if (themeCoordinator.isGlassStyle() || themeCoordinator.isBubbleStyle()) themeCoordinator.createGlassIconBackground(tintedColor(themeCoordinator.primaryColor, 70)) else null
             contentDescription = getString(R.string.cd_open_insights)
             setOnClickListener { navigateToPanel(AppPanel.STATS) }
-            applyBubbleTouchAnimation(this)
-            layoutParams = LinearLayout.LayoutParams(dp(52), dp(52)).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(58), dp(58)).apply {
                 gravity = Gravity.END
                 setMargins(0, 0, dp(16), if (isLandscape) 5 else 20)
             }
@@ -228,16 +279,15 @@ class FocusPanelBuilder(private val host: MainActivity) {
 
         panelContainer.addView(navHeader)
         panelContainer.addView(centerClocksWrapper)
-        panelContainer.addView(controlActionContainer)
-        
-        if (!isLandscape) {
-            panelContainer.addView(statsFloatingIcon)
-        } else {
-            navHeader.addView(statsFloatingIcon) 
+        if (showSubjectTagging || showAmbientSounds) {
+            panelContainer.addView(extraControlsContainer)
         }
+        panelContainer.addView(controlActionContainer)
+        panelContainer.addView(statsFloatingIcon)
 
         updateVisualStyles()
         applyTrueFullscreenMode()
         }
     }
 }
+

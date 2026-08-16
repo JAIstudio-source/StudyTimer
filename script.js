@@ -626,13 +626,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, { passive: true });
 
-    if (backToTopBtn) {
-        backToTopBtn.addEventListener('click', () => {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        });
-    }
+    // Scroll Reveal Observer
+    const revealElements = document.querySelectorAll('.reveal');
+    if (revealElements.length) {
+        if ('IntersectionObserver' in window) {
+            const revealObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('active');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, {
+                root: null,
+                threshold: 0.05,
+                rootMargin: '0px 0px -40px 0px'
+            });
 
-    revealElements.forEach(el => revealObserver.observe(el));
+            revealElements.forEach(el => revealObserver.observe(el));
+        } else {
+            revealElements.forEach(el => el.classList.add('active'));
+        }
+    }
 
     // ----------------------------------------------------
     // Active Navigation Scrollspy

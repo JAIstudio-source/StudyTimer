@@ -411,6 +411,69 @@ button {
     color: var(--text);
 }
 
+.nav-item.active {
+    font-weight: 600;
+    position: relative;
+}
+
+@media (min-width: 901px) {
+    .nav-item.active::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, var(--primary), var(--accent));
+        border-radius: 2px;
+    }
+}
+
+/* Backdrop for Mobile Navigation Drawer */
+.nav-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.nav-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Accessibility Focus States */
+button:focus-visible, a:focus-visible, .theme-pill:focus-visible, .faq-question:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+}
+
+/* Tactile Download Feedback */
+.btn.downloading-feedback {
+    transform: scale(0.97);
+    background: linear-gradient(135deg, #10B981, #059669) !important;
+    box-shadow: 0 0 24px rgba(16, 185, 129, 0.6) !important;
+    transition: all 0.25s ease;
+}
+
+/* Timer Readout Pulse */
+.timer-readout.mode-pulse {
+    animation: readoutPulse 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes readoutPulse {
+    0% { transform: scale(0.92); opacity: 0.65; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
 .btn {
     display: inline-flex;
     align-items: center;

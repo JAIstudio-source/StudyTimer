@@ -1,7 +1,7 @@
 {
-  "versionCode": 17,
-  "versionName": "2.5.6",
+  "versionCode": 18,
+  "versionName": "2.5.7",
   "url": "https://get-studytimer.vercel.app/?download=true",
   "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-  "releaseNotes": "What's New in Version 2.5.6 🚀\n- Fixed Known Bugs: Enhanced app stability, dashboard metric fixes, and optimized background performance.\n- Added Privacy: Introduced privacy controls."
+  "releaseNotes": "What's New in Version 2.5.7 🚀\n- Subject Pie Chart & Detailed Session Analytics: Interactive session breakdown by subject tags and deep focus ratios with date navigation.\n- Ambient Sound Engine: Relaxing background soundscapes (Rain, Birds, Lo-Fi beats) during focus sessions.\n- Celebration Animations: Added celebratory reward animations for reaching daily focus goals and building study streaks."
 }

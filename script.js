@@ -13,10 +13,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Attach Haptic Feedback ONLY to Major APK Download Buttons
+    // Attach Haptic Feedback & Tactile State to Major APK Download Buttons
     document.querySelectorAll('.download-link').forEach(link => {
         link.addEventListener('click', () => {
             triggerHaptic();
+            const textSpan = link.querySelector('span:not(.btn-subtext)');
+            if (textSpan && !link.classList.contains('downloading-feedback')) {
+                const originalText = textSpan.textContent;
+                textSpan.textContent = 'Starting Download... 🚀';
+                link.classList.add('downloading-feedback');
+                setTimeout(() => {
+                    textSpan.textContent = originalText;
+                    link.classList.remove('downloading-feedback');
+                }, 2200);
+            }
         });
     });
 
@@ -136,21 +146,36 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ----------------------------------------------------
-    // 3. Mobile Navigation Drawer Toggle
+    // 3. Mobile Navigation Drawer Toggle & Backdrop
     // ----------------------------------------------------
     const menuToggle = document.getElementById('menu-toggle');
     const navLinks = document.getElementById('nav-links');
+    const navBackdrop = document.getElementById('nav-backdrop');
+
+    function closeNavDrawer() {
+        if (navLinks) navLinks.classList.remove('mobile-open');
+        if (navBackdrop) navBackdrop.classList.remove('active');
+    }
 
     if (menuToggle && navLinks) {
         menuToggle.addEventListener('click', () => {
-            navLinks.classList.toggle('mobile-open');
+            const isOpen = navLinks.classList.toggle('mobile-open');
+            if (navBackdrop) navBackdrop.classList.toggle('active', isOpen);
         });
+
+        if (navBackdrop) {
+            navBackdrop.addEventListener('click', closeNavDrawer);
+        }
 
         // Close menu on link click
         navLinks.querySelectorAll('a').forEach(link => {
-            link.addEventListener('click', () => {
-                navLinks.classList.remove('mobile-open');
-            });
+            link.addEventListener('click', closeNavDrawer);
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && navLinks.classList.contains('mobile-open')) {
+                closeNavDrawer();
+            }
         });
     }
 
@@ -218,6 +243,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (timerStatusText) {
             timerStatusText.textContent = `Ready for ${minutes} min session`;
+        }
+
+        const timerReadout = document.querySelector('.timer-readout');
+        if (timerReadout) {
+            timerReadout.classList.remove('mode-pulse');
+            void timerReadout.offsetWidth; // trigger reflow
+            timerReadout.classList.add('mode-pulse');
         }
 
         updateTimerUI();
@@ -600,22 +632,36 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Reveal Elements on Scroll
-    const revealElements = document.querySelectorAll('.reveal');
-    const revealObserver = new IntersectionObserver((entries, observer) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('active');
-                observer.unobserve(entry.target);
-            }
-        });
-    }, {
-        root: null,
-        rootMargin: '0px 0px -60px 0px',
-        threshold: 0.05
-    });
-
     revealElements.forEach(el => revealObserver.observe(el));
+
+    // ----------------------------------------------------
+    // Active Navigation Scrollspy
+    // ----------------------------------------------------
+    const navItems = document.querySelectorAll('.nav-item');
+    const sections = document.querySelectorAll('header[id], section[id]');
+
+    if (navItems.length && sections.length) {
+        const scrollspyObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const id = entry.target.getAttribute('id');
+                    navItems.forEach(item => {
+                        if (item.getAttribute('href') === `#${id}`) {
+                            item.classList.add('active');
+                        } else {
+                            item.classList.remove('active');
+                        }
+                    });
+                }
+            });
+        }, {
+            root: null,
+            rootMargin: '-15% 0px -65% 0px',
+            threshold: 0.05
+        });
+
+        sections.forEach(sec => scrollspyObserver.observe(sec));
+    }
 
     // Footer Year
     const yearEl = document.getElementById('year');
@@ -686,4 +732,112 @@ document.addEventListener('DOMContentLoaded', () => {
         initParticles();
         animateParticles();
     }
+
+    // ----------------------------------------------------
+    // 12. Privacy-First Website Telemetry Engine
+    // ----------------------------------------------------
+    const SUPABASE_URL = 'https://vkveimpvrpnzelbsvdrg.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrdmVpbXB2cnBuemVsYnN2ZHJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzNTU5NTEsImV4cCI6MjEwMTkzMTk1MX0.T83n7RSdEuoCl4lUgl7AlypJbN-PKzYNaj5UYlvCYAM';
+
+    function getWebVisitorId() {
+        let id = localStorage.getItem('st_web_visitor_id');
+        if (!id) {
+            id = 'web_' + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
+            localStorage.setItem('st_web_visitor_id', id);
+        }
+        return id;
+    }
+
+    function getWebFirstSeen() {
+        let firstSeen = localStorage.getItem('st_web_first_seen');
+        const now = Date.now();
+        if (!firstSeen) {
+            firstSeen = now;
+            localStorage.setItem('st_web_first_seen', firstSeen);
+        }
+        return parseInt(firstSeen, 10);
+    }
+
+    async function sendWebTelemetry(eventName, properties = {}) {
+        try {
+            const visitorId = getWebVisitorId();
+            const now = Date.now();
+            const eventId = `${visitorId}_${eventName}_${Math.floor(now / 5000)}`;
+
+            const payload = [{
+                event_id: eventId,
+                anonymous_id: visitorId,
+                user_id: null,
+                is_authenticated: false,
+                platform: 'web',
+                event_name: eventName,
+                app_version: 'Web Landing v2.5.0',
+                device_model: navigator.userAgent.includes('Mobile') ? 'Mobile Browser' : 'Desktop Browser',
+                timestamp: now,
+                properties: properties
+            }];
+
+            await fetch(`${SUPABASE_URL}/rest/v1/app_analytics_events`, {
+                method: 'POST',
+                headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'resolution=ignore-duplicates'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            syncWebCohort();
+        } catch (e) {
+            console.warn('Web telemetry skipped:', e);
+        }
+    }
+
+    async function syncWebCohort() {
+        try {
+            const visitorId = getWebVisitorId();
+            const firstSeen = getWebFirstSeen();
+            const now = Date.now();
+            const todayStr = new Date().toISOString().slice(0, 10);
+
+            const payload = {
+                anonymous_id: visitorId,
+                user_id: null,
+                is_authenticated: false,
+                platform: 'web',
+                first_seen: firstSeen,
+                last_active_at: now,
+                last_active_date: todayStr,
+                app_version: 'Web Landing v2.5.0',
+                device_model: navigator.userAgent.includes('Mobile') ? 'Mobile Browser' : 'Desktop Browser',
+                updated_at: now
+            };
+
+            await fetch(`${SUPABASE_URL}/rest/v1/app_user_cohorts?on_conflict=anonymous_id`, {
+                method: 'POST',
+                headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'resolution=merge-duplicates'
+                },
+                body: JSON.stringify(payload)
+            });
+        } catch (e) {}
+    }
+
+    // Auto-record pageview on load
+    sendWebTelemetry('web_pageview', {
+        referrer: document.referrer || 'direct',
+        screen_width: window.innerWidth
+    });
+
+    // Download button telemetry
+    document.querySelectorAll('.download-link').forEach(link => {
+        link.addEventListener('click', () => {
+            sendWebTelemetry('web_download_click', { href: link.href });
+        });
+    });
 });
+

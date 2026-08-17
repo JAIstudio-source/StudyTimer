@@ -752,7 +752,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 12. Privacy-First Website Telemetry Engine
     // ----------------------------------------------------
     const SUPABASE_URL = 'https://vkveimpvrpnzelbsvdrg.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrdmVpbXB2cnBuemVsYnN2ZHJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzNTU5NTEsImV4cCI6MjEwMTkzMTk1MX0.T83n7RSdEuoCl4lUgl7AlypJbN-PKzYNaj5UYlvCYAM';
+    const SUPABASE_KEY = 'sb_publishable_Aec72P1pUF1I6eeO-C5vcA_i2jQgEx6';
 
     function getWebVisitorId() {
         let id = localStorage.getItem('st_web_visitor_id');

@@ -13,6 +13,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 
 class FocusPanelBuilder(private val host: MainActivity) {
 
@@ -113,6 +114,7 @@ class FocusPanelBuilder(private val host: MainActivity) {
             maxLines = 1
             textSize = if (isLandscape) 96f else 54f 
             typeface = Typeface.MONOSPACE
+            fontFeatureSettings = "tnum"
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, 5)
             if (themeCoordinator.isGlassStyle() && !pureWhiteTimerEnabled()) setShadowLayer(14f, 0f, 0f, tintedColor(themeCoordinator.primaryColor, 90))
@@ -125,10 +127,27 @@ class FocusPanelBuilder(private val host: MainActivity) {
             maxLines = 1
             textSize = if (isLandscape) 24f else 20f
             typeface = Typeface.MONOSPACE
+            fontFeatureSettings = "tnum"
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, if (isLandscape) 20 else 40)
             layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
         }
+
+        val gestureDetector = android.view.GestureDetector(this, object : android.view.GestureDetector.SimpleOnGestureListener() {
+            override fun onDoubleTap(e: MotionEvent): Boolean {
+                if (currentTimerState == TimerState.STUDYING || currentTimerState == TimerState.BREAK) {
+                    handlePause()
+                    try { centerClocksWrapper.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS) } catch (_: Exception) {}
+                    return true
+                } else if (currentTimerState == TimerState.PAUSED) {
+                    handleStateToggle()
+                    try { centerClocksWrapper.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS) } catch (_: Exception) {}
+                    return true
+                }
+                return false
+            }
+        })
+        centerClocksWrapper.setOnTouchListener { _, event -> gestureDetector.onTouchEvent(event) }
 
         centerClocksWrapper.addView(timerRing)
         centerClocksWrapper.addView(statusBadgeContainer)
@@ -149,9 +168,17 @@ class FocusPanelBuilder(private val host: MainActivity) {
         }
 
         if (showSubjectTagging) {
-            val currentSubject = SubjectTagManager.getSelectedSubject(this)
+            val isLectureRunning = timerModeSetting == "LECTURE" && (currentTimerState == TimerState.STUDYING || currentTimerState == TimerState.PAUSED)
+            val lectureSubId = sharedPrefs.getString("active_lecture_subject_id", null)
+            val allSubjects = SubjectTagManager.getAllSubjects(this)
+            val activeSubject = if (timerModeSetting == "LECTURE" && lectureSubId != null) {
+                allSubjects.find { it.id == lectureSubId } ?: SubjectTagManager.getSelectedSubject(this)
+            } else {
+                SubjectTagManager.getSelectedSubject(this)
+            }
+
             val subjectTagBtn = TextView(this).apply {
-                text = "${currentSubject.iconEmoji} ${currentSubject.name}  ▾"
+                text = if (isLectureRunning) "🔒 ${activeSubject.iconEmoji} ${activeSubject.name}" else "${activeSubject.iconEmoji} ${activeSubject.name}  ▾"
                 textSize = 12f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                 setTextColor(themeCoordinator.textColor)
@@ -160,7 +187,13 @@ class FocusPanelBuilder(private val host: MainActivity) {
                 setSingleLine(true)
                 ellipsize = android.text.TextUtils.TruncateAt.END
                 gravity = Gravity.CENTER
-                setOnClickListener { host.showSubjectPickerDialog() }
+                setOnClickListener {
+                    if (isLectureRunning) {
+                        Toast.makeText(host, "Subject tag is locked to the scheduled class", Toast.LENGTH_SHORT).show()
+                    } else {
+                        host.showSubjectPickerDialog()
+                    }
+                }
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                     setMargins(dp(6), 0, dp(6), 0)
                 }

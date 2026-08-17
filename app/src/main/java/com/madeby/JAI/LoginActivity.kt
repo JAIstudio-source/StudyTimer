@@ -160,9 +160,13 @@ class LoginActivity : AppCompatActivity() {
                         Toast.makeText(this@LoginActivity, "Welcome, $fetchedName!", Toast.LENGTH_SHORT).show()
                     }
 
-                    // Sync local data to cloud and restore existing cloud data
-                    CloudSyncManager.syncDataToCloud(this@LoginActivity)
-                    CloudSyncManager.restoreDataFromCloud(this@LoginActivity)
+                    // Safely check remote metadata first before blindly overwriting cloud data
+                    val (remoteMeta, _) = CloudSyncManager.fetchRemoteMetadata(this@LoginActivity)
+                    if (remoteMeta != null && remoteMeta.updatedAt > 0L) {
+                        CloudSyncManager.restoreDataFromCloud(this@LoginActivity)
+                    } else {
+                        CloudSyncManager.syncDataToCloud(this@LoginActivity, force = true)
+                    }
 
                     withContext(Dispatchers.Main) {
                         proceedToMain()
@@ -173,7 +177,12 @@ class LoginActivity : AppCompatActivity() {
                         AuthManager.saveUserSession(this@LoginActivity, googleEmail, displayName, idToken, googleEmail)
                         Toast.makeText(this@LoginActivity, "Welcome, $displayName!", Toast.LENGTH_SHORT).show()
                     }
-                    CloudSyncManager.syncDataToCloud(this@LoginActivity)
+                    val (remoteMeta, _) = CloudSyncManager.fetchRemoteMetadata(this@LoginActivity)
+                    if (remoteMeta != null && remoteMeta.updatedAt > 0L) {
+                        CloudSyncManager.restoreDataFromCloud(this@LoginActivity)
+                    } else {
+                        CloudSyncManager.syncDataToCloud(this@LoginActivity, force = true)
+                    }
                     withContext(Dispatchers.Main) {
                         proceedToMain()
                     }
@@ -214,7 +223,10 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun proceedToMain() {
-        val intent = Intent(this, MainActivity::class.java)
+        AuthManager.setOnboardingCompleted(this)
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
         startActivity(intent)
         finish()
     }

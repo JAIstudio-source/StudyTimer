@@ -7,7 +7,10 @@ data class BlockInfo(
     val endMs: Long,
     val secs: Long,
     val running: Boolean = false,
-    val manual: Boolean = false
+    val manual: Boolean = false,
+    val subjectId: String? = null,
+    val subjectName: String? = null,
+    val subjectColor: String? = null
 )
 
 data class StatsSnapshot(

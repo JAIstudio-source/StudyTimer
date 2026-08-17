@@ -79,7 +79,18 @@ class StatsEngine(private val context: Context) {
                 if (fs != null) {
                     val gapMs = endTs - fs
                     if (gapMs <= 24L * 3600_000) {
-                        sessions.add(BlockInfo(fs, endTs, gapMs / 1000L, isToday && timerRunning, parsed.openFocusManual))
+                        sessions.add(
+                            BlockInfo(
+                                fs,
+                                endTs,
+                                gapMs / 1000L,
+                                isToday && timerRunning,
+                                parsed.openFocusManual,
+                                subjectId = parsed.openFocusSubId,
+                                subjectName = parsed.openFocusSubName,
+                                subjectColor = parsed.openFocusSubColor
+                            )
+                        )
                     }
                 }
                 val bs = parsed.openBreakStart
@@ -427,6 +438,9 @@ internal data class ParsedDay(
     val breaks: List<BlockInfo>,
     val openFocusStart: Long?,
     val openFocusManual: Boolean,
+    val openFocusSubId: String?,
+    val openFocusSubName: String?,
+    val openFocusSubColor: String?,
     val openBreakStart: Long?,
     val openBreakManual: Boolean
 )
@@ -436,6 +450,9 @@ internal fun parseDayBlocks(entries: List<TimelineEntry>): ParsedDay {
     val breaks = ArrayList<BlockInfo>()
     var fs: Long? = null
     var fsManual = false
+    var fsSubId: String? = null
+    var fsSubName: String? = null
+    var fsSubColor: String? = null
     var bs: Long? = null
     var bsManual = false
     for (e in entries) {
@@ -444,7 +461,7 @@ internal fun parseDayBlocks(entries: List<TimelineEntry>): ParsedDay {
                 if (fs != null) {
                     val gapMs = e.timestamp - fs
                     if (gapMs <= 24L * 3600_000) {
-                        sessions.add(BlockInfo(fs, e.timestamp, gapMs / 1000L, manual = fsManual))
+                        sessions.add(BlockInfo(fs, e.timestamp, gapMs / 1000L, manual = fsManual, subjectId = fsSubId, subjectName = fsSubName, subjectColor = fsSubColor))
                     }
                 }
                 if (bs != null) breaks.add(BlockInfo(bs, e.timestamp, (e.timestamp - bs) / 1000L, manual = bsManual))
@@ -452,25 +469,34 @@ internal fun parseDayBlocks(entries: List<TimelineEntry>): ParsedDay {
                 bsManual = false
                 fs = e.timestamp
                 fsManual = e.state == "MANUAL_FOCUS"
+                fsSubId = e.subId
+                fsSubName = e.subName
+                fsSubColor = e.subColor
             }
             "BREAK", "MANUAL_BREAK" -> {
-                if (fs != null) sessions.add(BlockInfo(fs, e.timestamp, (e.timestamp - fs) / 1000L, manual = fsManual))
+                if (fs != null) sessions.add(BlockInfo(fs, e.timestamp, (e.timestamp - fs) / 1000L, manual = fsManual, subjectId = fsSubId, subjectName = fsSubName, subjectColor = fsSubColor))
                 fs = null
                 fsManual = false
+                fsSubId = null
+                fsSubName = null
+                fsSubColor = null
                 if (bs == null) {
                     bs = e.timestamp
                     bsManual = e.state == "MANUAL_BREAK"
                 }
             }
             "IDLE" -> {
-                if (fs != null) sessions.add(BlockInfo(fs, e.timestamp, (e.timestamp - fs) / 1000L, manual = fsManual))
+                if (fs != null) sessions.add(BlockInfo(fs, e.timestamp, (e.timestamp - fs) / 1000L, manual = fsManual, subjectId = fsSubId, subjectName = fsSubName, subjectColor = fsSubColor))
                 fs = null
                 fsManual = false
+                fsSubId = null
+                fsSubName = null
+                fsSubColor = null
                 if (bs != null) breaks.add(BlockInfo(bs, e.timestamp, (e.timestamp - bs) / 1000L, manual = bsManual))
                 bs = null
                 bsManual = false
             }
         }
     }
-    return ParsedDay(sessions, breaks, fs, fsManual, bs, bsManual)
+    return ParsedDay(sessions, breaks, fs, fsManual, fsSubId, fsSubName, fsSubColor, bs, bsManual)
 }

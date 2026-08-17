@@ -10,1090 +10,936 @@ import android.os.Build
 import android.view.Gravity
 import android.view.View
 import android.widget.Button
+import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import com.google.android.material.switchmaterial.SwitchMaterial
-import java.net.HttpURLConnection
-import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.max
 
+/**
+ * Clean, Hierarchical Category Navigation (Hub & Spoke) Architecture for Settings.
+ * AMOLED #000000 base, #121212 / #141720 card surfaces, 16dp rounded corners.
+ *
+ * Hub Sections:
+ * 0. Top User Profile Card (Avatar/Initials, display name, email, Google Connected status)
+ * 1. Timer & Focus Controls (Interval pickers, auto-start breaks, strict mode, mode picker)
+ * 2. Sound & Ambience (Ambient loop selectors, volume slider, completion chime)
+ * 3. Analytics & Goals (Daily goal target picker, streak settings, heatmap/pie chart options)
+ * 4. Cloud, Sync & Backups (Google account sync, backup JSON/CSV export/import)
+ * 5. Theme & Styling (AMOLED/Slate/Light, 3D Bubble/Glass/Classic, Accent colors)
+ * 6. User Profile Management Sub-Screen
+ * 7. Developer & Advanced (Strictly gated behind dev unlock / debug)
+ */
 class SettingsPanelBuilder(private val host: MainActivity) {
 
     fun build(target: android.view.ViewGroup = host.panelContainer, captureScrollRef: Boolean = true) {
         with(host) {
-        if (captureScrollRef) {
-            tabPageCache.keys.removeIf { it.startsWith("ST:") }
-            Thread {
-                kotlinx.coroutines.runBlocking {
-                    CloudSyncManager.syncDataToCloud(this@with)
-                }
-            }.start()
-        }
-        val settingsRootLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT)
-        }
+            val sharedPrefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
 
-        val headerText = TextView(this).apply {
-            text = getString(R.string.settings_title)
-            setTextColor(themeCoordinator.textColor)
-            textSize = 22f
-            letterSpacing = 0.02f
-            setPadding(dp(6), dp(16), dp(6), dp(4))
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setOnLongClickListener {
-                isDevModeUnlocked = true
-                Toast.makeText(context, getString(R.string.toast_dev_config_enabled), Toast.LENGTH_SHORT).show()
-                navigateToPanel(AppPanel.SETTINGS)
-                true
+            if (captureScrollRef) {
+                tabPageCache.keys.removeIf { it.startsWith("ST:") }
+                Thread {
+                    kotlinx.coroutines.runBlocking {
+                        CloudSyncManager.syncDataToCloud(this@with)
+                    }
+                }.start()
             }
-        }
-        settingsRootLayout.addView(headerText)
 
-        val subtitleText = TextView(this).apply {
-            text = getString(R.string.settings_subtitle)
-            setTextColor(themeCoordinator.textColor)
-            alpha = 0.45f
-            textSize = 13f
-            setPadding(dp(6), 0, dp(6), dp(16))
-        }
-        settingsRootLayout.addView(subtitleText)
-
-        val tabContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(dp(6), 0, dp(6), dp(12))
-        }
-
-        fun createSettingsTabButton(title: String, targetTab: AppSettingsTab): TextView {
-            return TextView(this).apply {
-                text = title
-                textSize = 14f
-                setPadding(dp(20), dp(12), dp(20), dp(12))
-                typeface = Typeface.create("sans-serif-medium", if (currentSettingsTab == targetTab) Typeface.BOLD else Typeface.NORMAL)
-                setTextColor(if (currentSettingsTab == targetTab) themeCoordinator.bgColor else themeCoordinator.textColor)
-                background = if (currentSettingsTab == targetTab)
-                    themeCoordinator.createButtonBackground(themeCoordinator.primaryColor)
-                else
-                    themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 80), 50f)
-                setOnClickListener {
-                    currentSettingsTab = targetTab
-                    navigateToPanel(AppPanel.SETTINGS)
-                }
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, dp(8), 0) }
+            val settingsRootLayout = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT)
             }
-        }
-        tabContainer.addView(createSettingsTabButton(getString(R.string.tab_general), AppSettingsTab.SIMPLE))
-        tabContainer.addView(createSettingsTabButton(getString(R.string.tab_appearance), AppSettingsTab.THEME))
-        tabContainer.addView(createSettingsTabButton(getString(R.string.tab_profile), AppSettingsTab.PROFILE))
-        settingsRootLayout.addView(tabContainer)
 
-        val existingScrollView = if (captureScrollRef) settingsScrollViewRef else null
-        val settingsScrollView: ScrollView
-        if (existingScrollView != null) {
-            (existingScrollView.parent as? android.view.ViewGroup)?.removeView(existingScrollView)
-            settingsScrollView = existingScrollView
-        } else {
-            settingsScrollView = ScrollView(this).apply {
-                isVerticalScrollBarEnabled = false
-                isFillViewport = true
-            }
-        }
-        if (captureScrollRef) settingsScrollViewRef = settingsScrollView
-        settingsScrollView.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
-        settingsScrollView.removeAllViews()
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(0, dp(6), 0, dp(120))
-        }
-        settingsScrollView.addView(layout)
-
-        val sharedPrefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-
-        if (currentSettingsTab == AppSettingsTab.SIMPLE) {
-
-            layout.addView(createSectionLabel(getString(R.string.section_goals)))
-            val goalCard = createSettingsCard()
-            val goalValueText = TextView(this).apply {
+            val settingsBackFab = TextView(this).apply {
+                text = getString(R.string.btn_back_label)
+                gravity = Gravity.CENTER
+                setTextColor(themeCoordinator.bgColor)
                 textSize = 15f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                gravity = Gravity.CENTER
-                setTextColor(themeCoordinator.primaryColor)
-                setPadding(dp(6), 0, dp(6), 0)
-            }
-            fun makeGoalStepBtn(label: String, delta: Long): TextView {
-                return TextView(this).apply {
-                    text = label
-                    textSize = 16f
-                    gravity = Gravity.CENTER
-                    setTextColor(themeCoordinator.primaryColor)
-                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                    background = GradientDrawable().apply { cornerRadius = 12f; setColor(tintedColor(themeCoordinator.primaryColor, 22)) }
-                    setPadding(dp(14), dp(6), dp(14), dp(6))
-                    setOnClickListener {
-                        val current = sharedPrefs.getLong("daily_goal_secs", 2700L)
-                        var next = current + delta
-                        next = next.coerceIn(900L, 16 * 3600L)
-                        val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
-                        val editor = sharedPrefs.edit()
-                        // Backfill past days that don't have an explicit goal stored so changing today doesn't retroactively alter past logs
-                        for (key in sharedPrefs.all.keys) {
-                            if (key.endsWith("_focus_total")) {
-                                val dStr = key.removeSuffix("_focus_total")
-                                val goalKey = "${dStr}_goal_secs"
-                                if (!sharedPrefs.contains(goalKey)) {
-                                    editor.putLong(goalKey, current)
-                                }
-                            }
-                        }
-                        editor.putLong("daily_goal_secs", next)
-                        editor.putLong("${todayStr}_goal_secs", next)
-                        editor.apply()
-                        goalValueText.text = formatGoalLabel(next)
+                background = GradientDrawable().apply { cornerRadius = 50f; setColor(themeCoordinator.primaryColor) }
+                elevation = dp(8).toFloat()
+                setOnClickListener {
+                    if (currentSettingsTab != AppSettingsTab.HUB) {
+                        currentSettingsTab = AppSettingsTab.HUB
+                        navigateToPanel(AppPanel.SETTINGS)
+                    } else {
+                        navigateToPanel(AppPanel.FOCUS)
                     }
                 }
+                layoutParams = FrameLayout.LayoutParams(dp(150), dp(54), Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(20), dp(20)) }
             }
-            goalValueText.text = formatGoalLabel(sharedPrefs.getLong("daily_goal_secs", 2700L))
-            val goalRow = LinearLayout(this).apply {
+
+            // Top Header & Hub Breadcrumb
+            val headerRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(18), dp(14), dp(18), dp(14))
+                setPadding(dp(6), dp(16), dp(6), dp(8))
             }
-            goalRow.addView(TextView(this).apply { text = "\uD83C\uDFAF"; textSize = 22f; setPadding(0, 0, dp(14), 0) })
-            val goalTextCol = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+
+            if (currentSettingsTab != AppSettingsTab.HUB) {
+                val backArrowBtn = TextView(this).apply {
+                    text = "←"
+                    textSize = 24f
+                    setTextColor(themeCoordinator.primaryColor)
+                    setPadding(0, 0, dp(14), 0)
+                    setOnClickListener {
+                        currentSettingsTab = AppSettingsTab.HUB
+                        navigateToPanel(AppPanel.SETTINGS)
+                    }
+                }
+                headerRow.addView(backArrowBtn)
             }
-            goalTextCol.addView(TextView(this).apply { text = getString(R.string.daily_goal); setTextColor(themeCoordinator.textColor); textSize = 15f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL) })
-            goalTextCol.addView(TextView(this).apply { text = getString(R.string.daily_goal_sub); setTextColor(themeCoordinator.textColor); alpha = 0.5f; textSize = 12f; setPadding(0, 3, 0, 0) })
-            goalRow.addView(goalTextCol)
-            val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-            controls.addView(makeGoalStepBtn("\u2212", -900L))
-            controls.addView(goalValueText)
-            controls.addView(makeGoalStepBtn("+", 900L))
-            goalRow.addView(controls)
-            goalCard.addView(goalRow)
-            goalCard.addView(createDivider())
-            val isStreakGoalBased = sharedPrefs.getBoolean("streak_uses_daily_goal", false)
-            val streakGoalSwitch = SwitchMaterial(this).apply {
-                isChecked = isStreakGoalBased
-                setOnCheckedChangeListener { _, isChecked ->
-                    sharedPrefs.edit().putBoolean("streak_uses_daily_goal", isChecked).apply()
+
+            val headerText = TextView(this).apply {
+                text = when (currentSettingsTab) {
+                    AppSettingsTab.HUB -> getString(R.string.settings_title)
+                    AppSettingsTab.TIMER -> "Timer & Focus"
+                    AppSettingsTab.AMBIENCE -> "Sound & Ambience"
+                    AppSettingsTab.ANALYTICS -> "Analytics & Goals"
+                    AppSettingsTab.CLOUD -> "Cloud, Sync & Backups"
+                    AppSettingsTab.THEME -> "Theme & Appearance"
+                    AppSettingsTab.PROFILE -> "User Profile & Account"
+                    AppSettingsTab.DEVELOPER -> "Developer & Advanced"
+                    else -> getString(R.string.settings_title)
+                }
+                setTextColor(themeCoordinator.textColor)
+                textSize = 22f
+                letterSpacing = 0.02f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setOnLongClickListener {
+                    isDevModeUnlocked = true
+                    Toast.makeText(context, getString(R.string.toast_dev_config_enabled), Toast.LENGTH_SHORT).show()
+                    navigateToPanel(AppPanel.SETTINGS)
+                    true
                 }
             }
-            goalCard.addView(createSettingsRow("\uD83D\uDD25", getString(R.string.streak_uses_goal), getString(R.string.streak_uses_goal_sub), streakGoalSwitch))
-            goalCard.addView(createDivider())
-            goalCard.addView(TextView(this).apply {
-                text = getString(R.string.goal_steps_15)
+            headerRow.addView(headerText)
+            settingsRootLayout.addView(headerRow)
+
+            val subtitleText = TextView(this).apply {
+                text = when (currentSettingsTab) {
+                    AppSettingsTab.HUB -> "Preferences, account management & sync architecture"
+                    AppSettingsTab.TIMER -> "Session lengths, break intervals & timer behaviors"
+                    AppSettingsTab.AMBIENCE -> "Ambient soundscapes, volume levels & completion alerts"
+                    AppSettingsTab.ANALYTICS -> "Daily targets, heatmap parameters & chart filters"
+                    AppSettingsTab.CLOUD -> "Cloud backup, local JSON export & sync conflict resolution"
+                    AppSettingsTab.THEME -> "AMOLED dark palettes, UI styles & accent colorways"
+                    AppSettingsTab.PROFILE -> "User credentials, custom avatar & cloud session"
+                    AppSettingsTab.DEVELOPER -> "Mock data generator, schema inspector & conflict simulation"
+                    else -> getString(R.string.settings_subtitle)
+                }
                 setTextColor(themeCoordinator.textColor)
                 alpha = 0.45f
-                textSize = 11f
-                setPadding(dp(18), dp(8), dp(18), dp(14))
-            })
-            layout.addView(goalCard)
+                textSize = 13f
+                setPadding(dp(6), 0, dp(6), dp(16))
+            }
+            settingsRootLayout.addView(subtitleText)
 
-            layout.addView(createSectionLabel(getString(R.string.section_timer_mode)))
-            val timerModeCard = createSettingsCard()
-            val isLecture = timerMode == "LECTURE"
-            val isStopwatch = timerMode == "STOPWATCH"
-            val isCountdown = timerMode == "COUNTDOWN"
-
-            fun modeRadio(selected: Boolean): View {
-                return View(this).apply {
-                    layoutParams = LinearLayout.LayoutParams(26, 26)
-                    background = GradientDrawable().apply {
-                        shape = GradientDrawable.OVAL
-                        setColor(if (selected) themeCoordinator.primaryColor else Color.TRANSPARENT)
-                        setStroke(3, if (selected) themeCoordinator.primaryColor else themeCoordinator.textColor)
-                    }
+            val existingScrollView = if (captureScrollRef) settingsScrollViewRef else null
+            val settingsScrollView: ScrollView
+            if (existingScrollView != null) {
+                (existingScrollView.parent as? android.view.ViewGroup)?.removeView(existingScrollView)
+                settingsScrollView = existingScrollView
+            } else {
+                settingsScrollView = ScrollView(this).apply {
+                    isVerticalScrollBarEnabled = false
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
                 }
+                if (captureScrollRef) settingsScrollViewRef = settingsScrollView
             }
 
-            val isSubject = timerMode == "SUBJECT"
-
-            val stopwatchRow = createSettingsRow("\u23F1\uFE0F", getString(R.string.mode_stopwatch), getString(R.string.mode_stopwatch_sub), modeRadio(isStopwatch))
-            stopwatchRow.setOnClickListener {
-                sharedPrefs.edit().putString("timer_mode", "STOPWATCH").putBoolean("lecture_mode_enabled", false).apply()
-                timerMode = "STOPWATCH"
-                navigateToPanel(AppPanel.SETTINGS)
+            val layout = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(16), 0, dp(16), dp(90))
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             }
-            timerModeCard.addView(stopwatchRow)
-            timerModeCard.addView(createDivider())
+            settingsScrollView.removeAllViews()
+            settingsScrollView.addView(layout)
 
-            val countdownRow = createSettingsRow("\u23F2\uFE0F", getString(R.string.mode_pomodoro), getString(R.string.mode_pomodoro_sub), modeRadio(isCountdown))
-            countdownRow.setOnClickListener {
-                sharedPrefs.edit().putString("timer_mode", "COUNTDOWN").putBoolean("lecture_mode_enabled", false).apply()
-                timerMode = "COUNTDOWN"
-                navigateToPanel(AppPanel.SETTINGS)
-            }
-            timerModeCard.addView(countdownRow)
-            timerModeCard.addView(createDivider())
-
-            val subjectRow = createSettingsRow("📚", "Subject-wise Timer Mode", "Dedicated timer mode to tag and track focus time by subject (Math, Coding, Physics)", modeRadio(isSubject))
-            subjectRow.setOnClickListener {
-                sharedPrefs.edit().putString("timer_mode", "SUBJECT").putBoolean("lecture_mode_enabled", false).putBoolean("show_subject_pie_chart", true).apply()
-                timerMode = "SUBJECT"
-                navigateToPanel(AppPanel.SETTINGS)
-            }
-            timerModeCard.addView(subjectRow)
-            timerModeCard.addView(createDivider())
-
-            val lectureRow = createSettingsRow("\uD83C\uDF93", "Scheduled Lecture Mode", "Auto-starts & auto-ends focus based on your fixed class timetable", modeRadio(isLecture))
-
-            lectureRow.setOnClickListener {
-                sharedPrefs.edit().putString("timer_mode", "LECTURE").putBoolean("lecture_mode_enabled", true).apply()
-                timerMode = "LECTURE"
-                navigateToPanel(AppPanel.SETTINGS)
-            }
-            timerModeCard.addView(lectureRow)
-            layout.addView(timerModeCard)
-
-            if (isCountdown) {
-
-
-                val durationCard = createSettingsCard()
-                val durationValueText = TextView(this).apply {
-                    textSize = 15f
-                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                    gravity = Gravity.CENTER
+            fun createSectionLabel(title: String): TextView {
+                return TextView(this).apply {
+                    text = title
                     setTextColor(themeCoordinator.primaryColor)
-                    setPadding(dp(6), 0, dp(6), 0)
+                    textSize = 12f
+                    letterSpacing = 0.15f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    setPadding(dp(6), dp(18), dp(6), dp(8))
                 }
-                fun makeDurationBtn(label: String, delta: Long): TextView {
-                    return TextView(this).apply {
-                        text = label
-                        textSize = 16f
-                        gravity = Gravity.CENTER
-                        setTextColor(themeCoordinator.primaryColor)
-                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                        background = GradientDrawable().apply { cornerRadius = 12f; setColor(tintedColor(themeCoordinator.primaryColor, 22)) }
-                        setPadding(dp(14), dp(6), dp(14), dp(6))
-                        applyHoldToRepeat(this) {
-                            val current = sharedPrefs.getLong("focus_countdown_secs", 1500L)
-                            var next = current + delta
-                            next = next.coerceIn(300L, 24 * 3600L)
-                            sharedPrefs.edit().putLong("focus_countdown_secs", next).apply()
-                            durationValueText.text = formatCountdown(next)
-                        }
+            }
+
+            fun createDivider(): View {
+                return View(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1))
+                    background = GradientDrawable().apply {
+                        setColor(tintedColor(themeCoordinator.textColor, 25))
                     }
                 }
-                durationValueText.text = formatCountdown(sharedPrefs.getLong("focus_countdown_secs", 1500L))
-                val durationRow = LinearLayout(this).apply {
+            }
+
+            fun createSettingsCard(): LinearLayout {
+                return LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    background = themeCoordinator.createCardBackground(20f)
+                    setPadding(0, 0, 0, 0)
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        setMargins(0, 0, 0, dp(10))
+                    }
+                }
+            }
+
+            fun createSettingsRow(icon: String, title: String, subtitle: String, trailingView: View? = null): LinearLayout {
+                val row = LinearLayout(this).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
                     setPadding(dp(18), dp(14), dp(18), dp(14))
                 }
-                durationRow.addView(TextView(this).apply { text = "\u23F3"; textSize = 22f; setPadding(0, 0, dp(14), 0) })
-                val durationTextCol = LinearLayout(this).apply {
+                val iconView = TextView(this).apply {
+                    text = icon
+                    textSize = 20f
+                    setPadding(0, 0, dp(14), 0)
+                }
+                row.addView(iconView)
+                val textCol = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
                     layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 }
-                durationTextCol.addView(TextView(this).apply { text = getString(R.string.focus_duration); setTextColor(themeCoordinator.textColor); textSize = 15f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL) })
-                durationTextCol.addView(TextView(this).apply { text = getString(R.string.focus_duration_sub); setTextColor(themeCoordinator.textColor); alpha = 0.5f; textSize = 12f; setPadding(0, 3, 0, 0) })
-                durationRow.addView(durationTextCol)
-                val durationControls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-                durationControls.addView(makeDurationBtn("\u2212", -300L))
-                durationControls.addView(durationValueText)
-                durationControls.addView(makeDurationBtn("+", 300L))
-                durationRow.addView(durationControls)
-                durationCard.addView(durationRow)
-                durationCard.addView(createDivider())
-                durationCard.addView(TextView(this).apply {
-                    text = getString(R.string.duration_steps_hint)
+                textCol.addView(TextView(this).apply {
+                    text = title
                     setTextColor(themeCoordinator.textColor)
-                    alpha = 0.45f
-                    textSize = 11f
-                    setPadding(dp(18), dp(8), dp(18), dp(14))
+                    textSize = 15f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
                 })
-                layout.addView(durationCard)
+                textCol.addView(TextView(this).apply {
+                    text = subtitle
+                    setTextColor(themeCoordinator.textColor)
+                    alpha = 0.5f
+                    textSize = 12f
+                    setPadding(0, 3, 0, 0)
+                })
+                row.addView(textCol)
+                if (trailingView != null) {
+                    row.addView(trailingView)
+                }
+                return row
             }
 
-            layout.addView(createSectionLabel(getString(R.string.section_daily_reminder)))
-            val reminderCard = createSettingsCard()
-            val reminderEnabled = sharedPrefs.getBoolean("reminder_enabled", true)
-            val reminderSwitch = SwitchMaterial(this).apply {
-                isChecked = reminderEnabled
-                setOnCheckedChangeListener { _, isChecked ->
-                    sharedPrefs.edit().putBoolean("reminder_enabled", isChecked).apply()
-                    if (isChecked) {
-                        ensureExactAlarmPermissionIfNeeded()
-                        GoalReminderScheduler.schedule(host)
-                    } else {
-                        GoalReminderScheduler.cancel(host)
+            // ==========================================
+            // 1. SETTINGS HUB DASHBOARD (Hub & Spoke)
+            // ==========================================
+            if (currentSettingsTab == AppSettingsTab.HUB) {
+
+                // --- TOP USER PROFILE CARD ---
+                val isGoogleAuth = AuthManager.isLoggedIn(this)
+                val userName = AuthManager.getUserName(this) ?: if (isGoogleAuth) "Google Account User" else "Guest Learner"
+                val userEmail = AuthManager.getUserEmail(this)
+                val avatarInitials = userName.take(1).uppercase(Locale.ROOT).ifEmpty { "G" }
+
+                val profileTopCard = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    background = themeCoordinator.createCardBackground(24f)
+                    setPadding(dp(16), dp(16), dp(16), dp(16))
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        setMargins(0, 0, 0, dp(14))
                     }
-                }
-            }
-            reminderCard.addView(createSettingsRow("\uD83D\uDD14", getString(R.string.reminder_evening), getString(R.string.reminder_evening_sub), reminderSwitch))
-            reminderCard.addView(createDivider())
-            val reminderHour = sharedPrefs.safeInt("reminder_hour", 20)
-            val reminderMinute = sharedPrefs.safeInt("reminder_minute", 0)
-            val timeLabel = TimeFormat.formatHourMinute(host, reminderHour, reminderMinute)
-            val reminderTimeRow = createSettingsRow("\u23F0", getString(R.string.reminder_time), getString(R.string.reminder_time_sub), null)
-            reminderTimeRow.addView(TextView(this).apply {
-                text = timeLabel
-                setTextColor(themeCoordinator.primaryColor)
-                textSize = 15f
-                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            })
-            reminderTimeRow.setOnClickListener {
-                android.app.TimePickerDialog(host, { _, h, m ->
-                    sharedPrefs.edit().putInt("reminder_hour", h).putInt("reminder_minute", m).apply()
-                    if (sharedPrefs.getBoolean("reminder_enabled", true)) {
-                        ensureExactAlarmPermissionIfNeeded()
-                        GoalReminderScheduler.schedule(host)
-                    }
-                    navigateToPanel(AppPanel.SETTINGS)
-                }, reminderHour, reminderMinute, TimeFormat.is24Hour(host)).show()
-            }
-            reminderCard.addView(reminderTimeRow)
-            layout.addView(reminderCard)
-
-            layout.addView(createSectionLabel("FOCUS TOOLS & CONTROLS"))
-            val toolsCard = createSettingsCard()
-            val ambientEnabled = sharedPrefs.safeBoolean("enable_ambient_sounds", false)
-            val ambientSwitch = SwitchMaterial(this).apply {
-                isChecked = ambientEnabled
-                setOnCheckedChangeListener { _, isChecked ->
-                    sharedPrefs.edit().putBoolean("enable_ambient_sounds", isChecked).apply()
-                    if (!isChecked) {
-                        AmbientSoundEngine.stop()
-                    }
-                }
-            }
-            toolsCard.addView(createSettingsRow("🎧", "Ambient Focus Soundscapes", "Show ambient soundscapes and custom audio controls on timer screen", ambientSwitch))
-            layout.addView(toolsCard)
-
-            layout.addView(createSectionLabel(getString(R.string.section_display)))
-            val displayCard = createSettingsCard()
-            val isZenDefault = sharedPrefs.getBoolean("true_fullscreen_landscape", false)
-            val zenSwitch = SwitchMaterial(this).apply {
-                isChecked = isZenDefault
-                setOnCheckedChangeListener { _, isChecked ->
-                    sharedPrefs.edit().putBoolean("true_fullscreen_landscape", isChecked).apply()
-                    applyImmersiveModeForLandscape()
-                }
-            }
-            displayCard.addView(createSettingsRow("\u2194\uFE0F", getString(R.string.immersive_landscape), getString(R.string.immersive_landscape_sub), zenSwitch))
-            displayCard.addView(createDivider())
-            val timeFormatLabel = TextView(this).apply {
-                textSize = 15f
-                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                setPadding(dp(8), dp(4), dp(4), dp(4))
-            }
-            fun refreshTimeFormatLabel() {
-                timeFormatLabel.text = when (TimeFormat.currentMode(host)) {
-                    TimeFormat.Mode.H24 -> "24H"
-                    TimeFormat.Mode.H12 -> "12H"
-                    else -> getString(R.string.time_format_system)
-                }
-                timeFormatLabel.setTextColor(themeCoordinator.primaryColor)
-            }
-            refreshTimeFormatLabel()
-            val timeFormatRow = createSettingsRow("\uD83D\uDD5B", getString(R.string.time_format), getString(R.string.time_format_sub), timeFormatLabel)
-            timeFormatRow.setOnClickListener {
-                val options = arrayOf(getString(R.string.time_format_follow_system), getString(R.string.time_format_24h), getString(R.string.time_format_12h))
-                val modes = arrayOf(TimeFormat.Mode.SYSTEM, TimeFormat.Mode.H24, TimeFormat.Mode.H12)
-                android.app.AlertDialog.Builder(host)
-                    .setTitle(getString(R.string.time_format))
-                    .setSingleChoiceItems(options, modes.indexOf(TimeFormat.currentMode(host))) { dlg, which ->
-                        TimeFormat.setMode(host, modes[which])
-                        refreshTimeFormatLabel()
-                        navigateToPanel(AppPanel.SETTINGS)
-                        dlg.dismiss()
-                    }
-                    .setNegativeButton(getString(R.string.btn_cancel), null)
-                    .show()
-            }
-            displayCard.addView(timeFormatRow)
-            displayCard.addView(createDivider())
-            val isWhiteTimer = sharedPrefs.getBoolean("pureWhiteTimer", false)
-            val whiteTimerSwitch = SwitchMaterial(this).apply {
-                isChecked = isWhiteTimer
-                setOnCheckedChangeListener { _, isChecked ->
-                    sharedPrefs.edit().putBoolean("pureWhiteTimer", isChecked).apply()
-                }
-            }
-            displayCard.addView(createSettingsRow("⬜", getString(R.string.pure_white_timer), getString(R.string.pure_white_timer_sub), whiteTimerSwitch))
-            displayCard.addView(createDivider())
-            val isHeatmapEnabled = sharedPrefs.getBoolean("show_focus_heatmap", true)
-            val heatmapSwitch = SwitchMaterial(this).apply {
-                isChecked = isHeatmapEnabled
-                setOnCheckedChangeListener { _, isChecked ->
-                    sharedPrefs.edit().putBoolean("show_focus_heatmap", isChecked).apply()
-                }
-            }
-            displayCard.addView(createSettingsRow("\uD83D\uDD25", getString(R.string.focus_heatmap_setting), getString(R.string.focus_heatmap_setting_sub), heatmapSwitch))
-            displayCard.addView(createDivider())
-            val isPatternEnabled = sharedPrefs.getBoolean("show_focus_pattern", true)
-            val patternSwitch = SwitchMaterial(this).apply {
-                isChecked = isPatternEnabled
-                setOnCheckedChangeListener { _, isChecked ->
-                    sharedPrefs.edit().putBoolean("show_focus_pattern", isChecked).apply()
-                }
-            }
-            displayCard.addView(createSettingsRow("\u23F1\uFE0F", getString(R.string.focus_pattern_setting), getString(R.string.focus_pattern_setting_sub), patternSwitch))
-            displayCard.addView(createDivider())
-            val isKeepScreenOn = sharedPrefs.getBoolean("keep_screen_on", true)
-            val keepScreenOnSwitch = SwitchMaterial(this).apply {
-                isChecked = isKeepScreenOn
-                setOnCheckedChangeListener { _, isChecked ->
-                    sharedPrefs.edit().putBoolean("keep_screen_on", isChecked).apply()
-                    updateKeepScreenOn()
-                }
-            }
-            displayCard.addView(createSettingsRow("\uD83D\uDD11", getString(R.string.keep_screen_on), getString(R.string.keep_screen_on_sub), keepScreenOnSwitch))
-            displayCard.addView(createDivider())
-            val isPauseButtonEnabled = sharedPrefs.getBoolean("show_pause_button", true)
-            val pauseButtonSwitch = SwitchMaterial(this).apply {
-                isChecked = isPauseButtonEnabled
-                setOnCheckedChangeListener { _, isChecked ->
-                    sharedPrefs.edit().putBoolean("show_pause_button", isChecked).apply()
-                    if (currentPanel == AppPanel.FOCUS) updateVisualStyles()
-                }
-            }
-            displayCard.addView(createSettingsRow("\u23F8\uFE0F", getString(R.string.pause_button), getString(R.string.pause_button_sub), pauseButtonSwitch))
-            displayCard.addView(createDivider())
-            val isPieChartEnabled = sharedPrefs.safeBoolean("show_subject_pie_chart", false)
-            val pieChartSwitch = SwitchMaterial(this).apply {
-                isChecked = isPieChartEnabled
-                setOnCheckedChangeListener { _, isChecked ->
-                    sharedPrefs.edit().putBoolean("show_subject_pie_chart", isChecked).apply()
-                }
-            }
-            displayCard.addView(createSettingsRow("📊", "Subject Pie Chart", "Show subject breakdown chart in Insights overview", pieChartSwitch))
-            layout.addView(displayCard)
-
-            layout.addView(createSectionLabel(getString(R.string.section_data_management)))
-            val dataCard = createSettingsCard()
-            val exportRow = createSettingsRow("\uD83D\uDCE4", getString(R.string.export_logs), getString(R.string.export_logs_sub))
-            exportRow.setOnClickListener {
-                val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-                    addCategory(Intent.CATEGORY_OPENABLE)
-                    type = "application/json"
-                    val fileDateFormat = SimpleDateFormat("dd_MMM", Locale.getDefault())
-                    putExtra(Intent.EXTRA_TITLE, "backup_${fileDateFormat.format(Date())}.json")
-                }
-                exportLauncher.launch(intent)
-            }
-            dataCard.addView(exportRow)
-            dataCard.addView(createDivider())
-            val importRow = createSettingsRow("\uD83D\uDCE5", getString(R.string.import_data), getString(R.string.import_data_sub))
-            importRow.setOnClickListener {
-                val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                    type = "application/json"
-                    addCategory(Intent.CATEGORY_OPENABLE)
-                }
-                importLauncher.launch(Intent.createChooser(intent, getString(R.string.select_backup_file)))
-            }
-            dataCard.addView(importRow)
-            dataCard.addView(createDivider())
-            val csvRow = createSettingsRow("\uD83D\uDCCA", getString(R.string.export_csv), getString(R.string.export_csv_sub))
-            csvRow.setOnClickListener {
-                val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-                    addCategory(Intent.CATEGORY_OPENABLE)
-                    type = "text/csv"
-                    val fileDateFormat = SimpleDateFormat("dd_MMM", Locale.getDefault())
-                    putExtra(Intent.EXTRA_TITLE, "study_log_${fileDateFormat.format(Date())}.csv")
-                }
-                csvLauncher.launch(intent)
-            }
-            dataCard.addView(csvRow)
-            layout.addView(dataCard)
-
-            layout.addView(createSectionLabel(getString(R.string.section_about)))
-            val aboutCard = createSettingsCard()
-            val guideRow = createSettingsRow("📖", "How to Use / App Guide", "View complete feature walkthrough & tips")
-            guideRow.setOnClickListener { showAppGuideDialog() }
-            aboutCard.addView(guideRow)
-            aboutCard.addView(createDivider())
-            var versionTapCount = 0
-            val versionRow = createSettingsRow("\uD83D\uDCCB", getString(R.string.version_label), "v${currentVersionName()} \u00B7 build ${currentVersionCodeLong()}")
-            versionRow.setOnClickListener {
-                versionTapCount++
-                if (versionTapCount >= 5) {
-                    isDevModeUnlocked = true
-                    Toast.makeText(this, getString(R.string.toast_dev_config_enabled), Toast.LENGTH_SHORT).show()
-                    navigateToPanel(AppPanel.SETTINGS)
-                }
-            }
-            aboutCard.addView(versionRow)
-            aboutCard.addView(createDivider())
-            val updateRow = createSettingsRow("\uD83D\uDD04", getString(R.string.check_updates), getString(R.string.check_updates_sub))
-            updateRow.setOnClickListener { checkForUpdates(manual = true) }
-            aboutCard.addView(updateRow)
-            layout.addView(aboutCard)
-
-            layout.addView(createSectionLabel(getString(R.string.section_experimental)))
-            val dangerCard = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                background = GradientDrawable().apply { cornerRadius = 35f; setColor(0x0DFF4444.toInt()); setStroke(1, 0x1AFF4444.toInt()) }
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, dp(4)) }
-            }
-            dangerCard.addView(TextView(this).apply {
-                text = getString(R.string.wipe_hint)
-                setTextColor(0xFFEF4444.toInt()); alpha = 0.7f; textSize = 12f; setPadding(dp(18), dp(16), dp(18), dp(4))
-            })
-            val deleteTodayBtn = Button(this).apply {
-                text = getString(R.string.wipe_today)
-                setTextColor(0xFFEF4444.toInt()); textSize = 14f; typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                background = GradientDrawable().apply { cornerRadius = 20f; setColor(0x1AFF4444.toInt()) }
-                setPadding(dp(24), dp(16), dp(24), dp(16))
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(dp(16), dp(8), dp(16), dp(16)) }
-                setOnLongClickListener {
-                    val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                    getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit().apply { remove("${todayStr}_focus_total"); remove("${todayStr}_break_total"); remove("${todayStr}_focus_manual"); remove("${todayStr}_break_manual"); apply() }
-                    TimelineLogger.deleteDay(context, todayStr)
-                    SubjectTagManager.clearTodaySubjectDurations(context, todayStr)
-                    handleStopSession(silent = true)
-                    Toast.makeText(context, getString(R.string.toast_logs_cleared), Toast.LENGTH_SHORT).show()
-                    true
-                }
-                setOnClickListener { Toast.makeText(context, getString(R.string.toast_hold_to_confirm), Toast.LENGTH_SHORT).show() }
-            }
-            dangerCard.addView(deleteTodayBtn)
-            layout.addView(dangerCard)
-
-            if (isDevModeUnlocked) {
-                layout.addView(createSectionLabel(getString(R.string.section_developer)))
-                val devCard = DeveloperToolsHelper.buildDevCard(host, themeCoordinator)
-                layout.addView(devCard)
-            }
-        } else if (currentSettingsTab == AppSettingsTab.THEME) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                layout.addView(createSectionLabel(getString(R.string.section_dynamic_color)))
-                val dynamicCard = createSettingsCard()
-                val isDynamic = sharedPrefs.getBoolean("dynamic_color", false)
-                val dynamicSwitch = SwitchMaterial(this).apply {
-                    isChecked = isDynamic
-                    setOnCheckedChangeListener { _, isChecked ->
-                        sharedPrefs.edit().putBoolean("dynamic_color", isChecked).apply()
-                        themeCoordinator.applyThemeCoordinates()
+                    isClickable = true
+                    isFocusable = true
+                    setOnClickListener {
+                        currentSettingsTab = AppSettingsTab.PROFILE
                         navigateToPanel(AppPanel.SETTINGS)
                     }
                 }
-                dynamicCard.addView(createSettingsRow(
-                    "\uD83C\uDFA8", getString(R.string.material_you),
-                    if (isDynamic) getString(R.string.dynamic_follows_wallpaper) else getString(R.string.dynamic_uses_wallpaper),
-                    dynamicSwitch
-                ))
-                layout.addView(dynamicCard)
-            }
 
-            layout.addView(createSectionLabel(getString(R.string.section_dark_mode)))
-
-            val modeCard = createSettingsCard()
-            val isEclipse = themeCoordinator.activeBgMode == "ECLIPSE"
-            val isLight = themeCoordinator.activeBgMode == "LIGHT"
-
-            fun modeRadio(selected: Boolean): View {
-                return View(this).apply {
-                    layoutParams = LinearLayout.LayoutParams(26, 26)
-                    background = GradientDrawable().apply {
-                        shape = GradientDrawable.OVAL
-                        setColor(if (selected) themeCoordinator.primaryColor else Color.TRANSPARENT)
-                        setStroke(3, if (selected) themeCoordinator.primaryColor else themeCoordinator.textColor)
-                    }
+                val profileRow = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
                 }
-            }
 
-            val lightRow = createSettingsRow("\u2600\uFE0F", getString(R.string.theme_light), getString(R.string.theme_light_sub), modeRadio(isLight))
-            lightRow.setOnClickListener {
-                sharedPrefs.edit().putString("activeBgMode", "LIGHT").apply()
-                themeCoordinator.applyThemeCoordinates()
-                navigateToPanel(AppPanel.SETTINGS)
-            }
-            modeCard.addView(lightRow)
-            modeCard.addView(createDivider())
-            val eclipseRow = createSettingsRow("\uD83C\uDF19", getString(R.string.theme_slate), getString(R.string.theme_slate_sub), modeRadio(isEclipse))
-            eclipseRow.setOnClickListener {
-                sharedPrefs.edit().putString("activeBgMode", "ECLIPSE").apply()
-                themeCoordinator.applyThemeCoordinates()
-                navigateToPanel(AppPanel.SETTINGS)
-            }
-            modeCard.addView(eclipseRow)
-            modeCard.addView(createDivider())
-            val oledRow = createSettingsRow("\u2B24", getString(R.string.theme_amoled), getString(R.string.theme_amoled_sub), modeRadio(!isEclipse && !isLight))
-            oledRow.setOnClickListener {
-                sharedPrefs.edit().putString("activeBgMode", "OLED").apply()
-                themeCoordinator.applyThemeCoordinates()
-                navigateToPanel(AppPanel.SETTINGS)
-            }
-            modeCard.addView(oledRow)
-            layout.addView(modeCard)
-
-            layout.addView(createSectionLabel(getString(R.string.section_theme_style)))
-
-            val styleCard = createSettingsCard()
-            val isBubble = themeCoordinator.isBubbleStyle()
-            val isGlass = themeCoordinator.isGlassStyle()
-
-            fun styleRadio(selected: Boolean): View {
-                return View(this).apply {
-                    layoutParams = LinearLayout.LayoutParams(26, 26)
-                    background = GradientDrawable().apply {
-                        shape = GradientDrawable.OVAL
-                        setColor(if (selected) themeCoordinator.primaryColor else Color.TRANSPARENT)
-                        setStroke(3, if (selected) themeCoordinator.primaryColor else themeCoordinator.textColor)
-                    }
-                }
-            }
-
-            val bubbleRow = createSettingsRow("🔮", "3D look", "Inflated tactile 3D buttons & soft depth shadows", styleRadio(isBubble))
-            bubbleRow.setOnClickListener {
-                sharedPrefs.edit().putString("ui_style", "BUBBLE").apply()
-                themeCoordinator.applyThemeCoordinates()
-                navigateToPanel(AppPanel.SETTINGS)
-            }
-            styleCard.addView(bubbleRow)
-            styleCard.addView(createDivider())
-
-            val glassRow = createSettingsRow("\u2728", getString(R.string.style_glass), getString(R.string.style_glass_sub), styleRadio(isGlass))
-            glassRow.setOnClickListener {
-                sharedPrefs.edit().putString("ui_style", "GLASS").apply()
-                themeCoordinator.applyThemeCoordinates()
-                navigateToPanel(AppPanel.SETTINGS)
-            }
-            styleCard.addView(glassRow)
-            styleCard.addView(createDivider())
-            val classicRow = createSettingsRow("\u25A6", getString(R.string.style_classic), getString(R.string.style_classic_sub), styleRadio(!isGlass && !isBubble))
-            classicRow.setOnClickListener {
-                sharedPrefs.edit().putString("ui_style", "CLASSIC").apply()
-                themeCoordinator.applyThemeCoordinates()
-                navigateToPanel(AppPanel.SETTINGS)
-            }
-            styleCard.addView(classicRow)
-            layout.addView(styleCard)
-
-            layout.addView(createSectionLabel("ACCENT COLORS"))
-
-            val randomAccentCard = createSettingsCard()
-            val randomAccentRow = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(16), dp(16), dp(16), dp(16))
-                isClickable = true
-                isFocusable = true
-                setOnClickListener { applyRandomBothHues() }
-            }
-            val randomAccentIcon = TextView(this).apply {
-                text = "\uD83C\uDFB2"
-                textSize = 24f
-                gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
-                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(tintedColor(themeCoordinator.primaryColor, 30)) }
-            }
-            randomAccentRow.addView(randomAccentIcon)
-            val randomAccentText = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                setPadding(dp(16), 0, dp(8), 0)
-            }
-            randomAccentText.addView(TextView(this).apply {
-                text = getString(R.string.randomize_accents)
-                setTextColor(themeCoordinator.textColor)
-                textSize = 14f
-                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            })
-            randomAccentText.addView(TextView(this).apply {
-                text = getString(R.string.randomize_sub)
-                setTextColor(themeCoordinator.textColor)
-                alpha = 0.5f
-                textSize = 11f
-                typeface = Typeface.create("sans-serif", Typeface.NORMAL)
-                setPadding(0, 2, 0, 0)
-            })
-            randomAccentRow.addView(randomAccentText)
-            randomAccentRow.addView(TextView(this).apply {
-                text = "\u21BA"
-                setTextColor(themeCoordinator.textColor)
-                textSize = 20f
-            })
-            randomAccentCard.addView(randomAccentRow)
-            layout.addView(randomAccentCard)
-
-            val spectrumColors = IntArray(9)
-            for (i in 0..8) { spectrumColors[i] = Color.HSVToColor(floatArrayOf((i * 45).toFloat(), 0.85f, 0.85f)) }
-            val spectrumTrack = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, spectrumColors).apply { cornerRadius = 15f }
-
-            val focusCard = createSettingsCard()
-
-            val focusHeaderRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(18), dp(14), dp(18), dp(14)) }
-            val focusHeaderColumn = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) }
-            focusHeaderColumn.addView(TextView(this).apply { text = getString(R.string.focus_accent); setTextColor(themeCoordinator.primaryColor); textSize = 12f; letterSpacing = 0.15f; typeface = Typeface.create("sans-serif-medium", Typeface.BOLD) })
-            focusHeaderColumn.addView(TextView(this).apply { text = getString(R.string.adjust_hue_hint); setTextColor(themeCoordinator.textColor); alpha = 0.5f; textSize = 11f; typeface = Typeface.create("sans-serif", Typeface.NORMAL) })
-            focusHeaderRow.addView(focusHeaderColumn)
-            val focusToggle = SwitchMaterial(this).apply {
-                isChecked = showFocusHueBar
-                setOnCheckedChangeListener { _, isChecked ->
-                    showFocusHueBar = isChecked
-                    navigateToPanel(AppPanel.SETTINGS)
-                }
-            }
-            focusHeaderRow.addView(focusToggle)
-            focusCard.addView(focusHeaderRow)
-
-            val currentHue = sharedPrefs.safeInt("customHue", 200)
-            if (showFocusHueBar) {
-                val primaryHueValue = TextView(this).apply {
-                    text = "${currentHue}\u00B0"
-                    setTextColor(themeCoordinator.primaryColor)
-                    textSize = 18f
-                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                    setPadding(dp(18), 0, dp(18), 0)
-                }
-                focusCard.addView(primaryHueValue)
-
-                val primaryHueBar = SeekBar(this).apply {
-                    max = 360; progress = currentHue; background = spectrumTrack
-                    setPadding(dp(14), dp(10), dp(14), dp(10))
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(dp(8), dp(8), dp(8), dp(12)) }
-                    setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                        override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                            primaryHueValue.text = "${progress}\u00B0"
-                            val color = Color.HSVToColor(floatArrayOf(progress.toFloat(), 0.65f, 0.95f))
-                            themeCoordinator.primaryColor = color
-                            primaryHueValue.setTextColor(color)
-                        }
-                        override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-                        override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                            val progress = seekBar?.progress ?: currentHue
-                            val color = Color.HSVToColor(floatArrayOf(progress.toFloat(), 0.65f, 0.95f))
-                            sharedPrefs.edit().putBoolean("dynamic_color", false).putInt("customHue", progress).putInt("customPrimary", color).apply()
-                            themeCoordinator.applyThemeCoordinates()
-                            refreshSettingsPanelPreservingScroll()
-                        }
-                    })
-                }
-                focusCard.addView(primaryHueBar)
-                focusCard.addView(createDivider())
-            }
-
-            val primarySwatchRow = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; setPadding(dp(16), dp(14), dp(16), dp(18))
-            }
-            fun addPrimarySwatch(colorHex: Int, nameStr: String) {
-                val swatchContainer = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
+                // Avatar bubble
+                val avatarCircle = TextView(this).apply {
+                    text = avatarInitials
+                    textSize = 20f
                     gravity = Gravity.CENTER
-                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                }
-                swatchContainer.addView(View(this).apply {
-                    layoutParams = LinearLayout.LayoutParams(dp(32), dp(32))
-                    background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(colorHex) }
-                    setOnClickListener {
-                        val hsv = FloatArray(3)
-                        android.graphics.Color.colorToHSV(colorHex, hsv)
-                        sharedPrefs.edit().putBoolean("dynamic_color", false).putInt("customHue", hsv[0].toInt()).putInt("customPrimary", colorHex).apply()
-                        themeCoordinator.applyThemeCoordinates()
-                        refreshSettingsPanelPreservingScroll()
-                    }
-                })
-                swatchContainer.addView(TextView(this).apply {
-                    text = nameStr
-                    setTextColor(themeCoordinator.textColor)
-                    alpha = 0.5f
-                    textSize = 10f
-                    gravity = Gravity.CENTER
-                    setPadding(0, 6, 0, 0)
-                    maxLines = 1
-                })
-                primarySwatchRow.addView(swatchContainer)
-            }
-            addPrimarySwatch(0xFFFFFFFF.toInt(), getString(R.string.color_white))
-            addPrimarySwatch(0xFFF472B6.toInt(), getString(R.string.color_rose))
-            addPrimarySwatch(0xFFC4B5FD.toInt(), getString(R.string.color_lavender))
-            addPrimarySwatch(0xFF38BDF8.toInt(), getString(R.string.color_sky))
-            addPrimarySwatch(0xFFFB923C.toInt(), getString(R.string.color_orange))
-            addPrimarySwatch(0xFFA7F3D0.toInt(), getString(R.string.color_mint))
-            focusCard.addView(primarySwatchRow)
-            layout.addView(focusCard)
-
-            val breakCard = createSettingsCard()
-
-            val breakHeaderRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(18), dp(14), dp(18), dp(14)) }
-            val breakHeaderColumn = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) }
-            breakHeaderColumn.addView(TextView(this).apply { text = getString(R.string.break_accent); setTextColor(themeCoordinator.secondaryColor); textSize = 12f; letterSpacing = 0.15f; typeface = Typeface.create("sans-serif-medium", Typeface.BOLD) })
-            breakHeaderColumn.addView(TextView(this).apply { text = getString(R.string.adjust_hue_hint); setTextColor(themeCoordinator.textColor); alpha = 0.5f; textSize = 11f; typeface = Typeface.create("sans-serif", Typeface.NORMAL) })
-            breakHeaderRow.addView(breakHeaderColumn)
-            val breakToggle = SwitchMaterial(this).apply {
-                isChecked = showBreakHueBar
-                setOnCheckedChangeListener { _, isChecked ->
-                    showBreakHueBar = isChecked
-                    navigateToPanel(AppPanel.SETTINGS)
-                }
-            }
-            breakHeaderRow.addView(breakToggle)
-            breakCard.addView(breakHeaderRow)
-
-            val currentSecHue = sharedPrefs.safeInt("customSecondaryHue", 330)
-            if (showBreakHueBar) {
-                val secondaryHueValue = TextView(this).apply {
-                    text = "${currentSecHue}\u00B0"
-                    setTextColor(themeCoordinator.secondaryColor)
-                    textSize = 18f
-                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                    setPadding(dp(18), 0, dp(18), 0)
-                }
-                breakCard.addView(secondaryHueValue)
-
-                val secondaryHueBar = SeekBar(this).apply {
-                    max = 360; progress = currentSecHue; background = spectrumTrack
-                    setPadding(dp(14), dp(10), dp(14), dp(10))
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(dp(8), dp(8), dp(8), dp(12)) }
-                    setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                        override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                            secondaryHueValue.text = "${progress}\u00B0"
-                            val color = Color.HSVToColor(floatArrayOf(progress.toFloat(), 0.65f, 0.95f))
-                            themeCoordinator.secondaryColor = color
-                            secondaryHueValue.setTextColor(color)
-                        }
-                        override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-                        override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                            val progress = seekBar?.progress ?: currentSecHue
-                            val color = Color.HSVToColor(floatArrayOf(progress.toFloat(), 0.65f, 0.95f))
-                            sharedPrefs.edit().putBoolean("dynamic_color", false).putInt("customSecondaryHue", progress).putInt("customSecondary", color).apply()
-                            themeCoordinator.applyThemeCoordinates()
-                            refreshSettingsPanelPreservingScroll()
-                        }
-                    })
-                }
-                breakCard.addView(secondaryHueBar)
-                breakCard.addView(createDivider())
-            }
-
-            val secondarySwatchRow = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; setPadding(dp(16), dp(14), dp(16), dp(18))
-            }
-            fun addSecondarySwatch(colorHex: Int, nameStr: String) {
-                val swatchContainer = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    gravity = Gravity.CENTER
-                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                }
-                swatchContainer.addView(View(this).apply {
-                    layoutParams = LinearLayout.LayoutParams(dp(32), dp(32))
-                    background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(colorHex) }
-                    setOnClickListener {
-                        val hsv = FloatArray(3)
-                        android.graphics.Color.colorToHSV(colorHex, hsv)
-                        sharedPrefs.edit().putBoolean("dynamic_color", false).putInt("customSecondaryHue", hsv[0].toInt()).putInt("customSecondary", colorHex).apply()
-                        themeCoordinator.applyThemeCoordinates()
-                        refreshSettingsPanelPreservingScroll()
-                    }
-                })
-                swatchContainer.addView(TextView(this).apply {
-                    text = nameStr
-                    setTextColor(themeCoordinator.textColor)
-                    alpha = 0.5f
-                    textSize = 10f
-                    gravity = Gravity.CENTER
-                    setPadding(0, 6, 0, 0)
-                    maxLines = 1
-                })
-                secondarySwatchRow.addView(swatchContainer)
-            }
-            addSecondarySwatch(0xFFF472B6.toInt(), "Rose")
-            addSecondarySwatch(0xFFFBBF24.toInt(), "Gold")
-            addSecondarySwatch(0xFFA78BFA.toInt(), "Violet")
-            addSecondarySwatch(0xFF34D399.toInt(), "Emerald")
-            addSecondarySwatch(0xFFF87171.toInt(), "Coral")
-            breakCard.addView(secondarySwatchRow)
-            layout.addView(breakCard)
-        } else if (currentSettingsTab == AppSettingsTab.PROFILE) {
-            layout.addView(createSectionLabel("ACCOUNT & PROFILE"))
-            val profileCard = createSettingsCard()
-            val profileContent = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(dp(18), dp(18), dp(18), dp(18))
-            }
-
-            val userEmail = AuthManager.getUserEmail(this@with)
-            val userName = AuthManager.getUserName(this@with)
-            val profileImageUriStr = AuthManager.getProfileImageUri(this@with)
-
-            // Avatar Container Frame (92dp x 92dp)
-            val avatarFrame = FrameLayout(this).apply {
-                layoutParams = LinearLayout.LayoutParams(dp(92), dp(92)).apply {
-                    gravity = Gravity.CENTER_HORIZONTAL
-                    bottomMargin = dp(14)
-                }
-            }
-
-            var avatarBitmap: android.graphics.Bitmap? = null
-            if (!profileImageUriStr.isNullOrEmpty()) {
-                try {
-                    if (profileImageUriStr.startsWith("http://") || profileImageUriStr.startsWith("https://")) {
-                        Thread {
-                            try {
-                                val url = URL(profileImageUriStr)
-                                val conn = url.openConnection() as HttpURLConnection
-                                conn.connectTimeout = 5000
-                                conn.readTimeout = 5000
-                                val bmp = android.graphics.BitmapFactory.decodeStream(conn.inputStream)
-                                if (bmp != null) {
-                                    runOnUiThread {
-                                        val avatarImgView = avatarFrame.findViewById<android.widget.ImageView>(1001)
-                                        if (avatarImgView != null) {
-                                            avatarImgView.setImageBitmap(bmp)
-                                        }
-                                    }
-                                }
-                            } catch (_: Exception) {}
-                        }.start()
-                    } else if (profileImageUriStr.startsWith("data:image")) {
-                        val base64Data = profileImageUriStr.substringAfter("base64,")
-                        val decodedBytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
-                        avatarBitmap = android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
-                    } else {
-                        val uri = android.net.Uri.parse(profileImageUriStr)
-                        val source = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                            android.graphics.ImageDecoder.createSource(contentResolver, uri)
-                        } else null
-                        avatarBitmap = if (source != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                            android.graphics.ImageDecoder.decodeBitmap(source)
-                        } else {
-                            @Suppress("DEPRECATION")
-                            android.provider.MediaStore.Images.Media.getBitmap(contentResolver, uri)
-                        }
-                    }
-                } catch (_: Exception) {}
-            }
-
-            if (avatarBitmap != null || (profileImageUriStr != null && (profileImageUriStr.startsWith("http://") || profileImageUriStr.startsWith("https://")))) {
-                val avatarImg = android.widget.ImageView(this).apply {
-                    id = 1001
-                    if (avatarBitmap != null) setImageBitmap(avatarBitmap)
-                    scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
-                    background = GradientDrawable().apply {
-                        shape = GradientDrawable.OVAL
-                        setColor(themeCoordinator.primaryColor)
-                    }
-                    clipToOutline = true
-                    outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
-                    layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
-                }
-                avatarFrame.addView(avatarImg)
-            } else {
-                val avatarText = TextView(this).apply {
-                    text = if (!userName.isNullOrBlank()) userName.take(1).uppercase() else if (!userEmail.isNullOrBlank()) userEmail.take(1).uppercase() else "G"
-                    textSize = 38f
-                    typeface = Typeface.DEFAULT_BOLD
                     setTextColor(Color.WHITE)
-                    gravity = Gravity.CENTER
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                     background = GradientDrawable().apply {
                         shape = GradientDrawable.OVAL
-                        setColor(themeCoordinator.primaryColor)
+                        setColor(if (isGoogleAuth) themeCoordinator.primaryColor else Color.parseColor("#475569"))
                     }
-                    layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+                    layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
                 }
-                avatarFrame.addView(avatarText)
-            }
+                profileRow.addView(avatarCircle)
 
-            // Camera / Edit Overlay Badge
-            val cameraBadge = TextView(this).apply {
-                text = "📷"
-                textSize = 14f
-                gravity = Gravity.CENTER
-                background = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL
-                    setColor(tintedColor(Color.BLACK, 160))
+                val profileTextCol = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    setPadding(dp(14), 0, dp(10), 0)
                 }
-                layoutParams = FrameLayout.LayoutParams(dp(28), dp(28), Gravity.BOTTOM or Gravity.END)
-                setOnClickListener {
-                    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                        addCategory(Intent.CATEGORY_OPENABLE)
-                        type = "image/*"
-                    }
-                    avatarImagePickerLauncher.launch(intent)
-                }
-            }
-            avatarFrame.addView(cameraBadge)
-
-            avatarFrame.setOnClickListener {
-                showExpandedAvatarDialog()
-            }
-            profileContent.addView(avatarFrame)
-
-            // Name Row (Tapping username opens change account name dialog)
-            val nameRow = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
-            }
-            val nameView = TextView(this).apply {
-                text = if (AuthManager.isGuest(this@with)) "Guest Account" else (userName ?: userEmail ?: "Study User")
-                textSize = 20f
-                typeface = Typeface.DEFAULT_BOLD
-                setTextColor(themeCoordinator.textColor)
-            }
-            nameRow.addView(nameView)
-
-            if (!AuthManager.isGuest(this@with)) {
-                nameRow.setOnClickListener {
-                    showEditNameDialog()
-                }
-            }
-            profileContent.addView(nameRow)
-
-            val emailView = TextView(this).apply {
-                text = if (AuthManager.isGuest(this@with)) "Sign in to back up your habits & analytics" else (userEmail ?: "")
-                textSize = 13f
-                setTextColor(themeCoordinator.textColor)
-                alpha = 0.6f
-                gravity = Gravity.CENTER
-                setPadding(0, dp(4), 0, dp(14))
-            }
-            profileContent.addView(emailView)
-
-            // Action buttons
-            val btnAuthAction = Button(this).apply {
-                text = if (AuthManager.isGuest(this@with)) "Sign In with Google" else "Sign Out"
-                setTextColor(Color.WHITE)
-                textSize = 13f
-                typeface = Typeface.DEFAULT_BOLD
-                setPadding(dp(12), dp(6), dp(12), dp(6))
-                background = GradientDrawable().apply {
-                    setColor(if (AuthManager.isGuest(this@with)) Color.parseColor("#6B7CFF") else Color.parseColor("#E53E3E"))
-                    cornerRadius = dp(10).toFloat()
-                }
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(42))
-                setOnClickListener {
-                    if (AuthManager.isGuest(this@with)) {
-                        AuthManager.logout(this@with)
-                        val intent = Intent(this@with, LoginActivity::class.java)
-                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                        startActivity(intent)
-                    } else {
-                        showSignOutConfirmDialog()
-                    }
-                }
-            }
-            profileContent.addView(btnAuthAction)
-
-            if (!AuthManager.isGuest(this@with)) {
-                val btnRestoreCloud = Button(this).apply {
-                    text = "📥 Restore Data from Cloud"
+                profileTextCol.addView(TextView(this).apply {
+                    text = userName
                     setTextColor(themeCoordinator.textColor)
+                    textSize = 16f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                })
+
+                val authStatusRow = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(0, dp(2), 0, 0)
+                }
+                val statusDot = View(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(dp(7), dp(7)).apply {
+                        setMargins(0, 0, dp(6), 0)
+                    }
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(if (isGoogleAuth) Color.parseColor("#10B981") else Color.parseColor("#F59E0B"))
+                    }
+                }
+                authStatusRow.addView(statusDot)
+                authStatusRow.addView(TextView(this).apply {
+                    text = if (isGoogleAuth) "${userEmail ?: "Connected"} • Cloud Sync Active" else "Guest / Offline Mode — Tap to Sign In"
+                    setTextColor(themeCoordinator.textColor)
+                    alpha = 0.65f
+                    textSize = 12f
+                })
+                profileTextCol.addView(authStatusRow)
+                profileRow.addView(profileTextCol)
+
+                val editProfileBadge = TextView(this).apply {
+                    text = if (isGoogleAuth) "Manage ›" else "Sign In ›"
+                    setTextColor(if (isGoogleAuth) themeCoordinator.primaryColor else Color.parseColor("#38BDF8"))
                     textSize = 12.5f
-                    typeface = Typeface.DEFAULT_BOLD
-                    setPadding(dp(12), dp(6), dp(12), dp(6))
-                    background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 10f)
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(40)).apply {
-                        setMargins(0, dp(12), 0, 0)
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    background = themeCoordinator.createGlassChip(tintedColor(if (isGoogleAuth) themeCoordinator.primaryColor else Color.parseColor("#38BDF8"), 40), 14f)
+                    setPadding(dp(10), dp(6), dp(10), dp(6))
+                }
+                profileRow.addView(editProfileBadge)
+                profileTopCard.addView(profileRow)
+                layout.addView(profileTopCard)
+
+                // --- CATEGORIZED NAVIGATION CARDS ---
+                fun createHubCard(icon: String, title: String, subtitle: String, targetTab: AppSettingsTab): View {
+                    val card = createSettingsCard()
+                    val chevron = TextView(this).apply {
+                        text = "›"
+                        textSize = 22f
+                        setTextColor(themeCoordinator.textColor)
+                        alpha = 0.35f
+                        setPadding(dp(8), 0, 0, 0)
+                    }
+                    val row = createSettingsRow(icon, title, subtitle, chevron)
+                    row.isClickable = true
+                    row.isFocusable = true
+                    row.setOnClickListener {
+                        currentSettingsTab = targetTab
+                        navigateToPanel(AppPanel.SETTINGS)
+                    }
+                    card.addView(row)
+                    return card
+                }
+
+                val focusMins = sharedPrefs.safeLong("study_interval_minutes", 25L)
+                val breakMins = sharedPrefs.safeLong("break_interval_minutes", 5L)
+                val timerSub = "Focus: ${focusMins}m  •  Break: ${breakMins}m  •  ${timerMode.lowercase().capitalize(Locale.ROOT)} Mode"
+
+                val isAmbienceOn = sharedPrefs.safeBoolean("enable_ambient_sounds", false)
+                val ambTrack = sharedPrefs.getString("ambient_sound_type", "RAIN") ?: "Rain"
+                val ambVol = sharedPrefs.getInt("ambient_sound_volume", 50)
+                val ambienceSub = if (isAmbienceOn) "${ambTrack.capitalize(Locale.ROOT)} Active • ${ambVol}% Volume" else "Ambient Soundscapes & Completion Alerts"
+
+                val dailyGoalSecs = sharedPrefs.getLong("daily_goal_secs", 7200L)
+                val analyticsSub = "Target: ${formatGoalLabel(dailyGoalSecs)} • Heatmap & Breakdown Filters"
+
+                val cloudSub = if (isGoogleAuth) "Connected: $userEmail • Supabase Sync" else "Sign In, Backup & Cloud Restore"
+
+                val themeSub = "${themeCoordinator.activeBgMode.capitalize(Locale.ROOT)} Palette • ${if (themeCoordinator.isGlassStyle()) "Glass" else "Standard"} Style"
+
+                layout.addView(createSectionLabel("CONFIGURATION CATEGORIES"))
+                layout.addView(createHubCard("⏱️", "Timer & Focus Controls", timerSub, AppSettingsTab.TIMER))
+                layout.addView(createHubCard("🎧", "Sound & Ambience", ambienceSub, AppSettingsTab.AMBIENCE))
+                layout.addView(createHubCard("📊", "Analytics & Goals", analyticsSub, AppSettingsTab.ANALYTICS))
+                layout.addView(createHubCard("☁️", "Cloud, Sync & Backups", cloudSub, AppSettingsTab.CLOUD))
+                layout.addView(createHubCard("🎨", "Theme & Appearance", themeSub, AppSettingsTab.THEME))
+
+                if (isDevModeUnlocked) {
+                    layout.addView(createSectionLabel("DEVELOPER SUITE"))
+                    layout.addView(createHubCard("🛠️", "Developer & Advanced", "Mock Data Generator, State & Schema Inspector", AppSettingsTab.DEVELOPER))
+                }
+
+                layout.addView(createSectionLabel("ABOUT & SUPPORT"))
+                val aboutCard = createSettingsCard()
+                val guideRow = createSettingsRow("📖", "How to Use / App Guide", "View complete feature walkthrough & tips")
+                guideRow.setOnClickListener { showAppGuideDialog() }
+                aboutCard.addView(guideRow)
+                aboutCard.addView(createDivider())
+
+                val feedbackRow = createSettingsRow("💬", "Report a Problem & Feedback", "Send bug reports, logs, or feature requests")
+                feedbackRow.setOnClickListener { showFeedbackReportDialog() }
+                aboutCard.addView(feedbackRow)
+                aboutCard.addView(createDivider())
+
+                var versionTapCount = 0
+                val versionRow = createSettingsRow("📋", getString(R.string.version_label), "v${currentVersionName()} • build ${currentVersionCodeLong()}")
+                versionRow.setOnClickListener {
+                    versionTapCount++
+                    if (versionTapCount >= 5) {
+                        isDevModeUnlocked = true
+                        Toast.makeText(this, getString(R.string.toast_dev_config_enabled), Toast.LENGTH_SHORT).show()
+                        navigateToPanel(AppPanel.SETTINGS)
+                    }
+                }
+                aboutCard.addView(versionRow)
+                layout.addView(aboutCard)
+            }
+
+            // ==========================================
+            // 2. USER PROFILE MANAGEMENT SUB-SCREEN
+            // ==========================================
+            else if (currentSettingsTab == AppSettingsTab.PROFILE) {
+                layout.addView(createSectionLabel("ACCOUNT & PROFILE"))
+                val profileCard = createSettingsCard()
+                val isGoogleAuth = AuthManager.isLoggedIn(this)
+                val userName = AuthManager.getUserName(this) ?: if (isGoogleAuth) "Google Account User" else "Guest Learner"
+                val userEmail = AuthManager.getUserEmail(this) ?: "Offline / Not Signed In"
+
+                val profileContent = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(dp(18), dp(18), dp(18), dp(18))
+                }
+
+                val avatarHeader = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(0, 0, 0, dp(16))
+                }
+                val avatarBigCircle = TextView(this).apply {
+                    text = userName.take(1).uppercase(Locale.ROOT).ifEmpty { "G" }
+                    textSize = 24f
+                    gravity = Gravity.CENTER
+                    setTextColor(Color.WHITE)
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(if (isGoogleAuth) themeCoordinator.primaryColor else Color.parseColor("#475569"))
+                    }
+                    layoutParams = LinearLayout.LayoutParams(dp(56), dp(56))
+                }
+                avatarHeader.addView(avatarBigCircle)
+
+                val nameCol = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(dp(16), 0, 0, 0)
+                }
+                nameCol.addView(TextView(this).apply {
+                    text = userName
+                    setTextColor(themeCoordinator.textColor)
+                    textSize = 17f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                })
+                nameCol.addView(TextView(this).apply {
+                    text = if (isGoogleAuth) userEmail else "Guest Mode • Sign in to backup data"
+                    setTextColor(themeCoordinator.textColor)
+                    alpha = 0.55f
+                    textSize = 13f
+                    setPadding(0, dp(2), 0, 0)
+                })
+                avatarHeader.addView(nameCol)
+                profileContent.addView(avatarHeader)
+
+                if (!isGoogleAuth) {
+                    val signInCard = LinearLayout(this).apply {
+                        orientation = LinearLayout.VERTICAL
+                        background = themeCoordinator.createGlassChip(tintedColor(Color.parseColor("#4285F4"), 50), 16f)
+                        setPadding(dp(16), dp(14), dp(16), dp(14))
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                            setMargins(0, dp(6), 0, dp(12))
+                        }
+                    }
+                    signInCard.addView(TextView(this).apply {
+                        text = "🔒 Cloud Sync & History Protection"
+                        setTextColor(themeCoordinator.textColor)
+                        textSize = 14f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    })
+                    signInCard.addView(TextView(this).apply {
+                        text = "Sign in with your Google account to automatically backup study logs, restore progress across devices, and prevent data loss."
+                        setTextColor(themeCoordinator.textColor)
+                        alpha = 0.65f
+                        textSize = 12f
+                        setPadding(0, dp(4), 0, dp(12))
+                    })
+                    val googleBtn = Button(this).apply {
+                        text = "Sign In with Google"
+                        setTextColor(Color.WHITE)
+                        textSize = 13.5f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        background = GradientDrawable().apply {
+                            cornerRadius = dp(12).toFloat()
+                            setColor(Color.parseColor("#4285F4"))
+                        }
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46))
+                        setOnClickListener {
+                            startActivity(Intent(this@with, LoginActivity::class.java))
+                        }
+                    }
+                    signInCard.addView(googleBtn)
+                    profileContent.addView(signInCard)
+                } else {
+                    val editNameField = EditText(this).apply {
+                        hint = "Edit Display Name"
+                        setText(userName)
+                        setTextColor(themeCoordinator.textColor)
+                        setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
+                        textSize = 13.5f
+                        background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 35), 12f)
+                        setPadding(dp(14), dp(10), dp(14), dp(10))
+                    }
+                    profileContent.addView(editNameField)
+
+                    val saveNameBtn = Button(this).apply {
+                        text = "Save Profile Name"
+                        setTextColor(Color.WHITE)
+                        textSize = 12.5f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        background = themeCoordinator.createButtonBackground(themeCoordinator.primaryColor)
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(42)).apply {
+                            setMargins(0, dp(10), 0, 0)
+                        }
+                        setOnClickListener {
+                            val newName = editNameField.text.toString().trim()
+                            if (newName.isNotEmpty()) {
+                                AuthManager.updateUserName(this@with, newName)
+                                Toast.makeText(this@with, "Profile updated!", Toast.LENGTH_SHORT).show()
+                                navigateToPanel(AppPanel.SETTINGS)
+                            }
+                        }
+                    }
+                    profileContent.addView(saveNameBtn)
+
+                    val logoutBtn = TextView(this).apply {
+                        text = "Sign Out from Google Account"
+                        setTextColor(Color.parseColor("#EF4444"))
+                        textSize = 13f
+                        gravity = Gravity.CENTER
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        setPadding(0, dp(18), 0, dp(4))
+                        setOnClickListener {
+                            AuthManager.logout(this@with)
+                            Toast.makeText(this@with, "Signed out successfully", Toast.LENGTH_SHORT).show()
+                            navigateToPanel(AppPanel.SETTINGS)
+                        }
+                    }
+                    profileContent.addView(logoutBtn)
+                }
+
+                profileCard.addView(profileContent)
+                layout.addView(profileCard)
+
+                layout.addView(createSectionLabel("PRIVACY & DATA OWNERSHIP"))
+                val privacyCard = createSettingsCard().apply {
+                    val pRow = LinearLayout(this@with).apply {
+                        orientation = LinearLayout.VERTICAL
+                        setPadding(dp(18), dp(14), dp(18), dp(14))
+                    }
+                    pRow.addView(TextView(this@with).apply {
+                        text = "🔒 Privacy-First App"
+                        setTextColor(themeCoordinator.textColor)
+                        textSize = 14f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    })
+                    pRow.addView(TextView(this@with).apply {
+                        text = "No private notes, task titles, contacts, microphone, or hardware fingerprints are collected. Anonymous ID: ${AppAnalytics.getAnonymousId(this@with).take(8)}..."
+                        setTextColor(themeCoordinator.textColor)
+                        alpha = 0.6f
+                        textSize = 11.5f
+                        setPadding(0, dp(4), 0, 0)
+                    })
+                    addView(pRow)
+                }
+                layout.addView(privacyCard)
+            }
+
+            // ==========================================
+            // 3. TIMER & FOCUS CONTROLS SUB-SCREEN
+            // ==========================================
+            else if (currentSettingsTab == AppSettingsTab.TIMER) {
+                layout.addView(createSectionLabel("TIMER OPERATION MODE"))
+                val timerModeCard = createSettingsCard()
+                val isLecture = timerMode == "LECTURE"
+                val isStopwatch = timerMode == "STOPWATCH"
+                val isCountdown = timerMode == "COUNTDOWN"
+                val isSubject = timerMode == "SUBJECT"
+
+                fun modeRadio(selected: Boolean): View {
+                    return View(this).apply {
+                        layoutParams = LinearLayout.LayoutParams(dp(18), dp(18))
+                        background = GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL
+                            setColor(if (selected) themeCoordinator.primaryColor else Color.TRANSPARENT)
+                            setStroke(dp(2), if (selected) themeCoordinator.primaryColor else themeCoordinator.textColor)
+                        }
+                    }
+                }
+
+                val stopwatchRow = createSettingsRow("⏱️", getString(R.string.mode_stopwatch), getString(R.string.mode_stopwatch_sub), modeRadio(isStopwatch))
+                stopwatchRow.setOnClickListener {
+                    sharedPrefs.edit().putString("timer_mode", "STOPWATCH").putBoolean("lecture_mode_enabled", false).apply()
+                    timerMode = "STOPWATCH"
+                    navigateToPanel(AppPanel.SETTINGS)
+                }
+                timerModeCard.addView(stopwatchRow)
+                timerModeCard.addView(createDivider())
+
+                val countdownRow = createSettingsRow("⏳", getString(R.string.mode_pomodoro), getString(R.string.mode_pomodoro_sub), modeRadio(isCountdown))
+                countdownRow.setOnClickListener {
+                    sharedPrefs.edit().putString("timer_mode", "COUNTDOWN").putBoolean("lecture_mode_enabled", false).apply()
+                    timerMode = "COUNTDOWN"
+                    navigateToPanel(AppPanel.SETTINGS)
+                }
+                timerModeCard.addView(countdownRow)
+                timerModeCard.addView(createDivider())
+
+                val subjectRow = createSettingsRow("📚", "Subject-wise Tagging", "Tag and track focus time by dedicated subject", modeRadio(isSubject))
+                subjectRow.setOnClickListener {
+                    sharedPrefs.edit().putString("timer_mode", "SUBJECT").putBoolean("lecture_mode_enabled", false).putBoolean("show_subject_pie_chart", true).apply()
+                    timerMode = "SUBJECT"
+                    navigateToPanel(AppPanel.SETTINGS)
+                }
+                timerModeCard.addView(subjectRow)
+                timerModeCard.addView(createDivider())
+
+                val lectureRow = createSettingsRow("🎓", "Scheduled Lecture Mode", "Auto-tracks focus based on fixed class timetable", modeRadio(isLecture))
+                lectureRow.setOnClickListener {
+                    val isConfigured = !sharedPrefs.getString("lecture_schedules_json", "").isNullOrEmpty() && sharedPrefs.getString("lecture_schedules_json", "[]") != "[]"
+                    sharedPrefs.edit().putString("timer_mode", "LECTURE").putBoolean("lecture_mode_enabled", true).apply()
+                    timerMode = "LECTURE"
+                    if (isConfigured) {
+                        navigateToPanel(AppPanel.FOCUS)
+                    } else {
+                        showLectureScheduleManagerDialog()
+                    }
+                }
+                timerModeCard.addView(lectureRow)
+                layout.addView(timerModeCard)
+
+                // 1. CONDITIONAL POMODORO CUSTOMIZER (Render only when COUNTDOWN / Pomodoro is active)
+                if (timerMode == "COUNTDOWN") {
+                    layout.addView(createSectionLabel("POMODORO INTERVALS & CYCLES"))
+                    val intervalCard = createSettingsCard()
+
+                    fun makeIntervalStepper(title: String, subtitle: String, key: String, defaultVal: Long, minVal: Long, maxVal: Long, stepVal: Long, unit: String): LinearLayout {
+                        val row = LinearLayout(this).apply {
+                            orientation = LinearLayout.HORIZONTAL
+                            gravity = Gravity.CENTER_VERTICAL
+                            setPadding(dp(18), dp(12), dp(18), dp(12))
+                        }
+                        val textCol = LinearLayout(this).apply {
+                            orientation = LinearLayout.VERTICAL
+                            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                        }
+                        textCol.addView(TextView(this).apply {
+                            text = title
+                            setTextColor(themeCoordinator.textColor)
+                            textSize = 14.5f
+                            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        })
+                        textCol.addView(TextView(this).apply {
+                            text = subtitle
+                            setTextColor(themeCoordinator.textColor)
+                            alpha = 0.5f
+                            textSize = 12f
+                            setPadding(0, 2, 0, 0)
+                        })
+                        row.addView(textCol)
+
+                        val valText = TextView(this).apply {
+                            val curVal = sharedPrefs.safeLong(key, defaultVal)
+                            text = "$curVal $unit"
+                            textSize = 14.5f
+                            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                            setTextColor(themeCoordinator.primaryColor)
+                            setPadding(dp(8), 0, dp(8), 0)
+                        }
+
+                        fun makeStepBtn(symbol: String, delta: Long): TextView {
+                            return TextView(this).apply {
+                                text = symbol
+                                textSize = 18f
+                                typeface = Typeface.DEFAULT_BOLD
+                                setTextColor(themeCoordinator.textColor)
+                                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 8f)
+                                setPadding(dp(12), dp(4), dp(12), dp(4))
+                                setOnClickListener {
+                                    val cur = sharedPrefs.safeLong(key, defaultVal)
+                                    val next = max(minVal, Math.min(maxVal, cur + delta))
+                                    val editor = sharedPrefs.edit().putLong(key, next)
+                                    if (key == "study_interval_minutes") {
+                                        editor.putLong("focus_countdown_secs", next * 60L)
+                                    }
+                                    editor.apply()
+                                    valText.text = "$next $unit"
+                                }
+                            }
+                        }
+
+                        val ctrlLayout = LinearLayout(this).apply {
+                            orientation = LinearLayout.HORIZONTAL
+                            gravity = Gravity.CENTER_VERTICAL
+                        }
+                        ctrlLayout.addView(makeStepBtn("−", -stepVal))
+                        ctrlLayout.addView(valText)
+                        ctrlLayout.addView(makeStepBtn("+", stepVal))
+                        row.addView(ctrlLayout)
+                        return row
+                    }
+
+                    intervalCard.addView(makeIntervalStepper("Focus Duration", "Length of active study intervals", "study_interval_minutes", 25L, 5L, 120L, 5L, "min"))
+                    intervalCard.addView(createDivider())
+                    intervalCard.addView(makeIntervalStepper("Short Break Duration", "Rest period between standard intervals", "break_interval_minutes", 5L, 1L, 30L, 1L, "min"))
+                    intervalCard.addView(createDivider())
+                    intervalCard.addView(makeIntervalStepper("Long Break Duration", "Extended rest after completing a cycle", "long_break_minutes", 15L, 5L, 60L, 5L, "min"))
+                    intervalCard.addView(createDivider())
+                    intervalCard.addView(makeIntervalStepper("Long Break Interval", "Number of focus sessions before a long break", "long_break_interval", 4L, 2L, 10L, 1L, "sessions"))
+                    layout.addView(intervalCard)
+                }
+
+                layout.addView(createSectionLabel("DISPLAY & SCREEN BEHAVIORS"))
+                val displayCard = createSettingsCard()
+                val isKeepScreenOn = sharedPrefs.getBoolean("keep_screen_on", true)
+                val keepScreenOnSwitch = SwitchMaterial(this).apply {
+                    isChecked = isKeepScreenOn
+                    setOnCheckedChangeListener { _, isChecked ->
+                        sharedPrefs.edit().putBoolean("keep_screen_on", isChecked).apply()
+                        updateKeepScreenOn()
+                    }
+                }
+                displayCard.addView(createSettingsRow("💡", getString(R.string.keep_screen_on), getString(R.string.keep_screen_on_sub), keepScreenOnSwitch))
+                displayCard.addView(createDivider())
+
+                val isPauseButtonEnabled = sharedPrefs.getBoolean("show_pause_button", true)
+                val pauseButtonSwitch = SwitchMaterial(this).apply {
+                    isChecked = isPauseButtonEnabled
+                    setOnCheckedChangeListener { _, isChecked ->
+                        sharedPrefs.edit().putBoolean("show_pause_button", isChecked).apply()
+                        if (currentPanel == AppPanel.FOCUS) updateVisualStyles()
+                    }
+                }
+                displayCard.addView(createSettingsRow("⏸️", getString(R.string.pause_button), getString(R.string.pause_button_sub), pauseButtonSwitch))
+                layout.addView(displayCard)
+            }
+
+            // ==========================================
+            // 4. SOUND & AMBIENCE SUB-SCREEN
+            // ==========================================
+            else if (currentSettingsTab == AppSettingsTab.AMBIENCE) {
+                layout.addView(createSectionLabel("AMBIENT FOCUS SOUNDSCAPES"))
+                val ambientCard = createSettingsCard()
+                val ambientEnabled = sharedPrefs.safeBoolean("enable_ambient_sounds", false)
+                val ambientSwitch = SwitchMaterial(this).apply {
+                    isChecked = ambientEnabled
+                    setOnCheckedChangeListener { _, isChecked ->
+                        sharedPrefs.edit().putBoolean("enable_ambient_sounds", isChecked).apply()
+                        if (!isChecked) AmbientSoundEngine.stop()
+                    }
+                }
+                ambientCard.addView(createSettingsRow("🎧", "Ambient Focus Soundscapes", "Enable background audio soundscapes during focus sessions", ambientSwitch))
+                ambientCard.addView(createDivider())
+
+                val volRow = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(dp(18), dp(12), dp(18), dp(14))
+                }
+                val curVol = sharedPrefs.getInt("ambient_sound_volume", 50)
+                val volLabel = TextView(this).apply {
+                    text = "🔊 Soundscape Volume: $curVol%"
+                    setTextColor(themeCoordinator.textColor)
+                    textSize = 14f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                }
+                volRow.addView(volLabel)
+                val volSeekBar = SeekBar(this).apply {
+                    max = 100
+                    progress = curVol
+                    setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                        override fun onProgressChanged(sb: SeekBar?, prog: Int, fromUser: Boolean) {
+                            volLabel.text = "🔊 Soundscape Volume: $prog%"
+                            sharedPrefs.edit().putInt("ambient_sound_volume", prog).apply()
+                            AmbientSoundEngine.setVolume(prog / 100f)
+                        }
+                        override fun onStartTrackingTouch(sb: SeekBar?) {}
+                        override fun onStopTrackingTouch(sb: SeekBar?) {}
+                    })
+                }
+                volRow.addView(volSeekBar)
+                ambientCard.addView(volRow)
+                layout.addView(ambientCard)
+            }
+
+            // ==========================================
+            // 5. ANALYTICS & GOALS SUB-SCREEN
+            // ==========================================
+            else if (currentSettingsTab == AppSettingsTab.ANALYTICS) {
+                layout.addView(createSectionLabel("DAILY TARGETS & STREAKS"))
+                val goalCard = createSettingsCard()
+                val goalValueText = TextView(this).apply {
+                    textSize = 15f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    setTextColor(themeCoordinator.primaryColor)
+                    setPadding(dp(8), 0, dp(8), 0)
+                }
+                fun makeGoalStepBtn(symbol: String, stepSecs: Long): TextView {
+                    return TextView(this).apply {
+                        text = symbol
+                        textSize = 20f
+                        typeface = Typeface.DEFAULT_BOLD
+                        setTextColor(themeCoordinator.textColor)
+                        background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 10f)
+                        setPadding(dp(14), dp(4), dp(14), dp(4))
+                        setOnClickListener {
+                            val current = sharedPrefs.getLong("daily_goal_secs", 2700L)
+                            val next = max(900L, current + stepSecs)
+                            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                            sharedPrefs.edit()
+                                .putLong("daily_goal_secs", next)
+                                .putLong("${todayStr}_goal_secs", next)
+                                .apply()
+                            goalValueText.text = formatGoalLabel(next)
+                        }
+                    }
+                }
+                goalValueText.text = formatGoalLabel(sharedPrefs.getLong("daily_goal_secs", 2700L))
+                val goalRow = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(dp(18), dp(14), dp(18), dp(14))
+                }
+                goalRow.addView(TextView(this).apply { text = "🎯"; textSize = 22f; setPadding(0, 0, dp(14), 0) })
+                val goalTextCol = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                }
+                goalTextCol.addView(TextView(this).apply { text = getString(R.string.daily_goal); setTextColor(themeCoordinator.textColor); textSize = 15f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL) })
+                goalTextCol.addView(TextView(this).apply { text = getString(R.string.daily_goal_sub); setTextColor(themeCoordinator.textColor); alpha = 0.5f; textSize = 12f; setPadding(0, 3, 0, 0) })
+                goalRow.addView(goalTextCol)
+                val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+                controls.addView(makeGoalStepBtn("−", -900L))
+                controls.addView(goalValueText)
+                controls.addView(makeGoalStepBtn("+", 900L))
+                goalRow.addView(controls)
+                goalCard.addView(goalRow)
+                goalCard.addView(createDivider())
+
+                val isStreakGoalBased = sharedPrefs.getBoolean("streak_uses_daily_goal", false)
+                val streakGoalSwitch = SwitchMaterial(this).apply {
+                    isChecked = isStreakGoalBased
+                    setOnCheckedChangeListener { _, isChecked ->
+                        sharedPrefs.edit().putBoolean("streak_uses_daily_goal", isChecked).apply()
+                    }
+                }
+                goalCard.addView(createSettingsRow("🔥", getString(R.string.streak_uses_goal), getString(R.string.streak_uses_goal_sub), streakGoalSwitch))
+                layout.addView(goalCard)
+
+                layout.addView(createSectionLabel("INSIGHTS & VISUALIZATION FILTERS"))
+                val chartsCard = createSettingsCard()
+                val isHeatmapEnabled = sharedPrefs.getBoolean("show_focus_heatmap", true)
+                val heatmapSwitch = SwitchMaterial(this).apply {
+                    isChecked = isHeatmapEnabled
+                    setOnCheckedChangeListener { _, isChecked ->
+                        sharedPrefs.edit().putBoolean("show_focus_heatmap", isChecked).apply()
+                    }
+                }
+                chartsCard.addView(createSettingsRow("🗓️", getString(R.string.focus_heatmap_setting), getString(R.string.focus_heatmap_setting_sub), heatmapSwitch))
+                chartsCard.addView(createDivider())
+
+                val isPieChartEnabled = sharedPrefs.safeBoolean("show_subject_pie_chart", true)
+                val pieChartSwitch = SwitchMaterial(this).apply {
+                    isChecked = isPieChartEnabled
+                    setOnCheckedChangeListener { _, isChecked ->
+                        sharedPrefs.edit().putBoolean("show_subject_pie_chart", isChecked).apply()
+                    }
+                }
+                chartsCard.addView(createSettingsRow("📊", "Subject Pie Chart", "Show subject breakdown and focus depth charts in Insights", pieChartSwitch))
+                layout.addView(chartsCard)
+            }
+
+            // ==========================================
+            // 6. CLOUD, SYNC & BACKUPS SUB-SCREEN
+            // ==========================================
+            else if (currentSettingsTab == AppSettingsTab.CLOUD) {
+                layout.addView(createSectionLabel("CLOUD SYNCHRONIZATION"))
+                val cloudCard = createSettingsCard()
+                val isGoogleAuth = AuthManager.isLoggedIn(this)
+                val userEmail = AuthManager.getUserEmail(this) ?: "Not Signed In"
+
+                val authRow = createSettingsRow("☁️", "Cloud Account", userEmail)
+                authRow.setOnClickListener {
+                    if (!isGoogleAuth) {
+                        startActivity(Intent(this, LoginActivity::class.java))
+                    }
+                }
+                cloudCard.addView(authRow)
+                cloudCard.addView(createDivider())
+
+                val syncPushBtn = Button(this).apply {
+                    text = "⬆️ Force Immediate Cloud Push"
+                    setTextColor(Color.WHITE)
+                    textSize = 13f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    background = themeCoordinator.createButtonBackground(themeCoordinator.primaryColor)
+                    setPadding(dp(14), dp(10), dp(14), dp(10))
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44)).apply {
+                        setMargins(dp(16), dp(12), dp(16), dp(6))
                     }
                     setOnClickListener {
                         Thread {
                             kotlinx.coroutines.runBlocking {
-                                val success = CloudSyncManager.restoreDataFromCloud(this@with)
+                                val result = CloudSyncManager.syncDataToCloudDetailed(this@with, force = true)
                                 runOnUiThread {
-                                    if (success) {
-                                        Toast.makeText(this@with, "⚡ Cloud data restored successfully!", Toast.LENGTH_SHORT).show()
+                                    if (result.isSuccess) {
+                                        Toast.makeText(this@with, "☁️ Cloud sync completed successfully!", Toast.LENGTH_SHORT).show()
+                                    } else if (result.isUnauthenticated) {
+                                        Toast.makeText(this@with, "⚠️ Please sign in with your Google account first.", Toast.LENGTH_LONG).show()
+                                    } else {
+                                        Toast.makeText(this@with, "❌ Sync failed: ${result.errorMessage ?: "Check network connection"}", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            }
+                        }.start()
+                    }
+                }
+                cloudCard.addView(syncPushBtn)
+
+                val syncPullBtn = Button(this).apply {
+                    text = "📥 Restore Data from Cloud"
+                    setTextColor(themeCoordinator.textColor)
+                    textSize = 13f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 12f)
+                    setPadding(dp(14), dp(10), dp(14), dp(10))
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44)).apply {
+                        setMargins(dp(16), 0, dp(16), dp(14))
+                    }
+                    setOnClickListener {
+                        Thread {
+                            kotlinx.coroutines.runBlocking {
+                                val ok = CloudSyncManager.restoreDataFromCloud(this@with)
+                                runOnUiThread {
+                                    if (ok) {
+                                        Toast.makeText(this@with, "Cloud data restored successfully!", Toast.LENGTH_SHORT).show()
                                         tabPageCache.clear()
                                         statsDirty = true
                                         navigateToPanel(currentPanel)
@@ -1105,76 +951,343 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         }.start()
                     }
                 }
-                profileContent.addView(btnRestoreCloud)
+                cloudCard.addView(syncPullBtn)
+                layout.addView(cloudCard)
 
-                val btnDeleteAccount = TextView(this).apply {
-                    text = "⚠️ Delete Account & Cloud Data"
-                    setTextColor(Color.parseColor("#EF4444"))
-                    textSize = 12f
-                    gravity = Gravity.CENTER
-                    setPadding(0, dp(14), 0, dp(4))
-                    setOnClickListener {
-                        showDeleteAccountConfirmDialog()
+                layout.addView(createSectionLabel("LOCAL BACKUP & EXPORT"))
+                val dataCard = createSettingsCard()
+                val exportRow = createSettingsRow("📤", getString(R.string.export_logs), getString(R.string.export_logs_sub))
+                exportRow.setOnClickListener {
+                    val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type = "application/json"
+                        val fileDateFormat = SimpleDateFormat("dd_MMM", Locale.getDefault())
+                        putExtra(Intent.EXTRA_TITLE, "backup_${fileDateFormat.format(Date())}.json")
+                    }
+                    exportLauncher.launch(intent)
+                }
+                dataCard.addView(exportRow)
+                dataCard.addView(createDivider())
+
+                val importRow = createSettingsRow("📥", getString(R.string.import_data), getString(R.string.import_data_sub))
+                importRow.setOnClickListener {
+                    val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                        type = "application/json"
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                    }
+                    importLauncher.launch(Intent.createChooser(intent, getString(R.string.select_backup_file)))
+                }
+                dataCard.addView(importRow)
+                dataCard.addView(createDivider())
+
+                val csvRow = createSettingsRow("📊", getString(R.string.export_csv), getString(R.string.export_csv_sub))
+                csvRow.setOnClickListener {
+                    val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type = "text/csv"
+                        val fileDateFormat = SimpleDateFormat("dd_MMM", Locale.getDefault())
+                        putExtra(Intent.EXTRA_TITLE, "study_log_${fileDateFormat.format(Date())}.csv")
+                    }
+                    csvLauncher.launch(intent)
+                }
+                dataCard.addView(csvRow)
+                layout.addView(dataCard)
+            }
+
+            // ==========================================
+            // 7. THEME & APPEARANCE SUB-SCREEN
+            // ==========================================
+            else if (currentSettingsTab == AppSettingsTab.THEME) {
+                layout.addView(createSectionLabel("PALETTE MODE"))
+                val modeCard = createSettingsCard()
+                val isEclipse = themeCoordinator.activeBgMode == "ECLIPSE"
+                val isLight = themeCoordinator.activeBgMode == "LIGHT"
+
+                fun modeRadio(selected: Boolean): View {
+                    return View(this).apply {
+                        layoutParams = LinearLayout.LayoutParams(dp(18), dp(18))
+                        background = GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL
+                            setColor(if (selected) themeCoordinator.primaryColor else Color.TRANSPARENT)
+                            setStroke(dp(2), if (selected) themeCoordinator.primaryColor else themeCoordinator.textColor)
+                        }
                     }
                 }
-                profileContent.addView(btnDeleteAccount)
-            }
-            profileCard.addView(profileContent)
-            layout.addView(profileCard)
 
-            layout.addView(createSectionLabel("PRIVACY & DATA"))
-            val privacyCard = createSettingsCard().apply {
-                val pRow = LinearLayout(this@with).apply {
-                    orientation = LinearLayout.VERTICAL
-                    setPadding(dp(18), dp(14), dp(18), dp(14))
+                val oledRow = createSettingsRow("⬛", getString(R.string.theme_amoled), "Pure pitch AMOLED #000000 background", modeRadio(!isEclipse && !isLight))
+                oledRow.setOnClickListener {
+                    sharedPrefs.edit().putString("activeBgMode", "OLED").apply()
+                    themeCoordinator.applyThemeCoordinates()
+                    navigateToPanel(AppPanel.SETTINGS)
                 }
-                pRow.addView(TextView(this@with).apply {
-                    text = "🔒 Privacy-First App"
-                    setTextColor(themeCoordinator.textColor)
-                    textSize = 14f
-                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                })
-                pRow.addView(TextView(this@with).apply {
-                    text = "No private notes, task titles, contacts, microphone, or hardware fingerprints are collected. Anonymous ID: ${AppAnalytics.getAnonymousId(this@with).take(8)}..."
-                    setTextColor(themeCoordinator.textColor)
-                    alpha = 0.6f
-                    textSize = 11.5f
-                    setPadding(0, dp(4), 0, 0)
-                })
-                addView(pRow)
+                modeCard.addView(oledRow)
+                modeCard.addView(createDivider())
+
+                val eclipseRow = createSettingsRow("🌙", getString(R.string.theme_slate), getString(R.string.theme_slate_sub), modeRadio(isEclipse))
+                eclipseRow.setOnClickListener {
+                    sharedPrefs.edit().putString("activeBgMode", "ECLIPSE").apply()
+                    themeCoordinator.applyThemeCoordinates()
+                    navigateToPanel(AppPanel.SETTINGS)
+                }
+                modeCard.addView(eclipseRow)
+                modeCard.addView(createDivider())
+
+                val lightRow = createSettingsRow("☀️", getString(R.string.theme_light), getString(R.string.theme_light_sub), modeRadio(isLight))
+                lightRow.setOnClickListener {
+                    sharedPrefs.edit().putString("activeBgMode", "LIGHT").apply()
+                    themeCoordinator.applyThemeCoordinates()
+                    navigateToPanel(AppPanel.SETTINGS)
+                }
+                modeCard.addView(lightRow)
+                layout.addView(modeCard)
+
+                layout.addView(createSectionLabel("SURFACE & GLASS STYLING"))
+                val styleCard = createSettingsCard()
+                val isBubble = themeCoordinator.isBubbleStyle()
+                val isGlass = themeCoordinator.isGlassStyle()
+
+                val glassRow = createSettingsRow("✨", getString(R.string.style_glass), getString(R.string.style_glass_sub), modeRadio(isGlass))
+                glassRow.setOnClickListener {
+                    sharedPrefs.edit().putString("ui_style", "GLASS").apply()
+                    themeCoordinator.applyThemeCoordinates()
+                    navigateToPanel(AppPanel.SETTINGS)
+                }
+                styleCard.addView(glassRow)
+                styleCard.addView(createDivider())
+
+                val bubbleRow = createSettingsRow("🔮", "3D Look", "Tactile elevated depth and soft shadows", modeRadio(isBubble))
+                bubbleRow.setOnClickListener {
+                    sharedPrefs.edit().putString("ui_style", "BUBBLE").apply()
+                    themeCoordinator.applyThemeCoordinates()
+                    navigateToPanel(AppPanel.SETTINGS)
+                }
+                styleCard.addView(bubbleRow)
+                styleCard.addView(createDivider())
+
+                val classicRow = createSettingsRow("◽", getString(R.string.style_classic), getString(R.string.style_classic_sub), modeRadio(!isGlass && !isBubble))
+                classicRow.setOnClickListener {
+                    sharedPrefs.edit().putString("ui_style", "CLASSIC").apply()
+                    themeCoordinator.applyThemeCoordinates()
+                    navigateToPanel(AppPanel.SETTINGS)
+                }
+                styleCard.addView(classicRow)
+                layout.addView(styleCard)
+
+                // ==========================================
+                // DUAL FOCUS & BREAK ACCENT COLOR CONTROLS
+                // ==========================================
+                fun makeAccentColorSection(
+                    title: String,
+                    subtitle: String,
+                    prefKey: String,
+                    currentColor: Int,
+                    palette: List<String>,
+                    onColorChanged: (Int) -> Unit
+                ): LinearLayout {
+                    val card = createSettingsCard()
+                    val cardContainer = LinearLayout(this).apply {
+                        orientation = LinearLayout.VERTICAL
+                        setPadding(dp(18), dp(14), dp(18), dp(16))
+                    }
+
+                    val headerRow = LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER_VERTICAL
+                        setPadding(0, 0, 0, dp(12))
+                    }
+
+                    var activeColor = currentColor
+                    val hexStr = String.format("#%06X", 0xFFFFFF and activeColor)
+
+                    val previewCircle = View(this).apply {
+                        layoutParams = LinearLayout.LayoutParams(dp(28), dp(28)).apply {
+                            setMargins(0, 0, dp(12), 0)
+                        }
+                        background = GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL
+                            setColor(activeColor)
+                            setStroke(dp(2), Color.argb(100, 255, 255, 255))
+                        }
+                    }
+                    headerRow.addView(previewCircle)
+
+                    val textCol = LinearLayout(this).apply {
+                        orientation = LinearLayout.VERTICAL
+                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                            minimumHeight = dp(38)
+                        }
+                    }
+                    textCol.addView(TextView(this).apply {
+                        text = title
+                        setTextColor(themeCoordinator.textColor)
+                        textSize = 15f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        setSingleLine(true)
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                    })
+                    val hexLabel = TextView(this).apply {
+                        text = "$subtitle  •  $hexStr"
+                        setTextColor(themeCoordinator.textColor)
+                        alpha = 0.6f
+                        textSize = 12f
+                        setSingleLine(true)
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                        setPadding(0, 2, 0, 0)
+                    }
+                    textCol.addView(hexLabel)
+                    headerRow.addView(textCol)
+                    cardContainer.addView(headerRow)
+
+                    // Curated Aesthetic Soft Swatches Horizontal Scroll
+                    val swatchesScroll = android.widget.HorizontalScrollView(this).apply {
+                        isHorizontalScrollBarEnabled = false
+                        setPadding(0, 0, 0, dp(12))
+                    }
+                    val swatchesLayout = LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                    }
+
+                    val swatchViews = ArrayList<View>()
+
+                    fun refreshSwatchBorders() {
+                        for ((idx, sView) in swatchViews.withIndex()) {
+                            val hex = palette[idx]
+                            val isMatch = String.format("#%06X", 0xFFFFFF and activeColor).equals(hex, ignoreCase = true)
+                            (sView.background as? GradientDrawable)?.apply {
+                                setStroke(dp(2), if (isMatch) Color.WHITE else Color.TRANSPARENT)
+                            }
+                        }
+                    }
+
+                    for (hex in palette) {
+                        val swatchColor = Color.parseColor(hex)
+                        val sView = View(this).apply {
+                            layoutParams = LinearLayout.LayoutParams(dp(32), dp(32)).apply {
+                                setMargins(0, 0, dp(8), 0)
+                            }
+                            background = GradientDrawable().apply {
+                                shape = GradientDrawable.OVAL
+                                setColor(swatchColor)
+                                val isMatch = String.format("#%06X", 0xFFFFFF and activeColor).equals(hex, ignoreCase = true)
+                                setStroke(dp(2), if (isMatch) Color.WHITE else Color.TRANSPARENT)
+                            }
+                            setOnClickListener {
+                                activeColor = swatchColor
+                                (previewCircle.background as? GradientDrawable)?.setColor(activeColor)
+                                val newHex = String.format("#%06X", 0xFFFFFF and activeColor)
+                                hexLabel.text = "$subtitle  •  $newHex"
+                                sharedPrefs.edit().putInt(prefKey, activeColor).apply()
+                                onColorChanged(activeColor)
+                                refreshSwatchBorders()
+                            }
+                        }
+                        swatchViews.add(sView)
+                        swatchesLayout.addView(sView)
+                    }
+                    swatchesScroll.addView(swatchesLayout)
+                    cardContainer.addView(swatchesScroll)
+
+                    // Continuous Hue Bar / Slider (0° - 360°)
+                    val hsv = FloatArray(3)
+                    Color.colorToHSV(activeColor, hsv)
+
+                    val hueLabel = TextView(this).apply {
+                        text = "🎨 Fine-Tune Hue Slider"
+                        setTextColor(themeCoordinator.textColor)
+                        alpha = 0.5f
+                        textSize = 11f
+                        setPadding(0, 0, 0, dp(4))
+                    }
+                    cardContainer.addView(hueLabel)
+
+                    val hueSeekBar = android.widget.SeekBar(this).apply {
+                        max = 360
+                        progress = hsv[0].toInt()
+                        setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                            override fun onProgressChanged(sb: android.widget.SeekBar?, prog: Int, fromUser: Boolean) {
+                                if (!fromUser) return
+                                val colorInt = Color.HSVToColor(floatArrayOf(prog.toFloat(), 0.70f, 0.95f))
+                                activeColor = colorInt
+                                (previewCircle.background as? GradientDrawable)?.setColor(activeColor)
+                                val newHex = String.format("#%06X", 0xFFFFFF and activeColor)
+                                hexLabel.text = "$subtitle  •  $newHex"
+                                sharedPrefs.edit().putInt(prefKey, activeColor).apply()
+                                onColorChanged(activeColor)
+                                refreshSwatchBorders()
+                            }
+                            override fun onStartTrackingTouch(sb: android.widget.SeekBar?) {}
+                            override fun onStopTrackingTouch(sb: android.widget.SeekBar?) {}
+                        })
+                    }
+                    cardContainer.addView(hueSeekBar)
+
+                    card.addView(cardContainer)
+                    return card
+                }
+
+                layout.addView(createSectionLabel("FOCUS SESSION ACCENT COLOR"))
+                val focusColorCard = makeAccentColorSection(
+                    title = "🎯 Focus Accent Color",
+                    subtitle = "Drives focus timer ring & buttons",
+                    prefKey = "customPrimary",
+                    currentColor = themeCoordinator.primaryColor,
+                    palette = ThemeCoordinator.SOFT_FOCUS_PALETTE
+                ) { newColor ->
+                    themeCoordinator.primaryColor = newColor
+                    (settingsBackFab.background as? GradientDrawable)?.setColor(newColor)
+                    updateVisualStyles()
+                    tabPageCache.clear()
+                }
+                layout.addView(focusColorCard)
+
+                layout.addView(createSectionLabel("BREAK SESSION ACCENT COLOR"))
+                val breakColorCard = makeAccentColorSection(
+                    title = "☕ Break Accent Color",
+                    subtitle = "Drives break countdown & status badge",
+                    prefKey = "customSecondary",
+                    currentColor = themeCoordinator.secondaryColor,
+                    palette = ThemeCoordinator.SOFT_BREAK_PALETTE
+                ) { newColor ->
+                    themeCoordinator.secondaryColor = newColor
+                    updateVisualStyles()
+                    tabPageCache.clear()
+                }
+                layout.addView(breakColorCard)
             }
-            layout.addView(privacyCard)
-        }
 
-        val pushToBottomSpacer = View(this).apply { layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f) }
-        layout.addView(pushToBottomSpacer)
+            // ==========================================
+            // 8. DEVELOPER & ADVANCED SUB-SCREEN
+            // ==========================================
+            else if (currentSettingsTab == AppSettingsTab.DEVELOPER) {
+                layout.addView(createSectionLabel("DEVELOPER CONSOLE"))
+                val devCard = DeveloperToolsHelper.buildDevCard(host, themeCoordinator)
+                layout.addView(devCard)
+            }
 
-        val creditsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(0, dp(30), 0, dp(8)); layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT) }
-        creditsContainer.addView(TextView(this).apply { text = getString(R.string.developed_by); setTextColor(themeCoordinator.textColor); textSize = 13f; typeface = Typeface.create("sans-serif-medium", Typeface.BOLD); gravity = Gravity.CENTER })
-        creditsContainer.addView(TextView(this).apply { text = getString(R.string.special_thanks); setTextColor(themeCoordinator.textColor); alpha = 0.4f; textSize = 11f; typeface = Typeface.create("sans-serif", Typeface.NORMAL); gravity = Gravity.CENTER; setPadding(0, dp(2), 0, 0) })
-        layout.addView(creditsContainer)
+            // Push to bottom footer
+            val pushToBottomSpacer = View(this).apply { layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f) }
+            layout.addView(pushToBottomSpacer)
 
-        settingsRootLayout.addView(settingsScrollView)
+            val creditsContainer = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_HORIZONTAL
+                setPadding(0, dp(24), 0, dp(8))
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            }
+            creditsContainer.addView(TextView(this).apply { text = getString(R.string.developed_by); setTextColor(themeCoordinator.textColor); textSize = 13f; typeface = Typeface.create("sans-serif-medium", Typeface.BOLD); gravity = Gravity.CENTER })
+            creditsContainer.addView(TextView(this).apply { text = getString(R.string.special_thanks); setTextColor(themeCoordinator.textColor); alpha = 0.4f; textSize = 11f; typeface = Typeface.create("sans-serif", Typeface.NORMAL); gravity = Gravity.CENTER; setPadding(0, dp(2), 0, 0) })
+            layout.addView(creditsContainer)
 
-        val settingsRoot = FrameLayout(this).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT)
-        }
-        settingsRoot.addView(settingsRootLayout, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+            settingsRootLayout.addView(settingsScrollView)
 
-        val settingsBackFab = TextView(this).apply {
-            text = getString(R.string.btn_back_label)
-            gravity = Gravity.CENTER
-            setTextColor(themeCoordinator.bgColor)
-            textSize = 15f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            background = GradientDrawable().apply { cornerRadius = 50f; setColor(themeCoordinator.primaryColor) }
-            elevation = dp(8).toFloat()
-            setOnClickListener { navigateToPanel(AppPanel.FOCUS) }
-            layoutParams = FrameLayout.LayoutParams(dp(150), dp(54), Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(20), dp(20)) }
-        }
-        settingsRoot.addView(settingsBackFab)
+            val settingsRoot = FrameLayout(this).apply {
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT)
+            }
+            settingsRoot.addView(settingsRootLayout, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
 
-        target.addView(settingsRoot)
+            settingsRoot.addView(settingsBackFab)
+
+            target.addView(settingsRoot)
         }
     }
 }

@@ -99,8 +99,6 @@ class SubjectPieChartView(context: Context) : View(context) {
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        if (slices.isEmpty() || totalVal <= 0.0) return
-
         val w = width.toFloat()
         val h = height.toFloat()
         val cx = w / 2f
@@ -109,6 +107,37 @@ class SubjectPieChartView(context: Context) : View(context) {
         // Pie chart radius tuned to leave ample side margin for 2-line title + time labels
         val radius = min(w, h) * 0.29f
         rectF.set(cx - radius, cy - radius, cx + radius, cy + radius)
+
+        if (slices.isEmpty() || totalVal <= 0.0) {
+            // Elegant Empty / Ready state
+            val emptyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.STROKE
+                strokeWidth = 3f * resources.displayMetrics.density
+                pathEffect = android.graphics.DashPathEffect(floatArrayOf(18f, 14f), 0f)
+                color = Color.argb(45, Color.red(primaryColor), Color.green(primaryColor), Color.blue(primaryColor))
+            }
+            val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.FILL
+                color = Color.argb(18, Color.red(primaryColor), Color.green(primaryColor), Color.blue(primaryColor))
+            }
+            canvas.drawCircle(cx, cy, radius, glowPaint)
+            canvas.drawCircle(cx, cy, radius, emptyPaint)
+
+            val emptyTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.argb(160, 255, 255, 255)
+                textSize = 34f
+                textAlign = Paint.Align.CENTER
+                typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+            }
+            val subTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.argb(100, 255, 255, 255)
+                textSize = 26f
+                textAlign = Paint.Align.CENTER
+            }
+            canvas.drawText("⏱ No session data", cx, cy - 6f, emptyTextPaint)
+            canvas.drawText("Log study time to see breakdown", cx, cy + 34f, subTextPaint)
+            return
+        }
 
         var startAngle = -90f
 

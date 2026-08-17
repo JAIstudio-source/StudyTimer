@@ -5,7 +5,17 @@ import java.util.UUID
 enum class AppPanel { FOCUS, STATS, SETTINGS, HEATMAP }
 enum class TimerState { IDLE, STUDYING, BREAK, PAUSED, LECTURE_ENDED }
 enum class AppStatsTab { OVERVIEW, TIMELINE, PLANNER }
-enum class AppSettingsTab { SIMPLE, THEME, PROFILE }
+enum class AppSettingsTab { 
+    HUB, 
+    TIMER, 
+    AMBIENCE, 
+    ANALYTICS, 
+    CLOUD, 
+    THEME, 
+    PROFILE, 
+    DEVELOPER,
+    SIMPLE // backward compatibility alias
+}
 
 data class PlannerGoal(
     val id: String = java.util.UUID.randomUUID().toString(),

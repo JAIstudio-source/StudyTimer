@@ -10,14 +10,110 @@ import java.net.URL
 
 object CloudSyncManager {
 
-    suspend fun syncDataToCloud(context: Context): Boolean = withContext(Dispatchers.IO) {
+    data class CloudRecordMetadata(
+        val userId: String,
+        val updatedAt: Long,
+        val lastModifiedTimestamp: Long,
+        val schemaVersion: Int,
+        val userName: String,
+        val profileImageUri: String
+    )
+
+    sealed class SyncCheckResult {
+        object UpToDate : SyncCheckResult()
+        object Success : SyncCheckResult()
+        data class Conflict(val localTimestamp: Long, val cloudTimestamp: Long, val cloudRecord: JSONObject) : SyncCheckResult()
+        object NotLoggedIn : SyncCheckResult()
+        data class Error(val message: String) : SyncCheckResult()
+    }
+
+    suspend fun fetchRemoteMetadata(context: Context): Pair<CloudRecordMetadata?, JSONObject?> = withContext(Dispatchers.IO) {
         val supabaseUrl = BuildConfig.SUPABASE_URL
         val anonKey = BuildConfig.SUPABASE_ANON_KEY
         val userId = AuthManager.getUserId(context)
 
         if (supabaseUrl.isBlank() || anonKey.isBlank() || userId.isNullOrBlank()) {
-            Log.d("CloudSyncManager", "Skipping cloud sync: Not logged in to Supabase or missing credentials")
-            return@withContext false
+            return@withContext Pair(null, null)
+        }
+
+        try {
+            val url = URL("$supabaseUrl/rest/v1/user_sync_data?user_id=eq.$userId&select=*")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "GET"
+            conn.setRequestProperty("apikey", anonKey)
+            conn.setRequestProperty("Authorization", "Bearer $anonKey")
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.connectTimeout = 8000
+            conn.readTimeout = 8000
+
+            val code = conn.responseCode
+            if (code in 200..299) {
+                val responseStr = conn.inputStream.bufferedReader().use { it.readText() }
+                val jsonArray = if (responseStr.isNotEmpty()) org.json.JSONArray(responseStr) else org.json.JSONArray()
+                if (jsonArray.length() > 0) {
+                    val record = jsonArray.getJSONObject(0)
+                    val updatedAt = record.optLong("updated_at", 0L)
+                    val schemaVer = record.optInt("schema_version", 1)
+                    val lastMod = record.optLong("last_modified_timestamp", updatedAt)
+                    val uName = record.optString("user_name", "")
+                    val pImg = record.optString("profile_image_uri", "")
+                    val meta = CloudRecordMetadata(
+                        userId = userId,
+                        updatedAt = updatedAt,
+                        lastModifiedTimestamp = if (lastMod > 0L) lastMod else updatedAt,
+                        schemaVersion = schemaVer,
+                        userName = uName,
+                        profileImageUri = pImg
+                    )
+                    return@withContext Pair(meta, record)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("CloudSyncManager", "fetchRemoteMetadata error", e)
+        }
+        Pair(null, null)
+    }
+
+    suspend fun syncWithConflictCheck(context: Context): SyncCheckResult = withContext(Dispatchers.IO) {
+        val userId = AuthManager.getUserId(context)
+        if (userId.isNullOrBlank()) return@withContext SyncCheckResult.NotLoggedIn
+
+        val localTs = BackupManager(context).getLastModifiedTimestamp()
+        val (remoteMeta, rawRecord) = fetchRemoteMetadata(context)
+
+        if (remoteMeta != null && rawRecord != null) {
+            val cloudTs = maxOf(remoteMeta.lastModifiedTimestamp, remoteMeta.updatedAt)
+            // If cloud is newer by more than 2 seconds, raise a conflict
+            if (cloudTs > localTs + 2000L) {
+                Log.w("CloudSyncManager", "Cloud timestamp ($cloudTs) is newer than local ($localTs). Conflict detected.")
+                return@withContext SyncCheckResult.Conflict(localTs, cloudTs, rawRecord)
+            }
+        }
+
+        val success = syncDataToCloud(context, force = true)
+        if (success) SyncCheckResult.Success else SyncCheckResult.Error("Sync failed")
+    }
+
+    data class SyncResult(
+        val isSuccess: Boolean,
+        val errorMessage: String? = null,
+        val isUnauthenticated: Boolean = false
+    )
+
+    suspend fun syncDataToCloudDetailed(context: Context, force: Boolean = true): SyncResult = withContext(Dispatchers.IO) {
+        val supabaseUrl = BuildConfig.SUPABASE_URL
+        val anonKey = BuildConfig.SUPABASE_ANON_KEY
+        val userId = AuthManager.getUserId(context)
+        val isLoggedIn = AuthManager.isLoggedIn(context)
+
+        if (!isLoggedIn || userId.isNullOrBlank()) {
+            Log.w("CloudSyncManager", "Cloud sync skipped: User is not signed in to a cloud account.")
+            return@withContext SyncResult(isSuccess = false, errorMessage = "Please sign in with your Google account first.", isUnauthenticated = true)
+        }
+
+        if (supabaseUrl.isBlank() || anonKey.isBlank()) {
+            Log.e("CloudSyncManager", "Cloud sync failed: Missing Supabase URL or Anon Key in configuration.")
+            return@withContext SyncResult(isSuccess = false, errorMessage = "Cloud configuration credentials missing.", isUnauthenticated = false)
         }
 
         try {
@@ -45,6 +141,9 @@ object CloudSyncManager {
                 obj.put("t", e.timestamp)
                 obj.put("s", e.state)
                 e.id?.let { obj.put("id", it) }
+                e.subId?.let { obj.put("subId", it) }
+                e.subName?.let { obj.put("subName", it) }
+                e.subColor?.let { obj.put("subColor", it) }
                 timelineArr.put(obj)
             }
             val timelineJsonStr = timelineArr.toString()
@@ -64,19 +163,27 @@ object CloudSyncManager {
                 }
             }
 
+            // Embed subject tags directly into prefs_data to ensure complete backup under schema
+            prefsJson.put("__subject_tags_data__", subjectPrefsJson.toString())
+
             val userName: String = AuthManager.getUserName(context) ?: ""
             val userEmail: String = AuthManager.getUserEmail(context) ?: ""
             val profileImg: String = AuthManager.getProfileImageUri(context) ?: ""
+            val now = System.currentTimeMillis()
+            val localLastMod = BackupManager(context).getLastModifiedTimestamp()
 
+            // Exact schema columns: user_id, user_name, user_email, profile_image_uri, prefs_data, timeline_data, updated_at
             val payload = JSONObject()
             payload.put("user_id", userId as String)
             payload.put("user_name", userName)
             payload.put("user_email", userEmail)
             payload.put("profile_image_uri", profileImg)
             payload.put("prefs_data", prefsJson.toString())
-            payload.put("subject_tags_data", subjectPrefsJson.toString())
             payload.put("timeline_data", timelineJsonStr)
-            payload.put("updated_at", System.currentTimeMillis())
+            payload.put("updated_at", maxOf(localLastMod, now))
+
+            val payloadString = payload.toString()
+            Log.d("CloudSyncManager", "Outgoing Cloud Sync Payload (${payloadString.length} bytes): timeline_entries=${entries.size}, updated_at=${maxOf(localLastMod, now)}")
 
             // Try Upsert POST
             var url = URL("$supabaseUrl/rest/v1/user_sync_data?on_conflict=user_id")
@@ -86,14 +193,20 @@ object CloudSyncManager {
             conn.setRequestProperty("Authorization", "Bearer $anonKey")
             conn.setRequestProperty("Content-Type", "application/json")
             conn.setRequestProperty("Prefer", "resolution=merge-duplicates")
+            conn.connectTimeout = 10000
+            conn.readTimeout = 10000
             conn.doOutput = true
 
             conn.outputStream.use { os ->
-                os.write(payload.toString().toByteArray(Charsets.UTF_8))
+                os.write(payloadString.toByteArray(Charsets.UTF_8))
             }
 
             var code = conn.responseCode
-            Log.d("CloudSyncManager", "Cloud sync POST response code: $code")
+            val responseBody = try {
+                if (code in 200..299) conn.inputStream.bufferedReader().use { it.readText() }
+                else conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+            } catch (_: Exception) { "" }
+            Log.d("CloudSyncManager", "Cloud sync POST response code: $code, response: $responseBody")
 
             // Fallback to PATCH if 403 or 409
             if (code !in 200..299) {
@@ -103,18 +216,92 @@ object CloudSyncManager {
                 conn.setRequestProperty("apikey", anonKey)
                 conn.setRequestProperty("Authorization", "Bearer $anonKey")
                 conn.setRequestProperty("Content-Type", "application/json")
+                conn.connectTimeout = 10000
+                conn.readTimeout = 10000
                 conn.doOutput = true
                 conn.outputStream.use { os ->
-                    os.write(payload.toString().toByteArray(Charsets.UTF_8))
+                    os.write(payloadString.toByteArray(Charsets.UTF_8))
                 }
                 code = conn.responseCode
-                Log.d("CloudSyncManager", "Cloud sync PATCH fallback response code: $code")
+                val patchResponseBody = try {
+                    if (code in 200..299) conn.inputStream.bufferedReader().use { it.readText() }
+                    else conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+                } catch (_: Exception) { "" }
+                Log.d("CloudSyncManager", "Cloud sync PATCH fallback response code: $code, response: $patchResponseBody")
             }
 
             val success = code in 200..299
-            success
+            if (success) {
+                BackupManager(context).markDataModified()
+                Log.i("CloudSyncManager", "Cloud sync successfully completed for user: $userId")
+                SyncResult(isSuccess = true)
+            } else {
+                Log.w("CloudSyncManager", "Cloud sync failed with HTTP $code. Response: $responseBody")
+                SyncResult(isSuccess = false, errorMessage = "Cloud sync failed (Server HTTP $code)")
+            }
         } catch (e: Exception) {
-            Log.e("CloudSyncManager", "Failed to sync data to cloud", e)
+            Log.e("CloudSyncManager", "Failed to sync data to cloud with exception", e)
+            SyncResult(isSuccess = false, errorMessage = "Network error: ${e.localizedMessage ?: "Unknown error"}")
+        }
+    }
+
+    suspend fun syncDataToCloud(context: Context, force: Boolean = true): Boolean {
+        return syncDataToCloudDetailed(context, force).isSuccess
+    }
+
+    suspend fun mergeCloudAndLocalData(context: Context, cloudRecord: JSONObject): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // 1. Merge Timeline Entries
+            val cloudTimelineStr = cloudRecord.optString("timeline_data")
+            val localTimeline = TimelineLogger.load(context).toMutableList()
+            if (cloudTimelineStr.isNotEmpty()) {
+                val cloudEntries = parseTimelineJson(cloudTimelineStr)
+                val existingTimestamps = localTimeline.map { it.timestamp }.toSet()
+                for (ce in cloudEntries) {
+                    if (ce.timestamp !in existingTimestamps) {
+                        localTimeline.add(ce)
+                    }
+                }
+                localTimeline.sortBy { it.timestamp }
+                TimelineLogger.importRaw(context, timelineToJsonString(localTimeline))
+            }
+
+            // 2. Merge Preferences (Keep max of totals, merge keys)
+            val cloudPrefsStr = cloudRecord.optString("prefs_data")
+            if (cloudPrefsStr.isNotEmpty()) {
+                val cloudPrefs = JSONObject(cloudPrefsStr)
+                val sharedPrefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+                val editor = sharedPrefs.edit()
+                val keys = cloudPrefs.keys()
+                val intPrefKeys = setOf(
+                    "customBg", "customPrimary", "customHue", "customSecondary", "customSecondaryHue",
+                    "current_streak", "selected_days_filter", "reminder_hour", "reminder_minute"
+                )
+                while (keys.hasNext()) {
+                    val k = keys.next()
+                    if (k.endsWith("_focus_total") || k.endsWith("_break_total")) {
+                        val localVal = sharedPrefs.getLong(k, 0L)
+                        val cloudVal = cloudPrefs.optLong(k, 0L)
+                        editor.putLong(k, maxOf(localVal, cloudVal))
+                    } else if (!sharedPrefs.contains(k)) {
+                        val v = cloudPrefs.get(k)
+                        when (v) {
+                            is Boolean -> editor.putBoolean(k, v)
+                            is Number -> if (k in intPrefKeys) editor.putInt(k, v.toInt()) else editor.putLong(k, v.toLong())
+                            is String -> editor.putString(k, v)
+                        }
+                    }
+                }
+                editor.apply()
+            }
+
+            // 3. Mark modified and push merged result to cloud
+            BackupManager(context).markDataModified()
+            syncDataToCloud(context, force = true)
+            BackupManager(context).runSilentAutoBackup()
+            true
+        } catch (e: Exception) {
+            Log.e("CloudSyncManager", "Merge failed", e)
             false
         }
     }
@@ -204,7 +391,15 @@ object CloudSyncManager {
                     editor.commit()
                 }
 
-                val subjectTagsStr = record.optString("subject_tags_data")
+                val subjectTagsStr = if (record.has("subject_tags_data") && record.optString("subject_tags_data").isNotEmpty()) {
+                    record.optString("subject_tags_data")
+                } else if (prefsStr.isNotEmpty()) {
+                    try {
+                        val pObj = JSONObject(prefsStr)
+                        pObj.optString("__subject_tags_data__", "")
+                    } catch (_: Exception) { "" }
+                } else ""
+
                 if (subjectTagsStr.isNotEmpty()) {
                     val subPrefs = context.getSharedPreferences("studytimer_subject_tags", Context.MODE_PRIVATE)
                     val subEditor = subPrefs.edit()

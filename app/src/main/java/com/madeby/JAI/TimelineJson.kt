@@ -12,7 +12,7 @@ import java.util.Date
  */
 
 internal fun timelineToJsonString(entries: List<TimelineEntry>): String {
-    val sb = StringBuilder(entries.size * 40 + 2)
+    val sb = StringBuilder(entries.size * 60 + 2)
     sb.append('[')
     for ((idx, e) in entries.withIndex()) {
         if (idx > 0) sb.append(',')
@@ -21,6 +21,18 @@ internal fun timelineToJsonString(entries: List<TimelineEntry>): String {
         if (e.id != null) {
             sb.append(",\"id\":")
             appendJsonString(sb, e.id)
+        }
+        if (e.subId != null) {
+            sb.append(",\"subId\":")
+            appendJsonString(sb, e.subId)
+        }
+        if (e.subName != null) {
+            sb.append(",\"subName\":")
+            appendJsonString(sb, e.subName)
+        }
+        if (e.subColor != null) {
+            sb.append(",\"subColor\":")
+            appendJsonString(sb, e.subColor)
         }
         sb.append('}')
     }
@@ -94,6 +106,9 @@ internal fun parseTimelineJson(raw: String): List<TimelineEntry> {
         var ts = 0L
         var state = ""
         var id: String? = null
+        var subId: String? = null
+        var subName: String? = null
+        var subColor: String? = null
         while (i < n) {
             skipWs()
             if (i >= n) break
@@ -112,6 +127,9 @@ internal fun parseTimelineJson(raw: String): List<TimelineEntry> {
                 when (key) {
                     "s" -> state = value
                     "id" -> id = value.takeIf { it.isNotEmpty() }
+                    "subId" -> subId = value.takeIf { it.isNotEmpty() }
+                    "subName" -> subName = value.takeIf { it.isNotEmpty() }
+                    "subColor" -> subColor = value.takeIf { it.isNotEmpty() }
                 }
             } else {
                 val start = i
@@ -122,7 +140,7 @@ internal fun parseTimelineJson(raw: String): List<TimelineEntry> {
                 if (key == "t") ts = raw.substring(start, i).toLongOrNull() ?: 0L
             }
         }
-        entries.add(TimelineEntry(ts, state, id))
+        entries.add(TimelineEntry(ts, state, id, subId, subName, subColor))
     }
     return entries
 }

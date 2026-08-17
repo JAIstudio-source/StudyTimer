@@ -18,7 +18,8 @@ class SplashActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (isSplashShownThisSession && AuthManager.isLoggedIn(this)) {
+        val shouldSkipLogin = AuthManager.isLoggedIn(this) || AuthManager.hasCompletedOnboarding(this)
+        if (isSplashShownThisSession && shouldSkipLogin) {
             navigateToNextScreen()
             return
         }
@@ -63,12 +64,15 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun navigateToNextScreen() {
-        val nextIntent = if (AuthManager.isLoggedIn(this)) {
+        val shouldGoToMain = AuthManager.isLoggedIn(this) || AuthManager.hasCompletedOnboarding(this)
+        val nextIntent = if (shouldGoToMain) {
             Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             }
         } else {
-            Intent(this, LoginActivity::class.java)
+            Intent(this, LoginActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
         }
         startActivity(nextIntent)
         finish()

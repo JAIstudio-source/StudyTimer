@@ -6,7 +6,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-data class TimelineEntry(val timestamp: Long, val state: String, val id: String? = null)
+data class TimelineEntry(
+    val timestamp: Long,
+    val state: String,
+    val id: String? = null,
+    val subId: String? = null,
+    val subName: String? = null,
+    val subColor: String? = null
+)
 
 object TimelineLogger {
 
@@ -20,17 +27,32 @@ object TimelineLogger {
         cache = null
     }
 
-    fun record(context: Context, state: TimerState, id: String? = null) {
+    fun record(
+        context: Context,
+        state: TimerState,
+        id: String? = null,
+        subId: String? = null,
+        subName: String? = null,
+        subColor: String? = null
+    ) {
         synchronized(this) {
             val entries = load(context).toMutableList()
-            entries.add(TimelineEntry(System.currentTimeMillis(), state.name, id))
+            entries.add(TimelineEntry(System.currentTimeMillis(), state.name, id, subId, subName, subColor))
             persist(context, entries)
         }
     }
 
-    fun recordRaw(context: Context, state: String, timestamp: Long = System.currentTimeMillis(), id: String? = null) {
+    fun recordRaw(
+        context: Context,
+        state: String,
+        timestamp: Long = System.currentTimeMillis(),
+        id: String? = null,
+        subId: String? = null,
+        subName: String? = null,
+        subColor: String? = null
+    ) {
         synchronized(this) {
-            val entries = insertEntrySorted(load(context), TimelineEntry(timestamp, state, id))
+            val entries = insertEntrySorted(load(context), TimelineEntry(timestamp, state, id, subId, subName, subColor))
             persist(context, entries)
         }
     }
@@ -45,28 +67,50 @@ object TimelineLogger {
         }
     }
 
-    fun addBlock(context: Context, startMs: Long, endMs: Long, state: String) {
+    fun addBlock(
+        context: Context,
+        startMs: Long,
+        endMs: Long,
+        state: String,
+        subId: String? = null,
+        subName: String? = null,
+        subColor: String? = null
+    ) {
         if (endMs <= startMs) return
         synchronized(this) {
             val list = load(context).toMutableList()
             list.removeAll { it.timestamp == startMs || it.timestamp == endMs }
-            var updated = insertEntrySorted(list, TimelineEntry(startMs, state))
+            var updated = insertEntrySorted(list, TimelineEntry(startMs, state, subId = subId, subName = subName, subColor = subColor))
             updated = insertEntrySorted(updated, TimelineEntry(endMs, "IDLE"))
             persist(context, updated)
         }
     }
 
-    fun replaceBlock(context: Context, oldStartMs: Long, oldEndMs: Long, newStartMs: Long, newEndMs: Long, state: String) {
+    fun replaceBlock(
+        context: Context,
+        oldStartMs: Long,
+        oldEndMs: Long,
+        newStartMs: Long,
+        newEndMs: Long,
+        state: String,
+        subId: String? = null,
+        subName: String? = null,
+        subColor: String? = null
+    ) {
         if (newEndMs <= newStartMs) return
         synchronized(this) {
             val list = load(context).toMutableList()
+            val oldEntry = list.firstOrNull { it.timestamp == oldStartMs }
             list.removeAll { it.timestamp == oldStartMs }
             val atOldEnd = list.firstOrNull { it.timestamp == oldEndMs }
             if (atOldEnd != null && atOldEnd.state == "IDLE") {
                 list.remove(atOldEnd)
             }
             list.removeAll { it.timestamp == newStartMs || it.timestamp == newEndMs }
-            var updated = insertEntrySorted(list, TimelineEntry(newStartMs, state))
+            val finalSubId = subId ?: oldEntry?.subId
+            val finalSubName = subName ?: oldEntry?.subName
+            val finalSubColor = subColor ?: oldEntry?.subColor
+            var updated = insertEntrySorted(list, TimelineEntry(newStartMs, state, subId = finalSubId, subName = finalSubName, subColor = finalSubColor))
             updated = insertEntrySorted(updated, TimelineEntry(newEndMs, "IDLE"))
             persist(context, updated)
         }
@@ -84,7 +128,15 @@ object TimelineLogger {
         }
     }
 
-    fun appendBlockForDay(context: Context, dateStr: String, durationSecs: Long, state: String): Pair<Long, Long> {
+    fun appendBlockForDay(
+        context: Context,
+        dateStr: String,
+        durationSecs: Long,
+        state: String,
+        subId: String? = null,
+        subName: String? = null,
+        subColor: String? = null
+    ): Pair<Long, Long> {
         if (durationSecs <= 0) return 0L to 0L
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val parsed = runCatching { sdf.parse(dateStr) }.getOrNull() ?: Date()
@@ -129,7 +181,7 @@ object TimelineLogger {
             }
 
             val candidateEnd = candidateStart + durationMs
-            addBlock(context, candidateStart, candidateEnd, state)
+            addBlock(context, candidateStart, candidateEnd, state, subId = subId, subName = subName, subColor = subColor)
             return candidateStart to candidateEnd
         }
     }

@@ -273,7 +273,19 @@ class TimerService : Service() {
         }
 
         lastTimestamp = now
-        TimelineLogger.record(this, currentTimerState)
+        if (currentTimerState == TimerState.STUDYING) {
+            val sp = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+            val sub = if (timerMode == "LECTURE") {
+                val lid = sp.getString("active_lecture_subject_id", null)
+                if (lid != null) SubjectTagManager.getAllSubjects(this).find { it.id == lid } ?: SubjectTagManager.getSelectedSubject(this)
+                else SubjectTagManager.getSelectedSubject(this)
+            } else {
+                SubjectTagManager.getSelectedSubject(this)
+            }
+            TimelineLogger.record(this, currentTimerState, subId = sub.id, subName = sub.name, subColor = sub.colorHex)
+        } else {
+            TimelineLogger.record(this, currentTimerState)
+        }
         saveState()
         updateForegroundNotification()
         StudyWidgetProvider.refresh(this)

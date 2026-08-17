@@ -84,11 +84,12 @@ class TimerRingView(context: Context) : View(context) {
             ringPaint.shader = null
             return
         }
-        val light = blend(color, -1, 0.30f)
+        val light = blend(color, -1, 0.40f)
+        val deep = blend(color, 0xFF000000.toInt(), 0.15f)
         val shader = SweepGradient(
             0f, 0f,
-            intArrayOf(light, color),
-            floatArrayOf(0f, 1f)
+            intArrayOf(light, color, deep),
+            floatArrayOf(0f, 0.7f, 1f)
         )
         val matrix = Matrix().apply {
             postTranslate(cx, cy)
@@ -122,10 +123,10 @@ class TimerRingView(context: Context) : View(context) {
             val bounds = RectF(inset, inset, w - inset, h - inset)
 
             innerHaloPaint.color = color
-            innerHaloPaint.alpha = 16
+            innerHaloPaint.alpha = 24
             canvas.drawArc(bounds, -90f, sweepDeg, false, innerHaloPaint)
 
-            ringPaint.setShadowLayer(10f * density, 0f, 0f, Color.argb(110, Color.red(color), Color.green(color), Color.blue(color)))
+            ringPaint.setShadowLayer(12f * density, 0f, 0f, Color.argb(130, Color.red(color), Color.green(color), Color.blue(color)))
             applyArcShader(cx, cy)
             canvas.drawArc(bounds, -90f, sweepDeg, false, ringPaint)
         }

@@ -7,6 +7,7 @@ object AuthManager {
     private const val PREF_NAME = "studytimer_auth_prefs"
     private const val KEY_IS_LOGGED_IN = "is_logged_in"
     private const val KEY_IS_GUEST = "is_guest"
+    private const val KEY_HAS_COMPLETED_ONBOARDING = "has_completed_onboarding"
     private const val KEY_USER_EMAIL = "user_email"
     private const val KEY_USER_NAME = "user_name"
     private const val KEY_ACCESS_TOKEN = "access_token"
@@ -23,13 +24,25 @@ object AuthManager {
         return context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
     }
 
+    fun hasCompletedOnboarding(context: Context): Boolean {
+        val prefs = getPrefs(context)
+        return prefs.getBoolean(KEY_HAS_COMPLETED_ONBOARDING, false) || isLoggedIn(context) || prefs.getBoolean(KEY_IS_GUEST, false)
+    }
+
+    fun setOnboardingCompleted(context: Context) {
+        getPrefs(context).edit().putBoolean(KEY_HAS_COMPLETED_ONBOARDING, true).apply()
+    }
+
     fun isLoggedIn(context: Context): Boolean {
         val prefs = getPrefs(context)
-        return prefs.getBoolean(KEY_IS_LOGGED_IN, false) || prefs.getBoolean(KEY_IS_GUEST, false)
+        val hasLoggedIn = prefs.getBoolean(KEY_IS_LOGGED_IN, false)
+        val email = prefs.getString(KEY_USER_EMAIL, null)
+        return hasLoggedIn && !email.isNullOrEmpty()
     }
 
     fun isGuest(context: Context): Boolean {
-        return getPrefs(context).getBoolean(KEY_IS_GUEST, false)
+        val prefs = getPrefs(context)
+        return prefs.getBoolean(KEY_IS_GUEST, false) || !isLoggedIn(context)
     }
 
     fun saveUserSession(context: Context, email: String?, name: String?, token: String?, userId: String? = null) {
@@ -38,6 +51,7 @@ object AuthManager {
         prefs.edit().apply {
             putBoolean(KEY_IS_LOGGED_IN, true)
             putBoolean(KEY_IS_GUEST, false)
+            putBoolean(KEY_HAS_COMPLETED_ONBOARDING, true)
             putString(KEY_USER_EMAIL, email)
             if (!getUserName(context).isNullOrEmpty() && name.isNullOrEmpty()) {
                 // preserve updated user name
@@ -77,6 +91,7 @@ object AuthManager {
         getPrefs(context).edit().apply {
             putBoolean(KEY_IS_LOGGED_IN, false)
             putBoolean(KEY_IS_GUEST, true)
+            putBoolean(KEY_HAS_COMPLETED_ONBOARDING, true)
             apply()
         }
         AppAnalytics.associateUser(context, getLinkedUserId(context))

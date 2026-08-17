@@ -106,11 +106,11 @@ object SubjectTagManager {
         return String.format("#%06X", 0xFFFFFF and colorInt)
     }
 
-    fun addCustomSubject(context: Context, name: String, emoji: String = "📚"): SubjectTag {
+    fun addCustomSubject(context: Context, name: String, emoji: String = "📚", colorHex: String? = null): SubjectTag {
         val cleanName = name.trim().take(25)
         val id = "custom_" + System.currentTimeMillis()
-        val autoColor = generateUniqueColor(context)
-        val newSub = SubjectTag(id, cleanName, emoji, autoColor, isCustom = true)
+        val finalColor = colorHex?.takeIf { it.isNotBlank() } ?: generateUniqueColor(context)
+        val newSub = SubjectTag(id, cleanName, emoji, finalColor, isCustom = true)
         val prefs = getPrefs(context)
         val customJson = prefs.getString(KEY_CUSTOM_SUBJECTS_JSON, "[]") ?: "[]"
         try {
@@ -257,12 +257,6 @@ object SubjectTagManager {
                 }
             }
         } catch (_: Exception) {}
-
-        // Fallback for today if daily JSON hasn't been seeded yet
-        if (map.isEmpty() && dateKey == getTodayKey()) {
-            return getSubjectDurations(context)
-        }
-
         return map
     }
 

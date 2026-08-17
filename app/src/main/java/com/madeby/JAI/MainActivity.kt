@@ -59,6 +59,10 @@ import androidx.core.content.pm.PackageInfoCompat
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.ArrayList
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.PI
 import kotlin.math.max
 import kotlin.math.min
@@ -155,9 +159,9 @@ private val dailyQuotes = listOf(
 class MainActivity : AppCompatActivity() {
 
     internal var currentPanel = AppPanel.FOCUS
-    private var currentTimerState = TimerState.IDLE
+    internal var currentTimerState = TimerState.IDLE
     internal var currentStatsTab = AppStatsTab.OVERVIEW
-    internal var currentSettingsTab = AppSettingsTab.SIMPLE
+    internal var currentSettingsTab = AppSettingsTab.HUB
     private var tabDragSlop = 12
     private var tabDragArmed = false
     private var tabDragActive = false
@@ -628,6 +632,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showRestoreConfirmDialog(uri: Uri) {
+        val meta = backupManager.inspectBackupMetadata(uri)
+        val currentLocalTs = backupManager.getLastModifiedTimestamp()
+        val isOlderThanLocal = meta != null && meta.lastModifiedTimestamp > 0L && meta.lastModifiedTimestamp < currentLocalTs - 60000L
+        val backupDateStr = if (meta != null && meta.backupCreatedAt > 0L) {
+            val sdf = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
+            sdf.format(Date(meta.backupCreatedAt))
+        } else "Unknown Date"
+
         val dialog = android.app.Dialog(this)
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
         val content = LinearLayout(this).apply {
@@ -636,23 +648,27 @@ class MainActivity : AppCompatActivity() {
             setPadding(dp(22), dp(22), dp(22), dp(18))
         }
         content.addView(TextView(this).apply {
-            text = getString(R.string.restore_backup)
-            setTextColor(themeCoordinator.primaryColor)
+            text = if (isOlderThanLocal) "STALE BACKUP WARNING" else getString(R.string.restore_backup)
+            setTextColor(if (isOlderThanLocal) Color.parseColor("#F59E0B") else themeCoordinator.primaryColor)
             textSize = 11f
             letterSpacing = 0.18f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         })
         content.addView(TextView(this).apply {
-            text = getString(R.string.restore_backup_title)
+            text = if (isOlderThanLocal) "Import Older Backup?" else getString(R.string.restore_backup_title)
             setTextColor(themeCoordinator.textColor)
             textSize = 18f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             setPadding(0, dp(8), 0, 0)
         })
         content.addView(TextView(this).apply {
-            text = getString(R.string.restore_backup_message)
+            text = if (isOlderThanLocal) {
+                "⚠️ Warning: This backup file was created on $backupDateStr, which is OLDER than your current study data. Importing this will revert recent local progress."
+            } else {
+                "Backup from: $backupDateStr\n${getString(R.string.restore_backup_message)}"
+            }
             setTextColor(themeCoordinator.textColor)
-            alpha = 0.6f
+            alpha = if (isOlderThanLocal) 0.9f else 0.6f
             textSize = 13f
             setPadding(0, dp(8), 0, 0)
         })
@@ -671,22 +687,14 @@ class MainActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(0, dp(50), 1f).apply { setMargins(0, 0, dp(8), 0) }
         }
         val restoreBtn = Button(this).apply {
-            text = getString(R.string.btn_restore)
+            text = if (isOlderThanLocal) "REVERT & RESTORE" else getString(R.string.btn_restore)
             setTextColor(themeCoordinator.bgColor)
             textSize = 12f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            background = rippleBackground(themeCoordinator.primaryColor)
+            background = rippleBackground(if (isOlderThanLocal) Color.parseColor("#F59E0B") else themeCoordinator.primaryColor)
             setOnClickListener {
                 dialog.dismiss()
-                val success = backupManager.importDataFromJSON(uri)
-                if (success) {
-                    Toast.makeText(this@MainActivity, getString(R.string.toast_logs_restored), Toast.LENGTH_SHORT).show()
-                    themeCoordinator.applyThemeCoordinates()
-                    tabPageCache.clear()
-                    recreate()
-                } else {
-                    Toast.makeText(this@MainActivity, getString(R.string.toast_backup_parse_failed), Toast.LENGTH_SHORT).show()
-                }
+                performImportWithCloudConflictCheck(uri)
             }
             layoutParams = LinearLayout.LayoutParams(0, dp(50), 1f).apply { setMargins(dp(8), 0, 0, 0) }
         }
@@ -697,6 +705,167 @@ class MainActivity : AppCompatActivity() {
         dialog.setContentView(content)
         dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
         dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.88f).toInt(), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+        dialog.show()
+    }
+
+    private fun performImportWithCloudConflictCheck(uri: Uri) {
+        val success = backupManager.importDataFromJSON(uri, allowCloudSync = false)
+        if (!success) {
+            Toast.makeText(this, getString(R.string.toast_backup_parse_failed), Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        Toast.makeText(this, getString(R.string.toast_logs_restored), Toast.LENGTH_SHORT).show()
+        themeCoordinator.applyThemeCoordinates()
+        tabPageCache.clear()
+
+        if (!AuthManager.isLoggedIn(this)) {
+            recreate()
+            return
+        }
+
+        // Check if there is a conflict with existing cloud data
+        Thread {
+            kotlinx.coroutines.runBlocking {
+                val syncResult = CloudSyncManager.syncWithConflictCheck(this@MainActivity)
+                runOnUiThread {
+                    when (syncResult) {
+                        is CloudSyncManager.SyncCheckResult.Conflict -> {
+                            showSyncConflictDialog(syncResult.localTimestamp, syncResult.cloudTimestamp, syncResult.cloudRecord)
+                        }
+                        is CloudSyncManager.SyncCheckResult.Success -> {
+                            Toast.makeText(this@MainActivity, "☁️ Cloud sync updated successfully", Toast.LENGTH_SHORT).show()
+                            recreate()
+                        }
+                        else -> {
+                            recreate()
+                        }
+                    }
+                }
+            }
+        }.start()
+    }
+
+    internal fun showSyncConflictDialog(localTs: Long, cloudTs: Long, cloudRecord: org.json.JSONObject) {
+        val dialog = android.app.Dialog(this)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = themeCoordinator.createDialogBackground(28f)
+            setPadding(dp(22), dp(22), dp(22), dp(18))
+        }
+
+        val sdf = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
+        val cloudDateStr = if (cloudTs > 0L) sdf.format(Date(cloudTs)) else "Recent Cloud State"
+        val localDateStr = if (localTs > 0L) sdf.format(Date(localTs)) else "Imported Backup"
+
+        content.addView(TextView(this).apply {
+            text = "SYNC CONFLICT DETECTED"
+            setTextColor(Color.parseColor("#EF4444"))
+            textSize = 11f
+            letterSpacing = 0.18f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        })
+        content.addView(TextView(this).apply {
+            text = "Cloud Has Newer Data"
+            setTextColor(themeCoordinator.textColor)
+            textSize = 18f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(0, dp(6), 0, 0)
+        })
+        content.addView(TextView(this).apply {
+            text = "Your Google/Cloud backup ($cloudDateStr) is newer than the imported data ($localDateStr).\n\nChoose how you want to resolve this:"
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.75f
+            textSize = 13f
+            setPadding(0, dp(8), 0, dp(14))
+        })
+
+        // Option 1: Keep Newer Cloud Data (Recommended)
+        val keepCloudBtn = Button(this).apply {
+            text = "⚡ Keep Newer Cloud Data (Recommended)"
+            setTextColor(Color.WHITE)
+            textSize = 12.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = GradientDrawable().apply {
+                cornerRadius = dp(12).toFloat()
+                setColor(themeCoordinator.primaryColor)
+            }
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44)).apply {
+                setMargins(0, 0, 0, dp(8))
+            }
+            setOnClickListener {
+                dialog.dismiss()
+                Thread {
+                    kotlinx.coroutines.runBlocking {
+                        CloudSyncManager.restoreDataFromCloud(this@MainActivity)
+                        runOnUiThread {
+                            Toast.makeText(this@MainActivity, "☁️ Restored newer cloud data", Toast.LENGTH_SHORT).show()
+                            tabPageCache.clear()
+                            recreate()
+                        }
+                    }
+                }.start()
+            }
+        }
+        content.addView(keepCloudBtn)
+
+        // Option 2: Merge Both
+        val mergeBtn = Button(this).apply {
+            text = "🔀 Merge Both (Combine Records)"
+            setTextColor(themeCoordinator.textColor)
+            textSize = 12f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 90), 12f)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44)).apply {
+                setMargins(0, 0, 0, dp(8))
+            }
+            setOnClickListener {
+                dialog.dismiss()
+                Thread {
+                    kotlinx.coroutines.runBlocking {
+                        val merged = CloudSyncManager.mergeCloudAndLocalData(this@MainActivity, cloudRecord)
+                        runOnUiThread {
+                            if (merged) {
+                                Toast.makeText(this@MainActivity, "🔀 Merged local and cloud data", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(this@MainActivity, "Merge failed, keeping local state", Toast.LENGTH_SHORT).show()
+                            }
+                            tabPageCache.clear()
+                            recreate()
+                        }
+                    }
+                }.start()
+            }
+        }
+        content.addView(mergeBtn)
+
+        // Option 3: Overwrite Cloud with Local
+        val overwriteBtn = Button(this).apply {
+            text = "⚠️ Overwrite Cloud with Local Data"
+            setTextColor(Color.parseColor("#EF4444"))
+            textSize = 11.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            background = themeCoordinator.createGlassChip(0x33EF4444.toInt(), 12f)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(40))
+            setOnClickListener {
+                dialog.dismiss()
+                Thread {
+                    kotlinx.coroutines.runBlocking {
+                        CloudSyncManager.syncDataToCloud(this@MainActivity, force = true)
+                        runOnUiThread {
+                            Toast.makeText(this@MainActivity, "Cloud overwritten with local backup", Toast.LENGTH_SHORT).show()
+                            recreate()
+                        }
+                    }
+                }.start()
+            }
+        }
+        content.addView(overwriteBtn)
+
+        dialog.setContentView(content)
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.90f).toInt(), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
         dialog.show()
     }
 
@@ -1342,9 +1511,12 @@ class MainActivity : AppCompatActivity() {
             override fun handleOnBackPressed() {
                 if (currentPanel == AppPanel.HEATMAP) {
                     navigateToPanel(AppPanel.STATS)
-                } else if (currentPanel != AppPanel.FOCUS) {
-                    navigateToPanel(AppPanel.FOCUS)
+                } else if (currentPanel == AppPanel.SETTINGS && currentSettingsTab != AppSettingsTab.HUB) {
+                    // Nested Settings sub-screen: pop back one level to the main Settings Hub Dashboard
+                    currentSettingsTab = AppSettingsTab.HUB
+                    navigateToPanel(AppPanel.SETTINGS)
                 } else {
+                    // Root Top-Level Destinations (Settings Hub, Stats, Focus): exit cleanly via standard double-tap or finish
                     val now = System.currentTimeMillis()
                     if (now - lastBackTime < 2000) {
                         finish()
@@ -1589,7 +1761,7 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun handleTabDragTouch(ev: MotionEvent): Boolean {
-        if (currentPanel != AppPanel.STATS && currentPanel != AppPanel.SETTINGS) {
+        if (currentPanel != AppPanel.STATS) {
             tabDragArmed = false
             tabDragActive = false
             return false
@@ -2003,8 +2175,15 @@ class MainActivity : AppCompatActivity() {
 
         rebuild()
 
+        val fastOutSlowIn = androidx.core.view.animation.PathInterpolatorCompat.create(0.2f, 0.0f, 0.0f, 1.0f)
+        val startOffset = (-exitDir * width * 0.35f)
+
         for (j in 0 until panelContainer.childCount) {
-            panelContainer.getChildAt(j).translationX = (-exitDir * width).toFloat()
+            val child = panelContainer.getChildAt(j)
+            child.translationX = startOffset
+            child.alpha = 0f
+            child.scaleX = 0.96f
+            child.scaleY = 0.96f
         }
 
         val overlay = ImageView(this).apply {
@@ -2014,20 +2193,31 @@ class MainActivity : AppCompatActivity() {
         }
         panelHost.addView(overlay)
 
-        overlay.animate().translationX((exitDir * width).toFloat())
-            .setDuration(280L)
-            .setInterpolator(android.view.animation.DecelerateInterpolator())
-            .withLayer().start()
+        overlay.animate()
+            .translationX((exitDir * width * 0.35f))
+            .alpha(0f)
+            .scaleX(0.96f)
+            .scaleY(0.96f)
+            .setDuration(320L)
+            .setInterpolator(fastOutSlowIn)
+            .withLayer()
+            .start()
+
         for (j in 0 until panelContainer.childCount) {
-            panelContainer.getChildAt(j).animate().translationX(0f)
-                .setDuration(280L)
-                .setInterpolator(android.view.animation.DecelerateInterpolator())
-                .withLayer().start()
+            panelContainer.getChildAt(j).animate()
+                .translationX(0f)
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(320L)
+                .setInterpolator(fastOutSlowIn)
+                .withLayer()
+                .start()
         }
 
         handler.postDelayed({
             if (overlay.parent != null) panelHost.removeView(overlay)
-        }, 340L)
+        }, 360L)
     }
 
     private fun buildFocusPanel() {
@@ -2659,12 +2849,32 @@ class MainActivity : AppCompatActivity() {
             val slicesList = ArrayList<SubjectPieChartView.PieSlice>()
 
             if (mode == 0) {
-                // Mode 1: Subject Sessions Breakdown
-                val subjectDurations = SubjectTagManager.getSubjectDurations(this@MainActivity)
+                // Mode 1: Subject Sessions Breakdown derived from unified daily session logs
+                val todayStr = dateKeyFmt.format(Date())
+                val (allDaySessions, _) = dayBlocks(todayStr)
                 val allSubjects = SubjectTagManager.getAllSubjects(this@MainActivity)
-                val totalSecsAll = subjectDurations.values.sum()
 
-                if (subjectDurations.isEmpty() || totalSecsAll < 60L) {
+                // Group unified sessions by subject — EXCLUDING untagged null sessions
+                val durationBySubject = HashMap<String, Long>()
+                for (s in allDaySessions) {
+                    if (s.subjectId != null) {
+                        durationBySubject[s.subjectId] = (durationBySubject[s.subjectId] ?: 0L) + s.secs
+                    }
+                }
+
+                // If no unified timeline entries exist yet for today, fallback to SubjectTagManager durations for today specifically
+                if (durationBySubject.isEmpty()) {
+                    val legacyDurations = SubjectTagManager.getSubjectDurationsForDate(this@MainActivity, todayStr)
+                    for ((subId, secs) in legacyDurations) {
+                        if (allSubjects.any { it.id == subId }) {
+                            durationBySubject[subId] = secs
+                        }
+                    }
+                }
+
+                val totalSecsAll = durationBySubject.values.sum()
+
+                if (durationBySubject.isEmpty() || totalSecsAll < 60L) {
                     val emptyBox = LinearLayout(this@MainActivity).apply {
                         orientation = LinearLayout.VERTICAL
                         gravity = Gravity.CENTER
@@ -2678,7 +2888,7 @@ class MainActivity : AppCompatActivity() {
                         gravity = Gravity.CENTER
                     })
                     emptyBox.addView(TextView(this@MainActivity).apply {
-                        text = "Log at least 1 minute of focus time in Subject Mode to track your subject breakdown."
+                        text = "Log at least 1 minute of focus time to track your subject breakdown."
                         setTextColor(themeCoordinator.textColor)
                         alpha = 0.55f
                         textSize = 12.5f
@@ -2688,16 +2898,32 @@ class MainActivity : AppCompatActivity() {
                     container.addView(emptyBox)
                 } else {
                     val sortedSubjects = allSubjects
-                        .map { it to (subjectDurations[it.id] ?: 0L) }
-                        .filter { it.second > 0L }
+                        .map { it to (durationBySubject[it.id] ?: 0L) }
+                        .filter { it.second >= 60L }
                         .sortedByDescending { it.second }
 
                     for ((subj, secs) in sortedSubjects) {
                         slicesList.add(SubjectPieChartView.PieSlice(subj.name, subj.iconEmoji, secs.toDouble(), subj.colorHex))
                     }
 
-                    pieView.setData(slicesList)
-                    container.addView(pieView)
+                    if (slicesList.isEmpty()) {
+                        val emptyBox = LinearLayout(this@MainActivity).apply {
+                            orientation = LinearLayout.VERTICAL
+                            gravity = Gravity.CENTER
+                            setPadding(0, dp(24), 0, dp(24))
+                        }
+                        emptyBox.addView(TextView(this@MainActivity).apply {
+                            text = "📊 Not Enough Data"
+                            setTextColor(themeCoordinator.textColor)
+                            textSize = 15f
+                            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                            gravity = Gravity.CENTER
+                        })
+                        container.addView(emptyBox)
+                    } else {
+                        pieView.setData(slicesList)
+                        container.addView(pieView)
+                    }
                 }
             } else {
                 // Mode 2: Session Quality & Focus Depth Ratio (Deep Focus vs Standard Focus vs Light Focus)
@@ -4589,6 +4815,431 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
+    internal fun showFeedbackReportDialog() {
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = themeCoordinator.createCardBackground(24f)
+            setPadding(dp(22), dp(20), dp(22), dp(20))
+        }
+
+        // Header Title
+        val titleText = TextView(this).apply {
+            text = "💬 Report a Problem & Feedback"
+            setTextColor(themeCoordinator.textColor)
+            textSize = 18f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, dp(4))
+        }
+        content.addView(titleText)
+
+        val subtitleText = TextView(this).apply {
+            text = "Help us improve StudyTimer! Report bugs, suggest features, or share thoughts."
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.65f
+            textSize = 12.5f
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, dp(14))
+        }
+        content.addView(subtitleText)
+
+        // Category Selector Chips
+        val categories = listOf("Bug Report", "Feature Request", "General Feedback")
+        var selectedCategory = "Bug Report"
+
+        val chipContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, dp(14))
+        }
+
+        val chipViews = ArrayList<TextView>()
+        fun updateChipStyles() {
+            chipViews.forEachIndexed { index, chip ->
+                val isSelected = categories[index] == selectedCategory
+                chip.setTextColor(if (isSelected) Color.WHITE else themeCoordinator.textColor)
+                chip.background = if (isSelected) {
+                    themeCoordinator.createGlassChip(themeCoordinator.primaryColor, 18f)
+                } else {
+                    themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 25), 18f)
+                }
+            }
+        }
+
+        categories.forEach { cat ->
+            val chip = TextView(this).apply {
+                text = when (cat) {
+                    "Bug Report" -> "🐛 Bug"
+                    "Feature Request" -> "💡 Feature"
+                    else -> "💭 Feedback"
+                }
+                textSize = 12f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                gravity = Gravity.CENTER
+                setPadding(dp(12), dp(8), dp(12), dp(8))
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                    setMargins(dp(3), 0, dp(3), 0)
+                }
+                setOnClickListener {
+                    selectedCategory = cat
+                    updateChipStyles()
+                }
+            }
+            chipViews.add(chip)
+            chipContainer.addView(chip)
+        }
+        updateChipStyles()
+        content.addView(chipContainer)
+
+        // Description Text Field
+        val inputField = android.widget.EditText(this).apply {
+            hint = "Describe what happened or what you'd like to see..."
+            setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
+            setTextColor(themeCoordinator.textColor)
+            textSize = 13.5f
+            gravity = Gravity.TOP or Gravity.START
+            minLines = 4
+            maxLines = 7
+            background = GradientDrawable().apply {
+                cornerRadius = dp(14).toFloat()
+                setColor(if (themeCoordinator.isDarkMode()) 0xFF141414.toInt() else tintedColor(themeCoordinator.textColor, 18))
+                setStroke(dp(1), tintedColor(themeCoordinator.textColor, 35))
+            }
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 0, dp(12))
+            }
+        }
+        content.addView(inputField)
+
+        // Contact Email Input Field (Optional)
+        val contactField = android.widget.EditText(this).apply {
+            hint = "Your email for reply (optional)..."
+            val userEmail = AuthManager.getUserEmail(this@MainActivity)
+            if (!userEmail.isNullOrBlank()) setText(userEmail)
+            setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
+            setTextColor(themeCoordinator.textColor)
+            textSize = 13f
+            isSingleLine = true
+            background = GradientDrawable().apply {
+                cornerRadius = dp(14).toFloat()
+                setColor(if (themeCoordinator.isDarkMode()) 0xFF141414.toInt() else tintedColor(themeCoordinator.textColor, 18))
+                setStroke(dp(1), tintedColor(themeCoordinator.textColor, 35))
+            }
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 0, dp(10))
+            }
+        }
+        content.addView(contactField)
+
+        // Anonymous Diagnostic Info Toggle
+        var includeDiagnostics = true
+        val toggleRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(4), dp(2), dp(4), dp(12))
+            isClickable = true
+            isFocusable = true
+        }
+
+        val checkIcon = TextView(this).apply {
+            text = "☑️"
+            textSize = 15f
+            setPadding(0, 0, dp(8), 0)
+        }
+        toggleRow.addView(checkIcon)
+
+        val toggleLabel = TextView(this).apply {
+            text = "Include anonymous diagnostic info\n(App version, OS, Device model, Sync state)"
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.8f
+            textSize = 11.5f
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        toggleRow.addView(toggleLabel)
+
+        toggleRow.setOnClickListener {
+            includeDiagnostics = !includeDiagnostics
+            checkIcon.text = if (includeDiagnostics) "☑️" else "⬜"
+        }
+        content.addView(toggleRow)
+
+        val feedbackPrefs = getSharedPreferences("studytimer_feedback_prefs", Context.MODE_PRIVATE)
+        val COOLDOWN_MS = 5 * 60 * 1000L // 5 minutes cooldown
+        val lastSubmissionEpoch = feedbackPrefs.getLong("last_feedback_submission_epoch", 0L)
+        val isDevBypass = BuildConfig.DEBUG || isDevModeUnlocked
+
+        // Cooldown Warning & Live Countdown View
+        val cooldownWarningText = TextView(this).apply {
+            setTextColor(0xFFFF7043.toInt()) // Soft coral warning
+            textSize = 12f
+            gravity = Gravity.CENTER
+            setPadding(0, dp(4), 0, dp(6))
+            visibility = View.GONE
+        }
+
+        // Urgent Help Fallback Action
+        val urgentEmailBtn = TextView(this).apply {
+            text = "Need urgent help? [Email studytimer737@gmail.com]"
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 12f
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, dp(8))
+            isClickable = true
+            isFocusable = true
+            visibility = View.GONE
+            setOnClickListener {
+                val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
+                    data = Uri.parse("mailto:studytimer737@gmail.com")
+                    putExtra(Intent.EXTRA_SUBJECT, "[StudyTimer Urgent Help]")
+                }
+                try {
+                    startActivity(Intent.createChooser(emailIntent, "Email Support..."))
+                } catch (_: Exception) {
+                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Support Email", "studytimer737@gmail.com"))
+                    Toast.makeText(this@MainActivity, "Email copied to clipboard: studytimer737@gmail.com", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+
+        // Submit Feedback Action Button
+        val sendBtn = Button(this).apply {
+            text = "🚀 Submit Report"
+            setTextColor(Color.WHITE)
+            textSize = 13.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = themeCoordinator.createButtonBackground(themeCoordinator.primaryColor)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44)).apply {
+                setMargins(0, dp(4), 0, dp(6))
+            }
+        }
+
+        // Countdown Timer Handler
+        val countdownHandler = android.os.Handler(android.os.Looper.getMainLooper())
+        val countdownRunnable = object : Runnable {
+            override fun run() {
+                val now = System.currentTimeMillis()
+                val elapsed = now - lastSubmissionEpoch
+                val remaining = COOLDOWN_MS - elapsed
+
+                if (!isDevBypass && remaining > 0) {
+                    val mins = (remaining / 1000) / 60
+                    val secs = (remaining / 1000) % 60
+                    sendBtn.isEnabled = false
+                    sendBtn.alpha = 0.5f
+                    cooldownWarningText.visibility = View.VISIBLE
+                    cooldownWarningText.text = "⏳ You recently sent a report. Please wait ${mins}m ${secs}s before submitting another."
+                    urgentEmailBtn.visibility = View.VISIBLE
+                    countdownHandler.postDelayed(this, 1000)
+                } else {
+                    sendBtn.isEnabled = true
+                    sendBtn.alpha = 1.0f
+                    cooldownWarningText.visibility = View.GONE
+                    urgentEmailBtn.visibility = View.GONE
+                }
+            }
+        }
+
+        countdownHandler.post(countdownRunnable)
+        dialog.setOnDismissListener {
+            countdownHandler.removeCallbacks(countdownRunnable)
+        }
+
+        sendBtn.setOnClickListener {
+            val now = System.currentTimeMillis()
+            val elapsed = now - lastSubmissionEpoch
+            val remaining = COOLDOWN_MS - elapsed
+
+            if (!isDevBypass && remaining > 0) {
+                val mins = (remaining / 1000) / 60
+                val secs = (remaining / 1000) % 60
+                Toast.makeText(this@MainActivity, "Please wait ${mins}m ${secs}s before submitting another report.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            val userFeedbackText = inputField.text.toString().trim()
+            if (userFeedbackText.length < 5) {
+                Toast.makeText(this@MainActivity, "Please enter at least 5 characters.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            val userContactText = contactField.text.toString().trim()
+            sendBtn.isEnabled = false
+            sendBtn.text = "⏳ Submitting..."
+
+            // Build Diagnostic Object
+            val diagJson = org.json.JSONObject().apply {
+                put("app_version", "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+                put("android_os", "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+                put("device", "${Build.MANUFACTURER} ${Build.MODEL}".trim())
+                put("timer_mode", timerMode)
+                put("sync_status", if (AuthManager.isLoggedIn(this@MainActivity)) "ONLINE_SYNCED" else "GUEST_OFFLINE")
+                put("timestamp_epoch", System.currentTimeMillis() / 1000)
+            }
+
+            val typeEnum = when (selectedCategory) {
+                "Bug Report" -> "BUG_REPORT"
+                "Feature Request" -> "FEATURE_REQUEST"
+                else -> "GENERAL_FEEDBACK"
+            }
+
+            // Execute Real HTTP POST in background
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                var isSuccess = false
+                var errorMessage = ""
+                var statusCode = 0
+
+                val supabaseUrl = BuildConfig.SUPABASE_URL
+                val supabaseAnonKey = BuildConfig.SUPABASE_ANON_KEY
+
+                val targetEndpoint = if (supabaseUrl.isNotBlank()) {
+                    "$supabaseUrl/rest/v1/feedback_reports"
+                } else ""
+
+                val payload = org.json.JSONObject().apply {
+                    put("type", typeEnum)
+                    put("status", "NEW")
+                    if (userContactText.isNotBlank()) put("user_contact", userContactText)
+                    put("message", userFeedbackText)
+                    put("diagnostics", if (includeDiagnostics) diagJson else org.json.JSONObject())
+                }
+
+                android.util.Log.d("FeedbackSubmission", "========================================")
+                android.util.Log.d("FeedbackSubmission", "Sending to: $targetEndpoint")
+                android.util.Log.d("FeedbackSubmission", "Payload: ${payload.toString()}")
+                android.util.Log.d("FeedbackSubmission", "========================================")
+
+                if (targetEndpoint.isNotBlank()) {
+                    try {
+                        val url = java.net.URL(targetEndpoint)
+                        val conn = url.openConnection() as java.net.HttpURLConnection
+                        conn.requestMethod = "POST"
+                        conn.setRequestProperty("apikey", supabaseAnonKey)
+                        conn.setRequestProperty("Authorization", "Bearer $supabaseAnonKey")
+                        conn.setRequestProperty("Content-Type", "application/json")
+                        conn.setRequestProperty("Prefer", "return=representation")
+                        conn.connectTimeout = 10000
+                        conn.readTimeout = 10000
+                        conn.doOutput = true
+
+                        conn.outputStream.use { os ->
+                            os.write(payload.toString().toByteArray(Charsets.UTF_8))
+                        }
+
+                        statusCode = conn.responseCode
+                        val responseBody = try {
+                            if (statusCode in 200..299) {
+                                conn.inputStream.bufferedReader().use { it.readText() }
+                            } else {
+                                conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "No error body"
+                            }
+                        } catch (_: Exception) { "Could not read response" }
+
+                        android.util.Log.d("FeedbackSubmission", "Server Response HTTP $statusCode: $responseBody")
+
+                        if (statusCode in 200..299) {
+                            isSuccess = true
+                        } else {
+                            errorMessage = "Server HTTP $statusCode: $responseBody"
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("FeedbackSubmission", "Network error during feedback post", e)
+                        errorMessage = e.localizedMessage ?: "Network connection error"
+                    }
+                } else {
+                    errorMessage = "No backend endpoint configured."
+                }
+
+                // Handle on Main Thread
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    if (isSuccess) {
+                        feedbackPrefs.edit().putLong("last_feedback_submission_epoch", System.currentTimeMillis()).apply()
+                        Toast.makeText(this@MainActivity, "🎉 Report submitted successfully to database!", Toast.LENGTH_LONG).show()
+                        dialog.dismiss()
+                    } else {
+                        sendBtn.isEnabled = true
+                        sendBtn.text = "🚀 Submit Report"
+                        android.util.Log.w("FeedbackSubmission", "HTTP Failed: $errorMessage. Triggering email fallback.")
+
+                        val devEmail = "studytimer737@gmail.com"
+                        val emailSubject = "[StudyTimer Feedback - $selectedCategory] v${BuildConfig.VERSION_NAME}"
+                        val diagnosticBlock = if (includeDiagnostics) {
+                            """
+                            
+                            -------------------------------------
+                            Diagnostic Info (Helps us fix bugs faster):
+                            • App Version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})
+                            • Android Version: ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})
+                            • Device: ${Build.MANUFACTURER} ${Build.MODEL}
+                            • Timer Mode Active: $timerMode
+                            • Sync Status: ${if (AuthManager.isLoggedIn(this@MainActivity)) "Online" else "Guest"}
+                            -------------------------------------
+                            """.trimIndent()
+                        } else ""
+
+                        val emailBody = "$userFeedbackText\n$diagnosticBlock"
+
+                        val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
+                            data = Uri.parse("mailto:")
+                            putExtra(Intent.EXTRA_EMAIL, arrayOf(devEmail))
+                            putExtra(Intent.EXTRA_SUBJECT, emailSubject)
+                            putExtra(Intent.EXTRA_TEXT, emailBody)
+                        }
+
+                        try {
+                            Toast.makeText(this@MainActivity, "Database unavailable ($errorMessage). Opening email client...", Toast.LENGTH_LONG).show()
+                            startActivity(Intent.createChooser(emailIntent, "Send Feedback via Email..."))
+                            dialog.dismiss()
+                        } catch (_: Exception) {
+                            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("StudyTimer Feedback", "To: $devEmail\nSubject: $emailSubject\n\n$emailBody"))
+                            Toast.makeText(this@MainActivity, "Feedback copied to clipboard! (Server unavailable & no email app)", Toast.LENGTH_LONG).show()
+                            dialog.dismiss()
+                        }
+                    }
+                }
+            }
+        }
+
+        content.addView(sendBtn)
+        content.addView(cooldownWarningText)
+        content.addView(urgentEmailBtn)
+
+        // Optional GitHub Issues Link Button
+        val githubBtn = TextView(this).apply {
+            text = "🐙 Open GitHub Issues (Web)"
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 12f
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            gravity = Gravity.CENTER
+            setPadding(dp(8), dp(6), dp(8), dp(4))
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                val githubUrl = "https://github.com/issues"
+                try {
+                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(githubUrl))
+                    startActivity(browserIntent)
+                } catch (_: Exception) {
+                    Toast.makeText(this@MainActivity, "Could not open browser", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        content.addView(githubBtn)
+
+        dialog.setContentView(content)
+        dialog.window?.apply {
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+            setLayout((resources.displayMetrics.widthPixels * 0.92f).toInt(), LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+        dialog.show()
+    }
+
     internal fun showAppGuideDialog() {
         val dialog = Dialog(this)
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
@@ -5574,16 +6225,22 @@ class MainActivity : AppCompatActivity() {
                 setPadding(0, 0, 0, dp(4))
             })
 
-            val availableSubjects = SubjectTagManager.getAllSubjects(this)
+            val availableSubjects = SubjectTagManager.getAllSubjects(this).toMutableList()
             val initSubId = editItem?.subjectId ?: SubjectTagManager.getSelectedSubject(this).id
             var chosenSubIdx = availableSubjects.indexOfFirst { it.id == initSubId }.coerceAtLeast(0)
+
+            val subjectRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, dp(14)) }
+            }
 
             val subjectSelectBtn = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
                 background = themeCoordinator.createCardBackground()
                 setPadding(dp(12), dp(8), dp(12), dp(8))
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, dp(14)) }
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
 
             val subjectLabelTv = TextView(this).apply {
@@ -5606,21 +6263,56 @@ class MainActivity : AppCompatActivity() {
             subjectSelectBtn.addView(subjectLabelTv)
             subjectSelectBtn.addView(subjectArrowTv)
 
-            subjectSelectBtn.setOnClickListener {
+            val addQuickSubBtn = TextView(this).apply {
+                text = "➕ Add"
+                textSize = 12f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(themeCoordinator.primaryColor)
+                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 40), 10f)
+                setPadding(dp(10), dp(8), dp(10), dp(8))
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(dp(8), 0, 0, 0)
+                }
+            }
+
+            fun openSubjectPickerMenu() {
                 val popup = android.widget.PopupMenu(this, subjectSelectBtn)
                 for (i in availableSubjects.indices) {
                     val s = availableSubjects[i]
                     popup.menu.add(0, i, i, "${s.iconEmoji} ${s.name}")
                 }
+                popup.menu.add(0, 9999, 9999, "➕ Add New Subject...")
                 popup.setOnMenuItemClickListener { menuItem ->
-                    chosenSubIdx = menuItem.itemId
-                    val sel = availableSubjects[chosenSubIdx]
-                    subjectLabelTv.text = "${sel.iconEmoji} ${sel.name}"
+                    if (menuItem.itemId == 9999) {
+                        showAddCustomSubjectDialog { newSub ->
+                            availableSubjects.clear()
+                            availableSubjects.addAll(SubjectTagManager.getAllSubjects(this@MainActivity))
+                            chosenSubIdx = availableSubjects.indexOfFirst { it.id == newSub.id }.coerceAtLeast(0)
+                            subjectLabelTv.text = "${newSub.iconEmoji} ${newSub.name}"
+                        }
+                    } else {
+                        chosenSubIdx = menuItem.itemId
+                        val sel = availableSubjects[chosenSubIdx]
+                        subjectLabelTv.text = "${sel.iconEmoji} ${sel.name}"
+                    }
                     true
                 }
                 popup.show()
             }
-            content.addView(subjectSelectBtn)
+
+            subjectSelectBtn.setOnClickListener { openSubjectPickerMenu() }
+            addQuickSubBtn.setOnClickListener {
+                showAddCustomSubjectDialog { newSub ->
+                    availableSubjects.clear()
+                    availableSubjects.addAll(SubjectTagManager.getAllSubjects(this@MainActivity))
+                    chosenSubIdx = availableSubjects.indexOfFirst { it.id == newSub.id }.coerceAtLeast(0)
+                    subjectLabelTv.text = "${newSub.iconEmoji} ${newSub.name}"
+                }
+            }
+
+            subjectRow.addView(subjectSelectBtn)
+            subjectRow.addView(addQuickSubBtn)
+            content.addView(subjectRow)
 
             fun convertTo24h(hEdit: android.widget.EditText, mEdit: android.widget.EditText, isPm: Boolean): String {
                 val rawH = hEdit.text.toString().trim().toIntOrNull() ?: return ""
@@ -6001,7 +6693,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     internal fun showDevTimelineEditor() {
-        DeveloperToolsHelper.showDevTimelineEditor(this, themeCoordinator)
+        DeveloperToolsHelper.showFullDevConsoleDialog(this, themeCoordinator)
     }
 
 
@@ -6068,19 +6760,41 @@ class MainActivity : AppCompatActivity() {
         for (b in breaks) rows.add(Pair(b, true))
         rows.sortBy { it.first.startMs }
         var prevWasBreak = false
+        val allSubs = SubjectTagManager.getAllSubjects(this)
         for ((b, isBreak) in rows) {
-            val blockLabel = when {
-                b.manual -> getString(R.string.block_manual)
-                isBreak -> getString(R.string.block_break)
-                else -> getString(R.string.block_focus)
+            val blockLabel: String
+            val blockColor: Int
+            if (isBreak) {
+                blockLabel = if (b.manual) getString(R.string.block_manual) else getString(R.string.block_break)
+                blockColor = themeCoordinator.secondaryColor
+            } else {
+                val matchedSub = if (b.subjectId != null) {
+                    allSubs.find { it.id == b.subjectId } ?: SubjectTag(b.subjectId, b.subjectName ?: "General", "📖", b.subjectColor ?: "#6366F1")
+                } else if (b.subjectName != null && b.subjectName.isNotBlank()) {
+                    allSubs.find { it.name.equals(b.subjectName, ignoreCase = true) } ?: SubjectTag("custom_${b.subjectName}", b.subjectName, "📖", b.subjectColor ?: "#6366F1")
+                } else null
+
+                blockLabel = if (matchedSub != null) {
+                    "${matchedSub.iconEmoji} ${matchedSub.name}"
+                } else {
+                    if (b.manual) getString(R.string.block_manual) else "⏱ Focus"
+                }
+
+                blockColor = try {
+                    if (matchedSub != null && matchedSub.colorHex.isNotEmpty()) Color.parseColor(matchedSub.colorHex)
+                    else themeCoordinator.primaryColor
+                } catch (_: Exception) {
+                    themeCoordinator.primaryColor
+                }
             }
+
             if (onDelete == null || b.running) {
                 container.addView(TextView(this).apply {
                     text = blockLabel + "  " + formatBlockRow(b.startMs, b.endMs, b.secs)
-                    setTextColor(if (isBreak) themeCoordinator.secondaryColor else themeCoordinator.primaryColor)
+                    setTextColor(blockColor)
                     textSize = 12f
                     typeface = Typeface.MONOSPACE
-                    alpha = 0.85f
+                    alpha = 0.95f
                     setPadding(0, if (prevWasBreak) dp(12) else dp(3), 0, 0)
                 })
             } else {
@@ -6091,10 +6805,10 @@ class MainActivity : AppCompatActivity() {
                 }
                 row.addView(TextView(this).apply {
                     text = blockLabel + "  " + formatBlockRow(b.startMs, b.endMs, b.secs)
-                    setTextColor(if (isBreak) themeCoordinator.secondaryColor else themeCoordinator.primaryColor)
+                    setTextColor(blockColor)
                     textSize = 12f
                     typeface = Typeface.MONOSPACE
-                    alpha = 0.85f
+                    alpha = 0.95f
                     layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 })
                 row.addView(TextView(this).apply {
@@ -7700,16 +8414,25 @@ class MainActivity : AppCompatActivity() {
 
     internal fun checkCelebration() {
         if (isFinishing || isDestroyed) return
-        val snap = computeStatsSnapshot()
-        val dailyGoal = getSharedPreferences("StudyTimerPrefs", MODE_PRIVATE).getLong("daily_goal_secs", 2700L)
-        val todayTotal = snap.todayFocus + (if (currentTimerState == TimerState.STUDYING) accumulatedStudy else 0L)
-        CelebrationEngine.checkAndCelebrate(
-            activity = this,
-            sessionSecs = accumulatedStudy,
-            todayTotalSecs = todayTotal,
-            dailyGoalSecs = dailyGoal,
-            currentStreak = snap.streak
-        )
+        val todayStr = dateKeyFmt.format(Date())
+        val dailyGoal = resolveGoalFor(todayStr)
+        if (dailyGoal <= 0L) return
+
+        val sharedPrefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val storedTodayFocus = sharedPrefs.getLong("${todayStr}_focus_total", 0L)
+        val runningSessionSecs = if (currentTimerState == TimerState.STUDYING) accumulatedStudy else 0L
+        val totalTodayFocus = storedTodayFocus + runningSessionSecs
+
+        if (totalTodayFocus >= dailyGoal) {
+            val streak = sharedPrefs.safeInt("current_streak", 1)
+            CelebrationEngine.checkAndCelebrate(
+                activity = this,
+                sessionSecs = runningSessionSecs,
+                todayTotalSecs = totalTodayFocus,
+                dailyGoalSecs = dailyGoal,
+                currentStreak = streak
+            )
+        }
     }
 
     private var ongoingLectureDialogShowing = false
@@ -8157,7 +8880,7 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Exception) {}
     }
 
-    private fun showAddCustomSubjectDialog() {
+    fun showAddCustomSubjectDialog(onSubjectCreated: ((SubjectTag) -> Unit)? = null) {
         try {
             val dialog = Dialog(this)
             dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
@@ -8190,6 +8913,89 @@ class MainActivity : AppCompatActivity() {
             }
             container.addView(input)
 
+            var selectedColorHex = SubjectTagManager.generateUniqueColor(this)
+
+            val previewRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, dp(14), 0, dp(8))
+            }
+            val colorPreviewCircle = View(this).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(28), dp(28)).apply {
+                    setMargins(0, 0, dp(10), 0)
+                }
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(Color.parseColor(selectedColorHex))
+                }
+            }
+            previewRow.addView(colorPreviewCircle)
+
+            val colorLabel = TextView(this).apply {
+                text = "Subject Color: $selectedColorHex"
+                setTextColor(themeCoordinator.textColor)
+                textSize = 13f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            }
+            previewRow.addView(colorLabel)
+            container.addView(previewRow)
+
+            // Preset Swatches Horizontal Row
+            val swatchesScroll = android.widget.HorizontalScrollView(this).apply {
+                isHorizontalScrollBarEnabled = false
+                setPadding(0, 0, 0, dp(10))
+            }
+            val swatchesLayout = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+            }
+            val presetColors = listOf("#6366F1", "#EC4899", "#F97316", "#06B6D4", "#10B981", "#EAB308", "#8B5CF6", "#EF4444", "#3B82F6", "#14B8A6")
+            for (hex in presetColors) {
+                val swatch = View(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(dp(30), dp(30)).apply {
+                        setMargins(0, 0, dp(8), 0)
+                    }
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(Color.parseColor(hex))
+                        setStroke(dp(2), if (hex.equals(selectedColorHex, true)) Color.WHITE else Color.TRANSPARENT)
+                    }
+                    setOnClickListener {
+                        selectedColorHex = hex
+                        (colorPreviewCircle.background as? GradientDrawable)?.setColor(Color.parseColor(hex))
+                        colorLabel.text = "Subject Color: $selectedColorHex"
+                    }
+                }
+                swatchesLayout.addView(swatch)
+            }
+            swatchesScroll.addView(swatchesLayout)
+            container.addView(swatchesScroll)
+
+            // Custom Hue Color Slider Bar
+            val hueLabel = TextView(this).apply {
+                text = "🎨 Custom Hue Bar"
+                setTextColor(themeCoordinator.textColor)
+                alpha = 0.6f
+                textSize = 11.5f
+                setPadding(0, 0, 0, dp(4))
+            }
+            container.addView(hueLabel)
+
+            val hueSeekBar = android.widget.SeekBar(this).apply {
+                max = 360
+                progress = 240
+                setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(sb: android.widget.SeekBar?, prog: Int, fromUser: Boolean) {
+                        val colorInt = Color.HSVToColor(floatArrayOf(prog.toFloat(), 0.85f, 0.90f))
+                        selectedColorHex = String.format("#%06X", 0xFFFFFF and colorInt)
+                        (colorPreviewCircle.background as? GradientDrawable)?.setColor(colorInt)
+                        colorLabel.text = "Subject Color: $selectedColorHex"
+                    }
+                    override fun onStartTrackingTouch(sb: android.widget.SeekBar?) {}
+                    override fun onStopTrackingTouch(sb: android.widget.SeekBar?) {}
+                })
+            }
+            container.addView(hueSeekBar)
+
             val saveBtn = Button(this).apply {
                 text = "Save Subject"
                 textSize = 14f
@@ -8205,9 +9011,10 @@ class MainActivity : AppCompatActivity() {
                 setOnClickListener {
                     val name = input.text.toString().trim()
                     if (name.isNotEmpty()) {
-                        SubjectTagManager.addCustomSubject(this@MainActivity, name)
+                        val created = SubjectTagManager.addCustomSubject(this@MainActivity, name, "📚", selectedColorHex)
                         dialog.dismiss()
                         buildFocusPanel()
+                        onSubjectCreated?.invoke(created)
                     }
                 }
             }
@@ -8428,12 +9235,32 @@ class MainActivity : AppCompatActivity() {
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(340))
             }
 
-            val subjectDurations = SubjectTagManager.getSubjectDurationsForDate(this, currentDateKey)
-            val subjectBreakDurations = SubjectTagManager.getSubjectBreakDurationsForDate(this, currentDateKey)
+            val (daySessions, dayBreaks) = StatsEngine(this).dayBlocks(currentDateKey)
             val allSubjects = SubjectTagManager.getAllSubjects(this)
+            val subjectDurations = HashMap<String, Long>()
+
+            // Aggregate focus durations directly from unified session logs
+            for (s in daySessions) {
+                if (s.subjectId != null) {
+                    subjectDurations[s.subjectId] = (subjectDurations[s.subjectId] ?: 0L) + s.secs
+                }
+            }
+
+            // Fallback to legacy SubjectTagManager if daySessions is empty
+            if (subjectDurations.isEmpty()) {
+                val legacy = SubjectTagManager.getSubjectDurationsForDate(this, currentDateKey)
+                for ((subId, secs) in legacy) {
+                    if (allSubjects.any { it.id == subId }) {
+                        subjectDurations[subId] = secs
+                    }
+                }
+            }
+
+            val subjectBreakDurations = SubjectTagManager.getSubjectBreakDurationsForDate(this, currentDateKey)
+
             val activeSubjectsSorted = allSubjects
                 .map { it to (subjectDurations[it.id] ?: 0L) }
-                .filter { it.second > 0L }
+                .filter { it.second >= 60L }
                 .sortedByDescending { it.second }
 
             val slicesList = ArrayList<SubjectPieChartView.PieSlice>()
@@ -8467,7 +9294,6 @@ class MainActivity : AppCompatActivity() {
             })
 
             val totalSecsAll = subjectDurations.values.sum()
-            val sdfTime = SimpleDateFormat("hh:mm a", Locale.getDefault())
 
             if (slicesList.isEmpty()) {
                 val emptyCard = LinearLayout(this).apply {
@@ -8492,12 +9318,12 @@ class MainActivity : AppCompatActivity() {
                 })
                 scrollContent.addView(emptyCard)
             } else {
-                val nowMs = System.currentTimeMillis()
-                var cumMs = 0L
-                val (daySessions, _) = StatsEngine(this).dayBlocks(currentDateKey)
-                val usedSessionIndices = HashSet<Int>()
-
-                for ((subj, secs) in activeSubjectsSorted) {
+                for (subjPair in activeSubjectsSorted) {
+                    val (subj, secs) = subjPair
+                    val matchedSessions = daySessions.filter {
+                        (it.subjectId != null && it.subjectId == subj.id) ||
+                        (it.subjectId == null && subj.id == "general")
+                    }
 
                     val subjCard = LinearLayout(this).apply {
                         orientation = LinearLayout.VERTICAL
@@ -8535,26 +9361,18 @@ class MainActivity : AppCompatActivity() {
 
                     subjCard.addView(headerRowSubj)
 
-                    val matchedIdx = daySessions.indices.firstOrNull { idx ->
-                        idx !in usedSessionIndices && kotlin.math.abs(daySessions[idx].secs - secs) <= 5L
-                    } ?: daySessions.indices.firstOrNull { it !in usedSessionIndices }
-
-                    val startMs: Long
-                    val endMs: Long
-
-                    if (matchedIdx != null) {
-                        usedSessionIndices.add(matchedIdx)
-                        val b = daySessions[matchedIdx]
-                        startMs = b.startMs
-                        endMs = b.endMs
+                    val timingStr = if (matchedSessions.isNotEmpty()) {
+                        val firstMs = matchedSessions.minOf { it.startMs }
+                        val lastMs = matchedSessions.maxOf { it.endMs }
+                        "${TimeFormat.formatWallClock(this, firstMs)} \u2013 ${TimeFormat.formatWallClock(this, lastMs)}"
+                    } else if (daySessions.isNotEmpty()) {
+                        val firstMs = daySessions.minOf { it.startMs }
+                        val lastMs = daySessions.maxOf { it.endMs }
+                        "${TimeFormat.formatWallClock(this, firstMs)} \u2013 ${TimeFormat.formatWallClock(this, lastMs)}"
                     } else {
-                        endMs = nowMs - cumMs
-                        startMs = endMs - (secs * 1000L)
-                        cumMs += (secs * 1000L)
+                        "N/A"
                     }
 
-                    val startTimeStr = sdfTime.format(Date(startMs))
-                    val endTimeStr = sdfTime.format(Date(endMs))
                     val hrs = secs / 3600L
                     val mins = (secs % 3600L) / 60L
                     val remSecs = secs % 60L
@@ -8567,7 +9385,7 @@ class MainActivity : AppCompatActivity() {
                     val breakTimeStr = if (bHrs > 0) "${bHrs}h ${bMins}m ${bRemSecs}s" else "${bMins}m ${bRemSecs}s"
 
                     val detailsText = TextView(this).apply {
-                        text = "⏱️ Focus Duration: $focusTimeStr\n☕ Break Duration: $breakTimeStr\n⏰ Timing: $startTimeStr — $endTimeStr"
+                        text = "⏱️ Focus Duration: $focusTimeStr\n☕ Break Duration: $breakTimeStr\n⏰ Timing: $timingStr"
                         setTextColor(themeCoordinator.textColor)
                         alpha = 0.75f
                         textSize = 13.5f

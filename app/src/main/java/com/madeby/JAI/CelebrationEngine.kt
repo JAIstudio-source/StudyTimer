@@ -70,7 +70,7 @@ object CelebrationEngine {
         var alpha: Float = 1f
     )
 
-    private fun showCelebrationDialog(
+    internal fun showCelebrationDialog(
         activity: MainActivity,
         isGoalAchieved: Boolean,
         streak: Int

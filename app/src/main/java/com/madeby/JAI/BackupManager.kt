@@ -50,6 +50,47 @@ class BackupManager(private val context: Context) {
         } catch (_: Exception) {}
     }
 
+    data class BackupMetadata(
+        val schemaVersion: Int,
+        val backupCreatedAt: Long,
+        val lastModifiedTimestamp: Long,
+        val entryCount: Int
+    )
+
+    fun getLastModifiedTimestamp(): Long {
+        val sharedPrefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val prefTs = sharedPrefs.getLong("last_data_modified_timestamp", 0L)
+        val timelineLastTs = TimelineLogger.load(context).maxOfOrNull { it.timestamp } ?: 0L
+        return maxOf(prefTs, timelineLastTs, System.currentTimeMillis() - 86400000L)
+    }
+
+    fun markDataModified() {
+        val sharedPrefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        sharedPrefs.edit().putLong("last_data_modified_timestamp", System.currentTimeMillis()).apply()
+    }
+
+    fun inspectBackupMetadata(uri: Uri): BackupMetadata? {
+        return try {
+            context.contentResolver.openInputStream(uri)?.use { stream ->
+                val jsonString = BufferedReader(InputStreamReader(stream)).readText()
+                val json = JSONObject(jsonString)
+                val schemaVer = json.optInt("schema_version", 1)
+                val createdAt = json.optLong("backup_created_at", 0L)
+                val lastMod = json.optLong("last_modified_timestamp", createdAt)
+                val timelineRaw = json.optString("focus_timeline", "")
+                val entryCount = if (timelineRaw.isNotEmpty()) parseTimelineJson(timelineRaw).size else 0
+                BackupMetadata(
+                    schemaVersion = schemaVer,
+                    backupCreatedAt = if (createdAt > 0L) createdAt else System.currentTimeMillis(),
+                    lastModifiedTimestamp = if (lastMod > 0L) lastMod else createdAt,
+                    entryCount = entryCount
+                )
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     fun exportDataToJSON(uri: Uri): Boolean {
         try {
             val sharedPrefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
@@ -58,6 +99,12 @@ class BackupManager(private val context: Context) {
                 json.put(key, value)
             }
             putTimeline(json)
+            val now = System.currentTimeMillis()
+            val lastMod = getLastModifiedTimestamp()
+            json.put("schema_version", 2)
+            json.put("backup_created_at", now)
+            json.put("last_modified_timestamp", maxOf(lastMod, now))
+
             val outputStream = context.contentResolver.openOutputStream(uri, "w")
                 ?: return false
             outputStream.use { stream ->
@@ -69,7 +116,7 @@ class BackupManager(private val context: Context) {
         return false
     }
 
-    fun importDataFromJSON(uri: Uri): Boolean {
+    fun importDataFromJSON(uri: Uri, allowCloudSync: Boolean = true): Boolean {
         val sharedPrefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
         try {
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
@@ -78,16 +125,23 @@ class BackupManager(private val context: Context) {
                 val editor = sharedPrefs.edit()
                 editor.clear()
                 sanitizeAndBuildPreferences(importedJsonObject, editor)
+
+                val importedLastMod = importedJsonObject.optLong("last_modified_timestamp",
+                    importedJsonObject.optLong("backup_created_at", System.currentTimeMillis()))
+                editor.putLong("last_data_modified_timestamp", importedLastMod)
+
                 val committed = editor.commit() // Synchronous commit to ensure immediate UI update
                 restoreTimeline(importedJsonObject)
                 runSilentAutoBackup()
 
-                // Automatically upload imported data to user's Google/Supabase cloud account
-                Thread {
-                    kotlinx.coroutines.runBlocking {
-                        CloudSyncManager.syncDataToCloud(context)
-                    }
-                }.start()
+                if (allowCloudSync && AuthManager.isLoggedIn(context)) {
+                    // Safe async sync check handled by caller or background worker
+                    Thread {
+                        kotlinx.coroutines.runBlocking {
+                            CloudSyncManager.syncWithConflictCheck(context)
+                        }
+                    }.start()
+                }
 
                 return committed
             }

@@ -126,28 +126,28 @@ class ThemeCoordinator(private val context: Context) {
         return GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(top, bottom))
     }
 
-    fun createCardBackground(cornerRadius: Float = 35f): android.graphics.drawable.Drawable {
+    fun createCardBackground(cornerRadius: Float = 26f): android.graphics.drawable.Drawable {
         val density = context.resources.displayMetrics.density
         if (isBubbleStyle()) {
             val fillTop = when (activeBgMode) {
                 "LIGHT" -> 0xFFF8FAFC.toInt()
                 "ECLIPSE" -> 0xFF1E293B.toInt()
-                else -> 0xFF141720.toInt()
+                else -> 0xFF161820.toInt()
             }
             val fillBottom = when (activeBgMode) {
                 "LIGHT" -> 0xFFEDF2F7.toInt()
                 "ECLIPSE" -> 0xFF0F172A.toInt()
-                else -> 0xFF0B0D12.toInt()
+                else -> 0xFF101217.toInt()
             }
-            val strokeColor = if (isDarkMode()) 0x33FFFFFF.toInt() else 0x220F172A.toInt()
+            val strokeColor = if (isDarkMode()) 0x33282A36.toInt() else 0x220F172A.toInt()
             return GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(fillTop, fillBottom)).apply {
                 this.cornerRadius = cornerRadius * density
-                setStroke((1.2f * density).toInt(), strokeColor)
+                setStroke((1f * density).toInt(), if (isDarkMode()) 0xFF282A36.toInt() else strokeColor)
             }
         }
         if (!isGlassStyle()) {
-            val strokeCol = if (activeBgMode == "LIGHT") Color.argb(35, 15, 23, 42) else Color.argb(40, 255, 255, 255)
-            val fillCol = if (activeBgMode == "OLED") 0xFF0D0F14.toInt() else boxColor
+            val strokeCol = if (activeBgMode == "LIGHT") Color.argb(35, 15, 23, 42) else 0xFF282A36.toInt()
+            val fillCol = if (activeBgMode == "OLED") 0xFF121318.toInt() else boxColor
             return GradientDrawable().apply {
                 this.cornerRadius = cornerRadius * density
                 setColor(fillCol)
@@ -166,8 +166,8 @@ class ThemeCoordinator(private val context: Context) {
                 stroke = 0x33FFFFFF.toInt()
             }
             else -> {
-                fill = 0x14FFFFFF.toInt()
-                stroke = 0x2BFFFFFF.toInt()
+                fill = 0xFF121318.toInt()
+                stroke = 0xFF282A36.toInt()
             }
         }
         return GradientDrawable().apply {

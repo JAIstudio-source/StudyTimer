@@ -860,6 +860,8 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     isChecked = isHeatmapEnabled
                     setOnCheckedChangeListener { _, isChecked ->
                         sharedPrefs.edit().putBoolean("show_focus_heatmap", isChecked).apply()
+                        statsDirty = true
+                        tabPageCache.clear()
                     }
                 }
                 chartsCard.addView(createSettingsRow("🗓️", getString(R.string.focus_heatmap_setting), getString(R.string.focus_heatmap_setting_sub), heatmapSwitch))
@@ -870,9 +872,23 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     isChecked = isPieChartEnabled
                     setOnCheckedChangeListener { _, isChecked ->
                         sharedPrefs.edit().putBoolean("show_subject_pie_chart", isChecked).apply()
+                        statsDirty = true
+                        tabPageCache.clear()
                     }
                 }
                 chartsCard.addView(createSettingsRow("📊", "Subject Pie Chart", "Show subject breakdown and focus depth charts in Insights", pieChartSwitch))
+                chartsCard.addView(createDivider())
+
+                val isPatternEnabled = sharedPrefs.getBoolean("show_focus_pattern", true)
+                val patternSwitch = SwitchMaterial(this).apply {
+                    isChecked = isPatternEnabled
+                    setOnCheckedChangeListener { _, isChecked ->
+                        sharedPrefs.edit().putBoolean("show_focus_pattern", isChecked).apply()
+                        statsDirty = true
+                        tabPageCache.clear()
+                    }
+                }
+                chartsCard.addView(createSettingsRow("🕒", getString(R.string.focus_pattern_setting), getString(R.string.focus_pattern_setting_sub), patternSwitch))
                 layout.addView(chartsCard)
             }
 

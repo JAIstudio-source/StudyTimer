@@ -222,7 +222,7 @@ class MainActivity : AppCompatActivity() {
     internal val statsEngine by lazy { StatsEngine(this) }
     internal val dateKeyFmt by lazy { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
 
-    private lateinit var rootLayout: LinearLayout
+    private lateinit var rootLayout: FrameLayout
     internal lateinit var panelContainer: LinearLayout
 
     internal lateinit var statusBadge: TextView
@@ -1463,11 +1463,8 @@ class MainActivity : AppCompatActivity() {
 
         requestNotificationPermissionIfNeeded()
 
-        rootLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
+        rootLayout = FrameLayout(this).apply {
             background = themeCoordinator.createBackgroundDrawable()
-            setPadding(dp(16), dp(16), dp(16), dp(16))
-            gravity = Gravity.CENTER_HORIZONTAL
         }
 
         panelContainer = LinearLayout(this).apply {
@@ -1477,7 +1474,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         panelHost = FrameLayout(this).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+            setPadding(dp(16), dp(16), dp(16), dp(16))
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         }
         panelHost.addView(panelContainer)
         rootLayout.addView(panelHost)
@@ -2154,6 +2152,8 @@ class MainActivity : AppCompatActivity() {
         val prevPanel = currentPanel
         currentPanel = targetPanel
 
+        val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
         if (isSamePanel || panelContainer.childCount == 0) {
             buildCurrentPanel()
             return
@@ -2397,71 +2397,84 @@ class MainActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT)
         }
 
-        val scroll = ScrollView(this).apply { layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f); isVerticalScrollBarEnabled = false }
-        val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(12), 0, dp(96)) }
-        scroll.addView(content)
-
-        content.addView(TextView(this).apply {
-            text = getString(R.string.insights_title)
-            setTextColor(themeCoordinator.primaryColor)
-            textSize = 22f
-            setPadding(dp(6), 0, dp(6), 0)
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-        })
-
-        val dayOfYear = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
-        val todayQuote = dailyQuotes[dayOfYear % dailyQuotes.size]
-        val quoteCard = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            background = themeCoordinator.createCardBackground()
-            setPadding(dp(14), dp(12), dp(14), dp(12))
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(4), 0, dp(8)) }
-        }
-        quoteCard.addView(TextView(this).apply {
-            text = getString(R.string.thought_of_the_day)
-            setTextColor(themeCoordinator.textColor)
-            alpha = 0.5f
-            textSize = 10f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            letterSpacing = 0.15f
-        })
-        quoteCard.addView(TextView(this).apply {
-            text = todayQuote
-            setTextColor(themeCoordinator.textColor)
-            textSize = 13f
-            typeface = Typeface.create("sans-serif", Typeface.ITALIC)
-            setPadding(0, dp(4), 0, 0)
-        })
-        content.addView(quoteCard)
-
-        val tabContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            setPadding(0, dp(4), 0, dp(10))
-        }
-
-        fun tabBtn(title: String, tab: AppStatsTab): TextView {
-            return TextView(this).apply {
-                text = title
-                textSize = 14f
-                setPadding(dp(18), dp(10), dp(18), dp(10))
-                typeface = Typeface.create("sans-serif-medium", if (currentStatsTab == tab) Typeface.BOLD else Typeface.NORMAL)
-                setTextColor(if (currentStatsTab == tab) themeCoordinator.primaryColor else themeCoordinator.textColor)
-                background = if (currentStatsTab == tab) themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 110), 16f) else null
-                setOnClickListener {
-                    currentStatsTab = tab
-                    tabPageCache.clear()
-                    navigateToPanel(AppPanel.STATS)
+        var insightsPillBar: InsightsPillNavBar? = null
+        val scroll = ScrollView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+            isVerticalScrollBarEnabled = false
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
+                    val dy = scrollY - oldScrollY
+                    if (dy > 12 && scrollY > dp(40)) {
+                        insightsPillBar?.setBarVisibility(false)
+                    } else if (dy < -12 || scrollY <= dp(10)) {
+                        insightsPillBar?.setBarVisibility(true)
+                    }
                 }
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(dp(4), 0, dp(4), 0) }
             }
         }
-        tabContainer.addView(tabBtn(getString(R.string.tab_overview), AppStatsTab.OVERVIEW))
-        tabContainer.addView(tabBtn(getString(R.string.tab_history), AppStatsTab.TIMELINE))
-        tabContainer.addView(tabBtn("Planner", AppStatsTab.PLANNER))
-        content.addView(tabContainer)
+        val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(8), 0, dp(80)) }
+        scroll.addView(content)
 
+        // Clean Geometric Header
+        val headerRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(4), dp(4), dp(4), dp(10))
+        }
+        headerRow.addView(TextView(this).apply {
+            text = getString(R.string.insights_title)
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 24f
+            letterSpacing = -0.02f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        content.addView(headerRow)
 
+        val isQuoteDismissed = sharedPrefs.getBoolean("quote_dismissed_today_${todayStr}", false)
+        if (!isQuoteDismissed) {
+            val dayOfYear = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
+            val todayQuote = dailyQuotes[dayOfYear % dailyQuotes.size]
+            val quoteRibbon = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(14).toFloat()
+                    setColor(0xFF161822.toInt())
+                    setStroke(dp(1), tintedColor(themeCoordinator.primaryColor, 50))
+                }
+                setPadding(dp(14), dp(10), dp(12), dp(10))
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(0, 0, 0, dp(14))
+                }
+            }
+            quoteRibbon.addView(TextView(this).apply {
+                text = "✨"
+                textSize = 14f
+                setPadding(0, 0, dp(8), 0)
+            })
+            quoteRibbon.addView(TextView(this).apply {
+                text = todayQuote
+                setTextColor(themeCoordinator.textColor)
+                alpha = 0.85f
+                textSize = 12.5f
+                typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            })
+            val dismissBtn = TextView(this).apply {
+                text = "✕"
+                setTextColor(themeCoordinator.textColor)
+                alpha = 0.45f
+                textSize = 13f
+                setPadding(dp(8), dp(4), dp(4), dp(4))
+                setOnClickListener {
+                    sharedPrefs.edit().putBoolean("quote_dismissed_today_${todayStr}", true).apply()
+                    (quoteRibbon.parent as? android.view.ViewGroup)?.removeView(quoteRibbon)
+                }
+            }
+            quoteRibbon.addView(dismissBtn)
+            content.addView(quoteRibbon)
+        }
 
         val todayFocus = snap.todayFocus
         val todayBreak = snap.todayBreak
@@ -2489,20 +2502,32 @@ class MainActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(2), 0, dp(8)) }
         }
 
+        val heroGoalSecs = snap.heroGoalSecs
+        val heroGoalPctRaw = if (heroGoalSecs > 0) todayFocus.toFloat() / heroGoalSecs.toFloat() * 100f else 0f
+        val heroGoalPct = heroGoalPctRaw.coerceIn(0f, 100f)
+        val goalReached = todayFocus >= heroGoalSecs && heroGoalSecs > 0
+        val goalRingColor = if (goalReached) 0xFF43D36E.toInt() else themeCoordinator.primaryColor
+
+        // Top Header with Label & Streak Chip
         val heroTopRow = LinearLayout(this@MainActivity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         heroTopRow.addView(TextView(this@MainActivity).apply {
-            text = getString(R.string.today_label)
+            text = "⚡ TODAY'S FOCUS"
             setTextColor(themeCoordinator.primaryColor)
             textSize = 11f
-            letterSpacing = 0.2f
+            letterSpacing = 0.16f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         })
         heroTopRow.addView(LinearLayout(this@MainActivity).apply { layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) })
+
         val streakChip = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            background = GradientDrawable().apply { cornerRadius = 14f; setColor(tintedColor(themeCoordinator.primaryColor, 22)) }
-            setPadding(dp(10), dp(5), dp(10), dp(5))
+            background = GradientDrawable().apply {
+                cornerRadius = dp(12).toFloat()
+                setColor(0xFF1E212D.toInt())
+                setStroke(dp(1), tintedColor(themeCoordinator.primaryColor, 60))
+            }
+            setPadding(dp(10), dp(4), dp(10), dp(4))
         }
         streakChip.addView(ImageView(this@MainActivity).apply {
             setImageResource(R.drawable.ic_flame)
@@ -2511,28 +2536,36 @@ class MainActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(dp(14), dp(14))
         })
         streakChip.addView(TextView(this@MainActivity).apply {
-            text = getString(R.string.streak_days, streak)
+            text = "${streak}d streak"
             setTextColor(themeCoordinator.textColor)
-            textSize = 12f
+            textSize = 11.5f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(dp(5), 0, 0, 0)
+            setPadding(dp(4), 0, 0, 0)
         })
         heroTopRow.addView(streakChip)
         heroCard.addView(heroTopRow)
 
-        val heroMainRow = LinearLayout(this@MainActivity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(6), 0, 0) }
-        heroMainRow.addView(TextView(this@MainActivity).apply {
-            text = getString(R.string.duration_h_m, todayH, todayM)
-            setTextColor(themeCoordinator.primaryColor)
-            textSize = 40f
-            typeface = Typeface.create("sans-serif", Typeface.BOLD)
-        })
-        heroMainRow.addView(LinearLayout(this@MainActivity).apply { layoutParams = LinearLayout.LayoutParams(dp(12), 0) })
-        val trendChip = TextView(this@MainActivity).apply {
-            textSize = 12f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(dp(9), dp(5), dp(9), dp(5))
+        // Main Counter paired with Circular Progress Ring
+        val heroCenterRow = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(12), 0, dp(12))
         }
+
+        val counterCol = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val timeRow = LinearLayout(this@MainActivity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM }
+        timeRow.addView(TextView(this@MainActivity).apply {
+            text = getString(R.string.duration_h_m, todayH, todayM)
+            setTextColor(themeCoordinator.textColor)
+            textSize = 36f
+            letterSpacing = -0.03f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        })
+
         val yesterdaySecs = snap.yesterdaySecs
         val trendPct = if (yesterdaySecs > 0L) {
             (((todayFocus - yesterdaySecs).toFloat() / yesterdaySecs.toFloat()) * 100f).toInt()
@@ -2541,104 +2574,115 @@ class MainActivity : AppCompatActivity() {
         } else {
             0
         }
-        when {
-            yesterdaySecs == 0L && todayFocus == 0L -> {
-                trendChip.text = getString(R.string.trend_no_sessions)
-                trendChip.setTextColor(themeCoordinator.textColor)
-                trendChip.alpha = 0.5f
-            }
-            trendPct > 0 -> {
-                trendChip.text = getString(R.string.trend_up, trendPct)
-                trendChip.setTextColor(themeCoordinator.primaryColor)
-                trendChip.background = GradientDrawable().apply { cornerRadius = 12f; setColor(tintedColor(themeCoordinator.primaryColor, 26)) }
-            }
-            trendPct < 0 -> {
-                trendChip.text = getString(R.string.trend_down, -trendPct)
-                trendChip.setTextColor(themeCoordinator.textColor)
-                trendChip.alpha = 0.6f
-            }
-            else -> {
-                trendChip.text = getString(R.string.trend_same)
-                trendChip.setTextColor(themeCoordinator.textColor)
-                trendChip.alpha = 0.6f
-            }
-        }
-        heroMainRow.addView(trendChip)
-        heroMainRow.addView(LinearLayout(this@MainActivity).apply { layoutParams = LinearLayout.LayoutParams(0, 0, 1f) })
-        heroCard.addView(heroMainRow)
 
-        val heroGoalSecs = snap.heroGoalSecs
-        val heroGoalPctRaw = todayFocus.toFloat() / heroGoalSecs.toFloat() * 100f
-        val heroGoalPct = heroGoalPctRaw.coerceIn(0f, 100f)
-        val goalReached = todayFocus >= heroGoalSecs
-        val goalRow = LinearLayout(this@MainActivity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(12), 0, 0) }
-        val goalTextCol = LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        }
-        goalTextCol.addView(TextView(this@MainActivity).apply {
-            text = getString(R.string.daily_goal_label, formatGoalLabel(heroGoalSecs))
-            setTextColor(themeCoordinator.textColor)
-            alpha = 0.6f
+        val trendChip = TextView(this@MainActivity).apply {
             textSize = 11f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-        })
-        goalTextCol.addView(TextView(this@MainActivity).apply {
-            text = if (goalReached) getString(R.string.goal_reached_yes) else {
-                val remaining = heroGoalSecs - todayFocus
-                getString(R.string.x_to_go, formatGoalLabel(remaining))
+            setPadding(dp(8), dp(3), dp(8), dp(3))
+            when {
+                yesterdaySecs == 0L && todayFocus == 0L -> {
+                    text = "0%"
+                    setTextColor(themeCoordinator.textColor)
+                    alpha = 0.45f
+                }
+                trendPct > 0 -> {
+                    text = "+${trendPct}%"
+                    setTextColor(0xFF43D36E.toInt())
+                    background = GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(0x2243D36E.toInt()) }
+                }
+                trendPct < 0 -> {
+                    text = "${trendPct}%"
+                    setTextColor(0xFFFF5252.toInt())
+                    background = GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(0x22FF5252.toInt()) }
+                }
+                else -> {
+                    text = "0%"
+                    setTextColor(themeCoordinator.textColor)
+                    alpha = 0.5f
+                }
             }
-            setTextColor(if (goalReached) 0xFF4CAF50.toInt() else themeCoordinator.textColor)
-            alpha = if (goalReached) 1f else 0.5f
-            textSize = 12f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(0, dp(2), 0, 0)
-        })
-        goalRow.addView(goalTextCol)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(dp(10), 0, 0, dp(6))
+            }
+        }
+        timeRow.addView(trendChip)
+        counterCol.addView(timeRow)
 
-        val goalRingColor = if (goalReached) 0xFF4CAF50.toInt() else themeCoordinator.primaryColor
+        val targetSubtext = TextView(this@MainActivity).apply {
+            text = "Target: ${formatGoalLabel(heroGoalSecs)} · ${(heroGoalPctRaw).toInt()}% achieved"
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.6f
+            textSize = 12f
+            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+            setPadding(0, dp(2), 0, 0)
+        }
+        counterCol.addView(targetSubtext)
+        heroCenterRow.addView(counterCol)
+
+        // Circular Progress Ring
+        val ringSize = dp(68)
         val goalRingWrap = FrameLayout(this@MainActivity).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(64), dp(64))
+            layoutParams = LinearLayout.LayoutParams(ringSize, ringSize)
         }
         goalRingWrap.addView(SegmentRing(
             listOf(heroGoalPct / 100f to goalRingColor),
-            themeCoordinator.bgColor,
-            dp(6),
-            Pair(goalRingColor, lightenColor(goalRingColor, 0.35f))
+            0xFF1E212D.toInt(),
+            dp(7),
+            Pair(goalRingColor, lightenColor(goalRingColor, 0.25f))
         ), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         goalRingWrap.addView(TextView(this@MainActivity).apply {
-            text = if (goalReached) "\u2713" else "${heroGoalPctRaw.toInt()}%"
+            text = if (goalReached) "✓" else "${heroGoalPctRaw.toInt()}%"
             gravity = Gravity.CENTER
             setTextColor(goalRingColor)
             textSize = if (goalReached) 20f else 13f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         })
-        goalRow.addView(goalRingWrap)
-        heroCard.addView(goalRow)
+        heroCenterRow.addView(goalRingWrap)
+        heroCard.addView(heroCenterRow)
 
-        val breakRow = LinearLayout(this@MainActivity).apply {
+        // Inline Badges Row: [⏳ 39m to go] | [☕ 0m break] | [📊 7D Avg: ...]
+        val inlineBadgesRow = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(12), 0, 0)
+            setPadding(0, dp(4), 0, 0)
         }
-        breakRow.addView(TextView(this@MainActivity).apply {
-            text = getString(R.string.break_h_m, todayBH, todayBM)
-            setTextColor(themeCoordinator.secondaryColor)
-            textSize = 12f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            background = GradientDrawable().apply { cornerRadius = dp(12).toFloat(); setColor(tintedColor(themeCoordinator.secondaryColor, 22)) }
-            setPadding(dp(12), dp(7), dp(12), dp(7))
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        })
-        breakRow.addView(TextView(this@MainActivity).apply {
-            text = getString(R.string.avg7_label, avgH, avgM)
-            setTextColor(themeCoordinator.textColor)
-            alpha = 0.55f
-            textSize = 12f
-            setPadding(dp(10), 0, 0, 0)
-        })
-        heroCard.addView(breakRow)
+
+        fun createPillBadge(emoji: String, textStr: String): LinearLayout {
+            return LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(10).toFloat()
+                    setColor(0xFF181A24.toInt())
+                    setStroke(dp(1), 0xFF282A36.toInt())
+                }
+                setPadding(dp(10), dp(6), dp(10), dp(6))
+                addView(TextView(this@MainActivity).apply {
+                    text = emoji
+                    textSize = 11f
+                    setPadding(0, 0, dp(4), 0)
+                })
+                addView(TextView(this@MainActivity).apply {
+                    text = textStr
+                    setTextColor(themeCoordinator.textColor)
+                    alpha = 0.85f
+                    textSize = 11.5f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+                })
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(0, 0, dp(8), 0)
+                }
+            }
+        }
+
+        val remainingSecs = (heroGoalSecs - todayFocus).coerceAtLeast(0L)
+        val remainingLabel = if (goalReached) "Goal Reached!" else "${formatGoalLabel(remainingSecs)} left"
+        val breakLabel = if (todayBH > 0) "${todayBH}h ${todayBM}m break" else "${todayBM}m break"
+        inlineBadgesRow.addView(createPillBadge(if (goalReached) "🎯" else "⏳", remainingLabel))
+        inlineBadgesRow.addView(createPillBadge("☕", breakLabel))
+        inlineBadgesRow.addView(createPillBadge("📊", "${avgH}h ${avgM}m avg"))
+        heroCard.addView(inlineBadgesRow)
 
         val chipRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -3122,71 +3166,117 @@ class MainActivity : AppCompatActivity() {
 
         val goalHits = snap.goalHits
 
-        val insightsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        var insightCount = 0
+        // Compact 2x2 Highlights Metric Grid
+        val gridRows = ArrayList<Pair<LinearLayout, LinearLayout>>()
+        val highlightItems = ArrayList<View>()
 
-        if (thisWeek > 0L || prevWeek > 0L) {
-            val diff = if (prevWeek > 0L) ((thisWeek - prevWeek).toFloat() / prevWeek.toFloat() * 100f).toInt() else 100
-            val statement = when {
-                diff > 0 -> "$diff% more focus than last week"
-                diff < 0 -> "${-diff}% less focus than last week"
-                else -> "same pace as last week"
+        fun createGridMetricCard(iconRes: Int, color: Int, tag: String, value: String, subtext: String): LinearLayout {
+            return LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                background = themeCoordinator.createCardBackground(18f)
+                setPadding(dp(14), dp(12), dp(14), dp(12))
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+
+                val topRow = LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                }
+                val iconBox = FrameLayout(this@MainActivity).apply {
+                    background = GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(tintedColor(color, 35)) }
+                    layoutParams = LinearLayout.LayoutParams(dp(26), dp(26))
+                }
+                iconBox.addView(ImageView(this@MainActivity).apply {
+                    setImageResource(iconRes)
+                    setColorFilter(color)
+                    layoutParams = FrameLayout.LayoutParams(dp(14), dp(14), Gravity.CENTER)
+                })
+                topRow.addView(iconBox)
+
+                topRow.addView(TextView(this@MainActivity).apply {
+                    text = tag
+                    setTextColor(color)
+                    textSize = 10f
+                    letterSpacing = 0.12f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    setPadding(dp(8), 0, 0, 0)
+                })
+                addView(topRow)
+
+                addView(TextView(this@MainActivity).apply {
+                    text = value
+                    setTextColor(themeCoordinator.textColor)
+                    textSize = 14.5f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    setPadding(0, dp(8), 0, 0)
+                })
+
+                if (subtext.isNotBlank()) {
+                    addView(TextView(this@MainActivity).apply {
+                        text = subtext
+                        setTextColor(themeCoordinator.textColor)
+                        alpha = 0.5f
+                        textSize = 11f
+                        typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+                        setPadding(0, dp(2), 0, 0)
+                    })
+                }
             }
-            insightsContainer.addView(createInsightCard(
-                R.drawable.ic_trending, themeCoordinator.primaryColor,
-                "TREND", statement, "This week \u00B7 ${thisWeek / 3600}h ${(thisWeek % 3600) / 60}m"
-            ))
-            insightCount++
         }
 
-        if (longestStreak > 0) {
-            insightsContainer.addView(createInsightCard(
-                R.drawable.ic_flame, themeCoordinator.primaryColor,
-                "LONGEST STREAK",
-                "$longestStreak-day streak",
-                "Consecutive daily goal+ focus days"
-            ))
-            insightCount++
+        // 1. Weekly Trend
+        val trendDiff = if (prevWeek > 0L) ((thisWeek - prevWeek).toFloat() / prevWeek.toFloat() * 100f).toInt() else if (thisWeek > 0L) 100 else 0
+        val trendVal = when {
+            trendDiff > 0 -> "+${trendDiff}% vs last week"
+            trendDiff < 0 -> "${trendDiff}% vs last week"
+            else -> "Same as last week"
+        }
+        highlightItems.add(createGridMetricCard(
+            R.drawable.ic_trending, themeCoordinator.primaryColor,
+            "WEEKLY TREND", trendVal, "${thisWeek / 3600}h ${(thisWeek % 3600) / 60}m logged"
+        ))
+
+        // 2. Active Days
+        highlightItems.add(createGridMetricCard(
+            R.drawable.ic_book, themeCoordinator.secondaryColor,
+            "ACTIVE DAYS", "$activeDays day${if (activeDays == 1) "" else "s"}", "Logged focus days"
+        ))
+
+        // 3. Best Weekday
+        val bestDayVal = if (bestWeekdaySecs > 0L) bestWeekdayName else "Not enough data"
+        val bestDaySub = if (bestWeekdaySecs > 0L) "${bestWeekdaySecs / 3600}h ${(bestWeekdaySecs % 3600) / 60}m avg" else "Keep studying"
+        highlightItems.add(createGridMetricCard(
+            R.drawable.ic_trending, themeCoordinator.primaryColor,
+            "BEST DAY", bestDayVal, bestDaySub
+        ))
+
+        // 4. Record Week / Longest Streak
+        val recordVal = if (bestWeekSecs > 0L) "Week of $bestWeekLabel" else if (longestStreak > 0) "${longestStreak}d Streak" else "Start a streak"
+        val recordSub = if (bestWeekSecs > 0L) "${bestWeekSecs / 3600}h ${(bestWeekSecs % 3600) / 60}m" else "Hit daily goals"
+        highlightItems.add(createGridMetricCard(
+            R.drawable.ic_medal, themeCoordinator.secondaryColor,
+            "RECORD WEEK", recordVal, recordSub
+        ))
+
+        val highlightsGrid = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         }
 
-        if (activeDays > 0) {
-            insightsContainer.addView(createInsightCard(
-                R.drawable.ic_book, themeCoordinator.secondaryColor,
-                "TOTAL SESSIONS",
-                "$activeDays active day${if (activeDays == 1) "" else "s"}",
-                "Days with logged focus time"
-            ))
-            insightCount++
-        }
-
-        if (bestWeekdaySecs > 0L) {
-            insightsContainer.addView(createInsightCard(
-                R.drawable.ic_trending, themeCoordinator.primaryColor,
-                "BEST WEEKDAY",
-                bestWeekdayName,
-                getString(R.string.best_weekday_subtitle, bestWeekdayName)
-            ))
-            insightCount++
-        }
-
-        if (bestWeekSecs > 0L) {
-            insightsContainer.addView(createInsightCard(
-                R.drawable.ic_medal, themeCoordinator.secondaryColor,
-                "BEST WEEK",
-                "Week of $bestWeekLabel",
-                "${bestWeekSecs / 3600}h ${(bestWeekSecs % 3600) / 60}m of focus"
-            ))
-            insightCount++
-        }
-
-        if (goalHits > 0) {
-            insightsContainer.addView(createInsightCard(
-                R.drawable.ic_target, themeCoordinator.secondaryColor,
-                "CONSISTENCY",
-                "Hit daily goal on $goalHits of the last 14 days",
-                ""
-            ))
-            insightCount++
+        // Add items as 2x2 rows
+        for (i in 0 until highlightItems.size step 2) {
+            val gridRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(0, 0, 0, dp(8))
+                }
+            }
+            gridRow.addView(highlightItems[i])
+            if (i + 1 < highlightItems.size) {
+                val spacer = View(this).apply { layoutParams = LinearLayout.LayoutParams(dp(8), dp(1)) }
+                gridRow.addView(spacer)
+                gridRow.addView(highlightItems[i + 1])
+            }
+            highlightsGrid.addView(gridRow)
         }
 
         if (tab == AppStatsTab.OVERVIEW) {
@@ -3359,6 +3449,20 @@ class MainActivity : AppCompatActivity() {
             }
             segWrap.addView(seg7); segWrap.addView(seg30)
             patternHeader.addView(segWrap)
+
+            val hidePatternBtn = TextView(this).apply {
+                text = "✕"
+                textSize = 13f
+                setTextColor(themeCoordinator.textColor)
+                alpha = 0.45f
+                setPadding(dp(10), dp(4), dp(4), dp(4))
+                setOnClickListener {
+                    sharedPrefs.edit().putBoolean("show_focus_pattern", false).apply()
+                    (patternCard.parent as? android.view.ViewGroup)?.removeView(patternCard)
+                    Toast.makeText(this@MainActivity, "Focus Pattern hidden (re-enable in Settings)", Toast.LENGTH_SHORT).show()
+                }
+            }
+            patternHeader.addView(hidePatternBtn)
             patternCard.addView(patternHeader)
 
             val blockLabels = focusBlockLabels()
@@ -3532,8 +3636,10 @@ class MainActivity : AppCompatActivity() {
                 rebuildCells()
             }
             rebuildCells()
-            (patternCard.parent as? android.view.ViewGroup)?.removeView(patternCard)
-            content.addView(patternCard)
+            if (snap.showPattern) {
+                (patternCard.parent as? android.view.ViewGroup)?.removeView(patternCard)
+                content.addView(patternCard)
+            }
 
             val shouldShowPieCard = snap.showPieChart
 
@@ -3544,10 +3650,8 @@ class MainActivity : AppCompatActivity() {
             }
 
             content.addView(LinearLayout(this).apply { layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(6)) })
-            if (insightCount > 0) {
-                content.addView(createSectionLabel("Highlights"))
-                content.addView(insightsContainer)
-            }
+            content.addView(createSectionLabel("Highlights"))
+            content.addView(highlightsGrid)
             content.addView(LinearLayout(this).apply { layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(10)) })
             content.addView(lifetimeCard)
 
@@ -3568,28 +3672,31 @@ class MainActivity : AppCompatActivity() {
         } else if (tab == AppStatsTab.PLANNER) {
             renderPlannerTabContent(content, snap)
         } else {
-
-
             CalendarTimeline(this).build(content, snap, todayStr)
         }
 
-
         layout.addView(scroll)
-
         statsRoot.addView(layout, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
 
-        val backFab = TextView(this).apply {
-            text = "\u2190"
-            gravity = Gravity.CENTER
-            setTextColor(themeCoordinator.bgColor)
-            textSize = 22f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(themeCoordinator.primaryColor) }
-            elevation = dp(8).toFloat()
-            setOnClickListener { navigateToPanel(AppPanel.FOCUS) }
-            layoutParams = FrameLayout.LayoutParams(dp(56), dp(56), Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(20), dp(20)) }
+        insightsPillBar = InsightsPillNavBar(this).apply {
+            setPrimaryColor(themeCoordinator.primaryColor)
+            selectTab(currentStatsTab, animated = false)
+            setOnTabSelectedListener { targetTab ->
+                if (currentStatsTab != targetTab) {
+                    currentStatsTab = targetTab
+                    tabPageCache.clear()
+                    navigateToPanel(AppPanel.STATS)
+                }
+            }
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            ).apply {
+                setMargins(dp(24), 0, dp(24), dp(16))
+            }
         }
-        statsRoot.addView(backFab)
+        statsRoot.addView(insightsPillBar)
     }
 
     internal fun refreshStatsPanel() {
@@ -3839,13 +3946,13 @@ class MainActivity : AppCompatActivity() {
         summaryCard.addView(topRow)
 
         val isGoalReached = progressPct >= 100 && totalCount > 0
-        val lineProgressColor = if (isGoalReached) 0xFF22C55E.toInt() else 0xFFEF4444.toInt()
+        val lineProgressColor = if (isGoalReached) 0xFF43D36E.toInt() else plannerPrimary
 
-        val progressRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(10), 0, dp(4)) }
+        val progressRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(12), 0, dp(6)) }
         progressRow.addView(TextView(this).apply {
             text = "$completedCount of $totalCount completed"
             setTextColor(themeCoordinator.textColor)
-            textSize = 15f
+            textSize = 14.5f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         })
         progressRow.addView(LinearLayout(this).apply { layoutParams = LinearLayout.LayoutParams(0, 0, 1f) })
@@ -3853,7 +3960,7 @@ class MainActivity : AppCompatActivity() {
             text = "$progressPct%"
             setTextColor(lineProgressColor)
             textSize = 15f
-            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         })
         summaryCard.addView(progressRow)
 
@@ -3861,7 +3968,7 @@ class MainActivity : AppCompatActivity() {
             max = 100
             progress = progressPct
             progressTintList = android.content.res.ColorStateList.valueOf(lineProgressColor)
-            progressBackgroundTintList = android.content.res.ColorStateList.valueOf(tintedColor(themeCoordinator.textColor, 30))
+            progressBackgroundTintList = android.content.res.ColorStateList.valueOf(0xFF222430.toInt())
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(8)).apply { setMargins(0, dp(4), 0, 0) }
         }
         summaryCard.addView(progressBar)
@@ -3871,27 +3978,51 @@ class MainActivity : AppCompatActivity() {
             val emptyCard = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
-                background = themeCoordinator.createCardBackground()
-                setPadding(dp(20), dp(32), dp(20), dp(32))
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(4), 0, dp(8)) }
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(20).toFloat()
+                    setColor(0xFF14151D.toInt())
+                    setStroke(dp(1), 0xFF282A36.toInt(), dp(6).toFloat(), dp(4).toFloat()) // modern dashed border
+                }
+                setPadding(dp(24), dp(36), dp(24), dp(36))
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(4), 0, dp(12)) }
             }
-            emptyCard.addView(TextView(this).apply { text = "\uD83D\uDCCB"; textSize = 36f; gravity = Gravity.CENTER })
             emptyCard.addView(TextView(this).apply {
-                text = "No Planner Goals Yet"
+                text = "🎯"
+                textSize = 38f
+                gravity = Gravity.CENTER
+            })
+            emptyCard.addView(TextView(this).apply {
+                text = "Set Your Daily Targets"
                 setTextColor(themeCoordinator.textColor)
                 textSize = 16f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                 gravity = Gravity.CENTER
-                setPadding(0, dp(8), 0, dp(4))
+                setPadding(0, dp(10), 0, dp(4))
             })
 
             emptyCard.addView(TextView(this).apply {
-                text = "Tap '+ Add Goal' above to create custom planner items like 'Physics Lecture' or 'Math Problems'."
+                text = "Break your day into structured study and lecture goals to stay disciplined."
                 setTextColor(themeCoordinator.textColor)
-                alpha = 0.6f
-                textSize = 12f
+                alpha = 0.55f
+                textSize = 12.5f
                 gravity = Gravity.CENTER
+                setPadding(0, 0, 0, dp(16))
             })
+
+            val addFirstBtn = TextView(this).apply {
+                text = "+ Add Your First Daily Target"
+                setTextColor(Color.WHITE)
+                textSize = 13.5f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(14).toFloat()
+                    setColor(plannerPrimary)
+                }
+                setPadding(dp(18), dp(10), dp(18), dp(10))
+                gravity = Gravity.CENTER
+                setOnClickListener { showAddSessionGoalDialog() }
+            }
+            emptyCard.addView(addFirstBtn)
             parent.addView(emptyCard)
         } else {
             val goalsContainer = LinearLayout(this).apply {
@@ -4060,8 +4191,82 @@ class MainActivity : AppCompatActivity() {
             parent.addView(goalsContainer)
         }
 
-        // Planner Insights Section (always rendered whether goals exist or not)
+        // Planner Insights Section (always computed)
         val overallInsights = PlannerHistoryManager.computeOverallPlannerInsights(this, goalsList)
+
+        // Planner Consistency & Mini 7-day row
+        val consistencyCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = themeCoordinator.createCardBackground()
+            setPadding(dp(18), dp(16), dp(18), dp(16))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(4), 0, dp(12)) }
+        }
+
+        val consistTop = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, 0, 0, dp(12))
+        }
+        consistTop.addView(TextView(this).apply {
+            text = "🔥 7-DAY GOAL CONSISTENCY"
+            setTextColor(plannerPrimary)
+            textSize = 11f
+            letterSpacing = 0.15f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        })
+        consistTop.addView(LinearLayout(this).apply { layoutParams = LinearLayout.LayoutParams(0, 0, 1f) })
+        consistTop.addView(TextView(this).apply {
+            text = if (overallInsights.bestStreakDays > 0) "${overallInsights.bestStreakDays}d streak" else "0d streak"
+            setTextColor(plannerSecondary)
+            textSize = 12f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        })
+        consistencyCard.addView(consistTop)
+
+        // 7-day mini check-in row
+        val miniWeekRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, dp(4))
+        }
+        val cal = Calendar.getInstance()
+        val sdfDay = SimpleDateFormat("EE", Locale.getDefault())
+        val dayKeys = ArrayList<String>()
+        for (i in 6 downTo 0) {
+            val c = (cal.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -i) }
+            val key = dateKeyFmt.format(c.time)
+            dayKeys.add(key)
+            val isToday = (i == 0)
+            val focusSecs = snap.dayFocus[key] ?: 0L
+            val goalSecs = resolveGoalFor(key)
+            val isGoalHit = goalSecs > 0L && focusSecs >= goalSecs
+
+            val dayCol = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+            dayCol.addView(TextView(this).apply {
+                text = sdfDay.format(c.time).take(1)
+                setTextColor(if (isToday) plannerPrimary else themeCoordinator.textColor)
+                alpha = if (isToday) 1f else 0.6f
+                textSize = 11f
+                typeface = Typeface.create("sans-serif-medium", if (isToday) Typeface.BOLD else Typeface.NORMAL)
+            })
+
+            val dot = View(this).apply {
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(if (isGoalHit) 0xFF43D36E.toInt() else if (focusSecs > 0L) plannerPrimary else 0xFF282A36.toInt())
+                }
+                layoutParams = LinearLayout.LayoutParams(dp(18), dp(18)).apply { setMargins(0, dp(6), 0, 0) }
+            }
+            dayCol.addView(dot)
+            miniWeekRow.addView(dayCol)
+        }
+        consistencyCard.addView(miniWeekRow)
+        parent.addView(consistencyCard)
+
         parent.addView(createSectionLabel("Planner Insights"))
 
         val insightsCard = LinearLayout(this).apply {

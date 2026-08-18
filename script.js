@@ -1,48 +1,33 @@
 // ----------------------------------------------------
 // Global Scroll Reveal Handler & Observer
 // ----------------------------------------------------
+window.revealElements = function() {
+    const items = document.querySelectorAll('.reveal, [data-reveal]');
+    items.forEach(el => {
+        el.classList.add('active', 'revealed');
+        el.style.opacity = '1';
+        el.style.visibility = 'visible';
+    });
+};
+
 function revealElements() {
-    const reveals = document.querySelectorAll('.reveal, [data-reveal]');
-    if (!reveals.length) return;
-
-    if ('IntersectionObserver' in window) {
-        const revealObserver = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('active', 'revealed');
-                    observer.unobserve(entry.target);
-                }
-            });
-        }, {
-            root: null,
-            threshold: 0.05,
-            rootMargin: '0px 0px -40px 0px'
-        });
-
-        reveals.forEach(el => revealObserver.observe(el));
-    } else {
-        const windowHeight = window.innerHeight;
-        reveals.forEach((element) => {
-            const elementTop = element.getBoundingClientRect().top;
-            const elementVisible = 80;
-            if (elementTop < windowHeight - elementVisible) {
-                element.classList.add('active', 'revealed');
-            }
-        });
+    if (typeof window.revealElements === 'function') {
+        window.revealElements();
     }
 }
 
 // Ensure scroll events trigger reveal in fallback mode
-window.addEventListener('scroll', revealElements, { passive: true });
-window.revealElements = revealElements;
+window.addEventListener('scroll', () => {
+    if (typeof revealElements === 'function') {
+        revealElements();
+    }
+}, { passive: true });
 
 document.addEventListener('DOMContentLoaded', () => {
     
-    // Trigger scroll reveal on initial load
-    try {
+    // Trigger scroll reveal safely on initial load
+    if (typeof revealElements === 'function') {
         revealElements();
-    } catch (e) {
-        document.querySelectorAll('.reveal, [data-reveal]').forEach(el => el.classList.add('active', 'revealed'));
     }
     
     // ----------------------------------------------------
@@ -674,10 +659,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // ----------------------------------------------------
     // Trigger Reveal on Scrollspy/Scroll Events
     // ----------------------------------------------------
-    try {
+    if (typeof revealElements === 'function') {
         revealElements();
-    } catch (e) {
-        document.querySelectorAll('.reveal, [data-reveal]').forEach(el => el.classList.add('active', 'revealed'));
     }
 
     // ----------------------------------------------------

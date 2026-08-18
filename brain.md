@@ -246,8 +246,24 @@ enum class AppSettingsTab { HUB, TIMER, AMBIENCE, ANALYTICS, CLOUD, THEME, PROFI
 - **Secondary Top-Level Tabs (`AppPanel.SETTINGS`, `AppPanel.STATS` / Insights)**:
   - Pressing the system Back button on secondary top-level destinations immediately routes the user back to the start destination (`AppPanel.FOCUS`).
   - Secondary top-level screens never intercept back presses to force an exit confirmation dialog.
-- **Nested & Sub-Screens (Settings Sub-screens, Full-Screen Heatmap)**:
-  - Pressing Back on nested screens pops the navigation stack one level up to the parent container (e.g., `AppPanel.HEATMAP` returns to `AppPanel.STATS`, and nested settings sub-screens like `TIMER`, `THEME`, `DATA`, etc. return to `AppSettingsTab.HUB`).
+### L. Insights Screen UI/UX Hierarchy & Sub-Tab Floating Pill Navigation
+- **Design System & AMOLED Polish**:
+  - Cards elevated with deep slate surface (`#121318` to `#161820`), subtle 1dp border outline (`#282A36`), and 26dp corner radius over pure AMOLED black.
+  - Geometric, clean sans-serif typography (`sans-serif-medium` / bold metrics) replacing handwritten fonts.
+  - Clean top header displaying the geometric `Insights` title and dismissible daily quote ribbon.
+- **Insights Sub-Tab Floating Pill Bar (`InsightsPillNavBar.kt`)**:
+  - Anchored exclusively inside the Insights screen cleanly above the bottom edge (`margins: start=24dp, end=24dp, bottom=16dp`).
+  - Styled with AMOLED slate capsule background (`#16171D`), 1dp border (`#2A2B36`), 32dp corner radius, and 20dp elevation shadow.
+  - **Fluid Spring Physics**: Tuned with `OvershootInterpolator(1.22f)` (equivalent to damping ratio `0.78f` / `StiffnessMediumLow`) for snappy, responsive sliding without sluggish drag.
+  - **Micro-Interactions & Haptics**: Touch scale bounce ($0.92\times$ on touch down $\rightarrow 1.0\times$ on touch up), icon scaling (`1.15x`), label cross-fade expansion, and precise haptic feedback (`HapticFeedbackConstants.KEYBOARD_TAP`).
+  - **Pre-Caching & Instant Memory-Retention**:
+    - `StatsSnapshot` is computed asynchronously on background threads and cached in `statsSnapshotCache`.
+    - Sub-tab views (`Overview`, `Timeline/History`, `Planner`) are pre-warmed and retained in memory via `tabPageCache` (`getOrBuildTabPage`).
+    - Switching tabs executes zero blocking main-thread calculations/DB queries, swapping instantly from pre-warmed memory pages.
+  - Dynamic scroll auto-hide: Scrolling down hides the Insights pill bar; scrolling up restores it smoothly.
+  - Scrollable content maintains `80dp` bottom padding so cards and charts are never obscured.
+- **Root Screen Bottom Bar Removal**:
+  - The application features zero fixed bottom navigation bars on Timer, Settings, or other root screens, maximizing full-screen immersion.
 
 ---
 
@@ -295,3 +311,7 @@ enum class AppSettingsTab { HUB, TIMER, AMBIENCE, ANALYTICS, CLOUD, THEME, PROFI
 - [x] Pie Chart visibility preference (`show_subject_pie_chart`) reactive toggle binding.
 - [x] Complete Stopwatch mode isolation: raw focus time logging without subject tags or pie chart pollution.
 - [x] Standard bottom navigation backstack contract: Focus/Timer is root anchor, secondary tabs pop to Focus, nested sub-screens pop to parent.
+- [x] Comprehensive Insights UI/UX Redesign: AMOLED slate cards, 2x2 Highlights grid, circular goal ring, and 7-day planner consistency.
+- [x] Floating Pill Tab Switcher exclusively inside Insights screen with spring animations and clean top header.
+- [x] Focus Pattern visibility preference (`show_focus_pattern`) reactive toggle binding with quick hide card action.
+

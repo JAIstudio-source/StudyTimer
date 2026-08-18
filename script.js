@@ -1,4 +1,49 @@
+// ----------------------------------------------------
+// Global Scroll Reveal Handler & Observer
+// ----------------------------------------------------
+function revealElements() {
+    const reveals = document.querySelectorAll('.reveal, [data-reveal]');
+    if (!reveals.length) return;
+
+    if ('IntersectionObserver' in window) {
+        const revealObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active', 'revealed');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, {
+            root: null,
+            threshold: 0.05,
+            rootMargin: '0px 0px -40px 0px'
+        });
+
+        reveals.forEach(el => revealObserver.observe(el));
+    } else {
+        const windowHeight = window.innerHeight;
+        reveals.forEach((element) => {
+            const elementTop = element.getBoundingClientRect().top;
+            const elementVisible = 80;
+            if (elementTop < windowHeight - elementVisible) {
+                element.classList.add('active', 'revealed');
+            }
+        });
+    }
+}
+
+// Ensure scroll events trigger reveal in fallback mode
+window.addEventListener('scroll', revealElements, { passive: true });
+window.revealElements = revealElements;
+
 document.addEventListener('DOMContentLoaded', () => {
+    
+    // Trigger scroll reveal on initial load
+    try {
+        revealElements();
+    } catch (e) {
+        document.querySelectorAll('.reveal, [data-reveal]').forEach(el => el.classList.add('active', 'revealed'));
+    }
     
     // ----------------------------------------------------
     // Mobile Haptic Feedback Helper (Only for Major Actions)
@@ -627,38 +672,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }, { passive: true });
 
     // ----------------------------------------------------
-    // Scroll Reveal Observer & Helper
+    // Trigger Reveal on Scrollspy/Scroll Events
     // ----------------------------------------------------
-    function revealElements() {
-        const elements = document.querySelectorAll('.reveal');
-        if (!elements.length) return;
-
-        if ('IntersectionObserver' in window) {
-            const revealObserver = new IntersectionObserver((entries, observer) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('active');
-                        observer.unobserve(entry.target);
-                    }
-                });
-            }, {
-                root: null,
-                threshold: 0.05,
-                rootMargin: '0px 0px -40px 0px'
-            });
-
-            elements.forEach(el => revealObserver.observe(el));
-        } else {
-            elements.forEach(el => el.classList.add('active'));
-        }
-    }
-
-    // Initialize reveal elements on load
     try {
         revealElements();
     } catch (e) {
-        console.warn('Scroll reveal initialization fallback:', e);
-        document.querySelectorAll('.reveal').forEach(el => el.classList.add('active'));
+        document.querySelectorAll('.reveal, [data-reveal]').forEach(el => el.classList.add('active', 'revealed'));
     }
 
     // ----------------------------------------------------

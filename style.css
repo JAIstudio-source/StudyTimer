@@ -1683,20 +1683,20 @@ button:focus-visible, a:focus-visible, .theme-pill:focus-visible, .faq-question:
 /* ----------------------------------------------------
    Scroll Reveal Animation & Fallback
    ---------------------------------------------------- */
-.reveal {
+.reveal, [data-reveal] {
     opacity: 0;
     transform: translateY(24px);
     transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
     will-change: opacity, transform;
 }
 
-.reveal.active {
+.reveal.active, .reveal.revealed, [data-reveal].active, [data-reveal].revealed {
     opacity: 1;
     transform: translateY(0);
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .reveal {
+    .reveal, [data-reveal] {
         opacity: 1 !important;
         transform: none !important;
         transition: none !important;

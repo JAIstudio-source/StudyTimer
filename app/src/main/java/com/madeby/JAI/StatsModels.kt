@@ -35,6 +35,7 @@ data class StatsSnapshot(
     val hasAnySessions: Boolean,
     val showHeatmap: Boolean,
     val showPattern: Boolean,
+    val showPieChart: Boolean,
     val heatmapData: Map<String, Long>,
     val blockSecs7: LongArray,
     val maxBlock7: Long,

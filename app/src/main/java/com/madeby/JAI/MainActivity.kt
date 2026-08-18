@@ -1510,13 +1510,18 @@ class MainActivity : AppCompatActivity() {
             private var lastBackTime = 0L
             override fun handleOnBackPressed() {
                 if (currentPanel == AppPanel.HEATMAP) {
+                    // Pop from full-screen Heatmap back to Insights
                     navigateToPanel(AppPanel.STATS)
                 } else if (currentPanel == AppPanel.SETTINGS && currentSettingsTab != AppSettingsTab.HUB) {
                     // Nested Settings sub-screen: pop back one level to the main Settings Hub Dashboard
                     currentSettingsTab = AppSettingsTab.HUB
                     navigateToPanel(AppPanel.SETTINGS)
+                } else if (currentPanel != AppPanel.FOCUS) {
+                    // Secondary Top-Level Tabs (Settings Hub, Insights/Stats): Return to Root Start Destination (Timer/Focus)
+                    currentSettingsTab = AppSettingsTab.HUB
+                    navigateToPanel(AppPanel.FOCUS)
                 } else {
-                    // Root Top-Level Destinations (Settings Hub, Stats, Focus): exit cleanly via standard double-tap or finish
+                    // Primary Root Anchor (Timer / Focus Screen): Trigger exit confirmation / double-tap to exit
                     val now = System.currentTimeMillis()
                     if (now - lastBackTime < 2000) {
                         finish()
@@ -3530,7 +3535,7 @@ class MainActivity : AppCompatActivity() {
             (patternCard.parent as? android.view.ViewGroup)?.removeView(patternCard)
             content.addView(patternCard)
 
-            val shouldShowPieCard = true
+            val shouldShowPieCard = snap.showPieChart
 
             if (shouldShowPieCard) {
                 (pieCard.parent as? android.view.ViewGroup)?.removeView(pieCard)

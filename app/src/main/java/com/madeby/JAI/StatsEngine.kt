@@ -297,6 +297,7 @@ class StatsEngine(private val context: Context) {
 
         val showHeatmap = prefs.getBoolean("show_focus_heatmap", true)
         val showPattern = prefs.getBoolean("show_focus_pattern", true)
+        val showPieChart = prefs.getBoolean("show_subject_pie_chart", true)
 
         val timeline = TimelineLogger.load(context)
         val nowMs = System.currentTimeMillis()
@@ -329,7 +330,7 @@ class StatsEngine(private val context: Context) {
             totalLifeFocus, totalLifeBreak, totalLife, longestStreak, activeDays,
             bestWeekdayName, bestWeekdaySecs, bestWeekLabel, bestWeekSecs,
             thisWeek, prevWeek, goalHits, hasAnySessions,
-            showHeatmap, showPattern, heatmapData, blockSecs7, maxBlock7, blockSecs30, maxBlock30,
+            showHeatmap, showPattern, showPieChart, heatmapData, blockSecs7, maxBlock7, blockSecs30, maxBlock30,
             patternTotal7, patternTotal30,
             dayFocus, monthBuckets, allHistKeys, entriesByDay
         )

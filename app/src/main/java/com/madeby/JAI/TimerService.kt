@@ -275,14 +275,21 @@ class TimerService : Service() {
         lastTimestamp = now
         if (currentTimerState == TimerState.STUDYING) {
             val sp = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-            val sub = if (timerMode == "LECTURE") {
+            val sub = if (timerMode == "STOPWATCH") {
+                null
+            } else if (timerMode == "LECTURE") {
                 val lid = sp.getString("active_lecture_subject_id", null)
                 if (lid != null) SubjectTagManager.getAllSubjects(this).find { it.id == lid } ?: SubjectTagManager.getSelectedSubject(this)
                 else SubjectTagManager.getSelectedSubject(this)
             } else {
                 SubjectTagManager.getSelectedSubject(this)
             }
-            TimelineLogger.record(this, currentTimerState, subId = sub.id, subName = sub.name, subColor = sub.colorHex)
+
+            if (sub != null) {
+                TimelineLogger.record(this, currentTimerState, subId = sub.id, subName = sub.name, subColor = sub.colorHex)
+            } else {
+                TimelineLogger.record(this, currentTimerState)
+            }
         } else {
             TimelineLogger.record(this, currentTimerState)
         }
@@ -598,13 +605,15 @@ class TimerService : Service() {
                     when (currentTimerState) {
                         TimerState.STUDYING -> {
                             accumulatedStudy += gap
-                            val sp = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-                            val activeSubjId = if (timerMode == "LECTURE") {
-                                sp.getString("active_lecture_subject_id", null) ?: SubjectTagManager.getSelectedSubject(this@TimerService).id
-                            } else {
-                                SubjectTagManager.getSelectedSubject(this@TimerService).id
+                            if (timerMode != "STOPWATCH") {
+                                val sp = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+                                val activeSubjId = if (timerMode == "LECTURE") {
+                                    sp.getString("active_lecture_subject_id", null) ?: SubjectTagManager.getSelectedSubject(this@TimerService).id
+                                } else {
+                                    SubjectTagManager.getSelectedSubject(this@TimerService).id
+                                }
+                                SubjectTagManager.recordSubjectStudyTime(this@TimerService, activeSubjId, gap)
                             }
-                            SubjectTagManager.recordSubjectStudyTime(this@TimerService, activeSubjId, gap)
                             if (timerMode == "COUNTDOWN" || (timerMode == "LECTURE" && lectureModeEnabled)) {
                                 focusRemainingSecs -= gap
                                 if (focusRemainingSecs <= 0L) {
@@ -650,13 +659,15 @@ class TimerService : Service() {
                         }
                         TimerState.BREAK -> {
                             currentBreakSeconds += gap
-                            val sp = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-                            val activeSubjId = if (timerMode == "LECTURE") {
-                                sp.getString("active_lecture_subject_id", null) ?: SubjectTagManager.getSelectedSubject(this@TimerService).id
-                            } else {
-                                SubjectTagManager.getSelectedSubject(this@TimerService).id
+                            if (timerMode != "STOPWATCH") {
+                                val sp = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+                                val activeSubjId = if (timerMode == "LECTURE") {
+                                    sp.getString("active_lecture_subject_id", null) ?: SubjectTagManager.getSelectedSubject(this@TimerService).id
+                                } else {
+                                    SubjectTagManager.getSelectedSubject(this@TimerService).id
+                                }
+                                SubjectTagManager.recordSubjectBreakTime(this@TimerService, activeSubjId, gap)
                             }
-                            SubjectTagManager.recordSubjectBreakTime(this@TimerService, activeSubjId, gap)
                             // Only auto-stop break if in COUNTDOWN mode with an active break countdown
                             if (timerMode == "COUNTDOWN" && breakRemainingSecs > 0L) {
                                 breakRemainingSecs -= gap

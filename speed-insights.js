@@ -1,17 +1,15 @@
 /**
  * Vercel Speed Insights initialization
- * This file initializes Speed Insights using the @vercel/speed-insights package
- * 
- * Documentation: https://vercel.com/docs/speed-insights/quickstart
+ * For plain HTML/JS deployments, Vercel Speed Insights is automatically loaded via /_vercel/insights/script.js.
  */
 
-import { injectSpeedInsights } from '@vercel/speed-insights';
-
-// Initialize Speed Insights
-// This will inject the tracking script and start collecting Web Vitals
-injectSpeedInsights({
-  debug: false, // Set to true for development debugging
-  // Additional options can be configured here:
-  // sampleRate: 1, // Sample rate for events (1 = 100%)
-  // beforeSend: (event) => event, // Middleware to modify events before sending
-});
+if (typeof window !== 'undefined') {
+    // If running in an environment with bundler / module resolution:
+    try {
+        if (typeof injectSpeedInsights === 'function') {
+            injectSpeedInsights({ debug: false });
+        }
+    } catch (_e) {
+        // Fallback safely in vanilla browser environments
+    }
+}

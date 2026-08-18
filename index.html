@@ -42,6 +42,7 @@
     <link rel="icon" href="assets/logo.png" type="image/png">
     <link rel="apple-touch-icon" href="assets/logo.png">
     <meta name="apple-mobile-web-app-title" content="StudyTimer">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="msapplication-TileImage" content="assets/logo.png">
@@ -642,8 +643,8 @@ UI & Performance Optimizations: Fluid screen transitions, updated 3D aesthetics,
     <!-- BACK TO TOP BUTTON -->
     <button id="back-to-top" aria-label="Back to top">↑</button>
 
-    <!-- Vercel Speed Insights Script -->
-    <script type="module" src="speed-insights.js"></script>
+    <!-- Vercel Speed Insights Script (Loaded via standalone Vercel CDN/script for plain HTML/JS) -->
+    <script defer src="/_vercel/insights/script.js"></script>
     <script src="script.js"></script>
 
     <!-- Service Worker Registration (offline support) -->

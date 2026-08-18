@@ -626,9 +626,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, { passive: true });
 
-    // Scroll Reveal Observer
-    const revealElements = document.querySelectorAll('.reveal');
-    if (revealElements.length) {
+    // ----------------------------------------------------
+    // Scroll Reveal Observer & Helper
+    // ----------------------------------------------------
+    function revealElements() {
+        const elements = document.querySelectorAll('.reveal');
+        if (!elements.length) return;
+
         if ('IntersectionObserver' in window) {
             const revealObserver = new IntersectionObserver((entries, observer) => {
                 entries.forEach(entry => {
@@ -643,10 +647,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 rootMargin: '0px 0px -40px 0px'
             });
 
-            revealElements.forEach(el => revealObserver.observe(el));
+            elements.forEach(el => revealObserver.observe(el));
         } else {
-            revealElements.forEach(el => el.classList.add('active'));
+            elements.forEach(el => el.classList.add('active'));
         }
+    }
+
+    // Initialize reveal elements on load
+    try {
+        revealElements();
+    } catch (e) {
+        console.warn('Scroll reveal initialization fallback:', e);
+        document.querySelectorAll('.reveal').forEach(el => el.classList.add('active'));
     }
 
     // ----------------------------------------------------

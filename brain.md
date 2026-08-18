@@ -228,9 +228,26 @@ enum class AppSettingsTab { HUB, TIMER, AMBIENCE, ANALYTICS, CLOUD, THEME, PROFI
     - Formatted user description readout.
     - Diagnostic grid (App Version, Android OS, Device Model, Timer Mode, Sync State, Epoch).
     - 1-Tap email response button (`mailto:{user_contact}?subject=Re: Your StudyTimer Feedback`).
-    - Interactive Status dropdown (`NEW` -> `IN_PROGRESS` -> `RESOLVED` -> `ARCHIVED`) with real-time Supabase sync.
-    - Internal admin resolution notes with auto-saving.
-    - Single report deletion and complete batch purge controls.
+### I. Subject Tagging & Stopwatch Mode Isolation
+- **Stopwatch Mode Untagged Rule**:
+  - When running in standard **Stopwatch Mode** (`timerMode == "STOPWATCH"`), sessions are strictly logged without subject metadata (`subjectId = null`, `subjectName = null`, `subjectColor = null`).
+  - Stopwatch mode never falls back to or mutates the default `"general"` subject tag.
+  - In `TimerService.kt`, background time accumulator loops bypass `recordSubjectStudyTime` and `recordSubjectBreakTime` while in `STOPWATCH` mode, ensuring stopwatch time remains raw focus time and never pollutes subject breakdowns or pie chart distributions.
+  - In `StatsEngine.kt` and `MainActivity.kt`, subject aggregation algorithms strictly filter by `subjectId != null`, isolating stopwatch logs while preserving total daily focus duration on hero/overview cards.
+
+### J. Pie Chart Visibility Preference Binding
+- **Setting Key (`show_subject_pie_chart`)**:
+  - Configurable via "Subject Pie Chart" toggle in Settings under the "Charts & Visualization" section.
+  - Exposed through `StatsSnapshot.showPieChart` (populated dynamically in `StatsEngine.kt`).
+### K. Top-Level Navigation Backstack Contract
+- **Primary Root Anchor (`AppPanel.FOCUS` / Timer Screen)**:
+  - Serves as the primary start destination and base anchor of the application.
+  - The exit confirmation / double-tap exit flow (`finish()`) is strictly scoped to `AppPanel.FOCUS`.
+- **Secondary Top-Level Tabs (`AppPanel.SETTINGS`, `AppPanel.STATS` / Insights)**:
+  - Pressing the system Back button on secondary top-level destinations immediately routes the user back to the start destination (`AppPanel.FOCUS`).
+  - Secondary top-level screens never intercept back presses to force an exit confirmation dialog.
+- **Nested & Sub-Screens (Settings Sub-screens, Full-Screen Heatmap)**:
+  - Pressing Back on nested screens pops the navigation stack one level up to the parent container (e.g., `AppPanel.HEATMAP` returns to `AppPanel.STATS`, and nested settings sub-screens like `TIMER`, `THEME`, `DATA`, etc. return to `AppSettingsTab.HUB`).
 
 ---
 
@@ -275,3 +292,6 @@ enum class AppSettingsTab { HUB, TIMER, AMBIENCE, ANALYTICS, CLOUD, THEME, PROFI
 - [x] Backend Feedback API (`POST /api/feedback`) with IP rate limiting and validation.
 - [x] Feedback Reports table in Supabase (`feedback_reports`) with RLS policies.
 - [x] Web Admin Feedback Dashboard (`/admin`) with filtering, inspection modal, 1-tap email replies, status transitions, and admin resolution notes.
+- [x] Pie Chart visibility preference (`show_subject_pie_chart`) reactive toggle binding.
+- [x] Complete Stopwatch mode isolation: raw focus time logging without subject tags or pie chart pollution.
+- [x] Standard bottom navigation backstack contract: Focus/Timer is root anchor, secondary tabs pop to Focus, nested sub-screens pop to parent.

@@ -279,7 +279,7 @@ class TimerService : Service() {
                 null
             } else if (timerMode == "LECTURE") {
                 val lid = sp.getString("active_lecture_subject_id", null)
-                if (lid != null) SubjectTagManager.getAllSubjects(this).find { it.id == lid } ?: SubjectTagManager.getSelectedSubject(this)
+                if (lid != null) SubjectTagManager.resolveSubject(this, lid)
                 else SubjectTagManager.getSelectedSubject(this)
             } else {
                 SubjectTagManager.getSelectedSubject(this)
@@ -473,7 +473,8 @@ class TimerService : Service() {
                         focusCountdownSecs = remainingSecs
                         lecturePromptTimestamp = 0L
                         lastTimestamp = nowSecs
-                        TimelineLogger.record(this, TimerState.STUDYING)
+                        val sub = SubjectTagManager.resolveSubject(this, item.subjectId)
+                        TimelineLogger.record(this, TimerState.STUDYING, subId = sub.id, subName = sub.name, subColor = sub.colorHex)
                         saveState()
                         updateForegroundNotification()
                         postLectureStartedNotification(item.title)
@@ -548,7 +549,10 @@ class TimerService : Service() {
         focusRemainingSecs = extendSecs
         lecturePromptTimestamp = 0L
         lastTimestamp = now
-        TimelineLogger.record(this, TimerState.STUDYING)
+        val sp = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val lid = sp.getString("active_lecture_subject_id", null)
+        val sub = if (lid != null) SubjectTagManager.resolveSubject(this, lid) else SubjectTagManager.getSelectedSubject(this)
+        TimelineLogger.record(this, TimerState.STUDYING, subId = sub.id, subName = sub.name, subColor = sub.colorHex)
         saveState()
         updateForegroundNotification()
         postCountdownComplete()

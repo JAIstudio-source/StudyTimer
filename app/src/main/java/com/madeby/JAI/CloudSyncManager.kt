@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -158,6 +159,13 @@ object CloudSyncManager {
                         is Long -> subjectPrefsJson.put(key, value)
                         is Float -> subjectPrefsJson.put(key, value.toDouble())
                         is Double -> subjectPrefsJson.put(key, value)
+                        is Set<*> -> {
+                            val arr = JSONArray()
+                            for (item in value) {
+                                if (item != null) arr.put(item.toString())
+                            }
+                            subjectPrefsJson.put(key, arr)
+                        }
                         else -> subjectPrefsJson.put(key, value.toString())
                     }
                 }
@@ -410,7 +418,35 @@ object CloudSyncManager {
                         val v = subObj.get(k)
                         when (v) {
                             is Boolean -> subEditor.putBoolean(k, v)
-                            is String -> subEditor.putString(k, v)
+                            is JSONArray -> {
+                                val set = HashSet<String>()
+                                for (i in 0 until v.length()) {
+                                    set.add(v.getString(i))
+                                }
+                                subEditor.remove(k).putStringSet(k, set)
+                            }
+                            is String -> {
+                                if (k == "hidden_subjects_set") {
+                                    val set = HashSet<String>()
+                                    try {
+                                        val trimmed = v.trim()
+                                        if (trimmed.startsWith("[")) {
+                                            val arr = JSONArray(trimmed)
+                                            for (i in 0 until arr.length()) {
+                                                set.add(arr.getString(i))
+                                            }
+                                        } else {
+                                            val cleaned = trimmed.removeSurrounding("[", "]")
+                                            cleaned.split(",").map { it.trim().removeSurrounding("\"") }.filter { it.isNotEmpty() }.forEach { set.add(it) }
+                                        }
+                                        subEditor.remove(k).putStringSet(k, set)
+                                    } catch (_: Exception) {
+                                        subEditor.remove(k).putStringSet(k, emptySet())
+                                    }
+                                } else {
+                                    subEditor.putString(k, v)
+                                }
+                            }
                             is Number -> subEditor.putLong(k, v.toLong())
                         }
                     }

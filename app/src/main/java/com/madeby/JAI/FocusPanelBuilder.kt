@@ -170,9 +170,8 @@ class FocusPanelBuilder(private val host: MainActivity) {
         if (showSubjectTagging) {
             val isLectureRunning = timerModeSetting == "LECTURE" && (currentTimerState == TimerState.STUDYING || currentTimerState == TimerState.PAUSED)
             val lectureSubId = sharedPrefs.getString("active_lecture_subject_id", null)
-            val allSubjects = SubjectTagManager.getAllSubjects(this)
             val activeSubject = if (timerModeSetting == "LECTURE" && lectureSubId != null) {
-                allSubjects.find { it.id == lectureSubId } ?: SubjectTagManager.getSelectedSubject(this)
+                SubjectTagManager.resolveSubject(this, lectureSubId)
             } else {
                 SubjectTagManager.getSelectedSubject(this)
             }

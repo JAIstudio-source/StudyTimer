@@ -37,8 +37,51 @@ object SubjectTagManager {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
+    private fun getHiddenSubjects(prefs: SharedPreferences): Set<String> {
+        return try {
+            prefs.getStringSet(KEY_HIDDEN_SUBJECTS, emptySet()) ?: emptySet()
+        } catch (_: ClassCastException) {
+            // Fallback if stored as JSON String or string representation during login/sync
+            val raw = prefs.getString(KEY_HIDDEN_SUBJECTS, null)
+            if (!raw.isNullOrEmpty()) {
+                val parsed = parseStringSetFromJson(raw)
+                try {
+                    prefs.edit().remove(KEY_HIDDEN_SUBJECTS).putStringSet(KEY_HIDDEN_SUBJECTS, parsed).apply()
+                } catch (_: Exception) {}
+                parsed
+            } else {
+                emptySet()
+            }
+        } catch (_: Exception) {
+            emptySet()
+        }
+    }
+
+    private fun parseStringSetFromJson(jsonString: String): Set<String> {
+        val set = HashSet<String>()
+        try {
+            val trimmed = jsonString.trim()
+            if (trimmed.startsWith("[")) {
+                val arr = JSONArray(trimmed)
+                for (i in 0 until arr.length()) {
+                    set.add(arr.getString(i))
+                }
+            } else if (trimmed.startsWith("{")) {
+                val obj = JSONObject(trimmed)
+                val keys = obj.keys()
+                while (keys.hasNext()) {
+                    set.add(keys.next())
+                }
+            } else {
+                val cleaned = trimmed.removeSurrounding("[", "]")
+                cleaned.split(",").map { it.trim().removeSurrounding("\"") }.filter { it.isNotEmpty() }.forEach { set.add(it) }
+            }
+        } catch (_: Exception) {}
+        return set
+    }
+
     fun getAllSubjects(context: Context): List<SubjectTag> {
-        val hiddenSet = getPrefs(context).getStringSet(KEY_HIDDEN_SUBJECTS, emptySet()) ?: emptySet()
+        val hiddenSet = getHiddenSubjects(getPrefs(context))
         val list = ArrayList<SubjectTag>()
 
         for (d in DEFAULT_SUBJECTS) {
@@ -106,9 +149,27 @@ object SubjectTagManager {
         return String.format("#%06X", 0xFFFFFF and colorInt)
     }
 
+    fun resolveSubject(context: Context, subjectId: String?, subjectName: String? = null, subjectColor: String? = null): SubjectTag {
+        val all = getAllSubjects(context)
+        if (subjectId != null) {
+            all.find { it.id == subjectId }?.let { return it }
+            DEFAULT_SUBJECTS.find { it.id == subjectId }?.let { return it }
+        }
+        if (!subjectName.isNullOrBlank()) {
+            all.find { it.name.equals(subjectName, ignoreCase = true) }?.let { return it }
+            DEFAULT_SUBJECTS.find { it.name.equals(subjectName, ignoreCase = true) }?.let { return it }
+        }
+        return SubjectTag(
+            id = subjectId ?: "custom_${subjectName ?: "general"}",
+            name = subjectName ?: "General",
+            iconEmoji = "📖",
+            colorHex = subjectColor ?: "#6366F1"
+        )
+    }
+
     fun addCustomSubject(context: Context, name: String, emoji: String = "📚", colorHex: String? = null): SubjectTag {
         val cleanName = name.trim().take(25)
-        val id = "custom_" + System.currentTimeMillis()
+        val id = "custom_" + java.util.UUID.randomUUID().toString()
         val finalColor = colorHex?.takeIf { it.isNotBlank() } ?: generateUniqueColor(context)
         val newSub = SubjectTag(id, cleanName, emoji, finalColor, isCustom = true)
         val prefs = getPrefs(context)
@@ -127,13 +188,37 @@ object SubjectTagManager {
         return newSub
     }
 
+    fun updateSubject(context: Context, updated: SubjectTag) {
+        val prefs = getPrefs(context)
+        val customJson = prefs.getString(KEY_CUSTOM_SUBJECTS_JSON, "[]") ?: "[]"
+        try {
+            val arr = JSONArray(customJson)
+            val newArr = JSONArray()
+            for (i in 0 until arr.length()) {
+                val obj = arr.getJSONObject(i)
+                if (obj.getString("id") == updated.id) {
+                    val newObj = JSONObject().apply {
+                        put("id", updated.id)
+                        put("name", updated.name)
+                        put("iconEmoji", updated.iconEmoji)
+                        put("colorHex", updated.colorHex)
+                    }
+                    newArr.put(newObj)
+                } else {
+                    newArr.put(obj)
+                }
+            }
+            prefs.edit().putString(KEY_CUSTOM_SUBJECTS_JSON, newArr.toString()).apply()
+        } catch (_: Exception) {}
+    }
+
     fun removeSubject(context: Context, subjectId: String) {
         if (subjectId == "general") return // Keep General as fallback
 
         val prefs = getPrefs(context)
-        val hiddenSet = HashSet(prefs.getStringSet(KEY_HIDDEN_SUBJECTS, emptySet()) ?: emptySet())
+        val hiddenSet = HashSet(getHiddenSubjects(prefs))
         hiddenSet.add(subjectId)
-        prefs.edit().putStringSet(KEY_HIDDEN_SUBJECTS, hiddenSet).apply()
+        prefs.edit().remove(KEY_HIDDEN_SUBJECTS).putStringSet(KEY_HIDDEN_SUBJECTS, hiddenSet).apply()
 
         // Also clean custom JSON if it was custom
         val customJson = prefs.getString(KEY_CUSTOM_SUBJECTS_JSON, "[]") ?: "[]"

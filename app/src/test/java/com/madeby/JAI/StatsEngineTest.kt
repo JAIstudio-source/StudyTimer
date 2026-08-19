@@ -105,4 +105,17 @@ class StatsEngineTest {
         assertTrue(parsed.breaks.isEmpty())
         assertEquals(t(0), parsed.openBreakStart)
     }
+
+    @Test
+    fun focusWithSubject_preservesSubjectMetadata() {
+        val entry = TimelineEntry(t(0), "STUDYING", subId = "custom_123", subName = "Advanced Chemistry", subColor = "#EC4899")
+        val idleEntry = TimelineEntry(t(45), "IDLE")
+        val parsed = parseDayBlocks(listOf(entry, idleEntry))
+        assertEquals(1, parsed.sessions.size)
+        val s = parsed.sessions[0]
+        assertEquals("custom_123", s.subjectId)
+        assertEquals("Advanced Chemistry", s.subjectName)
+        assertEquals("#EC4899", s.subjectColor)
+        assertEquals(2700L, s.secs)
+    }
 }

@@ -2901,29 +2901,30 @@ class MainActivity : AppCompatActivity() {
                 // Mode 1: Subject Sessions Breakdown derived from unified daily session logs
                 val todayStr = dateKeyFmt.format(Date())
                 val (allDaySessions, _) = dayBlocks(todayStr)
-                val allSubjects = SubjectTagManager.getAllSubjects(this@MainActivity)
 
-                // Group unified sessions by subject — EXCLUDING untagged null sessions
-                val durationBySubject = HashMap<String, Long>()
+                // Group unified sessions by subject (aggregating duration + resolved SubjectTag)
+                val subjectMap = LinkedHashMap<String, Pair<SubjectTag, Long>>()
                 for (s in allDaySessions) {
-                    if (s.subjectId != null) {
-                        durationBySubject[s.subjectId] = (durationBySubject[s.subjectId] ?: 0L) + s.secs
+                    if (s.subjectId != null || (!s.subjectName.isNullOrBlank() && s.subjectName != "Focus")) {
+                        val subj = SubjectTagManager.resolveSubject(this@MainActivity, s.subjectId, s.subjectName, s.subjectColor)
+                        val currentSecs = subjectMap[subj.id]?.second ?: 0L
+                        subjectMap[subj.id] = subj to (currentSecs + s.secs)
                     }
                 }
 
                 // If no unified timeline entries exist yet for today, fallback to SubjectTagManager durations for today specifically
-                if (durationBySubject.isEmpty()) {
+                if (subjectMap.isEmpty()) {
                     val legacyDurations = SubjectTagManager.getSubjectDurationsForDate(this@MainActivity, todayStr)
                     for ((subId, secs) in legacyDurations) {
-                        if (allSubjects.any { it.id == subId }) {
-                            durationBySubject[subId] = secs
-                        }
+                        val subj = SubjectTagManager.resolveSubject(this@MainActivity, subId)
+                        val currentSecs = subjectMap[subj.id]?.second ?: 0L
+                        subjectMap[subj.id] = subj to (currentSecs + secs)
                     }
                 }
 
-                val totalSecsAll = durationBySubject.values.sum()
+                val totalSecsAll = subjectMap.values.sumOf { it.second }
 
-                if (durationBySubject.isEmpty() || totalSecsAll < 60L) {
+                if (subjectMap.isEmpty() || totalSecsAll < 60L) {
                     val emptyBox = LinearLayout(this@MainActivity).apply {
                         orientation = LinearLayout.VERTICAL
                         gravity = Gravity.CENTER
@@ -2946,8 +2947,7 @@ class MainActivity : AppCompatActivity() {
                     })
                     container.addView(emptyBox)
                 } else {
-                    val sortedSubjects = allSubjects
-                        .map { it to (durationBySubject[it.id] ?: 0L) }
+                    val sortedSubjects = subjectMap.values
                         .filter { it.second >= 60L }
                         .sortedByDescending { it.second }
 
@@ -6150,8 +6150,7 @@ class MainActivity : AppCompatActivity() {
                     orientation = LinearLayout.VERTICAL
                     layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 }
-                val allSubjects = SubjectTagManager.getAllSubjects(this@MainActivity)
-                val itemSub = allSubjects.find { it.id == item.subjectId } ?: SubjectTagManager.DEFAULT_SUBJECTS[0]
+                val itemSub = SubjectTagManager.resolveSubject(this@MainActivity, item.subjectId)
                 textCol.addView(TextView(this).apply {
                     text = "${itemSub.iconEmoji} ${item.title}"
                     setTextColor(themeCoordinator.textColor)
@@ -6437,7 +6436,7 @@ class MainActivity : AppCompatActivity() {
 
             val availableSubjects = SubjectTagManager.getAllSubjects(this).toMutableList()
             val initSubId = editItem?.subjectId ?: SubjectTagManager.getSelectedSubject(this).id
-            var chosenSubIdx = availableSubjects.indexOfFirst { it.id == initSubId }.coerceAtLeast(0)
+            var chosenSubId = initSubId
 
             val subjectRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -6453,9 +6452,9 @@ class MainActivity : AppCompatActivity() {
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
 
+            val curInit = availableSubjects.find { it.id == chosenSubId } ?: availableSubjects.firstOrNull() ?: SubjectTagManager.DEFAULT_SUBJECTS[0]
             val subjectLabelTv = TextView(this).apply {
-                val cur = availableSubjects[chosenSubIdx]
-                text = "${cur.iconEmoji} ${cur.name}"
+                text = "${curInit.iconEmoji} ${curInit.name}"
                 setTextColor(themeCoordinator.textColor)
                 textSize = 13f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
@@ -6485,6 +6484,11 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
+            fun updateSubjectLabel() {
+                val cur = availableSubjects.find { it.id == chosenSubId } ?: availableSubjects.firstOrNull() ?: SubjectTagManager.DEFAULT_SUBJECTS[0]
+                subjectLabelTv.text = "${cur.iconEmoji} ${cur.name}"
+            }
+
             fun openSubjectPickerMenu() {
                 val popup = android.widget.PopupMenu(this, subjectSelectBtn)
                 for (i in availableSubjects.indices) {
@@ -6497,13 +6501,15 @@ class MainActivity : AppCompatActivity() {
                         showAddCustomSubjectDialog { newSub ->
                             availableSubjects.clear()
                             availableSubjects.addAll(SubjectTagManager.getAllSubjects(this@MainActivity))
-                            chosenSubIdx = availableSubjects.indexOfFirst { it.id == newSub.id }.coerceAtLeast(0)
-                            subjectLabelTv.text = "${newSub.iconEmoji} ${newSub.name}"
+                            chosenSubId = newSub.id
+                            updateSubjectLabel()
                         }
                     } else {
-                        chosenSubIdx = menuItem.itemId
-                        val sel = availableSubjects[chosenSubIdx]
-                        subjectLabelTv.text = "${sel.iconEmoji} ${sel.name}"
+                        val sel = availableSubjects.getOrNull(menuItem.itemId)
+                        if (sel != null) {
+                            chosenSubId = sel.id
+                            updateSubjectLabel()
+                        }
                     }
                     true
                 }
@@ -6515,8 +6521,8 @@ class MainActivity : AppCompatActivity() {
                 showAddCustomSubjectDialog { newSub ->
                     availableSubjects.clear()
                     availableSubjects.addAll(SubjectTagManager.getAllSubjects(this@MainActivity))
-                    chosenSubIdx = availableSubjects.indexOfFirst { it.id == newSub.id }.coerceAtLeast(0)
-                    subjectLabelTv.text = "${newSub.iconEmoji} ${newSub.name}"
+                    chosenSubId = newSub.id
+                    updateSubjectLabel()
                 }
             }
 
@@ -6559,7 +6565,7 @@ class MainActivity : AppCompatActivity() {
                     val titleText = titleInput.text.toString().trim().take(100)
                     val startText = convertTo24h(startHEdit, startMEdit, startIsPm)
                     val endText = convertTo24h(endHEdit, endMEdit, endIsPm)
-                    val selectedSubjectId = availableSubjects[chosenSubIdx].id
+                    val selectedSubjectId = chosenSubId
 
                     if (titleText.isNotBlank() && startText.isNotBlank() && endText.isNotBlank()) {
                         val currentSchedules = loadLectureSchedulesFromJson(getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).getString("lecture_schedules_json", "[]") ?: "[]").toMutableList()
@@ -6970,7 +6976,6 @@ class MainActivity : AppCompatActivity() {
         for (b in breaks) rows.add(Pair(b, true))
         rows.sortBy { it.first.startMs }
         var prevWasBreak = false
-        val allSubs = SubjectTagManager.getAllSubjects(this)
         for ((b, isBreak) in rows) {
             val blockLabel: String
             val blockColor: Int
@@ -6978,10 +6983,8 @@ class MainActivity : AppCompatActivity() {
                 blockLabel = if (b.manual) getString(R.string.block_manual) else getString(R.string.block_break)
                 blockColor = themeCoordinator.secondaryColor
             } else {
-                val matchedSub = if (b.subjectId != null) {
-                    allSubs.find { it.id == b.subjectId } ?: SubjectTag(b.subjectId, b.subjectName ?: "General", "📖", b.subjectColor ?: "#6366F1")
-                } else if (b.subjectName != null && b.subjectName.isNotBlank()) {
-                    allSubs.find { it.name.equals(b.subjectName, ignoreCase = true) } ?: SubjectTag("custom_${b.subjectName}", b.subjectName, "📖", b.subjectColor ?: "#6366F1")
+                val matchedSub = if (b.subjectId != null || (!b.subjectName.isNullOrBlank() && b.subjectName != "Focus")) {
+                    SubjectTagManager.resolveSubject(this, b.subjectId, b.subjectName, b.subjectColor)
                 } else null
 
                 blockLabel = if (matchedSub != null) {
@@ -9446,30 +9449,30 @@ class MainActivity : AppCompatActivity() {
             }
 
             val (daySessions, dayBreaks) = StatsEngine(this).dayBlocks(currentDateKey)
-            val allSubjects = SubjectTagManager.getAllSubjects(this)
-            val subjectDurations = HashMap<String, Long>()
+            val subjectMap = LinkedHashMap<String, Pair<SubjectTag, Long>>()
 
             // Aggregate focus durations directly from unified session logs
             for (s in daySessions) {
-                if (s.subjectId != null) {
-                    subjectDurations[s.subjectId] = (subjectDurations[s.subjectId] ?: 0L) + s.secs
+                if (s.subjectId != null || (!s.subjectName.isNullOrBlank() && s.subjectName != "Focus")) {
+                    val subj = SubjectTagManager.resolveSubject(this, s.subjectId, s.subjectName, s.subjectColor)
+                    val currentSecs = subjectMap[subj.id]?.second ?: 0L
+                    subjectMap[subj.id] = subj to (currentSecs + s.secs)
                 }
             }
 
             // Fallback to legacy SubjectTagManager if daySessions is empty
-            if (subjectDurations.isEmpty()) {
+            if (subjectMap.isEmpty()) {
                 val legacy = SubjectTagManager.getSubjectDurationsForDate(this, currentDateKey)
                 for ((subId, secs) in legacy) {
-                    if (allSubjects.any { it.id == subId }) {
-                        subjectDurations[subId] = secs
-                    }
+                    val subj = SubjectTagManager.resolveSubject(this, subId)
+                    val currentSecs = subjectMap[subj.id]?.second ?: 0L
+                    subjectMap[subj.id] = subj to (currentSecs + secs)
                 }
             }
 
             val subjectBreakDurations = SubjectTagManager.getSubjectBreakDurationsForDate(this, currentDateKey)
 
-            val activeSubjectsSorted = allSubjects
-                .map { it to (subjectDurations[it.id] ?: 0L) }
+            val activeSubjectsSorted = subjectMap.values
                 .filter { it.second >= 60L }
                 .sortedByDescending { it.second }
 
@@ -9503,7 +9506,7 @@ class MainActivity : AppCompatActivity() {
                 setPadding(dp(4), 0, 0, dp(12))
             })
 
-            val totalSecsAll = subjectDurations.values.sum()
+            val totalSecsAll = subjectMap.values.sumOf { it.second }
 
             if (slicesList.isEmpty()) {
                 val emptyCard = LinearLayout(this).apply {

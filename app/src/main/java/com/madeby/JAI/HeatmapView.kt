@@ -24,6 +24,10 @@ class HeatmapView @JvmOverloads constructor(
     var onDayLongClick: ((String) -> Unit)? = null
     var forcedCellSize: Float = 0f
 
+    init {
+        setLayerType(LAYER_TYPE_HARDWARE, null)
+    }
+
     private val cells = HashMap<String, Long>()
     private val dayDates = ArrayList<String>()
     private var todayStr = ""

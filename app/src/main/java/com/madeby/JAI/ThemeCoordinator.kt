@@ -42,6 +42,9 @@ class ThemeCoordinator(private val context: Context) {
             "#FDBA74", // Light Apricot
             "#94A3B8"  // Zen Slate
         )
+
+        // Decoupled dedicated analytics accent for Insights floating nav capsule
+        val INSIGHTS_NAV_ACCENT = Color.parseColor("#6366F1")
     }
 
     fun applyThemeCoordinates() {

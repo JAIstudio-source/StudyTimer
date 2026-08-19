@@ -6,8 +6,13 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
+import android.view.MotionEvent
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
@@ -380,30 +385,41 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     layout.addView(createHubCard("🛠️", "Developer & Advanced", "Mock Data Generator, State & Schema Inspector", AppSettingsTab.DEVELOPER))
                 }
 
-                layout.addView(createSectionLabel("ABOUT & SUPPORT"))
-                val aboutCard = createSettingsCard()
-                val guideRow = createSettingsRow("📖", "How to Use / App Guide", "View complete feature walkthrough & tips")
-                guideRow.setOnClickListener { showAppGuideDialog() }
-                aboutCard.addView(guideRow)
-                aboutCard.addView(createDivider())
+                layout.addView(createSectionLabel("LEGAL & POLICIES"))
+                val legalCard = createSettingsCard()
 
-                val feedbackRow = createSettingsRow("💬", "Report a Problem & Feedback", "Send bug reports, logs, or feature requests")
-                feedbackRow.setOnClickListener { showFeedbackReportDialog() }
-                aboutCard.addView(feedbackRow)
-                aboutCard.addView(createDivider())
-
-                var versionTapCount = 0
-                val versionRow = createSettingsRow("📋", getString(R.string.version_label), "v${currentVersionName()} • build ${currentVersionCodeLong()}")
-                versionRow.setOnClickListener {
-                    versionTapCount++
-                    if (versionTapCount >= 5) {
-                        isDevModeUnlocked = true
-                        Toast.makeText(this, getString(R.string.toast_dev_config_enabled), Toast.LENGTH_SHORT).show()
-                        navigateToPanel(AppPanel.SETTINGS)
+                val privacyRow = createSettingsRow("🛡️", "Privacy Policy", "Read our data collection, analytics & privacy practices")
+                privacyRow.setOnClickListener {
+                    try {
+                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://get-studytimer.vercel.app/privacy.html")))
+                    } catch (_: Exception) {
+                        Toast.makeText(this, "Opening privacy policy...", Toast.LENGTH_SHORT).show()
                     }
                 }
-                aboutCard.addView(versionRow)
-                layout.addView(aboutCard)
+                legalCard.addView(privacyRow)
+                legalCard.addView(createDivider())
+
+                val termsRow = createSettingsRow("📜", "Terms of Service", "Review our terms, usage guidelines & licensing")
+                termsRow.setOnClickListener {
+                    try {
+                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://get-studytimer.vercel.app/terms.html")))
+                    } catch (_: Exception) {
+                        Toast.makeText(this, "Opening terms of service...", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                legalCard.addView(termsRow)
+                legalCard.addView(createDivider())
+
+                val deleteWebRow = createSettingsRow("🗑️", "Account Deletion Web Portal", "Request permanent deletion of data online (Play Store policy)")
+                deleteWebRow.setOnClickListener {
+                    try {
+                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://get-studytimer.vercel.app/delete-account.html")))
+                    } catch (_: Exception) {
+                        Toast.makeText(this, "Opening account deletion portal...", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                legalCard.addView(deleteWebRow)
+                layout.addView(legalCard)
             }
 
             // ==========================================
@@ -571,6 +587,44 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     addView(pRow)
                 }
                 layout.addView(privacyCard)
+
+                layout.addView(createSectionLabel("ACCOUNT ACTIONS & DELETION"))
+                val deleteCard = createSettingsCard().apply {
+                    val dRow = LinearLayout(this@with).apply {
+                        orientation = LinearLayout.VERTICAL
+                        setPadding(dp(18), dp(16), dp(18), dp(16))
+                    }
+                    dRow.addView(TextView(this@with).apply {
+                        text = "⚠️ Delete Account & Cloud Data"
+                        setTextColor(Color.parseColor("#EF4444"))
+                        textSize = 15f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    })
+                    dRow.addView(TextView(this@with).apply {
+                        text = "Permanently wipe your account, cloud backups, focus logs, and user profile. This action cannot be reversed."
+                        setTextColor(themeCoordinator.textColor)
+                        alpha = 0.6f
+                        textSize = 12f
+                        setPadding(0, dp(4), 0, dp(14))
+                    })
+                    val delBtn = Button(this@with).apply {
+                        text = "Delete Account & Data"
+                        setTextColor(Color.WHITE)
+                        textSize = 13f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        background = GradientDrawable().apply {
+                            cornerRadius = dp(12).toFloat()
+                            setColor(Color.parseColor("#DC2626"))
+                        }
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46))
+                        setOnClickListener {
+                            showDeleteAccountDialog()
+                        }
+                    }
+                    dRow.addView(delBtn)
+                    addView(dRow)
+                }
+                layout.addView(deleteCard)
             }
 
             // ==========================================
@@ -641,6 +695,29 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     layout.addView(createSectionLabel("POMODORO INTERVALS & CYCLES"))
                     val intervalCard = createSettingsCard()
 
+                    val isFreedomMode = sharedPrefs.getBoolean("pomodoro_freedom_mode", false)
+                    val freedomSwitch = SwitchMaterial(this).apply {
+                        isChecked = isFreedomMode
+                        setOnCheckedChangeListener { _, isChecked ->
+                            sharedPrefs.edit().putBoolean("pomodoro_freedom_mode", isChecked).apply()
+                            tabPageCache.remove(settingsTabKey(AppSettingsTab.TIMER))
+                            navigateToPanel(AppPanel.SETTINGS)
+                        }
+                    }
+                    intervalCard.addView(createSettingsRow("🚀", "Pomodoro Freedom Mode", "Continuous focus without forced break transitions or session caps", freedomSwitch))
+                    intervalCard.addView(createDivider())
+
+                    fun formatIntervalValue(valMinutes: Long, unit: String): String {
+                        if (unit != "min") return "$valMinutes $unit"
+                        val h = valMinutes / 60L
+                        val m = valMinutes % 60L
+                        return when {
+                            h > 0L && m > 0L -> "${h}h ${m}m"
+                            h > 0L -> "${h}h"
+                            else -> "${m}m"
+                        }
+                    }
+
                     fun makeIntervalStepper(title: String, subtitle: String, key: String, defaultVal: Long, minVal: Long, maxVal: Long, stepVal: Long, unit: String): LinearLayout {
                         val row = LinearLayout(this).apply {
                             orientation = LinearLayout.HORIZONTAL
@@ -668,7 +745,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
                         val valText = TextView(this).apply {
                             val curVal = sharedPrefs.safeLong(key, defaultVal)
-                            text = "$curVal $unit"
+                            text = formatIntervalValue(curVal, unit)
                             textSize = 14.5f
                             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                             setTextColor(themeCoordinator.primaryColor)
@@ -676,24 +753,69 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         }
 
                         fun makeStepBtn(symbol: String, delta: Long): TextView {
-                            return TextView(this).apply {
+                            val btn = TextView(this).apply {
                                 text = symbol
                                 textSize = 18f
                                 typeface = Typeface.DEFAULT_BOLD
                                 setTextColor(themeCoordinator.textColor)
                                 background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 8f)
                                 setPadding(dp(12), dp(4), dp(12), dp(4))
-                                setOnClickListener {
-                                    val cur = sharedPrefs.safeLong(key, defaultVal)
-                                    val next = max(minVal, Math.min(maxVal, cur + delta))
-                                    val editor = sharedPrefs.edit().putLong(key, next)
-                                    if (key == "study_interval_minutes") {
-                                        editor.putLong("focus_countdown_secs", next * 60L)
+                            }
+
+                            val repeatHandler = Handler(Looper.getMainLooper())
+                            var holdTicks = 0
+                            var repeatRunnable: Runnable? = null
+
+                            fun performStep() {
+                                val cur = sharedPrefs.safeLong(key, defaultVal)
+                                val multiplier = when {
+                                    holdTicks > 30 -> 12L // fast jump (60 min / step)
+                                    holdTicks > 15 -> 6L  // 30 min jump
+                                    holdTicks > 6 -> 2L   // 10 min jump
+                                    else -> 1L
+                                }
+                                val effectiveDelta = delta * multiplier
+                                val next = max(minVal, Math.min(maxVal, cur + effectiveDelta))
+                                val editor = sharedPrefs.edit().putLong(key, next)
+                                if (key == "study_interval_minutes") {
+                                    editor.putLong("focus_countdown_secs", next * 60L)
+                                }
+                                editor.apply()
+                                valText.text = formatIntervalValue(next, unit)
+                                try { btn.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP) } catch (_: Exception) {}
+                            }
+
+                            repeatRunnable = object : Runnable {
+                                override fun run() {
+                                    holdTicks++
+                                    performStep()
+                                    val nextDelay = when {
+                                        holdTicks > 30 -> 50L
+                                        holdTicks > 15 -> 90L
+                                        holdTicks > 6 -> 160L
+                                        else -> 260L
                                     }
-                                    editor.apply()
-                                    valText.text = "$next $unit"
+                                    repeatHandler.postDelayed(this, nextDelay)
                                 }
                             }
+
+                            btn.setOnTouchListener { v, event ->
+                                when (event.action) {
+                                    MotionEvent.ACTION_DOWN -> {
+                                        holdTicks = 0
+                                        performStep()
+                                        v.animate().scaleX(0.88f).scaleY(0.88f).setDuration(80).start()
+                                        repeatHandler.postDelayed(repeatRunnable, 350)
+                                    }
+                                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                                        repeatHandler.removeCallbacks(repeatRunnable)
+                                        v.animate().scaleX(1.0f).scaleY(1.0f).setDuration(100).start()
+                                    }
+                                }
+                                true
+                            }
+
+                            return btn
                         }
 
                         val ctrlLayout = LinearLayout(this).apply {
@@ -707,13 +829,15 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         return row
                     }
 
-                    intervalCard.addView(makeIntervalStepper("Focus Duration", "Length of active study intervals", "study_interval_minutes", 25L, 5L, 120L, 5L, "min"))
+                    val maxFocus = if (isFreedomMode) 1440L else 120L
+                    val focusSubtitle = if (isFreedomMode) "Extended continuous focus (up to 24h / 1440m)" else "Length of active study intervals"
+                    intervalCard.addView(makeIntervalStepper("Focus Duration", focusSubtitle, "study_interval_minutes", 25L, 5L, maxFocus, 5L, "min"))
                     intervalCard.addView(createDivider())
-                    intervalCard.addView(makeIntervalStepper("Short Break Duration", "Rest period between standard intervals", "break_interval_minutes", 5L, 1L, 30L, 1L, "min"))
+                    intervalCard.addView(makeIntervalStepper("Short Break Duration", if (isFreedomMode) "Standard break (bypassed in Freedom Mode)" else "Rest period between standard intervals", "break_interval_minutes", 5L, 1L, 30L, 1L, "min"))
                     intervalCard.addView(createDivider())
-                    intervalCard.addView(makeIntervalStepper("Long Break Duration", "Extended rest after completing a cycle", "long_break_minutes", 15L, 5L, 60L, 5L, "min"))
+                    intervalCard.addView(makeIntervalStepper("Long Break Duration", if (isFreedomMode) "Extended rest (bypassed in Freedom Mode)" else "Extended rest after completing a cycle", "long_break_minutes", 15L, 5L, 60L, 5L, "min"))
                     intervalCard.addView(createDivider())
-                    intervalCard.addView(makeIntervalStepper("Long Break Interval", "Number of focus sessions before a long break", "long_break_interval", 4L, 2L, 10L, 1L, "sessions"))
+                    intervalCard.addView(makeIntervalStepper("Long Break Interval", if (isFreedomMode) "Cycle limit (uncapped in Freedom Mode)" else "Number of focus sessions before a long break", "long_break_interval", 4L, 2L, 10L, 1L, "sessions"))
                     layout.addView(intervalCard)
                 }
 
@@ -1088,6 +1212,65 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 }
                 styleCard.addView(classicRow)
                 layout.addView(styleCard)
+
+                // ==========================================
+                // RANDOM THEME / ACCENT GENERATOR
+                // ==========================================
+                layout.addView(createSectionLabel("RANDOM ACCENT GENERATOR"))
+                val randomThemeCard = createSettingsCard()
+                val rollBtn = TextView(this).apply {
+                    text = "🎲 Roll"
+                    textSize = 13f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    setTextColor(0xFFFFFFFF.toInt())
+                    background = themeCoordinator.createButtonBackground(themeCoordinator.primaryColor)
+                    setPadding(dp(14), dp(6), dp(14), dp(6))
+                }
+                val randomRow = createSettingsRow(
+                    "🎲",
+                    "Random Theme / Accent",
+                    "Pick distinct harmonious colors for Focus & Break",
+                    rollBtn
+                )
+                randomRow.setOnClickListener {
+                    val focusList = ThemeCoordinator.SOFT_FOCUS_PALETTE
+                    val breakList = ThemeCoordinator.SOFT_BREAK_PALETTE
+                    val randomFocusHex = focusList.random()
+                    var randomBreakHex = breakList.random()
+                    while (randomBreakHex.equals(randomFocusHex, ignoreCase = true) && breakList.size > 1) {
+                        randomBreakHex = breakList.random()
+                    }
+
+                    val newFocus = Color.parseColor(randomFocusHex)
+                    val newBreak = Color.parseColor(randomBreakHex)
+
+                    val hsvFocus = FloatArray(3)
+                    val hsvBreak = FloatArray(3)
+                    Color.colorToHSV(newFocus, hsvFocus)
+                    Color.colorToHSV(newBreak, hsvBreak)
+
+                    sharedPrefs.edit()
+                        .putInt("customPrimary", newFocus)
+                        .putInt("customSecondary", newBreak)
+                        .putInt("customHue", hsvFocus[0].toInt())
+                        .putInt("customSecondaryHue", hsvBreak[0].toInt())
+                        .apply()
+
+                    themeCoordinator.primaryColor = newFocus
+                    themeCoordinator.secondaryColor = newBreak
+                    (settingsBackFab.background as? GradientDrawable)?.setColor(newFocus)
+
+                    updateVisualStyles()
+                    tabPageCache.clear()
+
+                    try {
+                        randomRow.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    } catch (_: Exception) {}
+                    Toast.makeText(this, "✨ Applied random theme accents!", Toast.LENGTH_SHORT).show()
+                    navigateToPanel(AppPanel.SETTINGS)
+                }
+                randomThemeCard.addView(randomRow)
+                layout.addView(randomThemeCard)
 
                 // ==========================================
                 // DUAL FOCUS & BREAK ACCENT COLOR CONTROLS

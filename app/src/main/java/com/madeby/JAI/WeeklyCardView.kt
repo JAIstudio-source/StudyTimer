@@ -50,6 +50,10 @@ class WeeklyCardView @JvmOverloads constructor(
 
     private var data: CardData? = null
 
+    init {
+        setLayerType(LAYER_TYPE_HARDWARE, null)
+    }
+
     fun setData(d: CardData) {
         data = d
         invalidate()

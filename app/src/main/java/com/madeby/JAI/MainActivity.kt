@@ -23,6 +23,7 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import android.widget.Button
+import android.widget.EditText
 import android.widget.TextView
 import android.widget.LinearLayout
 import android.view.WindowInsets
@@ -542,9 +543,8 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    internal fun showDeleteAccountConfirmDialog() {
-        val dialog = android.app.Dialog(this)
-        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+    internal fun showDeleteAccountDialog() {
+        val dialog = Dialog(this)
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = themeCoordinator.createDialogBackground(28f)
@@ -552,32 +552,57 @@ class MainActivity : AppCompatActivity() {
         }
 
         content.addView(TextView(this).apply {
-            text = "DANGER ZONE"
+            text = "⚠️ SEVERE WARNING • PERMANENT DELETION"
             setTextColor(Color.parseColor("#EF4444"))
-            textSize = 11f
+            textSize = 11.5f
             letterSpacing = 0.18f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         })
 
         content.addView(TextView(this).apply {
-            text = "Delete Account & Cloud Data"
+            text = "Delete Account & All Data"
             setTextColor(themeCoordinator.textColor)
-            textSize = 18f
+            textSize = 19f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             setPadding(0, dp(6), 0, 0)
         })
 
         content.addView(TextView(this).apply {
-            text = "This will permanently delete your cloud backup, habit logs, synced profile, and local study history. This action cannot be undone."
+            text = "This action is permanent and will instantly erase all your focus history, subjects, cloud sync documents, and settings. Type 'DELETE' below to confirm."
             setTextColor(themeCoordinator.textColor)
-            alpha = 0.7f
+            alpha = 0.8f
             textSize = 13.5f
-            setPadding(0, dp(6), 0, 0)
+            setPadding(0, dp(8), 0, dp(12))
         })
+
+        val confirmInput = EditText(this).apply {
+            hint = "Type DELETE to confirm"
+            setTextColor(themeCoordinator.textColor)
+            setHintTextColor(tintedColor(themeCoordinator.textColor, 90))
+            textSize = 14f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = themeCoordinator.createGlassChip(tintedColor(Color.parseColor("#EF4444"), 40), 12f)
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+        }
+        content.addView(confirmInput)
+
+        val webInfoText = TextView(this).apply {
+            text = "🌐 Web Deletion Portal: https://get-studytimer.vercel.app/delete-account.html"
+            setTextColor(themeCoordinator.primaryColor)
+            alpha = 0.8f
+            textSize = 11.5f
+            setPadding(0, dp(10), 0, dp(14))
+            setOnClickListener {
+                try {
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://get-studytimer.vercel.app/delete-account.html")))
+                } catch (_: Exception) {}
+            }
+        }
+        content.addView(webInfoText)
 
         val buttonRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setPadding(0, dp(18), 0, 0)
+            setPadding(0, dp(6), 0, 0)
         }
         val cancelBtn = Button(this).apply {
             text = getString(R.string.btn_cancel_upper)
@@ -589,7 +614,7 @@ class MainActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(0, dp(46), 1f).apply { setMargins(0, 0, dp(8), 0) }
         }
         val deleteBtn = Button(this).apply {
-            text = "HOLD TO DELETE"
+            text = "PERMANENTLY DELETE"
             setTextColor(Color.WHITE)
             textSize = 11f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
@@ -598,11 +623,13 @@ class MainActivity : AppCompatActivity() {
                 setColor(Color.parseColor("#DC2626"))
             }
             setOnClickListener {
-                android.widget.Toast.makeText(this@MainActivity, "Hold button for 1.5s to confirm wipe", android.widget.Toast.LENGTH_SHORT).show()
-            }
-            setOnLongClickListener {
+                val inputStr = confirmInput.text.toString().trim()
+                if (inputStr != "DELETE") {
+                    Toast.makeText(this@MainActivity, "Please type 'DELETE' exactly to confirm deletion", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
                 try {
-                    rootLayout.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                    rootLayout.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                 } catch (_: Exception) {}
                 dialog.dismiss()
                 Thread {
@@ -611,15 +638,15 @@ class MainActivity : AppCompatActivity() {
                     }
                     runOnUiThread {
                         AuthManager.deleteLocalUserData(this@MainActivity)
-                        android.widget.Toast.makeText(this@MainActivity, "Account & all data permanently deleted.", android.widget.Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@MainActivity, "Account & all data permanently erased.", Toast.LENGTH_LONG).show()
                         val intent = Intent(this@MainActivity, LoginActivity::class.java)
                         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                         startActivity(intent)
+                        finish()
                     }
                 }.start()
-                true
             }
-            layoutParams = LinearLayout.LayoutParams(0, dp(46), 1f).apply { setMargins(dp(8), 0, 0, 0) }
+            layoutParams = LinearLayout.LayoutParams(0, dp(46), 1.2f).apply { setMargins(dp(8), 0, 0, 0) }
         }
         buttonRow.addView(cancelBtn)
         buttonRow.addView(deleteBtn)
@@ -627,7 +654,7 @@ class MainActivity : AppCompatActivity() {
 
         dialog.setContentView(content)
         dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
-        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.88f).toInt(), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.90f).toInt(), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
         dialog.show()
     }
 
@@ -1287,8 +1314,13 @@ class MainActivity : AppCompatActivity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == NOTIFICATION_PERMISSION_REQUEST_CODE && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit().remove("notification_perm_prompt_count").apply()
+        if (requestCode == NOTIFICATION_PERMISSION_REQUEST_CODE) {
+            val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            if (granted) {
+                getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit().remove("notification_perm_prompt_count").apply()
+                pendingNotificationAction?.invoke()
+            }
+            pendingNotificationAction = null
         }
     }
 
@@ -1348,12 +1380,12 @@ class MainActivity : AppCompatActivity() {
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     (v.background as? Soft3DBubbleDrawable)?.isPressed = true
-                    v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100).setInterpolator(android.view.animation.DecelerateInterpolator()).start()
+                    v.animate().scaleX(0.96f).scaleY(0.96f).setDuration(90).setInterpolator(android.view.animation.DecelerateInterpolator()).start()
                     false
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     (v.background as? Soft3DBubbleDrawable)?.isPressed = false
-                    v.animate().scaleX(1.0f).scaleY(1.0f).setDuration(220).setInterpolator(android.view.animation.OvershootInterpolator(2.0f)).start()
+                    v.animate().scaleX(1.0f).scaleY(1.0f).setDuration(220).setInterpolator(android.view.animation.OvershootInterpolator(1.3f)).start()
                     false
                 }
                 else -> false
@@ -1451,15 +1483,19 @@ class MainActivity : AppCompatActivity() {
 
         themeCoordinator = ThemeCoordinator(this)
         backupManager = BackupManager(this)
-        
-        AppAnalytics.init(this)
-        CrashReporter.init(this)
-
-        backupManager.triggerAutoRestoreIfPresent()
         themeCoordinator.applyThemeCoordinates()
 
-        createNotificationChannel()
-        GoalReminderScheduler.schedule(this)
+        Thread {
+            try {
+                AppAnalytics.init(this)
+                CrashReporter.init(this)
+                backupManager.triggerAutoRestoreIfPresent()
+                createNotificationChannel()
+                GoalReminderScheduler.schedule(this)
+                migrateHistoricalDailyGoals(this)
+                checkAndResetGoalsForNewDay()
+            } catch (_: Exception) {}
+        }.start()
 
         requestNotificationPermissionIfNeeded()
 
@@ -1500,8 +1536,6 @@ class MainActivity : AppCompatActivity() {
 
         navigateToPanel(AppPanel.FOCUS)
         setupTimerLoop()
-        migrateHistoricalDailyGoals(this)
-        checkAndResetGoalsForNewDay()
 
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -1764,7 +1798,7 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun handleTabDragTouch(ev: MotionEvent): Boolean {
-        if (currentPanel != AppPanel.STATS) {
+        if (currentPanel == AppPanel.STATS) {
             tabDragArmed = false
             tabDragActive = false
             return false
@@ -1924,7 +1958,7 @@ class MainActivity : AppCompatActivity() {
         return Math.max(150L, Math.min(340L, base))
     }
 
-    private fun settleInterpolator() = android.view.animation.PathInterpolator(0.25f, 0.9f, 0.25f, 1f)
+    private fun settleInterpolator() = android.view.animation.OvershootInterpolator(1.18f)
 
     private fun finishTabDrag() {
         val width = panelContainer.width.takeIf { it > 0 } ?: dp(160)
@@ -2180,7 +2214,7 @@ class MainActivity : AppCompatActivity() {
 
         rebuild()
 
-        val fastOutSlowIn = androidx.core.view.animation.PathInterpolatorCompat.create(0.2f, 0.0f, 0.0f, 1.0f)
+        val springPhysics = androidx.core.view.animation.PathInterpolatorCompat.create(0.18f, 0.9f, 0.2f, 1.0f)
         val startOffset = (-exitDir * width * 0.35f)
 
         for (j in 0 until panelContainer.childCount) {
@@ -2203,8 +2237,8 @@ class MainActivity : AppCompatActivity() {
             .alpha(0f)
             .scaleX(0.96f)
             .scaleY(0.96f)
-            .setDuration(320L)
-            .setInterpolator(fastOutSlowIn)
+            .setDuration(300L)
+            .setInterpolator(springPhysics)
             .withLayer()
             .start()
 
@@ -2214,8 +2248,8 @@ class MainActivity : AppCompatActivity() {
                 .alpha(1f)
                 .scaleX(1f)
                 .scaleY(1f)
-                .setDuration(320L)
-                .setInterpolator(fastOutSlowIn)
+                .setDuration(300L)
+                .setInterpolator(springPhysics)
                 .withLayer()
                 .start()
         }
@@ -2234,7 +2268,16 @@ class MainActivity : AppCompatActivity() {
         statsEngine.recalculateStreak(todayExtra)
     }
 
-    internal fun computeStatsSnapshot(): StatsSnapshot = statsEngine.computeStatsSnapshot(currentBreakSeconds)
+    internal fun computeStatsSnapshot(): StatsSnapshot {
+        val cached = statsSnapshotCache
+        if (!statsDirty && cached != null) {
+            return cached
+        }
+        val snap = statsEngine.computeStatsSnapshot(currentBreakSeconds)
+        statsSnapshotCache = snap
+        statsDirty = false
+        return snap
+    }
 
     private fun buildStatsPanel(target: android.view.ViewGroup = panelContainer) {
         StatsPanelBuilder(this).build(target)
@@ -2387,39 +2430,57 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    internal fun renderStatsContent(statsRoot: FrameLayout, snap: StatsSnapshot, tab: AppStatsTab = currentStatsTab) {
-        val sharedPrefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val todayStr = sdf.format(Date())
+    private var insightsPillBarRef: InsightsPillNavBar? = null
 
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT)
-        }
-
-        var insightsPillBar: InsightsPillNavBar? = null
+    internal fun buildStatsTabScrollView(snap: StatsSnapshot, tab: AppStatsTab, todayStr: String): ScrollView {
         val scroll = ScrollView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+            setBackgroundColor(android.graphics.Color.BLACK)
             isVerticalScrollBarEnabled = false
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
                     val dy = scrollY - oldScrollY
                     if (dy > 12 && scrollY > dp(40)) {
-                        insightsPillBar?.setBarVisibility(false)
+                        insightsPillBarRef?.setBarVisibility(false)
                     } else if (dy < -12 || scrollY <= dp(10)) {
-                        insightsPillBar?.setBarVisibility(true)
+                        insightsPillBarRef?.setBarVisibility(true)
                     }
                 }
             }
         }
-        val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(8), 0, dp(80)) }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(android.graphics.Color.BLACK)
+            setPadding(dp(4), dp(8), dp(4), dp(96)) // 96dp bottom padding so cards never clip under pill
+        }
         scroll.addView(content)
 
-        // Clean Geometric Header
+        when (tab) {
+            AppStatsTab.OVERVIEW -> renderOverviewTabContent(content, snap)
+            AppStatsTab.TIMELINE -> CalendarTimeline(this).build(content, snap, todayStr)
+            AppStatsTab.PLANNER -> renderPlannerTabContent(content, snap)
+        }
+        return scroll
+    }
+
+    internal fun renderStatsContent(statsRoot: FrameLayout, snap: StatsSnapshot, tab: AppStatsTab = currentStatsTab) {
+        val sharedPrefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val todayStr = sdf.format(Date())
+
+        statsRoot.removeAllViews()
+        statsRoot.setBackgroundColor(android.graphics.Color.BLACK)
+
+        val mainColumn = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+        }
+
+        // 1. FIXED TOP HEADER (Title & Quote ONLY - Placed OUTSIDE swipable tab area)
         val headerRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(4), dp(4), dp(4), dp(10))
+            setPadding(dp(4), dp(2), dp(4), dp(6))
         }
         headerRow.addView(TextView(this).apply {
             text = getString(R.string.insights_title)
@@ -2429,7 +2490,7 @@ class MainActivity : AppCompatActivity() {
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         })
-        content.addView(headerRow)
+        mainColumn.addView(headerRow)
 
         val isQuoteDismissed = sharedPrefs.getBoolean("quote_dismissed_today_${todayStr}", false)
         if (!isQuoteDismissed) {
@@ -2445,7 +2506,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 setPadding(dp(14), dp(10), dp(12), dp(10))
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                    setMargins(0, 0, 0, dp(14))
+                    setMargins(0, 0, 0, dp(8))
                 }
             }
             quoteRibbon.addView(TextView(this).apply {
@@ -2473,8 +2534,71 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             quoteRibbon.addView(dismissBtn)
-            content.addView(quoteRibbon)
+            mainColumn.addView(quoteRibbon)
         }
+
+        // 2. ISOLATED TAB CONTENT CONTAINER (Takes only remaining space below header)
+        val tabHost = FrameLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+            setBackgroundColor(android.graphics.Color.BLACK)
+        }
+        val tabView = buildStatsTabScrollView(snap, tab, todayStr)
+        tabHost.addView(tabView)
+        mainColumn.addView(tabHost)
+
+        statsRoot.addView(mainColumn)
+
+        // 3. FLOATING BOTTOM PILL NAV BAR (Fixed at bottom overlay, Z-Index layer above content)
+        val pillBar = InsightsPillNavBar(this).apply {
+            setPrimaryColor(ThemeCoordinator.INSIGHTS_NAV_ACCENT)
+            selectTab(currentStatsTab, animated = false)
+            setOnTabSelectedListener { targetTab ->
+                if (currentStatsTab != targetTab) {
+                    val slideLeft = targetTab.ordinal > currentStatsTab.ordinal
+                    currentStatsTab = targetTab
+                    val nextTabView = buildStatsTabScrollView(snap, targetTab, todayStr)
+                    val width = (tabHost.width.takeIf { it > 0 } ?: (resources.displayMetrics.widthPixels - dp(32))).toFloat()
+                    val startOffset = if (slideLeft) width * 0.4f else -width * 0.4f
+                    nextTabView.translationX = startOffset
+                    nextTabView.alpha = 0f
+                    tabHost.addView(nextTabView)
+                    nextTabView.animate()
+                        .translationX(0f)
+                        .alpha(1f)
+                        .setDuration(240L)
+                        .setInterpolator(android.view.animation.OvershootInterpolator(1.15f))
+                        .withLayer()
+                        .start()
+                    if (tabHost.childCount > 1) {
+                        val prevView = tabHost.getChildAt(0)
+                        prevView.animate()
+                            .translationX(if (slideLeft) -width * 0.4f else width * 0.4f)
+                            .alpha(0f)
+                            .setDuration(240L)
+                            .setInterpolator(android.view.animation.DecelerateInterpolator())
+                            .withLayer()
+                            .withEndAction {
+                                tabHost.removeView(prevView)
+                            }.start()
+                    }
+                }
+            }
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            ).apply {
+                setMargins(dp(24), 0, dp(24), dp(16))
+            }
+        }
+        insightsPillBarRef = pillBar
+        statsRoot.addView(pillBar)
+    }
+
+    internal fun renderOverviewTabContent(content: LinearLayout, snap: StatsSnapshot) {
+        val sharedPrefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val todayStr = sdf.format(Date())
 
         val todayFocus = snap.todayFocus
         val todayBreak = snap.todayBreak
@@ -3279,9 +3403,8 @@ class MainActivity : AppCompatActivity() {
             highlightsGrid.addView(gridRow)
         }
 
-        if (tab == AppStatsTab.OVERVIEW) {
-            val hasAnySessions = snap.hasAnySessions
-            if (!hasAnySessions) {
+        val hasAnySessions = snap.hasAnySessions
+        if (!hasAnySessions) {
                 content.addView(LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
                     gravity = Gravity.CENTER
@@ -3669,34 +3792,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             content.addView(exportCardBtn)
-        } else if (tab == AppStatsTab.PLANNER) {
-            renderPlannerTabContent(content, snap)
-        } else {
-            CalendarTimeline(this).build(content, snap, todayStr)
-        }
-
-        layout.addView(scroll)
-        statsRoot.addView(layout, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-
-        insightsPillBar = InsightsPillNavBar(this).apply {
-            setPrimaryColor(themeCoordinator.primaryColor)
-            selectTab(currentStatsTab, animated = false)
-            setOnTabSelectedListener { targetTab ->
-                if (currentStatsTab != targetTab) {
-                    currentStatsTab = targetTab
-                    tabPageCache.clear()
-                    navigateToPanel(AppPanel.STATS)
-                }
-            }
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            ).apply {
-                setMargins(dp(24), 0, dp(24), dp(16))
-            }
-        }
-        statsRoot.addView(insightsPillBar)
     }
 
     internal fun refreshStatsPanel() {
@@ -8052,10 +8147,102 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Exception) {}
     }
 
+    private var pendingNotificationAction: (() -> Unit)? = null
+
+    internal fun showNotificationRationaleDialog(onGranted: (() -> Unit)? = null) {
+        pendingNotificationAction = onGranted
+        val dialog = Dialog(this)
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = themeCoordinator.createCardBackground(24f)
+            setPadding(dp(22), dp(20), dp(22), dp(20))
+        }
+
+        root.addView(TextView(this).apply {
+            text = "🔔 Timer Notifications Required"
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 17f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        })
+
+        root.addView(TextView(this).apply {
+            text = "StudyTimer requires notification permission to alert you when your Pomodoro focus session or break ends, even when the screen is locked."
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.75f
+            textSize = 13.5f
+            setPadding(0, dp(8), 0, dp(16))
+        })
+
+        val btnRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+        }
+
+        val notNowBtn = Button(this).apply {
+            text = "Not Now"
+            setTextColor(themeCoordinator.textColor)
+            textSize = 12f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 40f)
+            setOnClickListener {
+                dialog.dismiss()
+                onGranted?.invoke()
+            }
+            layoutParams = LinearLayout.LayoutParams(0, dp(44), 1f).apply { setMargins(0, 0, dp(6), 0) }
+        }
+
+        val allowBtn = Button(this).apply {
+            text = "Enable Notifications"
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = themeCoordinator.createButtonBackground(themeCoordinator.primaryColor)
+            setOnClickListener {
+                dialog.dismiss()
+                if (Build.VERSION.SDK_INT >= 33) {
+                    ActivityCompat.requestPermissions(
+                        this@MainActivity,
+                        arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                        NOTIFICATION_PERMISSION_REQUEST_CODE
+                    )
+                }
+            }
+            layoutParams = LinearLayout.LayoutParams(0, dp(44), 1.3f).apply { setMargins(dp(6), 0, 0, 0) }
+        }
+
+        btnRow.addView(notNowBtn)
+        btnRow.addView(allowBtn)
+        root.addView(btnRow)
+
+        dialog.setContentView(root)
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.90f).toInt(), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+        dialog.show()
+    }
+
     internal fun handleStateToggle() {
-        if (currentTimerState == TimerState.STUDYING && timerMode == "COUNTDOWN") {
+        val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+
+        if (currentTimerState == TimerState.IDLE && Build.VERSION.SDK_INT >= 33) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                val askedCount = prefs.getInt("post_notif_rationale_shown", 0)
+                if (askedCount < 2) {
+                    prefs.edit().putInt("post_notif_rationale_shown", askedCount + 1).apply()
+                    showNotificationRationaleDialog {
+                        executeStateToggle()
+                    }
+                    return
+                }
+            }
+        }
+        executeStateToggle()
+    }
+
+    private fun executeStateToggle() {
+        val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val isFreedomMode = prefs.getBoolean("pomodoro_freedom_mode", false)
+        if (currentTimerState == TimerState.STUDYING && timerMode == "COUNTDOWN" && !isFreedomMode) {
             // Save current remaining focus countdown before break so returning to focus resumes from this position
-            getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit()
+            prefs.edit()
                 .putLong("focus_remaining_secs", focusRemainingSecs)
                 .putLong("focusRemainingSecs", focusRemainingSecs)
                 .apply()
@@ -8624,6 +8811,8 @@ class MainActivity : AppCompatActivity() {
         checkOngoingScheduledLecturePrompt()
         checkCelebration()
     }
+
+
 
     internal fun checkCelebration() {
         if (isFinishing || isDestroyed) return

@@ -27,10 +27,10 @@ class HoldRingButton(context: Context) : AppCompatButton(context) {
     override fun setPressed(pressed: Boolean) {
         super.setPressed(pressed)
         (background as? Soft3DBubbleDrawable)?.isPressed = pressed
-        animate().scaleX(if (pressed) 0.95f else 1.0f)
-            .scaleY(if (pressed) 0.95f else 1.0f)
-            .setDuration(120L)
-            .setInterpolator(android.view.animation.DecelerateInterpolator())
+        animate().scaleX(if (pressed) 0.96f else 1.0f)
+            .scaleY(if (pressed) 0.96f else 1.0f)
+            .setDuration(if (pressed) 90L else 220L)
+            .setInterpolator(if (pressed) android.view.animation.DecelerateInterpolator() else android.view.animation.OvershootInterpolator(1.3f))
             .start()
     }
 

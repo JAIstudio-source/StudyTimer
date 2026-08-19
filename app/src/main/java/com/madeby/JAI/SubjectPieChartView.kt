@@ -26,6 +26,10 @@ class SubjectPieChartView(context: Context) : View(context) {
     var primaryColor: Int = Color.parseColor("#6366F1")
     var textColor: Int = Color.WHITE
 
+    init {
+        setLayerType(LAYER_TYPE_HARDWARE, null)
+    }
+
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
     }

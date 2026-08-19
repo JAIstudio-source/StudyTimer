@@ -46,7 +46,7 @@ class InsightsPillNavBar @JvmOverloads constructor(
     private val iconViews = mutableListOf<ImageView>()
     private val labelViews = mutableListOf<TextView>()
 
-    private var primaryAccentColor: Int = Color.parseColor("#4C8DFF")
+    private var primaryAccentColor: Int = ThemeCoordinator.INSIGHTS_NAV_ACCENT
 
     init {
         elevation = 20f * density
@@ -241,8 +241,8 @@ class InsightsPillNavBar @JvmOverloads constructor(
 
                 ValueAnimator.ofFloat(0f, 1f).apply {
                     duration = 280
-                    // Damping 0.78f spring overshoot feel
-                    interpolator = OvershootInterpolator(1.22f)
+                    // Damping 0.80f spring overshoot feel
+                    interpolator = OvershootInterpolator(1.18f)
                     addUpdateListener { animator ->
                         val fraction = animator.animatedFraction
                         indicatorView.translationX = startX + (targetX - startX) * fraction

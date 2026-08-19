@@ -637,26 +637,38 @@ class TimerService : Service() {
                                     } else {
                                         // COUNTDOWN (Pomodoro) mode ended
                                         val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-                                        val autoBreak = prefs.getBoolean("pomodoro_auto_break", true)
-                                        prefs.edit().putLong("focus_remaining_secs", 0L).apply()
-                                        if (autoBreak) {
-                                            currentTimerState = TimerState.BREAK
-                                            focusRemainingSecs = 0L
-                                            breakRemainingSecs = prefs.getLong("break_countdown_secs", 300L)
-                                            lastTimestamp = now
-                                            TimelineLogger.record(this, TimerState.BREAK)
+                                        val isFreedomMode = prefs.getBoolean("pomodoro_freedom_mode", false)
+                                        if (isFreedomMode) {
+                                            // Freedom Mode: continuous focus without break transitions or session caps
+                                            val fullInterval = prefs.getLong("focus_countdown_secs", focusCountdownSecs).coerceAtLeast(60L)
+                                            focusRemainingSecs = fullInterval
+                                            prefs.edit().putLong("focus_remaining_secs", focusRemainingSecs).apply()
+                                            saveState()
+                                            updateForegroundNotification()
+                                            postCountdownComplete()
+                                            StudyWidgetProvider.refresh(this)
                                         } else {
-                                            currentTimerState = TimerState.IDLE
-                                            focusRemainingSecs = 0L
-                                            breakRemainingSecs = 0L
-                                            lastTimestamp = 0L
-                                            TimelineLogger.record(this, TimerState.IDLE)
+                                            val autoBreak = prefs.getBoolean("pomodoro_auto_break", true)
+                                            prefs.edit().putLong("focus_remaining_secs", 0L).apply()
+                                            if (autoBreak) {
+                                                currentTimerState = TimerState.BREAK
+                                                focusRemainingSecs = 0L
+                                                breakRemainingSecs = prefs.getLong("break_countdown_secs", 300L)
+                                                lastTimestamp = now
+                                                TimelineLogger.record(this, TimerState.BREAK)
+                                            } else {
+                                                currentTimerState = TimerState.IDLE
+                                                focusRemainingSecs = 0L
+                                                breakRemainingSecs = 0L
+                                                lastTimestamp = 0L
+                                                TimelineLogger.record(this, TimerState.IDLE)
+                                            }
+                                            saveState()
+                                            updateForegroundNotification()
+                                            postCountdownComplete()
+                                            StudyWidgetProvider.refresh(this)
+                                            return@Runnable
                                         }
-                                        saveState()
-                                        updateForegroundNotification()
-                                        postCountdownComplete()
-                                        StudyWidgetProvider.refresh(this)
-                                        return@Runnable
                                     }
                                 }
                             }

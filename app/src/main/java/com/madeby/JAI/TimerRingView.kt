@@ -42,7 +42,7 @@ class TimerRingView(context: Context) : View(context) {
     private var animator: ValueAnimator? = null
 
     init {
-        setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+        setLayerType(View.LAYER_TYPE_HARDWARE, null)
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {

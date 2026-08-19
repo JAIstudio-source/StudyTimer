@@ -14,6 +14,8 @@ import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
 import android.widget.TextView
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.appcompat.app.AppCompatActivity
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
@@ -53,6 +55,18 @@ class LoginActivity : AppCompatActivity() {
         btnGuest.setOnClickListener {
             AuthManager.setGuestMode(this)
             proceedToMain()
+        }
+
+        val contentRoot = findViewById<View>(R.id.loginContentRoot)
+        ViewCompat.setOnApplyWindowInsetsListener(contentRoot) { v, insets ->
+            val navBars = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            v.setPadding(
+                v.paddingLeft,
+                v.paddingTop,
+                v.paddingRight,
+                navBars.bottom + 16
+            )
+            insets
         }
 
         val tvLegalNotice = findViewById<TextView>(R.id.tvLegalNotice)

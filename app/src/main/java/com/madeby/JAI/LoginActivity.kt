@@ -6,6 +6,14 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Toast
+import android.graphics.Color
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.TextPaint
+import android.text.method.LinkMovementMethod
+import android.text.style.ClickableSpan
+import android.widget.TextView
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
@@ -41,6 +49,9 @@ class LoginActivity : AppCompatActivity() {
             AuthManager.setGuestMode(this)
             proceedToMain()
         }
+
+        val tvLegalNotice = findViewById<TextView>(R.id.tvLegalNotice)
+        setupLegalNotice(tvLegalNotice)
 
         // Handle OAuth Deep-Link return if applicable
         intent?.data?.let { handleDeepLink(it) }
@@ -218,6 +229,62 @@ class LoginActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     proceedToMain()
                 }
+            }
+        }
+    }
+
+    private fun setupLegalNotice(textView: TextView) {
+        val fullText = "By continuing, you agree to our Terms of Service and Privacy Policy."
+        val spannable = SpannableStringBuilder(fullText)
+
+        val termsText = "Terms of Service"
+        val termsStart = fullText.indexOf(termsText)
+        if (termsStart != -1) {
+            val termsEnd = termsStart + termsText.length
+            spannable.setSpan(object : ClickableSpan() {
+                override fun onClick(widget: View) {
+                    openWebUrl("https://get-studytimer.vercel.app/terms.html")
+                }
+                override fun updateDrawState(ds: TextPaint) {
+                    super.updateDrawState(ds)
+                    ds.color = Color.parseColor("#818CF8")
+                    ds.isUnderlineText = true
+                }
+            }, termsStart, termsEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+
+        val privacyText = "Privacy Policy"
+        val privacyStart = fullText.indexOf(privacyText)
+        if (privacyStart != -1) {
+            val privacyEnd = privacyStart + privacyText.length
+            spannable.setSpan(object : ClickableSpan() {
+                override fun onClick(widget: View) {
+                    openWebUrl("https://get-studytimer.vercel.app/privacy.html")
+                }
+                override fun updateDrawState(ds: TextPaint) {
+                    super.updateDrawState(ds)
+                    ds.color = Color.parseColor("#818CF8")
+                    ds.isUnderlineText = true
+                }
+            }, privacyStart, privacyEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+
+        textView.text = spannable
+        textView.movementMethod = LinkMovementMethod.getInstance()
+        textView.highlightColor = Color.TRANSPARENT
+    }
+
+    private fun openWebUrl(url: String) {
+        try {
+            val customTabsIntent = CustomTabsIntent.Builder()
+                .setShowTitle(true)
+                .build()
+            customTabsIntent.launchUrl(this, Uri.parse(url))
+        } catch (_: Exception) {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            } catch (_: Exception) {
+                Toast.makeText(this, "Could not open browser", Toast.LENGTH_SHORT).show()
             }
         }
     }

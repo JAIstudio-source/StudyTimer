@@ -77,9 +77,20 @@
             android:layout_marginTop="12dp"
             android:lineSpacingExtra="2dp" />
 
+        <!-- Terms & Privacy Notice -->
+        <TextView
+            android:id="@+id/tvLegalNotice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#9CA3AF"
+            android:textSize="11.5sp"
+            android:gravity="center"
+            android:layout_marginTop="14dp"
+            android:lineSpacingExtra="3dp" />
+
         <View
             android:layout_width="match_parent"
-            android:layout_height="24dp" />
+            android:layout_height="20dp" />
 
         <!-- Guest / Skip Button -->
         <com.google.android.material.button.MaterialButton

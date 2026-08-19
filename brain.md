@@ -287,6 +287,24 @@ enum class AppSettingsTab { HUB, TIMER, AMBIENCE, ANALYTICS, CLOUD, THEME, PROFI
 - **Foreground Service Manifest Declaration**:
   - `TimerService` explicitly declared in `AndroidManifest.xml` with `android:foregroundServiceType="specialUse"` and `PROPERTY_SPECIAL_USE_FGS_SUBTYPE` for persistent background study session tracking.
 
+### N. Security Architecture & Defensive Standards
+- **Secrets Management**:
+  - Production backend endpoints load Supabase credentials exclusively from `process.env.SUPABASE_URL` and `process.env.SUPABASE_ANON_KEY`.
+  - Zero hardcoded fallback credentials in production API routes.
+  - Template variables documented in `.env.example` with `.env` permanently excluded from version control in `.gitignore`.
+- **Sliding-Window Rate Limiting (`api/feedback.js`)**:
+  - 20 requests per minute per client IP using an in-memory sliding window cache.
+  - Automatically emits standard rate headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, and `Retry-After` upon HTTP 429 breach.
+- **Strict Input Validation & Sanitization**:
+  - Schema-enforced category whitelist (`['BUG_REPORT', 'FEATURE_REQUEST', 'GENERAL_FEEDBACK']`).
+  - Max length capping on messages (5 to 2000 chars) and contact identifiers (120 chars).
+  - HTML character sanitization on user-supplied strings before database insertion to eliminate stored XSS.
+  - Whitelist-only schema filtering on diagnostic metadata.
+- **HTTP Security Response Headers (`vercel.json`)**:
+  - Enforces `Content-Security-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`, and `Strict-Transport-Security`.
+- **Sanitized Error Responses**:
+  - API responses strictly return generic, user-safe error messages with zero database internals, schemas, or stack traces leaked to clients.
+
 ---
 
 ## 5. UI/Theme Conventions

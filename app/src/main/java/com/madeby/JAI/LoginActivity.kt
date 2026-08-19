@@ -36,10 +36,15 @@ class LoginActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.statusBarColor = Color.BLACK
+        window.navigationBarColor = Color.BLACK
         setContentView(R.layout.activity_login)
 
         btnGoogleSignIn = findViewById(R.id.btnGoogleSignIn)
         btnGuest = findViewById(R.id.btnGuest)
+
+        attachPressScale(btnGoogleSignIn, 0.97f)
+        attachPressScale(btnGuest, 0.97f)
 
         btnGoogleSignIn.setOnClickListener {
             performGoogleSignIn()
@@ -55,6 +60,21 @@ class LoginActivity : AppCompatActivity() {
 
         // Handle OAuth Deep-Link return if applicable
         intent?.data?.let { handleDeepLink(it) }
+    }
+
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
+    private fun attachPressScale(view: View, targetScale: Float = 0.97f) {
+        view.setOnTouchListener { v, event ->
+            when (event.action) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    v.animate().scaleX(targetScale).scaleY(targetScale).setDuration(90).start()
+                }
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                    v.animate().scaleX(1.0f).scaleY(1.0f).setDuration(120).start()
+                }
+            }
+            false
+        }
     }
 
     override fun onNewIntent(intent: Intent?) {

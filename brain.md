@@ -305,6 +305,23 @@ enum class AppSettingsTab { HUB, TIMER, AMBIENCE, ANALYTICS, CLOUD, THEME, PROFI
 - **Sanitized Error Responses**:
   - API responses strictly return generic, user-safe error messages with zero database internals, schemas, or stack traces leaked to clients.
 
+### O. Authentication & Onboarding Screen Visual Design (`LoginActivity.kt`)
+- **Aesthetic & Brand Polish**:
+  - **Background**: Pure `#000000` AMOLED canvas with edge-to-edge system bars.
+  - **Ambient Brand Glow**: Logo centered over an ambient cyan/blue radial gradient glow (`bg_logo_ambient_glow.xml`), removing all hard bounding boxes.
+  - **Typography & Hierarchy**:
+    - App Header: Crisp bold `29sp` with tight letter spacing (`-0.02`) in modern `sans-serif-medium`.
+    - Subtitle: `Focus, Track & Master Your Habits` in muted slate gray (`#94A3B8`).
+    - Recommendation Note: `12sp` body in light slate (`#64748B`).
+- **Interactive Action Buttons**:
+  - **Google Sign-In**: Pill container (`27dp` corner radius) with clean `#FFFFFF` fill, bold `#0F172A` text, official 4-color Google G icon (`ic_google_logo.xml`), and `0.97f` press-scale animation.
+  - **Guest Mode CTA**: Secondary outlined pill button (`#334155` border, transparent fill, `#CBD5E1` text) with `0.97f` touch bounce.
+- **Legal Compliance**:
+  - Interactive legal notice: `"By continuing, you agree to our Terms of Service and Privacy Policy."`
+  - Inline accent links (`#818CF8`) launching in-app Custom Tabs (`androidx.browser.customtabs.CustomTabsIntent`) with system browser fallback.
+- **Footer**:
+  - Grounded bottom note: `"© Pushkar Studio • 100% Offline & Secure"` in `#475569`.
+
 ---
 
 ## 5. UI/Theme Conventions

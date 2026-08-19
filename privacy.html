@@ -8,94 +8,179 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=1.0.1">
+    <link rel="stylesheet" href="style.css?v=1.0.2">
     <style>
-        .privacy-container {
-            max-width: 800px;
-            margin: 4rem auto;
-            padding: 2.5rem;
-            background: rgba(18, 23, 38, 0.8);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 24px;
-            backdrop-filter: blur(16px);
-            color: #E5E7EB;
+        body {
+            background-color: #08090C;
+            color: #E2E8F0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
             line-height: 1.7;
         }
-        .privacy-container h1 {
-            font-size: 2.2rem;
-            font-weight: 800;
-            color: #FFFFFF;
-            margin-bottom: 0.5rem;
+        .page-wrapper {
+            max-width: 860px;
+            margin: 3.5rem auto;
+            padding: 0 1.5rem;
         }
-        .privacy-container h2 {
-            font-size: 1.35rem;
-            font-weight: 700;
-            color: #A5B4FC;
-            margin-top: 2rem;
-            margin-bottom: 0.75rem;
-        }
-        .privacy-container p, .privacy-container ul {
-            font-size: 0.95rem;
-            color: #D1D5DB;
-            margin-bottom: 1rem;
-        }
-        .privacy-container ul {
-            padding-left: 1.5rem;
-        }
-        .privacy-container li {
-            margin-bottom: 0.5rem;
+        .policy-card {
+            background: #10121A;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 2.75rem;
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
         }
         .badge-pill {
-            display: inline-block;
-            background: rgba(16, 185, 129, 0.2);
-            color: #34D399;
-            padding: 0.2rem 0.6rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(99, 102, 241, 0.15);
+            color: #818CF8;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            padding: 0.35rem 0.85rem;
             border-radius: 9999px;
             font-size: 0.8rem;
             font-weight: 700;
             margin-bottom: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        h1 {
+            font-size: 2.25rem;
+            font-weight: 800;
+            color: #FFFFFF;
+            letter-spacing: -0.025em;
+            margin: 0 0 0.5rem 0;
+        }
+        .effective-date {
+            color: #94A3B8;
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+        }
+        h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #A5B4FC;
+            margin-top: 2.25rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        p, ul {
+            font-size: 0.95rem;
+            color: #CBD5E1;
+            margin-bottom: 1.15rem;
+        }
+        ul {
+            padding-left: 1.5rem;
+        }
+        li {
+            margin-bottom: 0.5rem;
+        }
+        strong {
+            color: #F8FAFC;
+        }
+        .highlight-box {
+            background: rgba(30, 41, 59, 0.5);
+            border-left: 4px solid #6366F1;
+            padding: 1rem 1.25rem;
+            border-radius: 0 12px 12px 0;
+            margin: 1.5rem 0;
+        }
+        .highlight-box p {
+            margin: 0;
+            font-size: 0.92rem;
+            color: #E2E8F0;
+        }
+        a {
+            color: #818CF8;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        a:hover {
+            color: #A5B4FC;
+            text-decoration: underline;
+        }
+        .nav-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 3rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 0.9rem;
         }
     </style>
 </head>
-<body data-theme="amoled">
-    <div class="privacy-container">
-        <span class="badge-pill">🛡️ 100% Privacy-First &amp; Transparent</span>
-        <h1>Privacy Policy</h1>
-        <p><strong>Effective Date:</strong> August 15, 2026</p>
+<body>
+    <div class="page-wrapper">
+        <div class="policy-card">
+            <div class="badge-pill">🛡️ Privacy-First &amp; Play Store Compliant</div>
+            <h1>Privacy Policy</h1>
+            <div class="effective-date"><strong>Effective Date:</strong> August 19, 2026 &bull; Version 2.4.0</div>
 
-        <p>StudyTimer is built with privacy by design. We respect your focus, personal time, and data integrity. This Privacy Policy outlines what minimal technical data is collected, how it is protected, and your rights to manage or delete your data.</p>
+            <p>At <strong>StudyTimer</strong>, your privacy and data autonomy are our core priorities. We build tools to help you focus, manage study sessions, and achieve your academic goals without tracking your personal life. This Privacy Policy outlines what minimal technical data is collected, how it is stored, and your rights to manage or delete your data.</p>
 
-        <h2>1. Zero Collection of Personal Notes &amp; Task Contents</h2>
-        <p>StudyTimer strictly practices <strong>data minimization</strong>:</p>
-        <ul>
-            <li>We <strong>NEVER</strong> collect, read, or upload your private task names, study notes, or custom journal texts.</li>
-            <li>We <strong>NEVER</strong> access your contacts, GPS location, microphone, camera, photos, or SMS messages.</li>
-            <li>We <strong>NEVER</strong> use hardware fingerprinting, IMEI, MAC address, or Android IDs.</li>
-        </ul>
+            <div class="highlight-box">
+                <p><strong>The Core Pledge:</strong> We do <strong>NOT</strong> sell, rent, or monetize your personal information or study logs to data brokers, advertisers, or third parties.</p>
+            </div>
 
-        <h2>2. Anonymous Telemetry &amp; Usage Metrics</h2>
-        <p>To measure active user growth and optimize timer stability, the app generates a random, privacy-safe <strong>Anonymous UUID</strong> on installation. We collect high-level functional metrics including:</p>
-        <ul>
-            <li>Active status (DAU, WAU, MAU cohorts).</li>
-            <li>Aggregated study duration and timer mode preferences (Stopwatch, Pomodoro, Scheduled Lecture).</li>
-            <li>App version, Android OS version, and device model.</li>
-            <li>Crash reports: stack traces with all email addresses and tokens strictly scrubbed.</li>
-        </ul>
+            <h2>1. Zero Collection of Personal Notes &amp; Private Content</h2>
+            <p>StudyTimer strictly practices <strong>data minimization</strong>:</p>
+            <ul>
+                <li>We <strong>NEVER</strong> access or upload your private study notes, journal text, camera, microphone, photos, media files, or contact lists.</li>
+                <li>We <strong>NEVER</strong> collect personal identifiers such as GPS location, IMEI, MAC address, phone numbers, or hardware fingerprints.</li>
+                <li>Your study subject names, schedules, and custom goals remain strictly private to you.</li>
+            </ul>
 
-        <h2>3. Optional Account &amp; Cloud Backup</h2>
-        <p>Account creation is <strong>strictly optional</strong>. If you choose to sign in with Google or Email:</p>
-        <ul>
-            <li>Your account ID is linked to your sync profile for backing up your study streak and habit settings.</li>
-            <li>All transmissions occur over secure encrypted HTTPS connections to Supabase cloud infrastructure.</li>
-        </ul>
+            <h2>2. Information We Process &amp; How It Is Used</h2>
+            <p>To provide reliable timer functions and sync across devices, we process:</p>
+            <ul>
+                <li><strong>Local Study Logs &amp; Stats:</strong> Focus session duration, break durations, dates, completed Pomodoro counts, and subject tags stored locally on your device database (Room/SQLite).</li>
+                <li><strong>Optional Cloud Sync Data:</strong> If you sign in (e.g. Google Sign-In or Email authentication via Supabase), your encrypted session logs, streak counts, and theme settings are backed up to secure Supabase cloud servers.</li>
+                <li><strong>Anonymized Diagnostics &amp; Crash Telemetry:</strong> Optional anonymous metrics (e.g. daily active status, app version, Android OS version, device model, and scrubbed crash traces) to maintain app stability and eliminate bugs.</li>
+            </ul>
 
-        <h2>4. True In-App Account &amp; Data Deletion</h2>
-        <p>You maintain complete ownership of your data. In the app settings under <strong>Account &rarr; Delete Account &amp; Cloud Data</strong>, you can permanently erase your cloud backups, habit history, profile information, and local databases. This action permanently deletes your records.</p>
+            <h2>3. Android System Permissions &amp; Rationale</h2>
+            <p>StudyTimer requests only essential system permissions:</p>
+            <ul>
+                <li><strong>Notifications (POST_NOTIFICATIONS - Android 13+):</strong> Used strictly to display the persistent timer notification and alert you with sound/vibration when your focus session or break ends.</li>
+                <li><strong>Foreground Service (FOREGROUND_SERVICE_SPECIAL_USE):</strong> Keeps your study session timer actively counting in the background when your screen is turned off or you switch apps.</li>
+                <li><strong>Internet (INTERNET):</strong> Required for optional cloud backups, account authentication, and sending feedback reports.</li>
+            </ul>
 
-        <h2>5. Contact Us</h2>
-        <p>For questions or data deletion requests, contact us at our official GitHub repository: <a href="https://github.com/JAIstudio-source/StudyTimer" style="color: #6366F1;">github.com/JAIstudio-source/StudyTimer</a>.</p>
+            <h2>4. Third-Party Infrastructure</h2>
+            <p>We work exclusively with industry-standard, privacy-compliant cloud providers:</p>
+            <ul>
+                <li><strong>Supabase (PostgreSQL Cloud Infrastructure):</strong> Encrypted database and storage for optional user account authentication and cloud backups.</li>
+                <li><strong>Vercel:</strong> Fast, secure hosting for the official website, release updates, and serverless feedback endpoints.</li>
+            </ul>
 
-        <p style="margin-top: 2rem;"><a href="index.html" style="color: #6366F1; text-decoration: none; font-weight: 600;">&larr; Back to StudyTimer Home</a></p>
+            <h2>5. Account &amp; Complete Data Deletion Rights</h2>
+            <p>You have full legal rights to permanently delete your data at any time:</p>
+            <ul>
+                <li><strong>Instant In-App Deletion:</strong> Open the app &rarr; <strong>Settings &rarr; Account &amp; Profile &rarr; Delete Account &amp; Data</strong> &rarr; Type <code>DELETE</code> to instantly wipe all remote cloud documents, local Room databases, and preferences.</li>
+                <li><strong>Web Deletion Request:</strong> If you cannot access the app, visit our <a href="delete-account.html">Account Deletion Web Portal</a> or submit a manual deletion request to support.</li>
+            </ul>
+
+            <h2>6. Contact &amp; Support</h2>
+            <p>If you have any questions, concerns, or requests regarding this Privacy Policy or your personal data, reach out directly to our developer team:</p>
+            <div style="background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; padding: 1.25rem 1.5rem; margin-top: 1rem;">
+                <p style="margin-bottom: 0.6rem;"><strong>Support Email:</strong> <a href="mailto:studytimer737@gmail.com" style="color: #818CF8; font-weight: 600;">studytimer737@gmail.com</a></p>
+                <p style="margin-bottom: 0;"><strong>GitHub Support &amp; Issues:</strong> <a href="https://github.com/JAIstudio-source/StudyTimer" target="_blank" rel="noopener" style="color: #818CF8; font-weight: 600;">github.com/JAIstudio-source/StudyTimer</a></p>
+            </div>
+
+            <div class="nav-footer">
+                <a href="index.html">&larr; Back to Home</a>
+                <div>
+                    <a href="terms.html" style="margin-right: 1.5rem;">Terms of Service</a>
+                    <a href="delete-account.html">Delete Account Portal</a>
+                </div>
+            </div>
+        </div>
     </div>
 </body>
 </html>

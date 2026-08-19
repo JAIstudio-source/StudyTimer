@@ -96,6 +96,7 @@ enum class AppSettingsTab { HUB, TIMER, AMBIENCE, ANALYTICS, CLOUD, THEME, PROFI
 ### Timer Operation Modes (`timer_mode`)
 1. **`STOPWATCH`**: Free-running elapsed timer counting upwards (`accumulatedStudy`), with untagged or tagged focus support.
 2. **`COUNTDOWN`** (Pomodoro): Countdown interval timer (`focusRemainingSecs` / `focusCountdownSecs`) alternating between active focus intervals, short breaks, and cycle-based long breaks. Pomodoro duration customizer (Focus/Short Break/Long Break/Cycles) is rendered conditionally only when `timer_mode == "COUNTDOWN"`.
+   - **Pomodoro Freedom Mode (`pomodoro_freedom_mode`)**: Boolean key (default `false`). When enabled, disables auto-transition to breaks and session count caps, extends focus interval configuration up to 24 hours (1440 minutes), and logs focus sessions continuously uninterrupted without forcing a break state upon interval completion.
 3. **`SUBJECT`**: Subject-dedicated focus tracking emphasizing subject selection chip and pie chart breakdowns.
 4. **`LECTURE`**: Scheduled Timetable Mode. Tied to `lecture_schedules_json`. Displays current class countdown and timetable management button (`showLectureScheduleManagerDialog`).
 
@@ -246,24 +247,45 @@ enum class AppSettingsTab { HUB, TIMER, AMBIENCE, ANALYTICS, CLOUD, THEME, PROFI
 - **Secondary Top-Level Tabs (`AppPanel.SETTINGS`, `AppPanel.STATS` / Insights)**:
   - Pressing the system Back button on secondary top-level destinations immediately routes the user back to the start destination (`AppPanel.FOCUS`).
   - Secondary top-level screens never intercept back presses to force an exit confirmation dialog.
-### L. Insights Screen UI/UX Hierarchy & Sub-Tab Floating Pill Navigation
+### L. Insights Screen Layout Hierarchy & Swiping Structure
+- **Three-Tier Layout Hierarchy**:
+  1. **Fixed Top Header**: Title "Insights" and dismissible daily quote ribbon fixed at the top outside the scrollable body, remaining persistent and visible without duplicating across tabs or scrolling away.
+  2. **Scrollable/Swipable Tab Body**: Underneath the fixed header (`weight = 1f`), containing exclusively the active tab's cards/lists (`Overview`, `Timeline/History`, `Planner`) with `88dp` bottom padding so content is never obscured.
+  3. **Floating Bottom Pill Nav Bar (`InsightsPillNavBar.kt`)**: Anchored at the bottom overlay (`Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL`, margins: start=24dp, end=24dp, bottom=16dp).
 - **Design System & AMOLED Polish**:
   - Cards elevated with deep slate surface (`#121318` to `#161820`), subtle 1dp border outline (`#282A36`), and 26dp corner radius over pure AMOLED black.
   - Geometric, clean sans-serif typography (`sans-serif-medium` / bold metrics) replacing handwritten fonts.
-  - Clean top header displaying the geometric `Insights` title and dismissible daily quote ribbon.
 - **Insights Sub-Tab Floating Pill Bar (`InsightsPillNavBar.kt`)**:
-  - Anchored exclusively inside the Insights screen cleanly above the bottom edge (`margins: start=24dp, end=24dp, bottom=16dp`).
-  - Styled with AMOLED slate capsule background (`#16171D`), 1dp border (`#2A2B36`), 32dp corner radius, and 20dp elevation shadow.
-  - **Fluid Spring Physics**: Tuned with `OvershootInterpolator(1.22f)` (equivalent to damping ratio `0.78f` / `StiffnessMediumLow`) for snappy, responsive sliding without sluggish drag.
+  - Styled with neutral AMOLED slate capsule background (`#16171D`), 1dp border (`#2A2B36`), 32dp corner radius, and 20dp elevation shadow.
+  - **Decoupled Theme Accent**: Uses an independent, dedicated cool slate-indigo analytics accent (`ThemeCoordinator.INSIGHTS_NAV_ACCENT = #6366F1`) for indicator pills and active icon states rather than inheriting the user's global `focusAccent`, preventing monochromatic color overload.
+  - **Fluid Spring Physics**: Tuned with `OvershootInterpolator(1.18f)` (damping ratio `0.80f`) for snappy, responsive sliding without sluggish drag.
   - **Micro-Interactions & Haptics**: Touch scale bounce ($0.92\times$ on touch down $\rightarrow 1.0\times$ on touch up), icon scaling (`1.15x`), label cross-fade expansion, and precise haptic feedback (`HapticFeedbackConstants.KEYBOARD_TAP`).
   - **Pre-Caching & Instant Memory-Retention**:
     - `StatsSnapshot` is computed asynchronously on background threads and cached in `statsSnapshotCache`.
     - Sub-tab views (`Overview`, `Timeline/History`, `Planner`) are pre-warmed and retained in memory via `tabPageCache` (`getOrBuildTabPage`).
     - Switching tabs executes zero blocking main-thread calculations/DB queries, swapping instantly from pre-warmed memory pages.
   - Dynamic scroll auto-hide: Scrolling down hides the Insights pill bar; scrolling up restores it smoothly.
-  - Scrollable content maintains `80dp` bottom padding so cards and charts are never obscured.
 - **Root Screen Bottom Bar Removal**:
   - The application features zero fixed bottom navigation bars on Timer, Settings, or other root screens, maximizing full-screen immersion.
+
+### M. Google Play Policy Compliance & User Data Rights
+- **Account & Cascading Data Deletion**:
+  - **In-App Deletion Flow**: Accessible in Settings $\rightarrow$ Account & Profile. Requires a severe warning modal with explicit confirmation by typing `"DELETE"`.
+  - **Cascading Deletion Scope**:
+    1. Remote Cloud Wipe: `CloudSyncManager.deleteUserCloudData()` purges all remote Supabase/backend records and storage files associated with `userId`.
+    2. Local Data Wipe: `AuthManager.deleteLocalUserData()` clears local SharedPreferences, resets Room database/timeline logs, deletes backup files, and clears session tokens.
+    3. Navigation Reset: Clears task stack and routes user to `LoginActivity`.
+  - **Web Deletion URL**: Dedicated web portal URL (`https://get-studytimer.vercel.app/delete-account.html`) accessible in-app and in the Google Play Data Safety section.
+- **Legal & Privacy Policy Compliance**:
+  - Direct in-app clickable links under Settings $\rightarrow$ Legal & Policies:
+    - Privacy Policy: `https://get-studytimer.vercel.app/privacy.html`
+    - Terms of Service: `https://get-studytimer.vercel.app/terms.html`
+    - Account Deletion Portal: `https://get-studytimer.vercel.app/delete-account.html`
+- **Notification Permission (Android 13+ / API 33+)**:
+  - Before starting any focus session or break timer from `IDLE` state, checks `Manifest.permission.POST_NOTIFICATIONS`.
+  - If ungranted, presents a themed rationale dialog explaining that notifications are required to alert the user when focus intervals or breaks conclude even when the screen is locked, before launching `ActivityCompat.requestPermissions`.
+- **Foreground Service Manifest Declaration**:
+  - `TimerService` explicitly declared in `AndroidManifest.xml` with `android:foregroundServiceType="specialUse"` and `PROPERTY_SPECIAL_USE_FGS_SUBTYPE` for persistent background study session tracking.
 
 ---
 
@@ -275,6 +297,10 @@ enum class AppSettingsTab { HUB, TIMER, AMBIENCE, ANALYTICS, CLOUD, THEME, PROFI
 - **Dual Accent Color Architecture (`ThemeCoordinator.kt`)**:
   - **Focus Accent Token (`customPrimary`)**: Drives focus timer progress rings, active study session badges, and primary action buttons.
   - **Break Accent Token (`customSecondary`)**: Drives break countdown rings, resting badges, and break state transitions.
+  - **Insights Navigation Accent (`INSIGHTS_NAV_ACCENT`)**: `#6366F1` (cool slate-indigo) decoupled analytics token.
+- **Random Theme / Accent Generator**:
+  - `🎲 Roll` action button inside Theme & Appearance settings.
+  - Instantly samples distinct harmonious colors from `SOFT_FOCUS_PALETTE` and `SOFT_BREAK_PALETTE` for both `focusAccent` and `breakAccent`, persists values immediately to SharedPreferences (`customPrimary`, `customSecondary`, `customHue`, `customSecondaryHue`), and triggers immediate live theme propagation.
 - **Curated Soft / Aesthetic Color Palettes**:
   - **Focus Soft Palette**:
     - `#818CF8` (Soft Lavender), `#60A5FA` (Soft Sky Blue), `#38BDF8` (Pastel Cyan), `#A78BFA` (Light Purple), `#F472B6` (Pastel Rose), `#FB7185` (Soft Coral), `#FB923C` (Pastel Peach), `#FBBF24` (Warm Amber), `#34D399` (Soft Mint), `#2DD4BF` (Aqua Teal)
@@ -284,6 +310,21 @@ enum class AppSettingsTab { HUB, TIMER, AMBIENCE, ANALYTICS, CLOUD, THEME, PROFI
 - **Instant Live Theme Propagation & Layout Stabilization**:
   - Color updates immediately synchronize into `ThemeCoordinator`, update the active session timer displays, reload cached views, and recolor interactive action elements in real-time.
   - Color picker card containers enforce a fixed `minimumHeight` and `setSingleLine(true)` with `TextOverflow.Ellipsis` on label headers, eliminating container layout shifts and card resizing jitter during slider interaction.
+
+---
+
+## 5. Performance, Rendering & Animation Physics Standards
+
+### A. Animation Fluidity & Spring Physics (60/120 FPS Target)
+- **Spring Physics Tuning**: Screen transitions, tab settle, and floating pill indicator morphing use low-stiffness spring overshoot physics (`dampingRatio = 0.8f`, `OvershootInterpolator(1.18f)` / `PathInterpolator(0.18f, 0.9f, 0.2f, 1.0f)`).
+- **Touch Micro-Interactions**: Primary buttons, hold rings, and card surfaces use responsive press-scale physics (`0.96f` on press $\rightarrow$ `1.0f` on release with spring overshoot).
+
+### B. Startup Optimization & Zero Main-Thread Blocking
+- **Deferred Service Initializations**: `MainActivity.onCreate()` initializes only root UI elements and `ThemeCoordinator`. Non-critical services (`AppAnalytics`, `CrashReporter`, `BackupManager` restore checks, `NotificationChannels`, `GoalReminderScheduler`, database migrations) execute asynchronously on a background worker thread.
+- **Immutable UI State & Cache Engine**: Analytics snapshots (`StatsSnapshot`) are pre-computed and held in memory (`statsSnapshotCache`). Invalidation occurs reactively via `statsDirty`, ensuring 0ms latency when switching between panels and tabs.
+
+### C. Hardware Layer Caching
+- Heavy custom Canvas views (`HeatmapView`, `SubjectPieChartView`, `WeeklyCardView`, `TimerRingView`) explicitly utilize `setLayerType(View.LAYER_TYPE_HARDWARE, null)` to optimize rendering pipelines and eliminate frame drops during scrolling and animations.
 
 ---
 
@@ -314,4 +355,11 @@ enum class AppSettingsTab { HUB, TIMER, AMBIENCE, ANALYTICS, CLOUD, THEME, PROFI
 - [x] Comprehensive Insights UI/UX Redesign: AMOLED slate cards, 2x2 Highlights grid, circular goal ring, and 7-day planner consistency.
 - [x] Floating Pill Tab Switcher exclusively inside Insights screen with spring animations and clean top header.
 - [x] Focus Pattern visibility preference (`show_focus_pattern`) reactive toggle binding with quick hide card action.
+- [x] Pomodoro Freedom Mode (`pomodoro_freedom_mode`): continuous extended focus up to 24h without forced break transitions or session caps.
+- [x] Restored Random Theme / Accent Generator in Theme Settings (`🎲 Roll` action).
+- [x] Decoupled Insights Floating Nav Bar Theme Accent (`#6366F1` cool slate-indigo on `#16171D` AMOLED slate container).
+- [x] App-wide animation physics tuning (damping ratio 0.8f, 0.96f $\rightarrow$ 1.0f press scale).
+- [x] Zero-blocking startup latency reduction with asynchronous background worker threads.
+- [x] Hardware layer rendering optimization (`LAYER_TYPE_HARDWARE` on `HeatmapView`, `SubjectPieChartView`, `WeeklyCardView`, `TimerRingView`).
+- [x] Memory cache engine for instantaneous 0ms analytics tab transitions.
 

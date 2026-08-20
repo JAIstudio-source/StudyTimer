@@ -151,6 +151,12 @@ class HeatmapView @JvmOverloads constructor(
         return Color.argb(alpha, Color.red(primary), Color.green(primary), Color.blue(primary))
     }
 
+    private val cellRect = RectF()
+    private val cellRadius by lazy { 2.5f * resources.displayMetrics.density }
+    private var futureColor = Color.argb(8, 255, 255, 255)
+    private var headerTextColor = Color.argb(220, 255, 255, 255)
+    private var rowTextColor = Color.argb(200, 255, 255, 255)
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
@@ -158,13 +164,13 @@ class HeatmapView @JvmOverloads constructor(
             val x = labelW + col * (cellSize + gapPx)
             val firstDate = dayDates.getOrNull(col * 7) ?: continue
             if (col == 0 || monthSdf.format(parseSafe(firstDate)) != monthSdf.format(parseSafe(dayDates.getOrNull((col - 1) * 7) ?: firstDate))) {
-                textPaint.color = Color.argb(220, Color.red(textColor), Color.green(textColor), Color.blue(textColor))
+                textPaint.color = headerTextColor
                 canvas.drawText(monthSdf.format(parseSafe(firstDate)), x + cellSize / 2f, topPad + monthRowH - 3f * resources.displayMetrics.density, textPaint)
             }
         }
 
         for (row in 0..6) {
-            textPaint.color = Color.argb(200, Color.red(textColor), Color.green(textColor), Color.blue(textColor))
+            textPaint.color = rowTextColor
             val ly = topPad + monthRowH + row * rowH + cellSize / 2f + textPaint.textSize / 3f
             canvas.drawText(weekdayLetters[row], labelW / 2f, ly, textPaint)
 
@@ -174,10 +180,10 @@ class HeatmapView @JvmOverloads constructor(
                 val x = labelW + col * (cellSize + gapPx)
                 val y = topPad + monthRowH + row * rowH
                 val future = dateStr > todayStr
-                val r = RectF(x, y, x + cellSize, y + cellSize)
-                paint.color = if (future) Color.argb(8, Color.red(textColor), Color.green(textColor), Color.blue(textColor))
+                cellRect.set(x, y, x + cellSize, y + cellSize)
+                paint.color = if (future) futureColor
                 else levelColor(levelFor(cells[dateStr] ?: 0L, dateStr))
-                canvas.drawRoundRect(r, 2.5f * resources.displayMetrics.density, 2.5f * resources.displayMetrics.density, paint)
+                canvas.drawRoundRect(cellRect, cellRadius, cellRadius, paint)
             }
         }
     }

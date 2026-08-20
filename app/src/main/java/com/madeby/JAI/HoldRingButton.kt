@@ -41,6 +41,8 @@ class HoldRingButton(context: Context) : AppCompatButton(context) {
     }
 
     private val cornerRadius = 80f
+    private val ringPath = Path()
+    private val cornerRect = RectF()
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
@@ -59,40 +61,41 @@ class HoldRingButton(context: Context) : AppCompatButton(context) {
         val edgeH = h - 2f * r
         val totalLen = 2f * (edgeW + edgeH) + 4f * arcLen
         var remaining = progress * totalLen
-        val path = Path()
+        ringPath.reset()
 
         fun lineSegment(fullLen: Float, startX: Float, startY: Float, endX: Float, endY: Float) {
             if (remaining <= 0f || fullLen <= 0f) return
             if (remaining >= fullLen) {
-                path.moveTo(startX, startY)
-                path.lineTo(endX, endY)
+                ringPath.moveTo(startX, startY)
+                ringPath.lineTo(endX, endY)
                 remaining -= fullLen
             } else {
                 val t = remaining / fullLen
-                path.moveTo(startX, startY)
-                path.lineTo(startX + (endX - startX) * t, startY + (endY - startY) * t)
+                ringPath.moveTo(startX, startY)
+                ringPath.lineTo(startX + (endX - startX) * t, startY + (endY - startY) * t)
                 remaining = 0f
             }
         }
 
-        fun cornerArc(arcBounds: RectF, startAngle: Float) {
+        fun cornerArc(l: Float, t: Float, rVal: Float, b: Float, startAngle: Float) {
             if (remaining <= 0f || arcLen <= 0f) return
+            cornerRect.set(l, t, rVal, b)
             if (remaining >= arcLen) {
-                path.addArc(arcBounds, startAngle, 90f)
+                ringPath.addArc(cornerRect, startAngle, 90f)
                 remaining -= arcLen
             } else {
-                path.addArc(arcBounds, startAngle, (remaining / arcLen) * 90f)
+                ringPath.addArc(cornerRect, startAngle, (remaining / arcLen) * 90f)
                 remaining = 0f
             }
         }
 
         lineSegment(edgeW, left + r, top, right - r, top)
-        cornerArc(RectF(right - 2f * r, top, right, top + 2f * r), 270f)
+        cornerArc(right - 2f * r, top, right, top + 2f * r, 270f)
         lineSegment(edgeH, right, top + r, right, bottom - r)
-        cornerArc(RectF(right - 2f * r, bottom - 2f * r, right, bottom), 0f)
+        cornerArc(right - 2f * r, bottom - 2f * r, right, bottom, 0f)
         lineSegment(edgeW, right - r, bottom, left + r, bottom)
-        cornerArc(RectF(left, bottom - 2f * r, left + 2f * r, bottom), 90f)
+        cornerArc(left, bottom - 2f * r, left + 2f * r, bottom, 90f)
         lineSegment(edgeH, left, bottom - r, left, top + r)
-        canvas.drawPath(path, paint)
+        canvas.drawPath(ringPath, paint)
     }
 }

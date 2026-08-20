@@ -95,6 +95,26 @@ class InsightsPillNavBar @JvmOverloads constructor(
         return Color.argb(a, r, g, b)
     }
 
+    fun applyTheme(themeCoordinator: ThemeCoordinator) {
+        val isDark = themeCoordinator.isDarkMode()
+        val bgCol = if (isDark) {
+            if (themeCoordinator.activeBgMode == "ECLIPSE") Color.parseColor("#1E293B") else Color.parseColor("#16171D")
+        } else {
+            Color.parseColor("#FFFFFF")
+        }
+        val strokeCol = if (isDark) {
+            Color.parseColor("#2A2B36")
+        } else {
+            Color.parseColor("#CBD5E1")
+        }
+        background = GradientDrawable().apply {
+            cornerRadius = 32f * density
+            setColor(bgCol)
+            setStroke(dp(1), strokeCol)
+        }
+        setPrimaryColor(themeCoordinator.primaryColor)
+    }
+
     fun setPrimaryColor(color: Int) {
         primaryAccentColor = color
         indicatorView.background = GradientDrawable().apply {

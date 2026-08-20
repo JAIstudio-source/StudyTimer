@@ -240,8 +240,13 @@ object CloudSyncManager {
 
             val success = code in 200..299
             if (success) {
+                val lastSyncTime = System.currentTimeMillis()
+                context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+                    .edit()
+                    .putLong("last_cloud_sync_timestamp", lastSyncTime)
+                    .apply()
                 BackupManager(context).markDataModified()
-                Log.i("CloudSyncManager", "Cloud sync successfully completed for user: $userId")
+                Log.i("CloudSyncManager", "Cloud sync successfully completed for user: $userId at $lastSyncTime")
                 SyncResult(isSuccess = true)
             } else {
                 Log.w("CloudSyncManager", "Cloud sync failed with HTTP $code. Response: $responseBody")
@@ -466,38 +471,6 @@ object CloudSyncManager {
         false
     }
 
-    suspend fun uploadProfileImageToStorage(context: Context, imageBytes: ByteArray): String? = withContext(Dispatchers.IO) {
-        val supabaseUrl = BuildConfig.SUPABASE_URL
-        val anonKey = BuildConfig.SUPABASE_ANON_KEY
-        val userId = AuthManager.getUserId(context) ?: return@withContext null
-
-        try {
-            val fileName = "$userId.jpg"
-            val bucketName = "profile-pictures"
-            val url = URL("$supabaseUrl/storage/v1/object/$bucketName/$fileName")
-            val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "POST"
-            conn.setRequestProperty("apikey", anonKey)
-            conn.setRequestProperty("Authorization", "Bearer $anonKey")
-            conn.setRequestProperty("Content-Type", "image/jpeg")
-            conn.setRequestProperty("x-upsert", "true")
-            conn.doOutput = true
-
-            conn.outputStream.use { os ->
-                os.write(imageBytes)
-            }
-
-            val code = conn.responseCode
-            Log.d("CloudSyncManager", "Supabase storage upload code: $code")
-            if (code in 200..299) {
-                return@withContext "$supabaseUrl/storage/v1/object/public/$bucketName/$fileName"
-            }
-        } catch (e: Exception) {
-            Log.e("CloudSyncManager", "Failed to upload image to Supabase Storage", e)
-        }
-        null
-    }
-
     suspend fun deleteUserCloudData(context: Context): Boolean = withContext(Dispatchers.IO) {
         val supabaseUrl = BuildConfig.SUPABASE_URL
         val anonKey = BuildConfig.SUPABASE_ANON_KEY
@@ -517,19 +490,6 @@ object CloudSyncManager {
             deletedSync = conn.responseCode in 200..299
         } catch (e: Exception) {
             Log.e("CloudSyncManager", "Failed to delete user_sync_data", e)
-        }
-
-        try {
-            val fileName = "$userId.jpg"
-            val bucketName = "profile-pictures"
-            val url = URL("$supabaseUrl/storage/v1/object/$bucketName/$fileName")
-            val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "DELETE"
-            conn.setRequestProperty("apikey", anonKey)
-            conn.setRequestProperty("Authorization", "Bearer $anonKey")
-            conn.responseCode
-        } catch (e: Exception) {
-            Log.e("CloudSyncManager", "Failed to delete profile picture storage object", e)
         }
 
         deletedSync

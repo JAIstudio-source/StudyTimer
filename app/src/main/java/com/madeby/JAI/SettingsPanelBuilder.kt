@@ -64,13 +64,17 @@ class SettingsPanelBuilder(private val host: MainActivity) {
             }
 
             val settingsBackFab = TextView(this).apply {
-                text = getString(R.string.btn_back_label)
+                text = "← Back"
                 gravity = Gravity.CENTER
                 setTextColor(themeCoordinator.bgColor)
-                textSize = 15f
+                textSize = 14.5f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                background = GradientDrawable().apply { cornerRadius = 50f; setColor(themeCoordinator.primaryColor) }
-                elevation = dp(8).toFloat()
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(24).toFloat()
+                    setColor(themeCoordinator.primaryColor)
+                }
+                elevation = dp(6).toFloat()
+                setPadding(dp(24), 0, dp(24), 0)
                 setOnClickListener {
                     if (currentSettingsTab != AppSettingsTab.HUB) {
                         currentSettingsTab = AppSettingsTab.HUB
@@ -79,7 +83,13 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         navigateToPanel(AppPanel.FOCUS)
                     }
                 }
-                layoutParams = FrameLayout.LayoutParams(dp(150), dp(54), Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(20), dp(20)) }
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    dp(48),
+                    Gravity.BOTTOM or Gravity.END
+                ).apply {
+                    setMargins(0, 0, dp(20), dp(20))
+                }
             }
 
             // Top Header & Hub Breadcrumb
@@ -89,19 +99,21 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 setPadding(dp(6), dp(16), dp(6), dp(8))
             }
 
-            if (currentSettingsTab != AppSettingsTab.HUB) {
-                val backArrowBtn = TextView(this).apply {
-                    text = "←"
-                    textSize = 24f
-                    setTextColor(themeCoordinator.primaryColor)
-                    setPadding(0, 0, dp(14), 0)
-                    setOnClickListener {
+            val backArrowBtn = TextView(this).apply {
+                text = "←"
+                textSize = 24f
+                setTextColor(themeCoordinator.primaryColor)
+                setPadding(dp(4), 0, dp(14), 0)
+                setOnClickListener {
+                    if (currentSettingsTab != AppSettingsTab.HUB) {
                         currentSettingsTab = AppSettingsTab.HUB
                         navigateToPanel(AppPanel.SETTINGS)
+                    } else {
+                        navigateToPanel(AppPanel.FOCUS)
                     }
                 }
-                headerRow.addView(backArrowBtn)
             }
+            headerRow.addView(backArrowBtn)
 
             val headerText = TextView(this).apply {
                 text = when (currentSettingsTab) {
@@ -156,6 +168,9 @@ class SettingsPanelBuilder(private val host: MainActivity) {
             } else {
                 settingsScrollView = ScrollView(this).apply {
                     isVerticalScrollBarEnabled = false
+                    isFillViewport = true
+                    isNestedScrollingEnabled = true
+                    overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
                     layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
                 }
                 if (captureScrollRef) settingsScrollViewRef = settingsScrollView
@@ -163,7 +178,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
             val layout = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
-                setPadding(dp(16), 0, dp(16), dp(90))
+                setPadding(dp(16), 0, dp(16), dp(96))
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             }
             settingsScrollView.removeAllViews()
@@ -184,7 +199,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 return View(this).apply {
                     layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1))
                     background = GradientDrawable().apply {
-                        setColor(tintedColor(themeCoordinator.textColor, 25))
+                        setColor(if (themeCoordinator.isDarkMode()) Color.parseColor("#22232B") else tintedColor(themeCoordinator.textColor, 25))
                     }
                 }
             }
@@ -208,6 +223,9 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
                     setPadding(dp(18), dp(14), dp(18), dp(14))
+                    val outVal = android.util.TypedValue()
+                    theme.resolveAttribute(android.R.attr.selectableItemBackground, outVal, true)
+                    setBackgroundResource(outVal.resourceId)
                 }
                 val iconView = TextView(this).apply {
                     text = icon
@@ -253,6 +271,9 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 val profileTopCard = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
                     background = themeCoordinator.createCardBackground(24f)
+                    val outValue = android.util.TypedValue()
+                    theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
+                    foreground = getDrawable(outValue.resourceId)
                     setPadding(dp(16), dp(16), dp(16), dp(16))
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
@@ -273,20 +294,33 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     gravity = Gravity.CENTER_VERTICAL
                 }
 
-                // Avatar bubble
-                val avatarCircle = TextView(this).apply {
-                    text = avatarInitials
-                    textSize = 20f
-                    gravity = Gravity.CENTER
-                    setTextColor(Color.WHITE)
-                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                    background = GradientDrawable().apply {
-                        shape = GradientDrawable.OVAL
-                        setColor(if (isGoogleAuth) themeCoordinator.primaryColor else Color.parseColor("#475569"))
+                // Avatar bubble with local photo support
+                val customAvatarBitmap = LocalAvatarManager.getCircularAvatarBitmap(this, dp(48))
+                if (customAvatarBitmap != null) {
+                    val avatarImg = ImageView(this).apply {
+                        setImageBitmap(customAvatarBitmap)
+                        layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
+                        background = GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL
+                            setStroke(dp(2), themeCoordinator.primaryColor)
+                        }
                     }
-                    layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
+                    profileRow.addView(avatarImg)
+                } else {
+                    val avatarCircle = TextView(this).apply {
+                        text = avatarInitials
+                        textSize = 20f
+                        gravity = Gravity.CENTER
+                        setTextColor(Color.WHITE)
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        background = GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL
+                            setColor(if (isGoogleAuth) themeCoordinator.primaryColor else Color.parseColor("#475569"))
+                        }
+                        layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
+                    }
+                    profileRow.addView(avatarCircle)
                 }
-                profileRow.addView(avatarCircle)
 
                 val profileTextCol = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
@@ -336,9 +370,8 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 profileTopCard.addView(profileRow)
                 layout.addView(profileTopCard)
 
-                // --- CATEGORIZED NAVIGATION CARDS ---
-                fun createHubCard(icon: String, title: String, subtitle: String, targetTab: AppSettingsTab): View {
-                    val card = createSettingsCard()
+                // --- CATEGORIZED NAVIGATION ROW BUILDER ---
+                fun addHubRowToCard(card: LinearLayout, icon: String, title: String, subtitle: String, targetTab: AppSettingsTab) {
                     val chevron = TextView(this).apply {
                         text = "›"
                         textSize = 22f
@@ -347,6 +380,9 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         setPadding(dp(8), 0, 0, 0)
                     }
                     val row = createSettingsRow(icon, title, subtitle, chevron)
+                    val outVal = android.util.TypedValue()
+                    theme.resolveAttribute(android.R.attr.selectableItemBackground, outVal, true)
+                    row.setBackgroundResource(outVal.resourceId)
                     row.isClickable = true
                     row.isFocusable = true
                     row.setOnClickListener {
@@ -354,7 +390,6 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         navigateToPanel(AppPanel.SETTINGS)
                     }
                     card.addView(row)
-                    return card
                 }
 
                 val focusMins = sharedPrefs.safeLong("study_interval_minutes", 25L)
@@ -373,20 +408,103 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
                 val themeSub = "${themeCoordinator.activeBgMode.capitalize(Locale.ROOT)} Palette • ${if (themeCoordinator.isGlassStyle()) "Glass" else "Standard"} Style"
 
-                layout.addView(createSectionLabel("CONFIGURATION CATEGORIES"))
-                layout.addView(createHubCard("⏱️", "Timer & Focus Controls", timerSub, AppSettingsTab.TIMER))
-                layout.addView(createHubCard("🎧", "Sound & Ambience", ambienceSub, AppSettingsTab.AMBIENCE))
-                layout.addView(createHubCard("📊", "Analytics & Goals", analyticsSub, AppSettingsTab.ANALYTICS))
-                layout.addView(createHubCard("☁️", "Cloud, Sync & Backups", cloudSub, AppSettingsTab.CLOUD))
-                layout.addView(createHubCard("🎨", "Theme & Appearance", themeSub, AppSettingsTab.THEME))
+                // 1. UNIFIED PREFERENCES CARD GROUP
+                layout.addView(createSectionLabel("PREFERENCES"))
+                val prefsCard = createSettingsCard()
+                addHubRowToCard(prefsCard, "⏱️", "Timer & Focus Controls", timerSub, AppSettingsTab.TIMER)
+                prefsCard.addView(createDivider())
+                addHubRowToCard(prefsCard, "🎧", "Sound & Ambience", ambienceSub, AppSettingsTab.AMBIENCE)
+                prefsCard.addView(createDivider())
+                addHubRowToCard(prefsCard, "📊", "Analytics & Goals", analyticsSub, AppSettingsTab.ANALYTICS)
+                prefsCard.addView(createDivider())
+                addHubRowToCard(prefsCard, "☁️", "Cloud, Sync & Backups", cloudSub, AppSettingsTab.CLOUD)
+                prefsCard.addView(createDivider())
+                addHubRowToCard(prefsCard, "🎨", "Theme & Appearance", themeSub, AppSettingsTab.THEME)
 
                 if (isDevModeUnlocked) {
-                    layout.addView(createSectionLabel("DEVELOPER SUITE"))
-                    layout.addView(createHubCard("🛠️", "Developer & Advanced", "Mock Data Generator, State & Schema Inspector", AppSettingsTab.DEVELOPER))
+                    prefsCard.addView(createDivider())
+                    addHubRowToCard(prefsCard, "🛠️", "Developer & Advanced", "Mock Data Generator, State & Schema Inspector", AppSettingsTab.DEVELOPER)
+                }
+                layout.addView(prefsCard)
+
+                // 2. UNIFIED COMPACT "ABOUT & LEGAL" ACCORDION CARD
+                layout.addView(createSectionLabel("ABOUT & LEGAL"))
+                val aboutLegalCard = createSettingsCard()
+
+                var isAboutExpanded = sharedPrefs.getBoolean("about_legal_expanded", false)
+
+                val expandChevron = TextView(this).apply {
+                    text = if (isAboutExpanded) "⌄" else "›"
+                    textSize = 20f
+                    setTextColor(themeCoordinator.textColor)
+                    alpha = 0.45f
+                    setPadding(dp(8), 0, 0, 0)
                 }
 
-                layout.addView(createSectionLabel("LEGAL & POLICIES"))
-                val legalCard = createSettingsCard()
+                val expandedContent = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    visibility = if (isAboutExpanded) View.VISIBLE else View.GONE
+                }
+
+                val headerRowToggle = createSettingsRow(
+                    "ℹ️",
+                    "About, Support & Policies",
+                    if (isAboutExpanded) "Tap to collapse" else "Version v${currentVersionName()} • Guide, feedback & legal terms",
+                    expandChevron
+                )
+                headerRowToggle.isClickable = true
+                headerRowToggle.isFocusable = true
+                headerRowToggle.setOnClickListener {
+                    isAboutExpanded = !isAboutExpanded
+                    sharedPrefs.edit().putBoolean("about_legal_expanded", isAboutExpanded).apply()
+                    expandChevron.text = if (isAboutExpanded) "⌄" else "›"
+                    expandedContent.visibility = if (isAboutExpanded) View.VISIBLE else View.GONE
+                }
+                aboutLegalCard.addView(headerRowToggle)
+
+                // Items inside expandedContent
+                expandedContent.addView(createDivider())
+
+                val guideRow = createSettingsRow("📖", "How to Use / App Guide", "User manual, timer modes & feature walkthrough")
+                guideRow.setOnClickListener {
+                    showAppGuideDialog()
+                }
+                expandedContent.addView(guideRow)
+                expandedContent.addView(createDivider())
+
+                val feedbackRow = createSettingsRow("💬", "Report a Problem & Feedback", "Send bug reports, feature suggestions or contact us")
+                feedbackRow.setOnClickListener {
+                    showFeedbackReportDialog()
+                }
+                expandedContent.addView(feedbackRow)
+                expandedContent.addView(createDivider())
+
+                val updateChip = if (AppConfig.ENABLE_GITHUB_UPDATE_CHECK) {
+                    TextView(this).apply {
+                        text = "Check"
+                        setTextColor(themeCoordinator.primaryColor)
+                        textSize = 12f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 45), 12f)
+                        setPadding(dp(10), dp(5), dp(10), dp(5))
+                    }
+                } else null
+
+                val versionRow = createSettingsRow(
+                    "🚀",
+                    "Version v${currentVersionName()} (Build ${currentVersionCodeLong()})",
+                    if (AppConfig.ENABLE_GITHUB_UPDATE_CHECK) "Check for the latest release & changelog" else "StudyTimer for Android",
+                    updateChip
+                )
+                versionRow.setOnClickListener {
+                    if (AppConfig.ENABLE_GITHUB_UPDATE_CHECK) {
+                        checkForUpdates(manual = true)
+                    } else {
+                        Toast.makeText(this, "Version v${currentVersionName()} is up to date", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                expandedContent.addView(versionRow)
+                expandedContent.addView(createDivider())
 
                 val privacyRow = createSettingsRow("🛡️", "Privacy Policy", "Read our data collection, analytics & privacy practices")
                 privacyRow.setOnClickListener {
@@ -396,8 +514,8 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         Toast.makeText(this, "Opening privacy policy...", Toast.LENGTH_SHORT).show()
                     }
                 }
-                legalCard.addView(privacyRow)
-                legalCard.addView(createDivider())
+                expandedContent.addView(privacyRow)
+                expandedContent.addView(createDivider())
 
                 val termsRow = createSettingsRow("📜", "Terms of Service", "Review our terms, usage guidelines & licensing")
                 termsRow.setOnClickListener {
@@ -407,8 +525,8 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         Toast.makeText(this, "Opening terms of service...", Toast.LENGTH_SHORT).show()
                     }
                 }
-                legalCard.addView(termsRow)
-                legalCard.addView(createDivider())
+                expandedContent.addView(termsRow)
+                expandedContent.addView(createDivider())
 
                 val deleteWebRow = createSettingsRow("🗑️", "Account Deletion Web Portal", "Request permanent deletion of data online (Play Store policy)")
                 deleteWebRow.setOnClickListener {
@@ -418,8 +536,52 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         Toast.makeText(this, "Opening account deletion portal...", Toast.LENGTH_SHORT).show()
                     }
                 }
-                legalCard.addView(deleteWebRow)
-                layout.addView(legalCard)
+                expandedContent.addView(deleteWebRow)
+
+                aboutLegalCard.addView(expandedContent)
+                layout.addView(aboutLegalCard)
+
+                // Developer Credits (Main Settings Hub Only - Natural End of Scroll)
+                val creditsContainer = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER_HORIZONTAL
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        setMargins(0, dp(24), 0, 0)
+                    }
+                }
+                var devClickCount = 0
+                val developedByText = TextView(this).apply {
+                    text = getString(R.string.developed_by)
+                    setTextColor(themeCoordinator.textColor)
+                    alpha = 0.55f
+                    textSize = 12.5f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    gravity = Gravity.CENTER
+                    setOnClickListener {
+                        devClickCount++
+                        if (devClickCount >= 5) {
+                            devClickCount = 0
+                            isDevModeUnlocked = true
+                            Toast.makeText(context, "Developer Mode Activated", Toast.LENGTH_SHORT).show()
+                            currentSettingsTab = AppSettingsTab.DEVELOPER
+                            navigateToPanel(AppPanel.SETTINGS)
+                        }
+                    }
+                }
+                creditsContainer.addView(developedByText)
+                creditsContainer.addView(TextView(this).apply {
+                    text = getString(R.string.special_thanks)
+                    setTextColor(themeCoordinator.textColor)
+                    alpha = 0.35f
+                    textSize = 11f
+                    typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+                    gravity = Gravity.CENTER
+                    setPadding(0, dp(2), 0, 0)
+                })
+                layout.addView(creditsContainer)
             }
 
             // ==========================================
@@ -431,50 +593,104 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 val isGoogleAuth = AuthManager.isLoggedIn(this)
                 val userName = AuthManager.getUserName(this) ?: if (isGoogleAuth) "Google Account User" else "Guest Learner"
                 val userEmail = AuthManager.getUserEmail(this) ?: "Offline / Not Signed In"
+                val avatarInitials = userName.take(1).uppercase(Locale.ROOT).ifEmpty { "G" }
 
                 val profileContent = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
-                    setPadding(dp(18), dp(18), dp(18), dp(18))
+                    gravity = Gravity.CENTER_HORIZONTAL
+                    setPadding(dp(20), dp(24), dp(20), dp(20))
                 }
 
-                val avatarHeader = LinearLayout(this).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER_VERTICAL
-                    setPadding(0, 0, 0, dp(16))
+                // Centered Avatar Frame with Camera Edit Badge
+                val avatarWrapper = FrameLayout(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(dp(88), dp(88)).apply {
+                        gravity = Gravity.CENTER_HORIZONTAL
+                        setMargins(0, 0, 0, dp(14))
+                    }
+                    isClickable = true
+                    isFocusable = true
+                    setOnClickListener {
+                        host.pickProfileAvatar()
+                    }
                 }
-                val avatarBigCircle = TextView(this).apply {
-                    text = userName.take(1).uppercase(Locale.ROOT).ifEmpty { "G" }
-                    textSize = 24f
+
+                val customAvatarLarge = LocalAvatarManager.getCircularAvatarBitmap(this, dp(88))
+                if (customAvatarLarge != null) {
+                    val avatarImg = ImageView(this).apply {
+                        setImageBitmap(customAvatarLarge)
+                        layoutParams = FrameLayout.LayoutParams(dp(88), dp(88), Gravity.CENTER)
+                        background = GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL
+                            setStroke(dp(2), themeCoordinator.primaryColor)
+                        }
+                    }
+                    avatarWrapper.addView(avatarImg)
+                } else {
+                    val avatarBigCircle = TextView(this).apply {
+                        text = avatarInitials
+                        textSize = 34f
+                        gravity = Gravity.CENTER
+                        setTextColor(Color.WHITE)
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        background = GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL
+                            setColor(if (isGoogleAuth) themeCoordinator.primaryColor else Color.parseColor("#475569"))
+                        }
+                        layoutParams = FrameLayout.LayoutParams(dp(88), dp(88), Gravity.CENTER)
+                    }
+                    avatarWrapper.addView(avatarBigCircle)
+                }
+
+                // Edit Camera Badge
+                val cameraBadge = TextView(this).apply {
+                    text = "📷"
+                    textSize = 12f
                     gravity = Gravity.CENTER
-                    setTextColor(Color.WHITE)
-                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                     background = GradientDrawable().apply {
                         shape = GradientDrawable.OVAL
-                        setColor(if (isGoogleAuth) themeCoordinator.primaryColor else Color.parseColor("#475569"))
+                        setColor(if (themeCoordinator.isDarkMode()) 0xFF1E293B.toInt() else 0xFFF1F5F9.toInt())
+                        setStroke(dp(2), themeCoordinator.bgColor)
                     }
-                    layoutParams = LinearLayout.LayoutParams(dp(56), dp(56))
+                    layoutParams = FrameLayout.LayoutParams(dp(28), dp(28), Gravity.BOTTOM or Gravity.END)
                 }
-                avatarHeader.addView(avatarBigCircle)
+                avatarWrapper.addView(cameraBadge)
+                profileContent.addView(avatarWrapper)
 
-                val nameCol = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    setPadding(dp(16), 0, 0, 0)
-                }
-                nameCol.addView(TextView(this).apply {
+                // User Display Name
+                val nameText = TextView(this).apply {
                     text = userName
                     setTextColor(themeCoordinator.textColor)
-                    textSize = 17f
+                    textSize = 19f
                     typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                })
-                nameCol.addView(TextView(this).apply {
-                    text = if (isGoogleAuth) userEmail else "Guest Mode • Sign in to backup data"
+                    gravity = Gravity.CENTER
+                }
+                profileContent.addView(nameText)
+
+                // User Email
+                val emailText = TextView(this).apply {
+                    text = userEmail
                     setTextColor(themeCoordinator.textColor)
-                    alpha = 0.55f
+                    alpha = 0.65f
                     textSize = 13f
-                    setPadding(0, dp(2), 0, 0)
-                })
-                avatarHeader.addView(nameCol)
-                profileContent.addView(avatarHeader)
+                    gravity = Gravity.CENTER
+                    setPadding(0, dp(3), 0, dp(8))
+                }
+                profileContent.addView(emailText)
+
+                // Account Badge Chip
+                val accountBadge = TextView(this).apply {
+                    text = if (isGoogleAuth) "✓ Google Account" else "👤 Guest Session"
+                    setTextColor(if (isGoogleAuth) Color.parseColor("#10B981") else Color.parseColor("#F59E0B"))
+                    textSize = 12f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    background = themeCoordinator.createGlassChip(tintedColor(if (isGoogleAuth) Color.parseColor("#10B981") else Color.parseColor("#F59E0B"), 35), 14f)
+                    setPadding(dp(12), dp(5), dp(12), dp(5))
+                    gravity = Gravity.CENTER
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        setMargins(0, 0, 0, dp(14))
+                    }
+                }
+                profileContent.addView(accountBadge)
 
                 if (!isGoogleAuth) {
                     val signInCard = LinearLayout(this).apply {
@@ -482,7 +698,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         background = themeCoordinator.createGlassChip(tintedColor(Color.parseColor("#4285F4"), 50), 16f)
                         setPadding(dp(16), dp(14), dp(16), dp(14))
                         layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                            setMargins(0, dp(6), 0, dp(12))
+                            setMargins(0, dp(4), 0, dp(8))
                         }
                     }
                     signInCard.addView(TextView(this).apply {
@@ -523,17 +739,18 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         textSize = 13.5f
                         background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 35), 12f)
                         setPadding(dp(14), dp(10), dp(14), dp(10))
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
                     }
                     profileContent.addView(editNameField)
 
                     val saveNameBtn = Button(this).apply {
-                        text = "Save Profile Name"
+                        text = "Save Display Name"
                         setTextColor(Color.WHITE)
                         textSize = 12.5f
                         typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                         background = themeCoordinator.createButtonBackground(themeCoordinator.primaryColor)
                         layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(42)).apply {
-                            setMargins(0, dp(10), 0, 0)
+                            setMargins(0, dp(8), 0, 0)
                         }
                         setOnClickListener {
                             val newName = editNameField.text.toString().trim()
@@ -545,86 +762,103 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         }
                     }
                     profileContent.addView(saveNameBtn)
-
-                    val logoutBtn = TextView(this).apply {
-                        text = "Sign Out from Google Account"
-                        setTextColor(Color.parseColor("#EF4444"))
-                        textSize = 13f
-                        gravity = Gravity.CENTER
-                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                        setPadding(0, dp(18), 0, dp(4))
-                        setOnClickListener {
-                            AuthManager.logout(this@with)
-                            Toast.makeText(this@with, "Signed out successfully", Toast.LENGTH_SHORT).show()
-                            navigateToPanel(AppPanel.SETTINGS)
-                        }
-                    }
-                    profileContent.addView(logoutBtn)
                 }
 
                 profileCard.addView(profileContent)
                 layout.addView(profileCard)
 
-                layout.addView(createSectionLabel("PRIVACY & DATA OWNERSHIP"))
-                val privacyCard = createSettingsCard().apply {
-                    val pRow = LinearLayout(this@with).apply {
+                // --- ACCOUNT ACTIONS CARD ---
+                layout.addView(createSectionLabel("ACCOUNT ACTIONS"))
+                val accountActionsCard = createSettingsCard().apply {
+                    val actionsLayout = LinearLayout(this@with).apply {
                         orientation = LinearLayout.VERTICAL
-                        setPadding(dp(18), dp(14), dp(18), dp(14))
+                        setPadding(dp(16), dp(14), dp(16), dp(14))
                     }
-                    pRow.addView(TextView(this@with).apply {
-                        text = "🔒 Privacy-First App"
+
+                    // Sync Status Row
+                    val syncRow = LinearLayout(this@with).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER_VERTICAL
+                        setPadding(0, dp(4), 0, dp(12))
+                    }
+                    val syncIcon = TextView(this@with).apply {
+                        text = if (isGoogleAuth) "☁️" else "📴"
+                        textSize = 18f
+                        setPadding(0, 0, dp(12), 0)
+                    }
+                    syncRow.addView(syncIcon)
+
+                    val lastSyncEpoch = sharedPrefs.getLong("last_cloud_sync_timestamp", 0L)
+                    val syncCol = LinearLayout(this@with).apply {
+                        orientation = LinearLayout.VERTICAL
+                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    }
+                    syncCol.addView(TextView(this@with).apply {
+                        text = "Cloud Sync Status"
                         setTextColor(themeCoordinator.textColor)
                         textSize = 14f
                         typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                     })
-                    pRow.addView(TextView(this@with).apply {
-                        text = "No private notes, task titles, contacts, microphone, or hardware fingerprints are collected. Anonymous ID: ${AppAnalytics.getAnonymousId(this@with).take(8)}..."
+                    syncCol.addView(TextView(this@with).apply {
+                        text = if (isGoogleAuth) {
+                            if (lastSyncEpoch > 0L) {
+                                val sdf = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
+                                "Protected • Last synced ${sdf.format(Date(lastSyncEpoch))}"
+                            } else {
+                                "Protected • Auto-sync active"
+                            }
+                        } else {
+                            "Offline • Study logs stored locally on this device"
+                        }
                         setTextColor(themeCoordinator.textColor)
                         alpha = 0.6f
                         textSize = 11.5f
-                        setPadding(0, dp(4), 0, 0)
+                        setPadding(0, dp(2), 0, 0)
                     })
-                    addView(pRow)
-                }
-                layout.addView(privacyCard)
+                    syncRow.addView(syncCol)
+                    actionsLayout.addView(syncRow)
 
-                layout.addView(createSectionLabel("ACCOUNT ACTIONS & DELETION"))
-                val deleteCard = createSettingsCard().apply {
-                    val dRow = LinearLayout(this@with).apply {
-                        orientation = LinearLayout.VERTICAL
-                        setPadding(dp(18), dp(16), dp(18), dp(16))
-                    }
-                    dRow.addView(TextView(this@with).apply {
-                        text = "⚠️ Delete Account & Cloud Data"
-                        setTextColor(Color.parseColor("#EF4444"))
-                        textSize = 15f
-                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                    })
-                    dRow.addView(TextView(this@with).apply {
-                        text = "Permanently wipe your account, cloud backups, focus logs, and user profile. This action cannot be reversed."
-                        setTextColor(themeCoordinator.textColor)
-                        alpha = 0.6f
-                        textSize = 12f
-                        setPadding(0, dp(4), 0, dp(14))
-                    })
-                    val delBtn = Button(this@with).apply {
-                        text = "Delete Account & Data"
-                        setTextColor(Color.WHITE)
-                        textSize = 13f
-                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                        background = GradientDrawable().apply {
-                            cornerRadius = dp(12).toFloat()
-                            setColor(Color.parseColor("#DC2626"))
+                    if (isGoogleAuth) {
+                        actionsLayout.addView(createDivider())
+
+                        val signOutBtn = Button(this@with).apply {
+                            text = "Sign Out"
+                            setTextColor(Color.parseColor("#EF4444"))
+                            textSize = 13.5f
+                            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                            background = themeCoordinator.createGlassChip(tintedColor(Color.parseColor("#EF4444"), 40), 12f)
+                            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44)).apply {
+                                setMargins(0, dp(10), 0, dp(8))
+                            }
+                            setOnClickListener {
+                                host.showSignOutConfirmDialog()
+                            }
                         }
-                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46))
+                        actionsLayout.addView(signOutBtn)
+                    }
+
+                    actionsLayout.addView(createDivider())
+
+                    // Delete Account Link
+                    val deleteAccountLink = TextView(this@with).apply {
+                        text = "🗑️ Delete Account & Wipe Data"
+                        setTextColor(Color.parseColor("#EF4444"))
+                        alpha = 0.85f
+                        textSize = 12.5f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+                        gravity = Gravity.CENTER
+                        setPadding(0, dp(12), 0, dp(4))
+                        isClickable = true
+                        isFocusable = true
                         setOnClickListener {
                             showDeleteAccountDialog()
                         }
                     }
-                    dRow.addView(delBtn)
-                    addView(dRow)
+                    actionsLayout.addView(deleteAccountLink)
+
+                    addView(actionsLayout)
                 }
-                layout.addView(deleteCard)
+                layout.addView(accountActionsCard)
             }
 
             // ==========================================
@@ -863,6 +1097,35 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     }
                 }
                 displayCard.addView(createSettingsRow("⏸️", getString(R.string.pause_button), getString(R.string.pause_button_sub), pauseButtonSwitch))
+                displayCard.addView(createDivider())
+
+                val isLandscapeStopwatchEnabled = sharedPrefs.getBoolean("is_landscape_mode_enabled", sharedPrefs.getBoolean("true_fullscreen_landscape", true))
+                val landscapeSwitch = SwitchMaterial(this).apply {
+                    isChecked = isLandscapeStopwatchEnabled
+                    setOnCheckedChangeListener { _, isChecked ->
+                        sharedPrefs.edit()
+                            .putBoolean("is_landscape_mode_enabled", isChecked)
+                            .putBoolean("true_fullscreen_landscape", isChecked)
+                            .apply()
+                        if (currentPanel == AppPanel.FOCUS) {
+                            applyImmersiveModeForLandscape()
+                            buildCurrentPanel()
+                        }
+                    }
+                }
+                displayCard.addView(createSettingsRow("📱", "Full-Screen Landscape Stopwatch", "Rotate device horizontally during active timer for immersive full-screen view", landscapeSwitch))
+                displayCard.addView(createDivider())
+
+                val isPureWhite = sharedPrefs.getBoolean("pureWhiteTimer", false)
+                val pureWhiteSwitch = SwitchMaterial(this).apply {
+                    isChecked = isPureWhite
+                    setOnCheckedChangeListener { _, isChecked ->
+                        sharedPrefs.edit().putBoolean("pureWhiteTimer", isChecked).apply()
+                        updateVisualStyles()
+                        tabPageCache.clear()
+                    }
+                }
+                displayCard.addView(createSettingsRow("⚪", "Pure White Timer", "Keep main timer clock digits crisp white regardless of active accent theme", pureWhiteSwitch))
                 layout.addView(displayCard)
             }
 
@@ -1463,27 +1726,12 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 layout.addView(devCard)
             }
 
-            // Push to bottom footer
-            val pushToBottomSpacer = View(this).apply { layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f) }
-            layout.addView(pushToBottomSpacer)
-
-            val creditsContainer = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER_HORIZONTAL
-                setPadding(0, dp(24), 0, dp(8))
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            }
-            creditsContainer.addView(TextView(this).apply { text = getString(R.string.developed_by); setTextColor(themeCoordinator.textColor); textSize = 13f; typeface = Typeface.create("sans-serif-medium", Typeface.BOLD); gravity = Gravity.CENTER })
-            creditsContainer.addView(TextView(this).apply { text = getString(R.string.special_thanks); setTextColor(themeCoordinator.textColor); alpha = 0.4f; textSize = 11f; typeface = Typeface.create("sans-serif", Typeface.NORMAL); gravity = Gravity.CENTER; setPadding(0, dp(2), 0, 0) })
-            layout.addView(creditsContainer)
-
             settingsRootLayout.addView(settingsScrollView)
 
             val settingsRoot = FrameLayout(this).apply {
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT)
             }
             settingsRoot.addView(settingsRootLayout, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-
             settingsRoot.addView(settingsBackFab)
 
             target.addView(settingsRoot)

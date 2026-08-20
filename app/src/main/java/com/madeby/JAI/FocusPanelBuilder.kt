@@ -19,13 +19,16 @@ class FocusPanelBuilder(private val host: MainActivity) {
 
     fun build() {
         with(host) {
-        val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val sharedPrefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val isLandscapeEnabled = sharedPrefs.getBoolean("is_landscape_mode_enabled", sharedPrefs.getBoolean("true_fullscreen_landscape", true))
+        val isLandscape = (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) && isLandscapeEnabled
 
         navHeader = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            visibility = if (isLandscape) View.GONE else View.VISIBLE
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                setMargins(0, if (isLandscape) 10 else 50, 0, 20) 
+                setMargins(dp(16), if (isLandscape) dp(8) else 50, dp(16), if (isLandscape) dp(4) else 20)
             }
         }
 
@@ -39,12 +42,23 @@ class FocusPanelBuilder(private val host: MainActivity) {
         }
         navHeader.addView(settingsIconView)
 
-        val savedTimerMode = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).getString("timer_mode", "STOPWATCH") ?: "STOPWATCH"
+        val savedTimerMode = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).getString("timer_mode", "SUBJECT") ?: "SUBJECT"
 
         val headerSpacer = View(this).apply {
             layoutParams = LinearLayout.LayoutParams(0, 1, 1f)
         }
         navHeader.addView(headerSpacer)
+
+        val insightsHeaderIconView = ImageView(this).apply {
+            setImageResource(R.drawable.ic_insights)
+            setColorFilter(themeCoordinator.primaryColor)
+            setPadding(dp(14), dp(14), dp(14), dp(14))
+            background = if (themeCoordinator.isGlassStyle() || themeCoordinator.isBubbleStyle()) themeCoordinator.createGlassIconBackground(tintedColor(themeCoordinator.primaryColor, 70)) else null
+            contentDescription = getString(R.string.cd_open_insights)
+            visibility = if (isLandscape) View.VISIBLE else View.GONE
+            setOnClickListener { navigateToPanel(AppPanel.STATS) }
+        }
+        navHeader.addView(insightsHeaderIconView)
 
 
         val centerClocksWrapper = FrameLayout(this).apply {
@@ -60,7 +74,7 @@ class FocusPanelBuilder(private val host: MainActivity) {
             val timerGlow = ImageView(this).apply {
                 setImageDrawable(themeCoordinator.createGlowBlob(themeCoordinator.primaryColor))
                 alpha = glowAlpha
-                layoutParams = FrameLayout.LayoutParams(dp(360), dp(360), Gravity.CENTER)
+                layoutParams = FrameLayout.LayoutParams(if (isLandscape) dp(420) else dp(360), if (isLandscape) dp(420) else dp(360), Gravity.CENTER)
             }
             centerClocksWrapper.addView(timerGlow)
         }
@@ -71,8 +85,8 @@ class FocusPanelBuilder(private val host: MainActivity) {
         }
 
         statusBadge = TextView(this).apply {
-            textSize = if (isLandscape) 13f else 14f
-            setPadding(dp(18), dp(6), dp(18), dp(6))
+            textSize = if (isLandscape) 12f else 14f
+            setPadding(dp(16), dp(4), dp(16), dp(4))
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             gravity = Gravity.CENTER
             background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 110))
@@ -83,7 +97,7 @@ class FocusPanelBuilder(private val host: MainActivity) {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
-                setMargins(0, if (isLandscape) 4 else 12, 0, 0)
+                setMargins(0, if (isLandscape) dp(8) else 12, 0, 0)
             }
             addView(statusBadge)
 
@@ -112,7 +126,7 @@ class FocusPanelBuilder(private val host: MainActivity) {
             text = "00:00:00"
             isSingleLine = true
             maxLines = 1
-            textSize = if (isLandscape) 96f else 54f 
+            textSize = if (isLandscape) 104f else 54f 
             typeface = Typeface.MONOSPACE
             fontFeatureSettings = "tnum"
             gravity = Gravity.CENTER
@@ -125,11 +139,11 @@ class FocusPanelBuilder(private val host: MainActivity) {
             text = "00:00:00"
             isSingleLine = true
             maxLines = 1
-            textSize = if (isLandscape) 24f else 20f
+            textSize = if (isLandscape) 20f else 20f
             typeface = Typeface.MONOSPACE
             fontFeatureSettings = "tnum"
             gravity = Gravity.CENTER
-            setPadding(0, 0, 0, if (isLandscape) 20 else 40)
+            setPadding(0, 0, 0, if (isLandscape) 8 else 40)
             layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
         }
 
@@ -153,9 +167,7 @@ class FocusPanelBuilder(private val host: MainActivity) {
         centerClocksWrapper.addView(statusBadgeContainer)
         centerClocksWrapper.addView(studyTimerDisplay)
         centerClocksWrapper.addView(breakTimerDisplay)
-
-        val sharedPrefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-        val timerModeSetting = sharedPrefs.getString("timer_mode", "COUNTDOWN") ?: "COUNTDOWN"
+        val timerModeSetting = sharedPrefs.getString("timer_mode", "SUBJECT") ?: "SUBJECT"
         val showSubjectTagging = sharedPrefs.getBoolean("enable_subject_tagging", true) && timerModeSetting != "STOPWATCH"
         val showAmbientSounds = sharedPrefs.safeBoolean("enable_ambient_sounds", false)
 
@@ -221,7 +233,10 @@ class FocusPanelBuilder(private val host: MainActivity) {
         controlActionContainer = LinearLayout(this).apply {
             orientation = if (isLandscape) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 10, 0, if (isLandscape) 10 else 20) }
+            layoutParams = LinearLayout.LayoutParams(if (isLandscape) LinearLayout.LayoutParams.WRAP_CONTENT else LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                if (isLandscape) gravity = Gravity.CENTER_HORIZONTAL
+                setMargins(0, if (isLandscape) 4 else 10, 0, if (isLandscape) dp(12) else 20)
+            }
         }
 
         mainBtn = Button(this).apply {
@@ -230,7 +245,7 @@ class FocusPanelBuilder(private val host: MainActivity) {
             setPadding(dp(20), dp(11), dp(20), dp(11))
             minimumHeight = dp(46)
             isSoundEffectsEnabled = false
-            layoutParams = LinearLayout.LayoutParams(if (isLandscape) 0 else LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, if (isLandscape) 1f else 0f).apply { 
+            layoutParams = LinearLayout.LayoutParams(if (isLandscape) dp(140) else LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { 
                 if (isLandscape) setMargins(dp(8), 0, dp(8), 0) else setMargins(dp(28), dp(4), dp(28), dp(4)) 
             }
             setOnClickListener { handleStateToggle() }
@@ -244,7 +259,7 @@ class FocusPanelBuilder(private val host: MainActivity) {
             setPadding(dp(20), dp(11), dp(20), dp(11))
             minimumHeight = dp(46)
             isSoundEffectsEnabled = false
-            layoutParams = LinearLayout.LayoutParams(if (isLandscape) 0 else LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, if (isLandscape) 1f else 0f).apply {
+            layoutParams = LinearLayout.LayoutParams(if (isLandscape) dp(130) else LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                 if (isLandscape) setMargins(dp(8), 0, dp(8), 0) else setMargins(dp(28), dp(4), dp(28), dp(4))
             }
             setOnClickListener { handlePause() }
@@ -261,7 +276,7 @@ class FocusPanelBuilder(private val host: MainActivity) {
             background = outlinedButtonBackground()
             setPadding(dp(20), dp(11), dp(20), dp(11))
             minimumHeight = dp(46)
-            layoutParams = LinearLayout.LayoutParams(if (isLandscape) 0 else LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, if (isLandscape) 1f else 0f).apply { 
+            layoutParams = LinearLayout.LayoutParams(if (isLandscape) dp(140) else LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { 
                 if (isLandscape) setMargins(dp(8), 0, dp(8), 0) else setMargins(dp(28), dp(4), dp(28), dp(4)) 
             }
             setOnTouchListener { v, event ->
@@ -302,6 +317,7 @@ class FocusPanelBuilder(private val host: MainActivity) {
             setPadding(dp(12), dp(12), dp(12), dp(12))
             background = if (themeCoordinator.isGlassStyle() || themeCoordinator.isBubbleStyle()) themeCoordinator.createGlassIconBackground(tintedColor(themeCoordinator.primaryColor, 70)) else null
             contentDescription = getString(R.string.cd_open_insights)
+            visibility = if (isLandscape) View.GONE else View.VISIBLE
             setOnClickListener { navigateToPanel(AppPanel.STATS) }
             layoutParams = LinearLayout.LayoutParams(dp(58), dp(58)).apply {
                 gravity = Gravity.END
@@ -311,7 +327,7 @@ class FocusPanelBuilder(private val host: MainActivity) {
 
         panelContainer.addView(navHeader)
         panelContainer.addView(centerClocksWrapper)
-        if (showSubjectTagging || showAmbientSounds) {
+        if (!isLandscape && (showSubjectTagging || showAmbientSounds)) {
             panelContainer.addView(extraControlsContainer)
         }
         panelContainer.addView(controlActionContainer)

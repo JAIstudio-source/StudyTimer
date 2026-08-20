@@ -206,10 +206,47 @@ class MainActivity : AppCompatActivity() {
     internal var settingsScrollViewRef: ScrollView? = null
     private var pendingSettingsScrollY = 0
 
+    private val pickAvatarLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri != null) {
+            val success = LocalAvatarManager.saveAvatarFromUri(this, uri)
+            if (success) {
+                Toast.makeText(this, "Profile picture updated", Toast.LENGTH_SHORT).show()
+                navigateToPanel(AppPanel.SETTINGS)
+            } else {
+                Toast.makeText(this, "Could not process image", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    internal fun pickProfileAvatar() {
+        try {
+            pickAvatarLauncher.launch("image/*")
+        } catch (_: Exception) {
+            Toast.makeText(this, "No image picker available", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    internal fun showSignOutConfirmDialog(onConfirmed: (() -> Unit)? = null) {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Sign Out?")
+            .setMessage("Your local study records will remain on this device, but cloud sync will pause until you sign in again.")
+            .setPositiveButton("Sign Out") { _, _ ->
+                AuthManager.logout(this)
+                onConfirmed?.invoke() ?: run {
+                    Toast.makeText(this, "Signed out successfully", Toast.LENGTH_SHORT).show()
+                    navigateToPanel(AppPanel.SETTINGS)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .create()
+            .show()
+    }
+
     internal var statsSnapshotCache: StatsSnapshot? = null
     internal var statsSnapshotGen = 0
     internal var statsDirty = true
     internal var statsInternalRefresh = false
+    internal var hasPlayedStatsEntranceAnimation = false
     private var lastStyleKey = ""
     private var lastTickTimerState: TimerState? = null
     private var lastIsBreakingState: Boolean? = null
@@ -246,53 +283,6 @@ class MainActivity : AppCompatActivity() {
     internal val importLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
             result.data?.data?.let { uri -> showRestoreConfirmDialog(uri) }
-        }
-    }
-
-    internal val avatarImagePickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == RESULT_OK) {
-            result.data?.data?.let { uri ->
-                Thread {
-                    kotlinx.coroutines.runBlocking {
-                        try {
-                            val inputStream = contentResolver.openInputStream(uri)
-                            val originalBitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
-                            inputStream?.close()
-                            if (originalBitmap != null) {
-                                val maxDim = 400
-                                val scale = maxDim.toFloat() / Math.max(originalBitmap.width, originalBitmap.height)
-                                val scaledBitmap = if (scale < 1f) {
-                                    android.graphics.Bitmap.createScaledBitmap(
-                                        originalBitmap,
-                                        (originalBitmap.width * scale).toInt(),
-                                        (originalBitmap.height * scale).toInt(),
-                                        true
-                                    )
-                                } else originalBitmap
-                                val baos = java.io.ByteArrayOutputStream()
-                                scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 82, baos)
-                                val imageBytes = baos.toByteArray()
-
-                                val base64Str = android.util.Base64.encodeToString(imageBytes, android.util.Base64.NO_WRAP)
-                                val localDataUri = "data:image/jpeg;base64,$base64Str"
-                                AuthManager.saveProfileImageUri(this@MainActivity, localDataUri)
-
-                                val publicUrl = CloudSyncManager.uploadProfileImageToStorage(this@MainActivity, imageBytes)
-                                if (!publicUrl.isNullOrEmpty()) {
-                                    AuthManager.saveProfileImageUri(this@MainActivity, publicUrl)
-                                }
-                            }
-                        } catch (e: Exception) {
-                            android.util.Log.e("MainActivity", "Failed to upload profile image", e)
-                        }
-                        runOnUiThread {
-                            tabPageCache.remove(settingsTabKey(AppSettingsTab.PROFILE))
-                            navigateToPanel(AppPanel.SETTINGS)
-                        }
-                        CloudSyncManager.syncDataToCloud(this@MainActivity)
-                    }
-                }.start()
-            }
         }
     }
 
@@ -378,70 +368,27 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-        internal fun showExpandedAvatarDialog() {
+    internal fun showExpandedAvatarDialog() {
         val dialog = android.app.Dialog(this)
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
 
         val size = (resources.displayMetrics.widthPixels * 0.72f).toInt()
-        val profileImageUriStr = AuthManager.getProfileImageUri(this)
         val userName = AuthManager.getUserName(this)
         val userEmail = AuthManager.getUserEmail(this)
+        val avatarBitmap = LocalAvatarManager.getCircularAvatarBitmap(this, size)
 
         val frame = FrameLayout(this).apply {
             layoutParams = FrameLayout.LayoutParams(size, size)
         }
 
-        var avatarBitmap: android.graphics.Bitmap? = null
-        if (!profileImageUriStr.isNullOrEmpty()) {
-            try {
-                if (profileImageUriStr.startsWith("http://") || profileImageUriStr.startsWith("https://")) {
-                    Thread {
-                        try {
-                            val url = java.net.URL(profileImageUriStr)
-                            val conn = url.openConnection() as java.net.HttpURLConnection
-                            conn.connectTimeout = 5000
-                            conn.readTimeout = 5000
-                            val bmp = android.graphics.BitmapFactory.decodeStream(conn.inputStream)
-                            if (bmp != null) {
-                                runOnUiThread {
-                                    val avatarImgView = frame.findViewById<android.widget.ImageView>(1002)
-                                    if (avatarImgView != null) {
-                                        avatarImgView.setImageBitmap(bmp)
-                                    }
-                                }
-                            }
-                        } catch (_: Exception) {}
-                    }.start()
-                } else if (profileImageUriStr.startsWith("data:image")) {
-                    val base64Data = profileImageUriStr.substringAfter("base64,")
-                    val decodedBytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
-                    avatarBitmap = android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
-                } else {
-                    val uri = android.net.Uri.parse(profileImageUriStr)
-                    val source = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                        android.graphics.ImageDecoder.createSource(contentResolver, uri)
-                    } else null
-                    avatarBitmap = if (source != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                        android.graphics.ImageDecoder.decodeBitmap(source)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        android.provider.MediaStore.Images.Media.getBitmap(contentResolver, uri)
-                    }
-                }
-            } catch (_: Exception) {}
-        }
-
-        if (avatarBitmap != null || (profileImageUriStr != null && (profileImageUriStr.startsWith("http://") || profileImageUriStr.startsWith("https://")))) {
+        if (avatarBitmap != null) {
             val imgView = android.widget.ImageView(this).apply {
-                id = 1002
-                if (avatarBitmap != null) setImageBitmap(avatarBitmap)
+                setImageBitmap(avatarBitmap)
                 scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
                     setColor(themeCoordinator.primaryColor)
                 }
-                clipToOutline = true
-                outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
                 layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
             }
             frame.addView(imgView)
@@ -466,80 +413,6 @@ class MainActivity : AppCompatActivity() {
         dialog.setContentView(frame)
         dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
         dialog.window?.setLayout(size, size)
-        dialog.show()
-    }
-
-    internal fun showSignOutConfirmDialog() {
-        val dialog = android.app.Dialog(this)
-        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
-        val content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            background = themeCoordinator.createDialogBackground(28f)
-            setPadding(dp(22), dp(22), dp(22), dp(18))
-        }
-
-        content.addView(TextView(this).apply {
-            text = "ACCOUNT"
-            setTextColor(themeCoordinator.primaryColor)
-            textSize = 11f
-            letterSpacing = 0.18f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-        })
-
-        content.addView(TextView(this).apply {
-            text = "Sign Out"
-            setTextColor(themeCoordinator.textColor)
-            textSize = 18f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(0, dp(6), 0, 0)
-        })
-
-        content.addView(TextView(this).apply {
-            text = "Are you sure you want to sign out of your account?"
-            setTextColor(themeCoordinator.textColor)
-            alpha = 0.6f
-            textSize = 13.5f
-            setPadding(0, dp(6), 0, 0)
-        })
-
-        val buttonRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(0, dp(18), 0, 0)
-        }
-        val cancelBtn = Button(this).apply {
-            text = getString(R.string.btn_cancel_upper)
-            setTextColor(themeCoordinator.textColor)
-            textSize = 12f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 40), 50f)
-            setOnClickListener { dialog.dismiss() }
-            layoutParams = LinearLayout.LayoutParams(0, dp(46), 1f).apply { setMargins(0, 0, dp(8), 0) }
-        }
-        val signOutBtn = Button(this).apply {
-            text = "SIGN OUT"
-            setTextColor(Color.WHITE)
-            textSize = 12f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            background = GradientDrawable().apply {
-                cornerRadius = 50f
-                setColor(Color.parseColor("#E53E3E"))
-            }
-            setOnClickListener {
-                dialog.dismiss()
-                AuthManager.logout(this@MainActivity)
-                val intent = Intent(this@MainActivity, LoginActivity::class.java)
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                startActivity(intent)
-            }
-            layoutParams = LinearLayout.LayoutParams(0, dp(46), 1f).apply { setMargins(dp(8), 0, 0, 0) }
-        }
-        buttonRow.addView(cancelBtn)
-        buttonRow.addView(signOutBtn)
-        content.addView(buttonRow)
-
-        dialog.setContentView(content)
-        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
-        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.88f).toInt(), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
         dialog.show()
     }
 
@@ -1196,6 +1069,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     internal fun checkForUpdates(manual: Boolean) {
+        if (!AppConfig.ENABLE_GITHUB_UPDATE_CHECK) {
+            if (manual) {
+                Toast.makeText(this, getString(R.string.toast_up_to_date, currentVersionName()), Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
         val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
         if (!manual) {
             val launches = prefs.safeInt("update_launch_count", 0) + 1
@@ -1467,11 +1346,14 @@ class MainActivity : AppCompatActivity() {
                 .putInt("customPrimary", Color.HSVToColor(floatArrayOf(234f, 0.65f, 0.95f)))
                 .putInt("customSecondaryHue", 1)
                 .putInt("customSecondary", Color.HSVToColor(floatArrayOf(1f, 0.65f, 0.95f)))
-                .putString("timer_mode", "COUNTDOWN")
+                .putString("timer_mode", "SUBJECT")
+                .putBoolean("enable_subject_tagging", true)
+                .putBoolean("show_subject_pie_chart", true)
                 .putLong("focus_countdown_secs", 3600L)
                 .putInt("reminder_hour", 20)
                 .putInt("reminder_minute", 0)
                 .putBoolean("reminder_enabled", true)
+                .putBoolean("is_landscape_mode_enabled", true)
                 .putBoolean("true_fullscreen_landscape", true)
                 .putBoolean("keep_screen_on", true)
                 .putBoolean("show_pause_button", true)
@@ -1516,6 +1398,7 @@ class MainActivity : AppCompatActivity() {
         panelHost.addView(panelContainer)
         rootLayout.addView(panelHost)
         setContentView(rootLayout)
+        updateStatusBarIcons()
 
         tabDragSlop = android.view.ViewConfiguration.get(this).scaledTouchSlop
 
@@ -1670,8 +1553,16 @@ class MainActivity : AppCompatActivity() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        navigateToPanel(currentPanel)
-        applyImmersiveModeForLandscape()
+        val sharedPrefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val isLandscapeEnabled = sharedPrefs.getBoolean("is_landscape_mode_enabled", sharedPrefs.getBoolean("true_fullscreen_landscape", true))
+        val isLandscape = (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) && isLandscapeEnabled
+        if (isLandscape && currentPanel == AppPanel.FOCUS) {
+            applyImmersiveModeForLandscape()
+        } else {
+            showSystemUI()
+        }
+        buildCurrentPanel()
+        updateVisualStyles()
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent?): Boolean {
@@ -1798,242 +1689,9 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun handleTabDragTouch(ev: MotionEvent): Boolean {
-        if (currentPanel == AppPanel.STATS) {
-            tabDragArmed = false
-            tabDragActive = false
-            return false
-        }
-        when (ev.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                if (tabDragSettling) finalizeSettle(tabDragSettleIsCommit)
-                if (panelHost.childCount > 1) return false
-                if (swipeStartedOnHorizontalScroll(ev.rawX, ev.rawY)) return false
-                tabDragArmed = true
-                tabDragActive = false
-                tabDragDownX = ev.x
-                tabDragDownY = ev.y
-                tabDragLastX = ev.x
-                tabDragLastT = SystemClock.uptimeMillis()
-                tabDragVelocityX = 0f
-                return false
-            }
-            MotionEvent.ACTION_MOVE -> {
-                if (tabDragSettling) return true
-                if (!tabDragArmed) return false
-                val now = SystemClock.uptimeMillis()
-                if (now - tabDragLastT > 0) {
-                    tabDragVelocityX = (ev.x - tabDragLastX) / (now - tabDragLastT) * 1000f
-                }
-                tabDragLastX = ev.x
-                tabDragLastT = now
-                if (!tabDragActive) {
-                    val dx = ev.x - tabDragDownX
-                    val dy = ev.y - tabDragDownY
-                    if (Math.abs(dy) > tabDragSlop && Math.abs(dy) >= Math.abs(dx) * 1.1f) {
-                        tabDragArmed = false
-                        return false
-                    }
-                    if (Math.abs(dx) > tabDragSlop && Math.abs(dx) > Math.abs(dy) * 1.1f) {
-                        val side = if (dx < 0) 1 else -1
-                        if (tabDragNeighborExists(side) && beginTabDrag(side)) {
-                            tabDragActive = true
-                            panelContainer.cancelPendingInputEvents()
-                        } else {
-                            tabDragArmed = false
-                            return false
-                        }
-                    } else {
-                        return false
-                    }
-                }
-                val width = panelContainer.width.takeIf { it > 0 } ?: dp(160)
-                val delta = Math.max(-width.toFloat(), Math.min(width.toFloat(), ev.x - tabDragDownX))
-                panelContainer.translationX = delta
-                tabDragOverlay?.translationX = (tabDragSide * width) + delta
-                return true
-            }
-            MotionEvent.ACTION_UP -> {
-                if (tabDragSettling) return true
-                if (!tabDragActive) {
-                    tabDragArmed = false
-                    return false
-                }
-                val width = panelContainer.width.takeIf { it > 0 } ?: dp(160)
-                val delta = panelContainer.translationX
-                val commit = when {
-                    tabDragSide == 1 -> delta < -width * 0.22f || tabDragVelocityX < -550f
-                    else -> delta > width * 0.22f || tabDragVelocityX > 550f
-                }
-                tabDragArmed = false
-                tabDragActive = false
-                if (commit) finishTabDrag() else cancelTabDrag()
-                return true
-            }
-            MotionEvent.ACTION_CANCEL -> {
-                if (tabDragSettling) return true
-                if (!tabDragActive) {
-                    tabDragArmed = false
-                    return false
-                }
-                tabDragArmed = false
-                tabDragActive = false
-                cancelTabDrag()
-                return true
-            }
-            MotionEvent.ACTION_POINTER_DOWN, MotionEvent.ACTION_POINTER_UP -> {
-                if (tabDragActive || tabDragSettling) return true
-                return false
-            }
-        }
+        tabDragArmed = false
+        tabDragActive = false
         return false
-    }
-
-    private fun tabDragNeighborExists(side: Int): Boolean {
-        return when (currentPanel) {
-            AppPanel.STATS -> if (side == 1) currentStatsTab != AppStatsTab.PLANNER else currentStatsTab != AppStatsTab.OVERVIEW
-            AppPanel.SETTINGS -> if (side == 1) currentSettingsTab != AppSettingsTab.PROFILE else currentSettingsTab != AppSettingsTab.SIMPLE
-            else -> false
-        }
-    }
-
-    private fun applyCardStyle(v: View) {
-        val r = dp(22)
-        val bg = android.graphics.drawable.GradientDrawable().apply {
-            setColor(themeCoordinator.bgColor)
-            cornerRadius = r.toFloat()
-        }
-        v.background = bg
-        v.clipToOutline = true
-        v.outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
-        v.elevation = dp(14).toFloat()
-    }
-
-    private fun clearCardStyle(v: View) {
-        v.background = null
-        v.clipToOutline = false
-        v.elevation = 0f
-    }
-
-    private fun beginTabDrag(side: Int): Boolean {
-        val width = panelContainer.width.takeIf { it > 0 } ?: dp(160)
-        val height = panelContainer.height.takeIf { it > 0 } ?: dp(240)
-        tabDragSide = side
-        val key = when (currentPanel) {
-            AppPanel.STATS -> {
-                tabDragCommitStatsTab = if (side == 1) {
-                    if (currentStatsTab == AppStatsTab.OVERVIEW) AppStatsTab.TIMELINE else AppStatsTab.PLANNER
-                } else {
-                    if (currentStatsTab == AppStatsTab.PLANNER) AppStatsTab.TIMELINE else AppStatsTab.OVERVIEW
-                }
-                statsTabKey(tabDragCommitStatsTab)
-            }
-
-
-            AppPanel.SETTINGS -> {
-                tabDragCommitSettingsTab = if (side == 1) {
-                    if (currentSettingsTab == AppSettingsTab.SIMPLE) AppSettingsTab.THEME else AppSettingsTab.PROFILE
-                } else {
-                    if (currentSettingsTab == AppSettingsTab.PROFILE) AppSettingsTab.THEME else AppSettingsTab.SIMPLE
-                }
-                settingsTabKey(tabDragCommitSettingsTab)
-            }
-            else -> return false
-        }
-        val overlay = FrameLayout(this).apply {
-            layoutParams = FrameLayout.LayoutParams(width, height)
-        }
-        applyCardStyle(panelContainer)
-        overlay.addView(getOrBuildTabPage(key))
-        applyCardStyle(overlay)
-        overlay.translationX = (side * width).toFloat()
-        panelHost.addView(overlay)
-        tabDragOverlay = overlay
-        return true
-    }
-
-    private fun settleAnimDuration(remaining: Float): Long {
-        val dist = Math.abs(remaining)
-        val vel = Math.abs(tabDragVelocityX)
-        val base = if (vel > 120f) (dist / vel * 1000f).toLong() else 340L
-        return Math.max(150L, Math.min(340L, base))
-    }
-
-    private fun settleInterpolator() = android.view.animation.OvershootInterpolator(1.18f)
-
-    private fun finishTabDrag() {
-        val width = panelContainer.width.takeIf { it > 0 } ?: dp(160)
-        val overlay = tabDragOverlay
-        val token = ++tabDragSettleToken
-        tabDragSettling = true
-        tabDragSettleIsCommit = true
-        val targetX = (-tabDragSide * width).toFloat()
-        val remaining = targetX - panelContainer.translationX
-        val dur = settleAnimDuration(remaining)
-        val interp = settleInterpolator()
-        panelContainer.animate().translationX(targetX)
-            .setDuration(dur)
-            .setInterpolator(interp)
-            .withLayer().start()
-        overlay?.animate()?.translationX(0f)
-            ?.setDuration(dur)
-            ?.setInterpolator(interp)
-            ?.withLayer()?.start()
-        handler.postDelayed({ if (token == tabDragSettleToken) finalizeSettle(true) }, dur + 80L)
-    }
-
-    private fun cancelTabDrag() {
-        val width = panelContainer.width.takeIf { it > 0 } ?: dp(160)
-        val overlay = tabDragOverlay
-        val token = ++tabDragSettleToken
-        tabDragSettling = true
-        tabDragSettleIsCommit = false
-        val remaining = 0f - panelContainer.translationX
-        val dur = settleAnimDuration(remaining)
-        val interp = settleInterpolator()
-        panelContainer.animate().translationX(0f)
-            .setDuration(dur)
-            .setInterpolator(interp)
-            .withLayer().start()
-        overlay?.animate()?.translationX((tabDragSide * width).toFloat())
-            ?.setDuration(dur)
-            ?.setInterpolator(interp)
-            ?.withLayer()?.start()
-        handler.postDelayed({ if (token == tabDragSettleToken) finalizeSettle(false) }, dur + 80L)
-    }
-
-    private fun finalizeSettle(commit: Boolean) {
-        if (!tabDragSettling) return
-        tabDragSettling = false
-        tabDragSettleToken++
-        val overlay = tabDragOverlay
-        panelContainer.animate().cancel()
-        panelContainer.translationX = 0f
-        overlay?.animate()?.cancel()
-        clearCardStyle(panelContainer)
-        var incomingPage: View? = null
-        if (overlay != null) {
-            if (overlay.parent != null) panelHost.removeView(overlay)
-            if (overlay.childCount > 0) {
-                incomingPage = overlay.getChildAt(0)
-                overlay.removeView(incomingPage)
-            }
-        }
-        tabDragOverlay = null
-        if (commit) {
-            when (currentPanel) {
-                AppPanel.STATS -> {
-                    currentStatsTab = tabDragCommitStatsTab
-                }
-                AppPanel.SETTINGS -> currentSettingsTab = tabDragCommitSettingsTab
-                else -> {}
-            }
-            if (incomingPage != null) {
-                swapPanelContent(incomingPage)
-            } else {
-                navigateToPanel(currentPanel)
-            }
-        }
-        prewarmTabPages()
     }
 
     private fun swapPanelContent(page: View) {
@@ -2144,7 +1802,7 @@ class MainActivity : AppCompatActivity() {
         return parent
     }
 
-    private fun buildCurrentPanel() {
+    internal fun buildCurrentPanel() {
         panelContainer.removeAllViews()
         rootLayout.background = themeCoordinator.createBackgroundDrawable()
         when (currentPanel) {
@@ -2161,11 +1819,13 @@ class MainActivity : AppCompatActivity() {
 
         if (targetPanel == AppPanel.STATS && currentPanel != AppPanel.STATS) {
             currentStatsTab = AppStatsTab.OVERVIEW
+            hasPlayedStatsEntranceAnimation = false
         }
         statsInternalRefresh = (targetPanel == AppPanel.STATS && currentPanel == AppPanel.STATS)
 
         if (currentPanel == AppPanel.STATS && targetPanel != AppPanel.STATS && targetPanel != AppPanel.HEATMAP) {
             statsDirty = true
+            hasPlayedStatsEntranceAnimation = false
         }
 
         if (currentPanel == AppPanel.SETTINGS && targetPanel != AppPanel.SETTINGS) {
@@ -2435,7 +2095,7 @@ class MainActivity : AppCompatActivity() {
     internal fun buildStatsTabScrollView(snap: StatsSnapshot, tab: AppStatsTab, todayStr: String): ScrollView {
         val scroll = ScrollView(this).apply {
             layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
-            setBackgroundColor(android.graphics.Color.BLACK)
+            setBackgroundColor(Color.TRANSPARENT)
             isVerticalScrollBarEnabled = false
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
@@ -2450,7 +2110,7 @@ class MainActivity : AppCompatActivity() {
         }
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(android.graphics.Color.BLACK)
+            setBackgroundColor(Color.TRANSPARENT)
             setPadding(dp(4), dp(8), dp(4), dp(96)) // 96dp bottom padding so cards never clip under pill
         }
         scroll.addView(content)
@@ -2469,7 +2129,7 @@ class MainActivity : AppCompatActivity() {
         val todayStr = sdf.format(Date())
 
         statsRoot.removeAllViews()
-        statsRoot.setBackgroundColor(android.graphics.Color.BLACK)
+        statsRoot.setBackgroundColor(Color.TRANSPARENT)
 
         val mainColumn = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -2501,8 +2161,13 @@ class MainActivity : AppCompatActivity() {
                 gravity = Gravity.CENTER_VERTICAL
                 background = GradientDrawable().apply {
                     cornerRadius = dp(14).toFloat()
-                    setColor(0xFF161822.toInt())
-                    setStroke(dp(1), tintedColor(themeCoordinator.primaryColor, 50))
+                    val cardBg = if (themeCoordinator.isDarkMode()) {
+                        if (themeCoordinator.activeBgMode == "ECLIPSE") 0xFF1E293B.toInt() else 0xFF161822.toInt()
+                    } else {
+                        0xFFF1F5F9.toInt()
+                    }
+                    setColor(cardBg)
+                    setStroke(dp(1), tintedColor(themeCoordinator.primaryColor, if (themeCoordinator.isDarkMode()) 50 else 90))
                 }
                 setPadding(dp(14), dp(10), dp(12), dp(10))
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
@@ -2540,47 +2205,32 @@ class MainActivity : AppCompatActivity() {
         // 2. ISOLATED TAB CONTENT CONTAINER (Takes only remaining space below header)
         val tabHost = FrameLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
-            setBackgroundColor(android.graphics.Color.BLACK)
+            setBackgroundColor(Color.TRANSPARENT)
         }
-        val tabView = buildStatsTabScrollView(snap, tab, todayStr)
-        tabHost.addView(tabView)
+        val tabViews = java.util.EnumMap<AppStatsTab, ScrollView>(AppStatsTab::class.java)
+        fun getOrCreateTabView(targetTab: AppStatsTab): ScrollView {
+            return tabViews.getOrPut(targetTab) {
+                buildStatsTabScrollView(snap, targetTab, todayStr)
+            }
+        }
+        val initialView = getOrCreateTabView(tab)
+        hasPlayedStatsEntranceAnimation = true
+        tabHost.addView(initialView)
         mainColumn.addView(tabHost)
 
         statsRoot.addView(mainColumn)
 
         // 3. FLOATING BOTTOM PILL NAV BAR (Fixed at bottom overlay, Z-Index layer above content)
         val pillBar = InsightsPillNavBar(this).apply {
-            setPrimaryColor(ThemeCoordinator.INSIGHTS_NAV_ACCENT)
+            applyTheme(themeCoordinator)
             selectTab(currentStatsTab, animated = false)
             setOnTabSelectedListener { targetTab ->
                 if (currentStatsTab != targetTab) {
-                    val slideLeft = targetTab.ordinal > currentStatsTab.ordinal
                     currentStatsTab = targetTab
-                    val nextTabView = buildStatsTabScrollView(snap, targetTab, todayStr)
-                    val width = (tabHost.width.takeIf { it > 0 } ?: (resources.displayMetrics.widthPixels - dp(32))).toFloat()
-                    val startOffset = if (slideLeft) width * 0.4f else -width * 0.4f
-                    nextTabView.translationX = startOffset
-                    nextTabView.alpha = 0f
+                    val nextTabView = getOrCreateTabView(targetTab)
+                    (nextTabView.parent as? android.view.ViewGroup)?.removeView(nextTabView)
+                    tabHost.removeAllViews()
                     tabHost.addView(nextTabView)
-                    nextTabView.animate()
-                        .translationX(0f)
-                        .alpha(1f)
-                        .setDuration(240L)
-                        .setInterpolator(android.view.animation.OvershootInterpolator(1.15f))
-                        .withLayer()
-                        .start()
-                    if (tabHost.childCount > 1) {
-                        val prevView = tabHost.getChildAt(0)
-                        prevView.animate()
-                            .translationX(if (slideLeft) -width * 0.4f else width * 0.4f)
-                            .alpha(0f)
-                            .setDuration(240L)
-                            .setInterpolator(android.view.animation.DecelerateInterpolator())
-                            .withLayer()
-                            .withEndAction {
-                                tabHost.removeView(prevView)
-                            }.start()
-                    }
                 }
             }
             layoutParams = FrameLayout.LayoutParams(
@@ -2648,8 +2298,13 @@ class MainActivity : AppCompatActivity() {
             gravity = Gravity.CENTER_VERTICAL
             background = GradientDrawable().apply {
                 cornerRadius = dp(12).toFloat()
-                setColor(0xFF1E212D.toInt())
-                setStroke(dp(1), tintedColor(themeCoordinator.primaryColor, 60))
+                val streakBg = if (themeCoordinator.isDarkMode()) {
+                    if (themeCoordinator.activeBgMode == "ECLIPSE") 0xFF1E293B.toInt() else 0xFF1E212D.toInt()
+                } else {
+                    0xFFEDF0F5.toInt()
+                }
+                setColor(streakBg)
+                setStroke(dp(1), tintedColor(themeCoordinator.primaryColor, if (themeCoordinator.isDarkMode()) 60 else 90))
             }
             setPadding(dp(10), dp(4), dp(10), dp(4))
         }
@@ -2750,9 +2405,10 @@ class MainActivity : AppCompatActivity() {
         }
         goalRingWrap.addView(SegmentRing(
             listOf(heroGoalPct / 100f to goalRingColor),
-            0xFF1E212D.toInt(),
+            if (themeCoordinator.isDarkMode()) 0xFF1E212D.toInt() else 0xFFE2E8F0.toInt(),
             dp(7),
-            Pair(goalRingColor, lightenColor(goalRingColor, 0.25f))
+            Pair(goalRingColor, lightenColor(goalRingColor, 0.25f)),
+            animate = !hasPlayedStatsEntranceAnimation
         ), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         goalRingWrap.addView(TextView(this@MainActivity).apply {
             text = if (goalReached) "✓" else "${heroGoalPctRaw.toInt()}%"
@@ -2778,8 +2434,14 @@ class MainActivity : AppCompatActivity() {
                 gravity = Gravity.CENTER_VERTICAL
                 background = GradientDrawable().apply {
                     cornerRadius = dp(10).toFloat()
-                    setColor(0xFF181A24.toInt())
-                    setStroke(dp(1), 0xFF282A36.toInt())
+                    val badgeBg = if (themeCoordinator.isDarkMode()) {
+                        if (themeCoordinator.activeBgMode == "ECLIPSE") 0xFF1E293B.toInt() else 0xFF181A24.toInt()
+                    } else {
+                        0xFFEDF0F5.toInt()
+                    }
+                    val strokeCol = if (themeCoordinator.isDarkMode()) 0xFF282A36.toInt() else 0xFFCBD5E1.toInt()
+                    setColor(badgeBg)
+                    setStroke(dp(1), strokeCol)
                 }
                 setPadding(dp(10), dp(6), dp(10), dp(6))
                 addView(TextView(this@MainActivity).apply {
@@ -3015,6 +2677,7 @@ class MainActivity : AppCompatActivity() {
             val pieView = SubjectPieChartView(this@MainActivity).apply {
                 primaryColor = themeCoordinator.primaryColor
                 textColor = themeCoordinator.textColor
+                boxColor = if (themeCoordinator.isDarkMode()) (if (themeCoordinator.activeBgMode == "ECLIPSE") 0xFF1E293B.toInt() else 0xFF111625.toInt()) else 0xFFFFFFFF.toInt()
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(360))
                 setOnClickListener { showPieChartDetailsModal() }
             }
@@ -4063,7 +3726,7 @@ class MainActivity : AppCompatActivity() {
             max = 100
             progress = progressPct
             progressTintList = android.content.res.ColorStateList.valueOf(lineProgressColor)
-            progressBackgroundTintList = android.content.res.ColorStateList.valueOf(0xFF222430.toInt())
+            progressBackgroundTintList = android.content.res.ColorStateList.valueOf(if (themeCoordinator.isDarkMode()) 0xFF222430.toInt() else 0xFFE2E8F0.toInt())
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(8)).apply { setMargins(0, dp(4), 0, 0) }
         }
         summaryCard.addView(progressBar)
@@ -4075,8 +3738,14 @@ class MainActivity : AppCompatActivity() {
                 gravity = Gravity.CENTER
                 background = GradientDrawable().apply {
                     cornerRadius = dp(20).toFloat()
-                    setColor(0xFF14151D.toInt())
-                    setStroke(dp(1), 0xFF282A36.toInt(), dp(6).toFloat(), dp(4).toFloat()) // modern dashed border
+                    val emptyBg = if (themeCoordinator.isDarkMode()) {
+                        if (themeCoordinator.activeBgMode == "ECLIPSE") 0xFF1E293B.toInt() else 0xFF14151D.toInt()
+                    } else {
+                        0xFFF1F5F9.toInt()
+                    }
+                    val strokeCol = if (themeCoordinator.isDarkMode()) 0xFF282A36.toInt() else 0xFFCBD5E1.toInt()
+                    setColor(emptyBg)
+                    setStroke(dp(1), strokeCol, dp(6).toFloat(), dp(4).toFloat()) // modern dashed border
                 }
                 setPadding(dp(24), dp(36), dp(24), dp(36))
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(4), 0, dp(12)) }
@@ -4289,79 +3958,6 @@ class MainActivity : AppCompatActivity() {
         // Planner Insights Section (always computed)
         val overallInsights = PlannerHistoryManager.computeOverallPlannerInsights(this, goalsList)
 
-        // Planner Consistency & Mini 7-day row
-        val consistencyCard = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            background = themeCoordinator.createCardBackground()
-            setPadding(dp(18), dp(16), dp(18), dp(16))
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(4), 0, dp(12)) }
-        }
-
-        val consistTop = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, 0, 0, dp(12))
-        }
-        consistTop.addView(TextView(this).apply {
-            text = "🔥 7-DAY GOAL CONSISTENCY"
-            setTextColor(plannerPrimary)
-            textSize = 11f
-            letterSpacing = 0.15f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-        })
-        consistTop.addView(LinearLayout(this).apply { layoutParams = LinearLayout.LayoutParams(0, 0, 1f) })
-        consistTop.addView(TextView(this).apply {
-            text = if (overallInsights.bestStreakDays > 0) "${overallInsights.bestStreakDays}d streak" else "0d streak"
-            setTextColor(plannerSecondary)
-            textSize = 12f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-        })
-        consistencyCard.addView(consistTop)
-
-        // 7-day mini check-in row
-        val miniWeekRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, dp(4))
-        }
-        val cal = Calendar.getInstance()
-        val sdfDay = SimpleDateFormat("EE", Locale.getDefault())
-        val dayKeys = ArrayList<String>()
-        for (i in 6 downTo 0) {
-            val c = (cal.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -i) }
-            val key = dateKeyFmt.format(c.time)
-            dayKeys.add(key)
-            val isToday = (i == 0)
-            val focusSecs = snap.dayFocus[key] ?: 0L
-            val goalSecs = resolveGoalFor(key)
-            val isGoalHit = goalSecs > 0L && focusSecs >= goalSecs
-
-            val dayCol = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER_HORIZONTAL
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            }
-            dayCol.addView(TextView(this).apply {
-                text = sdfDay.format(c.time).take(1)
-                setTextColor(if (isToday) plannerPrimary else themeCoordinator.textColor)
-                alpha = if (isToday) 1f else 0.6f
-                textSize = 11f
-                typeface = Typeface.create("sans-serif-medium", if (isToday) Typeface.BOLD else Typeface.NORMAL)
-            })
-
-            val dot = View(this).apply {
-                background = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL
-                    setColor(if (isGoalHit) 0xFF43D36E.toInt() else if (focusSecs > 0L) plannerPrimary else 0xFF282A36.toInt())
-                }
-                layoutParams = LinearLayout.LayoutParams(dp(18), dp(18)).apply { setMargins(0, dp(6), 0, 0) }
-            }
-            dayCol.addView(dot)
-            miniWeekRow.addView(dayCol)
-        }
-        consistencyCard.addView(miniWeekRow)
-        parent.addView(consistencyCard)
-
         parent.addView(createSectionLabel("Planner Insights"))
 
         val insightsCard = LinearLayout(this).apply {
@@ -4416,10 +4012,11 @@ class MainActivity : AppCompatActivity() {
 
         val matrixBtn = TextView(this).apply {
             text = "📊 Goal & Habit Grid"
-            setTextColor(Color.WHITE)
+            setTextColor(if (themeCoordinator.isDarkMode()) Color.WHITE else themeCoordinator.primaryColor)
             textSize = 13f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            background = themeCoordinator.createGlassChip(tintedColor(plannerPrimary, 120), 14f)
+            val btnBg = if (themeCoordinator.isDarkMode()) tintedColor(plannerPrimary, 120) else tintedColor(plannerPrimary, 30)
+            background = themeCoordinator.createGlassChip(btnBg, 14f)
             setPadding(dp(14), dp(10), dp(14), dp(10))
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(8), 0, 0) }
@@ -4429,10 +4026,11 @@ class MainActivity : AppCompatActivity() {
 
         val themeBtn = TextView(this).apply {
             text = "🎨 Planner Theme"
-            setTextColor(Color.WHITE)
+            setTextColor(if (themeCoordinator.isDarkMode()) Color.WHITE else themeCoordinator.primaryColor)
             textSize = 13f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            background = themeCoordinator.createGlassChip(tintedColor(plannerPrimary, 120), 14f)
+            val btnBg = if (themeCoordinator.isDarkMode()) tintedColor(plannerPrimary, 120) else tintedColor(plannerPrimary, 30)
+            background = themeCoordinator.createGlassChip(btnBg, 14f)
             setPadding(dp(14), dp(10), dp(14), dp(10))
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(8), 0, 0) }
@@ -5515,27 +5113,24 @@ class MainActivity : AppCompatActivity() {
         content.addView(cooldownWarningText)
         content.addView(urgentEmailBtn)
 
-        // Optional GitHub Issues Link Button
-        val githubBtn = TextView(this).apply {
-            text = "🐙 Open GitHub Issues (Web)"
-            setTextColor(themeCoordinator.primaryColor)
-            textSize = 12f
-            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            gravity = Gravity.CENTER
-            setPadding(dp(8), dp(6), dp(8), dp(4))
+        val dismissRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.END
+            setPadding(0, dp(6), 0, 0)
+        }
+        val closeBtn = TextView(this).apply {
+            text = "Close"
+            setTextColor(tintedColor(themeCoordinator.textColor, 170))
+            textSize = 13.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(dp(16), dp(10), dp(16), dp(10))
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 25), 14f)
             isClickable = true
             isFocusable = true
-            setOnClickListener {
-                val githubUrl = "https://github.com/issues"
-                try {
-                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(githubUrl))
-                    startActivity(browserIntent)
-                } catch (_: Exception) {
-                    Toast.makeText(this@MainActivity, "Could not open browser", Toast.LENGTH_SHORT).show()
-                }
-            }
+            setOnClickListener { dialog.dismiss() }
         }
-        content.addView(githubBtn)
+        dismissRow.addView(closeBtn)
+        content.addView(dismissRow)
 
         dialog.setContentView(content)
         dialog.window?.apply {
@@ -5551,14 +5146,14 @@ class MainActivity : AppCompatActivity() {
 
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = themeCoordinator.createCardBackground()
-            setPadding(dp(22), dp(22), dp(22), dp(22))
+            background = themeCoordinator.createCardBackground(24f)
+            setPadding(dp(20), dp(20), dp(20), dp(20))
         }
 
         val titleText = TextView(this).apply {
-            text = "⚡ StudyTimer Quick Guide"
+            text = "⚡ StudyTimer — How to Use Summary"
             setTextColor(themeCoordinator.textColor)
-            textSize = 20f
+            textSize = 19f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, dp(14))
@@ -5574,53 +5169,122 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
         }
 
-        fun addGuideSection(icon: String, title: String, description: String) {
+        fun createGuideCard(sectionNumber: String, sectionTitle: String, icon: String, bullets: List<Pair<String, String>>) {
             val card = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
+                orientation = LinearLayout.VERTICAL
                 background = GradientDrawable().apply {
                     cornerRadius = dp(16).toFloat()
-                    setColor(tintedColor(themeCoordinator.primaryColor, 18))
+                    setColor(if (themeCoordinator.isDarkMode()) 0x18FFFFFF.toInt() else tintedColor(themeCoordinator.primaryColor, 15))
+                    setStroke(dp(1), if (themeCoordinator.isDarkMode()) 0x22FFFFFF.toInt() else tintedColor(themeCoordinator.primaryColor, 40))
                 }
-                setPadding(dp(14), dp(12), dp(14), dp(12))
+                setPadding(dp(16), dp(14), dp(16), dp(14))
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                    setMargins(0, 0, 0, dp(10))
+                    setMargins(0, 0, 0, dp(14))
                 }
+            }
+
+            val headerRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, 0, 0, dp(10))
             }
             val iconView = TextView(this).apply {
                 text = icon
-                textSize = 22f
-                setPadding(0, 0, dp(12), 0)
+                textSize = 18f
+                setPadding(0, 0, dp(8), 0)
             }
-            val textCol = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            }
-            val sectionTitle = TextView(this).apply {
-                text = title
+            val titleView = TextView(this).apply {
+                text = "$sectionNumber. $sectionTitle"
                 setTextColor(themeCoordinator.primaryColor)
-                textSize = 14.5f
+                textSize = 15f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             }
-            val sectionDesc = TextView(this).apply {
-                text = description
-                setTextColor(themeCoordinator.textColor)
-                alpha = 0.85f
-                textSize = 12.5f
-                setPadding(0, dp(2), 0, 0)
+            headerRow.addView(iconView)
+            headerRow.addView(titleView)
+            card.addView(headerRow)
+
+            for ((itemTitle, itemDesc) in bullets) {
+                val itemRow = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    setPadding(0, dp(3), 0, dp(3))
+                }
+                val bulletDot = TextView(this).apply {
+                    text = "• "
+                    setTextColor(themeCoordinator.primaryColor)
+                    textSize = 13f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setPadding(0, 0, dp(4), 0)
+                }
+                val itemText = TextView(this).apply {
+                    val fullSpannable = android.text.SpannableStringBuilder()
+                    val boldSpan = android.text.style.StyleSpan(Typeface.BOLD)
+                    val titleFormatted = "$itemTitle: "
+                    fullSpannable.append(titleFormatted)
+                    fullSpannable.setSpan(boldSpan, 0, titleFormatted.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    fullSpannable.append(itemDesc)
+                    text = fullSpannable
+                    setTextColor(themeCoordinator.textColor)
+                    textSize = 12.5f
+                    setLineSpacing(0f, 1.15f)
+                    alpha = 0.9f
+                }
+                itemRow.addView(bulletDot)
+                itemRow.addView(itemText)
+                card.addView(itemRow)
             }
-            textCol.addView(sectionTitle)
-            textCol.addView(sectionDesc)
-            card.addView(iconView)
-            card.addView(textCol)
+
             list.addView(card)
         }
 
-        addGuideSection("⏱️", "1-Hour Pomodoro & Modes", "Default countdown timer is set to 1 hour (Pomodoro mode). Switch between Pomodoro Countdown, Stopwatch, and Class Lecture timetable modes in Settings.")
-        addGuideSection("🎨", "3D Look & Custom Accents", "Pre-configured with AMOLED Black & 3D look buttons. Customize Focus (#234) and Break (#1) color hues in Appearance tab.")
-        addGuideSection("🎯", "Goals & Full Screen Grid", "Track subject goals on the main page. Tap the expand button on the Goal & Habit grid to open the full-screen interactive habit tracker.")
-        addGuideSection("📅", "Class Timetable & 8 PM Reminder", "Tap 'Class Timetable' on the main timer screen to organize lecture slots. Daily study reminders are active at 8:00 PM.")
-        addGuideSection("📊", "Heatmap & Spacious CSV Export", "View daily productivity heatmaps in Insights. Export clean, formatted logs to Excel/Sheets with formatted summary sections.")
-        addGuideSection("☁️", "Cloud Sync & Multi-Device Restore", "Sign in with your account to automatically back up and restore your custom themes, goals, and focus history on any device.")
+        // 1. All 4 Timer Modes
+        createGuideCard(
+            "1",
+            "All 4 Timer Modes",
+            "⏱️",
+            listOf(
+                "Subject-Wise Tagging (Default)" to "Organize focus sessions by subject/topic with instant tag assignment and dedicated analytics.",
+                "Pomodoro Mode" to "Classic 25m focus and 5m break intervals to build steady study momentum.",
+                "Custom Countdown" to "Set precise hour/minute focus targets for specific study blocks and exams.",
+                "Stopwatch Mode" to "Open-ended count-up timer with manual lap recording for flexible study sessions."
+            )
+        )
+
+        // 2. Appearance, Themes & White Timer
+        createGuideCard(
+            "2",
+            "Appearance, Themes & White Timer",
+            "🎨",
+            listOf(
+                "Color Themes" to "Personalize your interface with accent palettes (OLED Black, Minimal Dark, Indigo, Emerald, and more) in Themes & Appearance.",
+                "White Timer Mode" to "High-contrast minimal white dial mode for daytime focus (toggle in Timer & Focus Controls).",
+                "Immersive Landscape Display" to "Rotate your device horizontally during any active timer session for a distraction-free, full-screen digital clock."
+            )
+        )
+
+        // 3. Insights & Analytics
+        createGuideCard(
+            "3",
+            "Insights & Analytics",
+            "📊",
+            listOf(
+                "Daily Overview" to "Live daily total hours, goal completion rings, and 7-day/30-day focus charts.",
+                "History & Calendar" to "Interactive monthly calendar tracking daily goal streaks and session history.",
+                "6-Month Heatmap" to "Long-term study intensity grid displaying your consistency over time.",
+                "Planner" to "Daily targets, milestones, and habit check-offs."
+            )
+        )
+
+        // 4. Offline Storage & Cloud Sync
+        createGuideCard(
+            "4",
+            "Offline Storage & Cloud Sync",
+            "☁️",
+            listOf(
+                "100% Offline by Default" to "Fast local database storage and instant local profile photo loading.",
+                "Optional Google Sync" to "Connect Google Sign-In to back up records and sync across devices seamlessly.",
+                "100% Free" to "Zero ads, no subscriptions, and no paywalled features."
+            )
+        )
 
         scrollView.addView(list)
         content.addView(scrollView)
@@ -5647,7 +5311,7 @@ class MainActivity : AppCompatActivity() {
         dialog.setContentView(content)
         dialog.window?.apply {
             setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
-            setLayout((resources.displayMetrics.widthPixels * 0.90f).toInt(), (resources.displayMetrics.heightPixels * 0.75f).toInt())
+            setLayout((resources.displayMetrics.widthPixels * 0.92f).toInt(), (resources.displayMetrics.heightPixels * 0.80f).toInt())
         }
         dialog.show()
     }
@@ -6833,21 +6497,38 @@ class MainActivity : AppCompatActivity() {
 
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-        private val tickPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val tickPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+        private val trackRect = RectF()
+        private val fillRect = RectF()
         private var progress = 0f
         private val maxFillRatio = ratio.coerceIn(0f, 1f)
+        private val fillShadowColor = Color.argb(150, Color.red(fillStart), Color.green(fillStart), Color.blue(fillStart))
+        private val todayStrokeColor = Color.argb(180, Color.red(fillStart), Color.green(fillStart), Color.blue(fillStart))
+        private val tickColor = Color.argb(120, 255, 255, 255)
+        private var gradientShader: LinearGradient? = null
 
         init {
-            tickPaint.style = Paint.Style.FILL
             setLayerType(View.LAYER_TYPE_SOFTWARE, null)
-            val anim = ValueAnimator.ofFloat(0f, 1f)
-            anim.duration = 700
-            anim.interpolator = android.view.animation.DecelerateInterpolator()
-            anim.addUpdateListener {
-                progress = it.animatedValue as Float
-                invalidate()
+            if (!hasPlayedStatsEntranceAnimation) {
+                val anim = ValueAnimator.ofFloat(0f, 1f)
+                anim.duration = 700
+                anim.interpolator = android.view.animation.DecelerateInterpolator()
+                anim.addUpdateListener {
+                    progress = it.animatedValue as Float
+                    invalidate()
+                }
+                anim.start()
+            } else {
+                progress = 1f
             }
-            anim.start()
+        }
+
+        override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+            super.onSizeChanged(w, h, oldw, oldh)
+            if (w > 0) {
+                gradientShader = LinearGradient(0f, 0f, w.toFloat(), 0f, fillStart, fillEnd, Shader.TileMode.CLAMP)
+                fillPaint.shader = gradientShader
+            }
         }
 
         override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -6860,23 +6541,22 @@ class MainActivity : AppCompatActivity() {
             val h = height.toFloat()
             val radius = h / 2f
 
+            trackRect.set(0f, 0f, w, h)
             paint.style = Paint.Style.FILL
             paint.color = trackColor
-            canvas.drawRoundRect(RectF(0f, 0f, w, h), radius, radius, paint)
+            canvas.drawRoundRect(trackRect, radius, radius, paint)
 
             val fillW = w * maxFillRatio * progress
             if (fillW > 0f) {
-                fillPaint.shader = LinearGradient(0f, 0f, w, 0f, fillStart, fillEnd, Shader.TileMode.CLAMP)
-                fillPaint.setShadowLayer(
-                    dp(7).toFloat(), 0f, 0f,
-                    Color.argb(150, Color.red(fillStart), Color.green(fillStart), Color.blue(fillStart))
-                )
+                fillPaint.setShadowLayer(dp(7).toFloat(), 0f, 0f, fillShadowColor)
                 if (fillW >= radius * 2f) {
-                    canvas.drawRoundRect(RectF(0f, 0f, fillW, h), radius, radius, fillPaint)
+                    fillRect.set(0f, 0f, fillW, h)
+                    canvas.drawRoundRect(fillRect, radius, radius, fillPaint)
                 } else {
                     canvas.save()
                     canvas.clipRect(0f, 0f, fillW, h)
-                    canvas.drawRoundRect(RectF(0f, 0f, w, h), radius, radius, fillPaint)
+                    fillRect.set(0f, 0f, w, h)
+                    canvas.drawRoundRect(fillRect, radius, radius, fillPaint)
                     canvas.restore()
                 }
                 fillPaint.setShadowLayer(0f, 0f, 0f, 0)
@@ -6884,15 +6564,15 @@ class MainActivity : AppCompatActivity() {
 
             if (goalRatio > 0f) {
                 val gx = w * goalRatio
-                tickPaint.color = Color.argb(120, 255, 255, 255)
+                tickPaint.color = tickColor
                 canvas.drawRect(gx - dp(1).toFloat(), 0f, gx + dp(1).toFloat(), h, tickPaint)
             }
 
             if (isToday) {
                 paint.style = Paint.Style.STROKE
                 paint.strokeWidth = dp(2) * 0.75f
-                paint.color = Color.argb(180, Color.red(fillStart), Color.green(fillStart), Color.blue(fillStart))
-                canvas.drawRoundRect(RectF(0f, 0f, w, h), radius, radius, paint)
+                paint.color = todayStrokeColor
+                canvas.drawRoundRect(trackRect, radius, radius, paint)
                 paint.style = Paint.Style.FILL
             }
         }
@@ -6902,24 +6582,45 @@ class MainActivity : AppCompatActivity() {
         private val segments: List<Pair<Float, Int>>,
         private val trackColor: Int,
         private val strokeWidth: Int,
-        private val gradient: Pair<Int, Int>?
+        private val gradient: Pair<Int, Int>?,
+        private val animate: Boolean = false,
+        private val progressSupplier: (() -> Float)? = null
     ) : View(this@MainActivity) {
 
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-        private var progress = 0f
+        private val arcRect = RectF()
+        private var progress = if (animate && progressSupplier == null) 0f else 1f
+        private var gradientShader: LinearGradient? = null
 
         init {
             paint.style = Paint.Style.STROKE
             paint.strokeWidth = strokeWidth.toFloat()
             paint.strokeCap = if (segments.size <= 1) Paint.Cap.ROUND else Paint.Cap.BUTT
-            val anim = ValueAnimator.ofFloat(0f, 1f)
-            anim.duration = 800
-            anim.interpolator = android.view.animation.DecelerateInterpolator()
-            anim.addUpdateListener {
-                progress = it.animatedValue as Float
-                invalidate()
+            if (animate && progressSupplier == null) {
+                val anim = ValueAnimator.ofFloat(0f, 1f)
+                anim.duration = 600
+                anim.interpolator = android.view.animation.DecelerateInterpolator()
+                anim.addUpdateListener {
+                    progress = it.animatedValue as Float
+                    invalidate()
+                }
+                anim.start()
+            } else if (progressSupplier == null) {
+                progress = 1f
             }
-            anim.start()
+        }
+
+        override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+            super.onSizeChanged(w, h, oldw, oldh)
+            if (w > 0 && h > 0) {
+                val cx = w / 2f
+                val cy = h / 2f
+                val r = min(w.toFloat(), h.toFloat()) / 2f - strokeWidth / 2f
+                arcRect.set(cx - r, cy - r, cx + r, cy + r)
+                if (gradient != null && segments.size == 1) {
+                    gradientShader = LinearGradient(cx - r, cy - r, cx + r, cy + r, gradient.first, gradient.second, Shader.TileMode.CLAMP)
+                }
+            }
         }
 
         override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -6934,23 +6635,25 @@ class MainActivity : AppCompatActivity() {
             val cx = w / 2f
             val cy = h / 2f
             val r = min(w, h) / 2f - strokeWidth / 2f
+            if (r <= 0f) return
 
             paint.shader = null
             paint.color = trackColor
             canvas.drawCircle(cx, cy, r, paint)
 
+            val curProgress = progressSupplier?.invoke() ?: progress
             var startAngle = -90f
             for ((frac, color) in segments) {
                 val f = frac.coerceIn(0f, 1f)
                 if (f <= 0f) continue
-                val sweep = f * 360f * progress
-                if (gradient != null && segments.size == 1) {
-                    paint.shader = LinearGradient(cx - r, cy - r, cx + r, cy + r, gradient.first, gradient.second, Shader.TileMode.CLAMP)
+                val sweep = f * 360f * curProgress
+                if (gradientShader != null) {
+                    paint.shader = gradientShader
                 } else {
                     paint.shader = null
                     paint.color = color
                 }
-                canvas.drawArc(RectF(cx - r, cy - r, cx + r, cy + r), startAngle, sweep, false, paint)
+                canvas.drawArc(arcRect, startAngle, sweep, false, paint)
                 startAngle += sweep
                 if (segments.size > 1) startAngle += 3f
             }
@@ -8773,6 +8476,31 @@ class MainActivity : AppCompatActivity() {
                 mainBtn.background = rippleBackground(themeCoordinator.primaryColor); pauseBtn.visibility = View.GONE; stopBtn.visibility = View.VISIBLE; stopBtn.ringColor = themeCoordinator.primaryColor
             }
         }
+        updateStatusBarIcons()
+    }
+
+    internal fun updateStatusBarIcons() {
+        try {
+            val isLight = themeCoordinator.activeBgMode == "LIGHT"
+            val decor = window.peekDecorView() ?: window.decorView
+            androidx.core.view.WindowCompat.getInsetsController(window, decor).let { controller ->
+                controller.isAppearanceLightStatusBars = isLight
+                controller.isAppearanceLightNavigationBars = isLight
+            }
+        } catch (_: Exception) {
+            try {
+                val isLight = themeCoordinator.activeBgMode == "LIGHT"
+                @Suppress("DEPRECATION")
+                var flags = window.decorView.systemUiVisibility
+                flags = if (isLight) {
+                    flags or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                } else {
+                    flags and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+                }
+                @Suppress("DEPRECATION")
+                window.decorView.systemUiVisibility = flags
+            } catch (_: Exception) {}
+        }
     }
 
 
@@ -8990,9 +8718,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     internal fun applyTrueFullscreenMode() {
-        val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         val sharedPrefs = getSharedPreferences("StudyTimerPrefs", MODE_PRIVATE)
-        val isZenModeEnabled = sharedPrefs.getBoolean("true_fullscreen_landscape", false)
+        val isLandscapeEnabled = sharedPrefs.getBoolean("is_landscape_mode_enabled", sharedPrefs.getBoolean("true_fullscreen_landscape", true))
+        val isLandscape = (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) && isLandscapeEnabled
 
         if (!isLandscape) {
             isZenModeActive = false
@@ -9000,7 +8728,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        if (isZenModeEnabled) {
+        if (isLandscapeEnabled) {
             isZenModeActive = true
             navHeader.visibility = View.GONE
             statusBadgeContainer.visibility = View.GONE
@@ -9035,14 +8763,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     internal fun applyImmersiveModeForLandscape() {
-        val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val sharedPrefs = getSharedPreferences("StudyTimerPrefs", MODE_PRIVATE)
+        val isLandscapeEnabled = sharedPrefs.getBoolean("is_landscape_mode_enabled", sharedPrefs.getBoolean("true_fullscreen_landscape", true))
+        val isLandscape = (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) && isLandscapeEnabled
         if (!isLandscape) {
             showSystemUI()
             return
         }
-        val sharedPrefs = getSharedPreferences("StudyTimerPrefs", MODE_PRIVATE)
-        val immersiveEnabled = sharedPrefs.getBoolean("true_fullscreen_landscape", false)
-        if (immersiveEnabled) {
+        if (isLandscapeEnabled) {
             hideSystemUI()
         } else {
             showSystemUI()
@@ -9837,6 +9565,11 @@ class MainActivity : AppCompatActivity() {
         updateDateView()
         dialog.setContentView(rootLayout)
         dialog.show()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        hasPlayedStatsEntranceAnimation = false
     }
 
 }

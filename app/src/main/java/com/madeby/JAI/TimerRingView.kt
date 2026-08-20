@@ -106,6 +106,8 @@ class TimerRingView(context: Context) : View(context) {
         return Color.rgb(r.coerceIn(0, 255), g.coerceIn(0, 255), b.coerceIn(0, 255))
     }
 
+    private val ringBounds = RectF()
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val w = width.toFloat()
@@ -120,15 +122,15 @@ class TimerRingView(context: Context) : View(context) {
 
         if (sweepDeg > 0.01f) {
             val inset = strokePx / 2f + padPx
-            val bounds = RectF(inset, inset, w - inset, h - inset)
+            ringBounds.set(inset, inset, w - inset, h - inset)
 
             innerHaloPaint.color = color
             innerHaloPaint.alpha = 24
-            canvas.drawArc(bounds, -90f, sweepDeg, false, innerHaloPaint)
+            canvas.drawArc(ringBounds, -90f, sweepDeg, false, innerHaloPaint)
 
             ringPaint.setShadowLayer(12f * density, 0f, 0f, Color.argb(130, Color.red(color), Color.green(color), Color.blue(color)))
             applyArcShader(cx, cy)
-            canvas.drawArc(bounds, -90f, sweepDeg, false, ringPaint)
+            canvas.drawArc(ringBounds, -90f, sweepDeg, false, ringPaint)
         }
     }
 }

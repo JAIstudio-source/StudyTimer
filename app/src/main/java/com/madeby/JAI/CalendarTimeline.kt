@@ -146,9 +146,18 @@ class CalendarTimeline(private val host: MainActivity) {
             calendarCard.addView(navRow)
 
             // Styled Weekday Headers Row
+            val wdBg = if (themeCoordinator.isDarkMode()) {
+                if (themeCoordinator.activeBgMode == "ECLIPSE") 0xFF1E293B.toInt() else 0xFF141620.toInt()
+            } else {
+                0xFFEDF0F5.toInt()
+            }
             val wdRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
-                background = themeCoordinator.createGlassChip(0xFF141620.toInt(), 12f)
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(12).toFloat()
+                    setColor(wdBg)
+                    setStroke(dp(1), if (themeCoordinator.isDarkMode()) 0x22FFFFFF.toInt() else 0xFFCBD5E1.toInt())
+                }
                 setPadding(dp(2), dp(8), dp(2), dp(8))
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                     setMargins(0, 0, 0, dp(10))
@@ -173,6 +182,12 @@ class CalendarTimeline(private val host: MainActivity) {
 
             // Days Grid
             val grid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            val gridAnim = android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
+                duration = 800
+                interpolator = android.view.animation.DecelerateInterpolator()
+            }
+            val animSupplier: (() -> Float) = { gridAnim.animatedValue as? Float ?: 1f }
+
             var firstDow = anchor.get(Calendar.DAY_OF_WEEK)
             var offset = firstDow - Calendar.MONDAY
             if (offset < 0) offset += 7
@@ -181,6 +196,7 @@ class CalendarTimeline(private val host: MainActivity) {
             var dayNum = 1
             val todayDateKey = todayStr
 
+            val ringViews = mutableListOf<MainActivity.SegmentRing>()
             for (r in 0 until rows) {
                 val row = LinearLayout(this).apply {
                     orientation = LinearLayout.HORIZONTAL
@@ -197,12 +213,18 @@ class CalendarTimeline(private val host: MainActivity) {
                         val focusSecs = snap.dayFocus[dateStr] ?: 0L
                         val goalSecs = resolveGoalFor(dateStr)
                         val isFuture = dateStr > todayDateKey
-                        row.addView(buildCalendarDayCell(dateStr, dayNum, focusSecs, goalSecs, dateStr == todayStr, isFuture))
+                        row.addView(buildCalendarDayCell(dateStr, dayNum, focusSecs, goalSecs, dateStr == todayStr, isFuture, animSupplier, ringViews))
                         dayNum++
                     }
                 }
                 grid.addView(row)
             }
+            gridAnim.addUpdateListener {
+                for (i in 0 until ringViews.size) {
+                    ringViews[i].invalidate()
+                }
+            }
+            gridAnim.start()
             calendarCard.addView(grid)
 
             // Monthly Summary Footer Badges (Clean Glassmorphic Chips)
@@ -298,7 +320,16 @@ class CalendarTimeline(private val host: MainActivity) {
         }
     }
 
-    private fun buildCalendarDayCell(dateStr: String, day: Int, focusSecs: Long, goalSecs: Long, isToday: Boolean, isFuture: Boolean): View {
+    private fun buildCalendarDayCell(
+        dateStr: String,
+        day: Int,
+        focusSecs: Long,
+        goalSecs: Long,
+        isToday: Boolean,
+        isFuture: Boolean,
+        animSupplier: (() -> Float)? = null,
+        ringViews: MutableList<MainActivity.SegmentRing>? = null
+    ): View {
         return with(host) {
             val green = 0xFF43D36E.toInt()
             val red = 0xFFFF4D4D.toInt()
@@ -317,19 +348,30 @@ class CalendarTimeline(private val host: MainActivity) {
                 background = if (isToday) {
                     GradientDrawable().apply {
                         cornerRadius = dp(12).toFloat()
-                        setColor(0xFF1B1E2B.toInt())
+                        val todayBg = if (themeCoordinator.isDarkMode()) {
+                            tintedColor(themeCoordinator.primaryColor, 35)
+                        } else {
+                            tintedColor(themeCoordinator.primaryColor, 25)
+                        }
+                        setColor(todayBg)
                         setStroke(dp(2), themeCoordinator.primaryColor)
                     }
                 } else {
                     GradientDrawable().apply {
                         cornerRadius = dp(10).toFloat()
-                        setColor(0xFF14151C.toInt())
-                        setStroke(dp(1), 0xFF222430.toInt())
+                        val cellBg = if (themeCoordinator.isDarkMode()) {
+                            if (themeCoordinator.activeBgMode == "ECLIPSE") 0xFF1E293B.toInt() else 0xFF14151C.toInt()
+                        } else {
+                            0xFFF1F5F9.toInt()
+                        }
+                        val strokeCol = if (themeCoordinator.isDarkMode()) 0xFF222430.toInt() else 0xFFE2E8F0.toInt()
+                        setColor(cellBg)
+                        setStroke(dp(1), strokeCol)
                     }
                 }
                 setPadding(0, dp(4), 0, dp(4))
                 if (isFuture) {
-                    alpha = 0.35f
+                    alpha = if (themeCoordinator.isDarkMode()) 0.35f else 0.45f
                 } else {
                     setOnClickListener { showDayDialog(dateStr, lbl) }
                     setOnLongClickListener {
@@ -360,12 +402,16 @@ class CalendarTimeline(private val host: MainActivity) {
                     background = containedGlow(green, 20, 130)
                     layoutParams = FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER)
                 })
-                ringWrap.addView(SegmentRing(
+                val ring = SegmentRing(
                     listOf(1f to green),
                     tintedColor(green, 45),
                     stroke,
-                    null
-                ), FrameLayout.LayoutParams(ringSize, ringSize, Gravity.CENTER))
+                    null,
+                    animate = false,
+                    progressSupplier = animSupplier
+                )
+                ringViews?.add(ring)
+                ringWrap.addView(ring, FrameLayout.LayoutParams(ringSize, ringSize, Gravity.CENTER))
                 ringWrap.addView(TextView(this).apply {
                     text = "✓"
                     gravity = Gravity.CENTER
@@ -382,12 +428,16 @@ class CalendarTimeline(private val host: MainActivity) {
                     background = containedGlow(ringColor, 20, 110)
                     layoutParams = FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER)
                 })
-                ringWrap.addView(SegmentRing(
+                val ring = SegmentRing(
                     segments,
                     tintedColor(themeCoordinator.textColor, 50),
                     stroke,
-                    null
-                ), FrameLayout.LayoutParams(ringSize, ringSize, Gravity.CENTER))
+                    null,
+                    animate = false,
+                    progressSupplier = animSupplier
+                )
+                ringViews?.add(ring)
+                ringWrap.addView(ring, FrameLayout.LayoutParams(ringSize, ringSize, Gravity.CENTER))
                 cell.addView(ringWrap)
             } else {
                 // Minimal clean dot for inactive days (No hollow rings!)

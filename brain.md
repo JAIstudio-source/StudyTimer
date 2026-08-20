@@ -58,6 +58,7 @@ StudyTimer/
 │           ├── AmbientSoundEngine.kt     # Background soundscapes (Rain, White Noise, Cafe, etc.)
 │           ├── ThemeCoordinator.kt       # OLED black, Eclipse, Bubble 3D theme management
 │           ├── PrefsSafe.kt              # Type-safe SharedPreferences extension helpers
+│           ├── AppConfig.kt              # Feature flags & Google Play build configuration
 │           ├── UpdateChecker.kt          # In-app GitHub release update validator
 │           ├── BackupManager.kt          # Local JSON backup and import/export manager
 │           ├── CloudSyncManager.kt       # Remote Supabase cloud synchronization
@@ -176,6 +177,9 @@ enum class AppSettingsTab { HUB, TIMER, AMBIENCE, ANALYTICS, CLOUD, THEME, PROFI
   - Ghost horizontal swiping is completely disabled on Settings to avoid blank tab drift.
 
 ### E. Developer Tools & Deterministic Mock Data
+- **Developer Menu Secret Triggers**:
+  - **Footer Credit 5-Tap Gesture**: Tapping the footer credit text (`"Developed by Pushkar Saini"`) 5 times consecutively unlocks developer mode (`isDevModeUnlocked = true`), displays a `"Developer Mode Activated"` toast, and immediately navigates to `AppSettingsTab.DEVELOPER` (`Developer & Advanced`).
+  - **Settings Header Long-Press**: Long-pressing the top "Settings" header text also unlocks developer mode.
 - **Manual Session Logger**: Supports custom date picker, start time picker, and end time picker with live duration calculation and explicit untagged vs. custom subject options.
 - **Deterministic Batch Mocking**: 7-day and 30-day mock seed generator generates realistic study sessions distributed reliably across Math (35%), Physics (30%), Chemistry (20%), and Revision (15%) with natural daily variances and timeline entries.
 
@@ -240,10 +244,24 @@ enum class AppSettingsTab { HUB, TIMER, AMBIENCE, ANALYTICS, CLOUD, THEME, PROFI
 - **Setting Key (`show_subject_pie_chart`)**:
   - Configurable via "Subject Pie Chart" toggle in Settings under the "Charts & Visualization" section.
   - Exposed through `StatsSnapshot.showPieChart` (populated dynamically in `StatsEngine.kt`).
-### K. Top-Level Navigation Backstack Contract
+### K. Top-Level Navigation Backstack & Settings Gesture Contract
 - **Primary Root Anchor (`AppPanel.FOCUS` / Timer Screen)**:
   - Serves as the primary start destination and base anchor of the application.
   - The exit confirmation / double-tap exit flow (`finish()`) is strictly scoped to `AppPanel.FOCUS`.
+- **Settings Single-View Architecture**:
+  - Horizontal drag / swipe pager gestures are completely removed from Settings.
+  - Settings renders as a clean single vertical scroll view. Sub-screens (User Profile, Developer Tools, Preferences) are navigated strictly via explicit card/button clicks.
+
+### L. Full-Screen Landscape Timer & Sensor Rotation
+- **Orientation & Immersive Mode**:
+  - `MainActivity` dynamically reacts to sensor rotation via `onConfigurationChanged`.
+  - In **Landscape Mode**:
+    - Switches to an immersive edge-to-edge layout (`applyImmersiveModeForLandscape` / `hideSystemUI`).
+    - Top headers, navigation bars, quotes, and floating icons are hidden.
+    - Timer digits expand to 104sp bold monospace centered in pure OLED black.
+    - Minimalist compact bottom action row provides centered Start/Pause and Reset/Hold controls.
+  - In **Portrait Mode**:
+    - Restores standard system UI bars and full interactive components.
 - **Secondary Top-Level Tabs (`AppPanel.SETTINGS`, `AppPanel.STATS` / Insights)**:
   - Pressing the system Back button on secondary top-level destinations immediately routes the user back to the start destination (`AppPanel.FOCUS`).
   - Secondary top-level screens never intercept back presses to force an exit confirmation dialog.
@@ -322,6 +340,53 @@ enum class AppSettingsTab { HUB, TIMER, AMBIENCE, ANALYTICS, CLOUD, THEME, PROFI
 - **Footer**:
   - Grounded bottom note: `"© Pushkar Studio • 100% Offline & Secure"` in `#475569`.
 
+### P. Settings Hub Schema & Unified Card Architecture
+- **Unified Card Layout Architecture (`SettingsPanelBuilder.kt`)**:
+  - **Top Navigation Back Header**: Persistent `←` back arrow icon in the top header row next to the Settings title (navigates back to Timer from Hub, and to Hub from sub-screens).
+  - **Fixed Floating Back Button Overlay (Box / FrameLayout)**:
+    - Root `FrameLayout` wraps all Settings views and anchors a true floating overlay `settingsBackFab` at `Gravity.BOTTOM or Gravity.END` (margins: `end=20dp, bottom=20dp`).
+    - Pill button dimensions: Height `48dp`, corner radius `24dp`, `6dp` elevation, `24dp` horizontal padding, primary accent fill (`themeCoordinator.primaryColor`), and bold `14.5f` typography.
+    - Floating overlay is consistent across the main Hub and all sub-screens without any artificial footer container or background bar.
+  - **Main Settings Hub Only Developer Credits (Natural End-of-Scroll)**:
+    - Sub-settings screens contain **zero** developer credits for a focused, uncluttered experience.
+    - Main Settings Hub appends the credits cleanly as the final scrollable item (`top margin = 24dp`) with `"Developed by Pushkar Saini"` (5-tap secret trigger to unlock the Developer Menu) and `"Special thanks to Nikhil Tyagi"`.
+  - **Zero-Overlap Content Padding**: All settings scroll containers enforce `setPadding(dp(16), 0, dp(16), dp(96))` so that bottom items and cards scroll clear of the floating Back button.
+  - **Unified "PREFERENCES" Card**: Combines all core settings categories into a single elevated card container with subtle `#22232B` divider lines:
+    1. Timer & Focus Controls (`AppSettingsTab.TIMER`)
+    2. Sound & Ambience (`AppSettingsTab.AMBIENCE`)
+    3. Analytics & Goals (`AppSettingsTab.ANALYTICS`)
+    4. Cloud, Sync & Backups (`AppSettingsTab.CLOUD`)
+    5. Theme & Appearance (`AppSettingsTab.THEME`)
+    6. Developer & Advanced (`AppSettingsTab.DEVELOPER`, visible when unlocked)
+  - **Unified "ABOUT & LEGAL" Expandable Card (Default Collapsed)**: Condenses all secondary and policy items into a single collapsible card accordion (defaults to collapsed `isAboutExpanded = false`):
+    1. **How to Use / App Guide**: Launches in-app user guide modal (`MainActivity.showAppGuideDialog`).
+    2. **Report a Problem & Feedback**: Launches interactive feedback and bug triage modal (`MainActivity.showFeedbackReportDialog`).
+    3. **Version & Check for Updates**: Displays `Version v${currentVersionName()} (Build ${currentVersionCodeLong()})` with manual check chip gated by `AppConfig.ENABLE_GITHUB_UPDATE_CHECK`.
+    4. **Privacy Policy**: Opens external web policy (`https://get-studytimer.vercel.app/privacy.html`).
+    5. **Terms of Service**: Opens terms & licensing (`https://get-studytimer.vercel.app/terms.html`).
+    6. **Account Deletion Web Portal**: Direct link for Google Play Data Safety compliance (`https://get-studytimer.vercel.app/delete-account.html`).
+- **Configurable Update Check Flag (`AppConfig.kt`)**:
+  ```kotlin
+  object AppConfig {
+      // Set to false before releasing to Google Play Store
+      const val ENABLE_GITHUB_UPDATE_CHECK = true
+  }
+  ```
+  - When `ENABLE_GITHUB_UPDATE_CHECK = false`:
+    - In-app manual update checks display an immediate "up to date" toast without network calls to GitHub.
+    - Background startup update checks (`checkForUpdates(manual = false)`) are completely bypassed.
+    - Ensures 100% compliance with Google Play Store Developer Program policies regarding third-party APK update distribution.
+
+### Q. Google Play Data Safety & Compliance ([PLAY_STORE_DATA_SAFETY.md](file:///d:/Download/My%20app/website/New%20folder/StudyTimer/PLAY_STORE_DATA_SAFETY.md))
+- **App Compliance Source of Truth**:
+  - Maintained in root [`PLAY_STORE_DATA_SAFETY.md`](file:///d:/Download/My%20app/website/New%20folder/StudyTimer/PLAY_STORE_DATA_SAFETY.md).
+  - Target audience: 13+ (Students / General Audience, COPPA compliant).
+  - 100% Free: No ads, no in-app purchases, no subscriptions, no user-facing GenAI.
+  - Data collection: Optional (Guest mode default; Supabase Auth & Cloud Sync on login only).
+  - Encryption: TLS 1.3 / HTTPS for all in-transit data.
+  - Account & Data deletion: In-app deletion + Web Portal (`https://get-studytimer.vercel.app/delete-account.html`).
+  - Legal contact: `studytimer737@gmail.com`.
+
 ---
 
 ## 5. UI/Theme Conventions
@@ -348,18 +413,53 @@ enum class AppSettingsTab { HUB, TIMER, AMBIENCE, ANALYTICS, CLOUD, THEME, PROFI
 
 ---
 
-## 5. Performance, Rendering & Animation Physics Standards
+## 5. Performance, Rendering & Architecture Standards
 
-### A. Animation Fluidity & Spring Physics (60/120 FPS Target)
+### A. Discrete Tab State Architecture & In-Memory Tab Caching
+- **Discrete Tab State Switching (`AppStatsTab`)**:
+  - Replaces heavy multi-page gesture swipe pagers with discrete, instantaneous Enum state-driven rendering (`AppStatsTab.OVERVIEW`, `AppStatsTab.TIMELINE`, `AppStatsTab.PLANNER`).
+  - Child tab builders (`renderOverviewTabContent`, `CalendarTimeline(this).build`, `renderPlannerTabContent`) are **100% pure stateless views** receiving a pre-computed `StatsSnapshot` data model without internal coroutines, background collection loops, or database lookups.
+- **In-Memory Tab View Retention (`tabPageCache`)**:
+  - `MainActivity.tabPageCache` maintains fully constructed View hierarchies for all Insights tabs (`AppStatsTab.OVERVIEW`, `AppStatsTab.TIMELINE` / Calendar, `AppStatsTab.PLANNER`) in memory.
+  - `prewarmTabPages()` pre-builds adjacent tabs upon entering Insights, eliminating view destruction/re-instantiation on tab switch.
+  - Switching between Overview, History/Calendar, and Planner renders cached layouts instantly with 0ms latency and **zero redraw flicker**.
+- **Memoized Snapshot Engine (`statsSnapshotCache` & `statsSnapshotGen`)**:
+  - Heavy calculations (date matrix generation, monthly heatmap grid mapping, weekly trend aggregations, subject distribution ratios) are computed once and stored in `statsSnapshotCache`.
+  - Data calculations do NOT re-run on tab switches. Invalidation only occurs when:
+    1. A new timer session completes.
+    2. The user returns to the main timer screen.
+    3. The app resumes from background with new logged data.
+- **Unified Screen-Scoped Grid Animation Architecture**:
+  - `hasPlayedStatsEntranceAnimation: Boolean` tracks whether the entrance animation has played for the current Insights screen session.
+  - When opening the Insights / History screen on a fresh session, a **single unified `ValueAnimator`** (650ms, `DecelerateInterpolator`) drives the 0.0f $\rightarrow$ 1.0f progress multiplier across all 35/42 calendar day cells.
+  - Each `SegmentRing` in `CalendarTimeline` reads `progressSupplier = { gridAnim.animatedValue as? Float ?: 1f }` and updates directly without spawning individual per-cell timer threads or coroutines.
+  - On tab switching within the same screen visit (Overview $\leftrightarrow$ History $\leftrightarrow$ Planner), `hasPlayedStatsEntranceAnimation` is `true`, snapping progress immediately to `1.0f` with zero animation delay or GC overhead.
+  - When navigating back to the Focus/Timer or Settings screens, or when the app is minimized (`onStop`), `hasPlayedStatsEntranceAnimation` resets to `false`, ensuring returning to Insights smoothly replays the entrance animation.
+  - **Leak-Free Tab View Caching (`tabViews: EnumMap<AppStatsTab, ScrollView>`)**: Tab views are created once per screen session and instantly remounted with `tabHost.removeAllViews()` on tab clicks, avoiding animator frame stacking, memory leaks, and GC spikes.
+
+### B. Isolated Rendering, Zero-Allocation Canvas Drawing & Hardware Acceleration
+- **Zero-Allocation `onDraw()` Architecture**:
+  - All temporary heap allocations (`RectF`, `Path`, `LinearGradient`, `Paint`, dynamic `Color.argb` computations, array allocations) have been moved out of `onDraw()` into reusable class fields and `onSizeChanged()` hooks across all custom views (`TimerRingView`, `HeatmapView`, `SubjectPieChartView`, `HoldRingButton`, `BarTrackView`, `SegmentRing`).
+  - Completely eliminates runtime GC pressure and memory churn during rapid tab swiping and countdown ticking.
+- **Isolated 1-Second Ticking**: Active timer countdown ticking updates strictly inside `TimerRingView` and `HoldRingButton` via hardware-accelerated Canvas `invalidate()` without triggering layout measure/re-pass on the parent screen.
+- **Hardware Layer Caching**: Custom Canvas views (`HeatmapView`, `SubjectPieChartView`, `WeeklyCardView`, `TimerRingView`, `HoldRingButton`) explicitly utilize `setLayerType(View.LAYER_TYPE_HARDWARE, null)` to eliminate frame drops during animations and scroll interactions.
+
+### C. Typography & Font Weight Standardization
+- **Strict Typography Scale**:
+  - **Screen Titles & Major Headers**: `titleLarge` / `headlineSmall` (FontWeight 700 / Bold, 20–24sp).
+  - **Card Headers & Category Labels**: `titleMedium` (FontWeight 600 / SemiBold, 16–18sp).
+  - **Subheaders & Interactive Buttons / Chips**: `labelLarge` (FontWeight 500 / Medium, 13–14.5sp).
+  - **Body Text & Secondary Metadata**: `bodyMedium` / `bodySmall` (FontWeight 400 / Normal, 11–13sp).
+- **Typeface Mappings**: Standardized through `ThemeCoordinator` using `sans-serif-medium` for bold/semi-bold elements and `sans-serif` for clean normal body text.
+
+### D. Offline-First Optimistic State Updates & Scaled Data Aggregations
+- **Instant Local Mutation**: Habit toggles, goal completions, and timer session records mutate local storage immediately on user tap.
+- **Optimized Aggregations & Zero UI Blocking**: Daily focus and break metrics are pre-aggregated and stored via direct daily keys (`${dateStr}_focus_total`, `${dateStr}_break_total`), avoiding expensive table scans across thousands of raw historical entries. Asynchronous calculations and Supabase cloud synchronization run strictly on background worker threads without stalling the main thread.
+
+### E. Animation Fluidity & Spring Physics (60/120 FPS Target)
 - **Spring Physics Tuning**: Screen transitions, tab settle, and floating pill indicator morphing use low-stiffness spring overshoot physics (`dampingRatio = 0.8f`, `OvershootInterpolator(1.18f)` / `PathInterpolator(0.18f, 0.9f, 0.2f, 1.0f)`).
 - **Touch Micro-Interactions**: Primary buttons, hold rings, and card surfaces use responsive press-scale physics (`0.96f` on press $\rightarrow$ `1.0f` on release with spring overshoot).
-
-### B. Startup Optimization & Zero Main-Thread Blocking
-- **Deferred Service Initializations**: `MainActivity.onCreate()` initializes only root UI elements and `ThemeCoordinator`. Non-critical services (`AppAnalytics`, `CrashReporter`, `BackupManager` restore checks, `NotificationChannels`, `GoalReminderScheduler`, database migrations) execute asynchronously on a background worker thread.
-- **Immutable UI State & Cache Engine**: Analytics snapshots (`StatsSnapshot`) are pre-computed and held in memory (`statsSnapshotCache`). Invalidation occurs reactively via `statsDirty`, ensuring 0ms latency when switching between panels and tabs.
-
-### C. Hardware Layer Caching
-- Heavy custom Canvas views (`HeatmapView`, `SubjectPieChartView`, `WeeklyCardView`, `TimerRingView`) explicitly utilize `setLayerType(View.LAYER_TYPE_HARDWARE, null)` to optimize rendering pipelines and eliminate frame drops during scrolling and animations.
+- **Zero Main-Thread Blocking**: `MainActivity.onCreate()` initializes only root UI elements and `ThemeCoordinator`. Non-critical services (`AppAnalytics`, `CrashReporter`, `BackupManager` restore checks, `NotificationChannels`, `GoalReminderScheduler`) execute asynchronously on background worker threads.
 
 ---
 
@@ -397,4 +497,16 @@ enum class AppSettingsTab { HUB, TIMER, AMBIENCE, ANALYTICS, CLOUD, THEME, PROFI
 - [x] Zero-blocking startup latency reduction with asynchronous background worker threads.
 - [x] Hardware layer rendering optimization (`LAYER_TYPE_HARDWARE` on `HeatmapView`, `SubjectPieChartView`, `WeeklyCardView`, `TimerRingView`).
 - [x] Memory cache engine for instantaneous 0ms analytics tab transitions.
+- [x] Restored "About & Support" card group with App Guide, Feedback Report, and Version / Update Checker.
+- [x] Integrated configurable feature flag `AppConfig.ENABLE_GITHUB_UPDATE_CHECK` for instant Google Play Store release compliance.
+- [x] Restored Developer Menu secret 5-tap trigger on footer credit text ("Developed by Pushkar Saini").
+- [x] Removed 7-Day Goal Consistency card from Planner tab layout (flows directly from Daily Goals to Planner Insights).
+- [x] Refactored Settings with unified Preferences card, default-collapsed About & Legal accordion, and static bottom Back pill button.
+- [x] Updated "Report a Problem" dialog: Replaced GitHub Issues button with clean bottom-right Dismiss/Close action.
+- [x] Added Sign-Out Confirmation Dialog with clear data safety notice ("Your local study records will remain on this device, but cloud sync will pause until you sign in again.").
+- [x] Removed redundant Privacy & Data card from User Profile; consolidated all legal and compliance links into the Settings About & Legal hub.
+- [x] Implemented zero-latency `LocalAvatarManager` with local storage (`profile_avatar.jpg`), smart bounds downsampling, square center-cropping, circular masked rendering, and instant zero-network profile updates.
+- [x] Polished User Profile UI: Centered 88dp circular avatar with camera edit badge (`📷`), user credentials, account status chip (`✓ Google Account` / `👤 Guest Session`), sync status, red-tinted sign-out, and permanent deletion action.
+
+
 

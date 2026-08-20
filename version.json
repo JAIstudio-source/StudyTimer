@@ -1,7 +1,7 @@
 {
-  "versionCode": 19,
-  "versionName": "2.6.0",
+  "versionCode": 20,
+  "versionName": "2.7.0",
   "url": "https://get-studytimer.vercel.app/?download=true",
   "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-  "releaseNotes": "What's New in Version 2.6.0 🚀\n- Stopwatch Isolation: Stopwatch sessions are now cleanly separated from subject distributions, ensuring untagged focus hours don't skew subject charts while fully preserving lifetime focus stats.\n- Pie Chart Visibility Setting: The Subject Pie Chart toggle under Settings -> Charts & Visualization now reactively hides or reveals the pie chart across Insights immediately.\n- In-App Feedback & Diagnostics: Direct in-app reporting dialog with automated diagnostic summaries and 5-minute spam protection.\n- Enhanced Visuals & Performance: Fixed AMOLED container shifts and polished UI transitions."
+  "releaseNotes": "What's New in Version 2.7.0 🚀\n- New Pie Chart Insight: Interactive subject breakdown and focus depth distribution with dynamic theming.\n- Local Profile Avatars: Instant local photo storage and avatar selection with zero network delays.\n- Modern Adaptive UI: Re-engineered full-screen landscape clock, fluid Insights navigation pill, and dynamic Light & OLED theme tokens across Calendar and Planner.\n- Default Subject-Wise Tagging: Fresh installs now launch directly into subject-wise focus tracking.\n- Bug Fixes & Stability Improvements: Fixed status bar insets on Android 11+, resolved Settings scroll-vs-tap gesture conflicts, and polished UI transitions."
 }

@@ -441,6 +441,8 @@ a:hover {
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: opacity 220ms ease, transform 220ms var(--ease-spring);
+  will-change: transform, opacity;
 }
 
 /* 3-Phone Interactive Isometric Hero Stage */

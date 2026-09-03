@@ -320,33 +320,43 @@ function initTouchSwiping() {
 
   let startX = 0;
   let startY = 0;
-  let endX = 0;
-  let endY = 0;
+  let isHorizontalSwipe = false;
 
   showcaseCard.addEventListener('touchstart', (e) => {
     if (!e.touches || e.touches.length === 0) return;
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
-    endX = startX;
-    endY = startY;
+    isHorizontalSwipe = false;
   }, { passive: true });
 
   showcaseCard.addEventListener('touchmove', (e) => {
     if (!e.touches || e.touches.length === 0) return;
-    endX = e.touches[0].clientX;
-    endY = e.touches[0].clientY;
-  }, { passive: true });
+    const currentX = e.touches[0].clientX;
+    const currentY = e.touches[0].clientY;
+    const diffX = currentX - startX;
+    const diffY = currentY - startY;
 
-  showcaseCard.addEventListener('touchend', () => {
+    // Detect horizontal intention early and lock out vertical window scrolling
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 8) {
+      isHorizontalSwipe = true;
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+    }
+  }, { passive: false });
+
+  showcaseCard.addEventListener('touchend', (e) => {
+    if (!e.changedTouches || e.changedTouches.length === 0) return;
+    const endX = e.changedTouches[0].clientX;
     const diffX = endX - startX;
-    const diffY = endY - startY;
 
-    // Trigger tab switch without unmounting DOM or jumping viewport
-    if (Math.abs(diffX) > 35 && Math.abs(diffX) > Math.abs(diffY)) {
-      if (diffX < 0 && currentShowcaseIndex < showcaseSlides.length - 1) {
-        switchShowcaseSlide(currentShowcaseIndex + 1);
-      } else if (diffX > 0 && currentShowcaseIndex > 0) {
-        switchShowcaseSlide(currentShowcaseIndex - 1);
+    if (isHorizontalSwipe && Math.abs(diffX) > 30) {
+      if (diffX < 0) {
+        // Swiped Left -> Next Slide
+        switchShowcaseSlide((currentShowcaseIndex + 1) % showcaseSlides.length);
+      } else {
+        // Swiped Right -> Previous Slide
+        switchShowcaseSlide((currentShowcaseIndex - 1 + showcaseSlides.length) % showcaseSlides.length);
       }
     }
   }, { passive: true });

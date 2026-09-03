@@ -790,14 +790,14 @@ a:hover {
    Hero Section
    ========================================================================== */
 .hero-wrapper {
-  padding: 2.5rem 0 1.5rem;
+  padding: 3.5rem 0 1.5rem;
   text-align: center;
   width: 100%;
 }
 
 @media (min-width: 768px) {
   .hero-wrapper {
-    padding: 4.5rem 0 2.5rem;
+    padding: 5.5rem 0 2.5rem;
   }
 }
 
@@ -807,13 +807,18 @@ a:hover {
 }
 
 .hero-heading {
-  margin-bottom: 1rem;
+  font-size: clamp(2.35rem, 7.5vw, 4.25rem);
+  font-weight: 800;
+  line-height: 1.14;
+  letter-spacing: -0.04em;
+  margin-bottom: 1.35rem;
 }
 
 .hero-subtext {
-  font-size: 1.05rem;
-  max-width: 640px;
-  margin: 0 auto 1.5rem;
+  font-size: clamp(1.02rem, 2.5vw, 1.18rem);
+  max-width: 680px;
+  margin: 0 auto 2rem;
+  line-height: 1.68;
   color: var(--text-muted);
 }
 

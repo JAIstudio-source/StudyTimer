@@ -32,6 +32,9 @@
   <meta property="twitter:description" content="Track your study progress and every focus session with StudyTimer for Android. Configurable Pomodoro intervals, custom subject tagging, and deep analytics.">
   <meta property="twitter:image" content="https://get-studytimer.vercel.app/assets/Featured.webp">
 
+  <!-- Preload Critical Hero Screenshot -->
+  <link rel="preload" as="image" href="assets/screenshots/Pomodoro_timer_Screen.jpg" fetchpriority="high">
+
   <!-- Google Fonts & Stylesheet -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -202,7 +205,7 @@
           <div class="android-flanker left" id="heroPhoneLeft" role="button" aria-label="Switch to Focus Analytics Screen" tabindex="0">
             <div class="android-punch-hole"></div>
             <div class="android-speaker-slit"></div>
-            <img src="assets/screenshots/Insight_screen_1.jpg" alt="StudyTimer Focus Analytics on Android" class="android-screen-content" loading="lazy" id="heroImgLeft">
+            <img src="assets/screenshots/Insight_screen_1.jpg" alt="StudyTimer Focus Analytics on Android" class="android-screen-content" loading="lazy" decoding="async" id="heroImgLeft">
           </div>
 
           <!-- Center Active Android Phone -->
@@ -210,7 +213,7 @@
             <div class="android-device-frame">
               <div class="android-punch-hole"></div>
               <div class="android-speaker-slit"></div>
-              <img src="assets/screenshots/Pomodoro_timer_Screen.jpg" alt="StudyTimer Active Pomodoro Focus Timer Interface on Android" class="android-screen-content" loading="eager" id="heroImgCenter">
+              <img src="assets/screenshots/Pomodoro_timer_Screen.jpg" alt="StudyTimer Active Pomodoro Focus Timer Interface on Android" class="android-screen-content" loading="eager" fetchpriority="high" decoding="async" id="heroImgCenter">
             </div>
           </div>
 
@@ -218,7 +221,7 @@
           <div class="android-flanker right" id="heroPhoneRight" role="button" aria-label="Switch to Streak Calendar Screen" tabindex="0">
             <div class="android-punch-hole"></div>
             <div class="android-speaker-slit"></div>
-            <img src="assets/screenshots/Goal_calendar_screen.jpg" alt="StudyTimer Monthly Study Streak Calendar on Android" class="android-screen-content" loading="lazy" id="heroImgRight">
+            <img src="assets/screenshots/Goal_calendar_screen.jpg" alt="StudyTimer Monthly Study Streak Calendar on Android" class="android-screen-content" loading="lazy" decoding="async" id="heroImgRight">
           </div>
         </div>
 
@@ -307,7 +310,7 @@
               <div class="android-device-frame">
                 <div class="android-punch-hole"></div>
                 <div class="android-speaker-slit"></div>
-                <img src="assets/screenshots/Pomodoro-settings__screen.jpg" alt="StudyTimer Pomodoro Custom Settings on Android" class="android-screen-content" id="showcaseImg" loading="lazy">
+                <img src="assets/screenshots/Pomodoro-settings__screen.jpg" alt="StudyTimer Pomodoro Custom Settings on Android" class="android-screen-content" id="showcaseImg" loading="lazy" decoding="async">
               </div>
             </div>
           </div>

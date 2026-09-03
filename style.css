@@ -365,6 +365,8 @@ a:hover {
   z-index: 2;
   transition: transform 400ms var(--ease-spring);
   margin: 0 auto;
+  transform: translateZ(0);
+  contain: layout paint;
 }
 
 @media (min-width: 768px) {

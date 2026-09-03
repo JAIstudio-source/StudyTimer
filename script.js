@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+  initServiceWorker();
   preloadScreenshotAssets();
   initHeroPhoneSwitching();
   initAndroidShowcaseTabs();
@@ -9,6 +10,20 @@ document.addEventListener('DOMContentLoaded', () => {
   initMobileDrawer();
   initTouchSwiping();
 });
+
+/* --------------------------------------------------------------------------
+   Service Worker Registration & Instant Live Cache Update
+   -------------------------------------------------------------------------- */
+function initServiceWorker() {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').then((reg) => {
+        // Force check for fresh code on every page load
+        reg.update();
+      }).catch(() => {});
+    });
+  }
+}
 
 /* --------------------------------------------------------------------------
    Async Image Pre-Decoder for 120fps Smooth Scrolling & Instant Transitions

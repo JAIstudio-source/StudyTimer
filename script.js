@@ -207,26 +207,17 @@ function initAndroidShowcaseTabs() {
   });
 }
 
-function switchTab(index, fromSwipe = false) {
+function switchTab(index) {
   const tabButtons = document.querySelectorAll('.stage-tab-btn');
   const panels = document.querySelectorAll('.showcase-content-panel');
   const dots = document.querySelectorAll('.showcase-dot');
-  const tabsContainer = document.querySelector('.showcase-nav-tabs');
 
   if (index < 0 || index >= tabButtons.length) return;
-
-  // Lock exact window vertical scroll position to prevent browser auto-scroll
-  const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
 
   tabButtons.forEach((btn, i) => {
     const isActive = i === index;
     btn.classList.toggle('active', isActive);
     btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-    if (isActive && tabsContainer) {
-      const btnOffsetLeft = btn.offsetLeft;
-      const targetScrollLeft = btnOffsetLeft - (tabsContainer.clientWidth / 2) + (btn.clientWidth / 2);
-      tabsContainer.scrollLeft = targetScrollLeft;
-    }
   });
 
   dots.forEach((dot, i) => {
@@ -236,11 +227,6 @@ function switchTab(index, fromSwipe = false) {
   panels.forEach((panel, i) => {
     panel.classList.toggle('active', i === index);
   });
-
-  // Ensure window scroll remains completely stable
-  if (fromSwipe) {
-    window.scrollTo({ top: currentScrollY, behavior: 'instant' });
-  }
 }
 
 /* --------------------------------------------------------------------------
@@ -273,8 +259,8 @@ function initTouchSwiping() {
     const diffX = endX - startX;
     const diffY = endY - startY;
 
-    // Only trigger if horizontal swipe is clearly dominant over vertical scrolling
-    if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY) * 1.2) {
+    // Trigger tab switch with zero scroll side-effects
+    if (Math.abs(diffX) > 35 && Math.abs(diffX) > Math.abs(diffY)) {
       const tabButtons = document.querySelectorAll('.stage-tab-btn');
       let currentIndex = 0;
       tabButtons.forEach((btn, i) => {
@@ -282,9 +268,9 @@ function initTouchSwiping() {
       });
 
       if (diffX < 0 && currentIndex < tabButtons.length - 1) {
-        switchTab(currentIndex + 1, true);
+        switchTab(currentIndex + 1);
       } else if (diffX > 0 && currentIndex > 0) {
-        switchTab(currentIndex - 1, true);
+        switchTab(currentIndex - 1);
       }
     }
   }, { passive: true });

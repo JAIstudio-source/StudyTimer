@@ -2,7 +2,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initHeroPhoneSwitching();
   initAndroidShowcaseTabs();
   initStudyFaqAccordion();
-  initCookieConsentBanner();
   initModalTriggers();
   initStickyAndroidCta();
   initClipboardHelpers();
@@ -307,39 +306,7 @@ function initStudyFaqAccordion() {
 }
 
 /* --------------------------------------------------------------------------
-   4. Cookie Consent Banner
-   -------------------------------------------------------------------------- */
-function initCookieConsentBanner() {
-  const cookieBanner = document.getElementById('cookieBanner');
-  if (!cookieBanner) return;
-
-  const storedConsent = localStorage.getItem('studytimer_cookie_consent');
-  if (!storedConsent) {
-    setTimeout(() => {
-      cookieBanner.style.display = 'block';
-    }, 1000);
-  }
-
-  const acceptBtn = document.getElementById('cookieAcceptBtn');
-  const declineBtn = document.getElementById('cookieDeclineBtn');
-
-  if (acceptBtn) {
-    acceptBtn.addEventListener('click', () => {
-      localStorage.setItem('studytimer_cookie_consent', 'accepted');
-      cookieBanner.style.display = 'none';
-    });
-  }
-
-  if (declineBtn) {
-    declineBtn.addEventListener('click', () => {
-      localStorage.setItem('studytimer_cookie_consent', 'declined');
-      cookieBanner.style.display = 'none';
-    });
-  }
-}
-
-/* --------------------------------------------------------------------------
-   5. Modals (QR Code & Social Share)
+   4. Modals (QR Code & Social Share)
    -------------------------------------------------------------------------- */
 function initModalTriggers() {
   const qrModal = document.getElementById('qrModal');

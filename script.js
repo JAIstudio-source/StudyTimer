@@ -35,6 +35,7 @@ function preloadScreenshotAssets() {
     'assets/screenshots/Stopwatch_paused_screen.jpg',
     'assets/screenshots/Custom_subject_screen.jpg',
     'assets/screenshots/Insight_screen_1.jpg',
+    'assets/screenshots/Insight_screen_2.jpg',
     'assets/screenshots/Insight_screen_3.jpg',
     'assets/screenshots/Habit-Goal_screen.jpg',
     'assets/screenshots/Habit-Goal_histroy_screen.jpg',
@@ -50,7 +51,7 @@ function preloadScreenshotAssets() {
 }
 
 /* --------------------------------------------------------------------------
-   0. Interactive 9-Screen Continuous Wheel & Dynamic Detail Card
+   0. Interactive 10-Screen Continuous Wheel & Dynamic Detail Card
    -------------------------------------------------------------------------- */
 function initHeroPhoneSwitching() {
   const leftPhone = document.getElementById('heroPhoneLeft');
@@ -72,65 +73,72 @@ function initHeroPhoneSwitching() {
     {
       src: 'assets/screenshots/Pomodoro_timer_Screen.jpg',
       alt: 'StudyTimer Active Pomodoro Focus Timer Interface on Android',
-      badge: '1 of 9 • Focus Engine',
+      badge: '1 of 10 • Focus Engine',
       title: 'Active Pomodoro Focus Engine',
       desc: 'Real-time countdown dial with ambient soundscapes, customizable work cycles, and distraction-free visual stamina feedback.'
     },
     {
       src: 'assets/screenshots/Pomodoro-settings__screen.jpg',
       alt: 'StudyTimer Pomodoro Custom Settings on Android',
-      badge: '2 of 9 • Interval Settings',
+      badge: '2 of 10 • Interval Settings',
       title: 'Configurable Focus & Break Intervals',
       desc: 'Set custom work blocks (25m/50m), short break durations, long recovery cycles, and auto-start session preferences.'
     },
     {
       src: 'assets/screenshots/Stopwatch_paused_screen.jpg',
       alt: 'StudyTimer Precision Stopwatch Mode on Android',
-      badge: '3 of 9 • Stopwatch Mode',
+      badge: '3 of 10 • Stopwatch Mode',
       title: 'Untimed Focus & Lap Logging',
       desc: 'Open-ended time tracking for unbounded problem-solving sets, untimed exam drills, and continuous study marathons.'
     },
     {
       src: 'assets/screenshots/Custom_subject_screen.jpg',
       alt: 'StudyTimer Custom Subject Screen on Android',
-      badge: '4 of 9 • Custom Subjects',
+      badge: '4 of 10 • Custom Subjects',
       title: 'Custom Course Subjects & Targets',
       desc: 'Create unlimited course tags with hex color palettes, set daily target hours, and track real-time completion progress.'
     },
     {
       src: 'assets/screenshots/Insight_screen_1.jpg',
-      alt: 'StudyTimer Focus Analytics on Android',
-      badge: '5 of 9 • Analytics Depth',
-      title: 'Comprehensive Study Insights',
-      desc: 'Detailed overview of total focus hours, subject distribution ratios, and weekly stamina growth trends.'
+      alt: 'StudyTimer Focus Insights, Target Graphs and Streak Details on Android',
+      badge: '5 of 10 • Insights & Goals',
+      title: 'Study Insights, Goals & Streaks',
+      desc: 'Visual progress graphs showcasing target completion, remaining study time counters, and consecutive day streak milestones.'
+    },
+    {
+      src: 'assets/screenshots/Insight_screen_2.jpg',
+      alt: 'StudyTimer Hour-by-Hour Time Analytics on Android',
+      badge: '6 of 10 • Time Analytics',
+      title: 'Hour-by-Hour Time Analytics',
+      desc: 'Granular breakdown of focused study time and subject distribution ratios across day and night periods.'
     },
     {
       src: 'assets/screenshots/Insight_screen_3.jpg',
-      alt: 'StudyTimer Time Heatmaps on Android',
-      badge: '6 of 9 • Time Heatmaps',
-      title: 'Hour-by-Hour Focus Heatmaps',
-      desc: 'Granular breakdown of focused study time versus recovery intervals across day and night periods.'
+      alt: 'StudyTimer Deep Focus Activity Heatmaps on Android',
+      badge: '7 of 10 • Focus Heatmaps',
+      title: 'Deep Focus Activity Heatmaps',
+      desc: 'Visualize cognitive prime times and compare weekly study stamina gains with high-density activity charts.'
     },
     {
       src: 'assets/screenshots/Habit-Goal_screen.jpg',
       alt: 'StudyTimer Daily Habits Checklist on Android',
-      badge: '7 of 9 • Habit Checklist',
+      badge: '8 of 10 • Habit Checklist',
       title: 'Daily Accountability & Task Goals',
       desc: 'Check off daily study routines, flashcard revisions, textbook chapters, and maintain consecutive day streaks.'
     },
     {
-      src: 'assets/screenshots/Goal_calendar_screen.jpg',
-      alt: 'StudyTimer Monthly Streak Calendar on Android',
-      badge: '8 of 9 • Streak Calendar',
-      title: 'Monthly Streak Calendar',
-      desc: 'Visual calendar with daily flame indicators showing consecutive day consistency and monthly study totals.'
+      src: 'assets/screenshots/Habit-Goal_histroy_screen.jpg',
+      alt: 'StudyTimer Habit History and Goal Progress on Android',
+      badge: '9 of 10 • Goal History',
+      title: 'Archived Study History & Audit Logs',
+      desc: 'Look back at past focus sessions, habit completions, and subject time distribution over weeks and months.'
     },
     {
-      src: 'assets/screenshots/Cloud_sync_setting_screen.jpg',
-      alt: 'StudyTimer Google Cloud Sync on Android',
-      badge: '9 of 9 • Cloud & Safety',
-      title: 'Cloud Backup & Data Privacy',
-      desc: 'Encrypted Supabase PostgreSQL database sync, automatic Google account backup, and instant data export.'
+      src: 'assets/screenshots/Goal_calendar_screen.jpg',
+      alt: 'StudyTimer Monthly Streak Calendar on Android',
+      badge: '10 of 10 • Streak Calendar',
+      title: 'Monthly Streak Calendar',
+      desc: 'Visual calendar with daily flame indicators showing consecutive day consistency and monthly study totals.'
     }
   ];
 
@@ -138,55 +146,60 @@ function initHeroPhoneSwitching() {
   const total = screens.length;
 
   function updateWheel(newIndex) {
-    centerIndex = (newIndex + total) % total;
-    const leftIdx = (centerIndex - 1 + total) % total;
-    const rightIdx = (centerIndex + 1) % total;
+    centerIndex = (newIndex % total + total) % total;
+    const leftIndex = (centerIndex - 1 + total) % total;
+    const rightIndex = (centerIndex + 1) % total;
 
     // Smooth transition
     [imgLeft, imgCenter, imgRight].forEach(img => {
-      img.style.opacity = '0.35';
-      img.style.transition = 'opacity 180ms ease';
+      if (img) img.style.opacity = '0.35';
     });
 
-    if (wheelTitle && wheelDesc) {
-      wheelTitle.style.opacity = '0.2';
-      wheelDesc.style.opacity = '0.2';
-    }
-
     setTimeout(() => {
-      imgLeft.src = screens[leftIdx].src;
-      imgLeft.alt = screens[leftIdx].alt;
+      if (imgLeft) {
+        imgLeft.src = screens[leftIndex].src;
+        imgLeft.alt = screens[leftIndex].alt;
+      }
+      if (imgCenter) {
+        imgCenter.src = screens[centerIndex].src;
+        imgCenter.alt = screens[centerIndex].alt;
+      }
+      if (imgRight) {
+        imgRight.src = screens[rightIndex].src;
+        imgRight.alt = screens[rightIndex].alt;
+      }
 
-      imgCenter.src = screens[centerIndex].src;
-      imgCenter.alt = screens[centerIndex].alt;
+      [imgLeft, imgCenter, imgRight].forEach(img => {
+        if (img) img.style.opacity = '1';
+      });
 
-      imgRight.src = screens[rightIdx].src;
-      imgRight.alt = screens[rightIdx].alt;
+      // Update Detail Card
+      const current = screens[centerIndex];
+      if (wheelBadge) wheelBadge.textContent = current.badge;
+      if (wheelTitle) wheelTitle.textContent = current.title;
+      if (wheelDesc) wheelDesc.textContent = current.desc;
 
-      if (wheelBadge) wheelBadge.textContent = screens[centerIndex].badge;
-      if (wheelTitle) wheelTitle.textContent = screens[centerIndex].title;
-      if (wheelDesc) wheelDesc.textContent = screens[centerIndex].desc;
-
+      // Update Dots
       dots.forEach((dot, i) => {
         dot.classList.toggle('active', i === centerIndex);
       });
-
-      [imgLeft, imgCenter, imgRight].forEach(img => {
-        img.style.opacity = '1';
-      });
-
-      if (wheelTitle && wheelDesc) {
-        wheelTitle.style.opacity = '1';
-        wheelDesc.style.opacity = '1';
-      }
-    }, 150);
+    }, 120);
   }
 
-  leftPhone.addEventListener('click', () => updateWheel(centerIndex - 1));
-  rightPhone.addEventListener('click', () => updateWheel(centerIndex + 1));
+  // Click Left/Right Flanker Phones to Rotate
+  leftPhone.addEventListener('click', () => {
+    updateWheel(centerIndex - 1);
+  });
+
+  rightPhone.addEventListener('click', () => {
+    updateWheel(centerIndex + 1);
+  });
+
+  // Buttons
   if (prevBtn) prevBtn.addEventListener('click', () => updateWheel(centerIndex - 1));
   if (nextBtn) nextBtn.addEventListener('click', () => updateWheel(centerIndex + 1));
 
+  // Dots
   dots.forEach(dot => {
     dot.addEventListener('click', () => {
       const idx = parseInt(dot.getAttribute('data-index'), 10);
@@ -194,7 +207,7 @@ function initHeroPhoneSwitching() {
     });
   });
 
-  // Touch gesture swipe on hero phones
+  // Swipe on Hero 3-Phone Stage
   const heroStage = document.getElementById('heroPhoneStage');
   if (heroStage) {
     let touchStartX = 0;
@@ -258,13 +271,22 @@ const showcaseSlides = [
     ctaText: 'Manage Subjects'
   },
   {
-    img: 'assets/screenshots/Insight_screen_3.jpg',
-    alt: 'StudyTimer Deep Focus Analytics on Android',
-    title: 'Hour-by-Hour Study Heatmaps',
+    img: 'assets/screenshots/Insight_screen_1.jpg',
+    alt: 'StudyTimer Focus Insights, Target Graphs and Streak Details on Android',
+    title: 'Study Insights, Goals & Streaks',
+    desc: 'Visual progress graphs showcasing target completion, remaining study time counters, and consecutive day streak milestones in one place.',
+    b1: 'Interactive target graph with remaining time calculation',
+    b2: 'Current & longest focus streak milestone tracking',
+    ctaText: 'View Insights & Goals'
+  },
+  {
+    img: 'assets/screenshots/Insight_screen_2.jpg',
+    alt: 'StudyTimer Time Analytics and Subject Distribution on Android',
+    title: 'Hour-by-Hour Time Analytics',
     desc: 'Granular breakdown of your daily study distribution. Identify your cognitive prime times and compare weekly study stamina gains with visual graphs.',
     b1: 'Detailed breakdown of focused time vs. break periods',
-    b2: 'Custom time range filters (7 Days, 30 Days, All Time)',
-    ctaText: 'View Analytics'
+    b2: 'Subject-wise distribution & time range filters (7D, 30D, All)',
+    ctaText: 'View Time Analytics'
   },
   {
     img: 'assets/screenshots/Habit-Goal_histroy_screen.jpg',

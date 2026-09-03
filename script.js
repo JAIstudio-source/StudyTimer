@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+  preloadScreenshotAssets();
   initHeroPhoneSwitching();
   initAndroidShowcaseTabs();
   initStudyFaqAccordion();
@@ -8,6 +9,30 @@ document.addEventListener('DOMContentLoaded', () => {
   initMobileDrawer();
   initTouchSwiping();
 });
+
+/* --------------------------------------------------------------------------
+   Async Image Pre-Decoder for 120fps Smooth Scrolling & Instant Transitions
+   -------------------------------------------------------------------------- */
+function preloadScreenshotAssets() {
+  const screenshots = [
+    'assets/screenshots/Pomodoro_timer_Screen.jpg',
+    'assets/screenshots/Pomodoro-settings__screen.jpg',
+    'assets/screenshots/Stopwatch_paused_screen.jpg',
+    'assets/screenshots/Custom_subject_screen.jpg',
+    'assets/screenshots/Insight_screen_1.jpg',
+    'assets/screenshots/Insight_screen_3.jpg',
+    'assets/screenshots/Habit-Goal_screen.jpg',
+    'assets/screenshots/Habit-Goal_histroy_screen.jpg',
+    'assets/screenshots/Goal_calendar_screen.jpg',
+    'assets/screenshots/Cloud_sync_setting_screen.jpg'
+  ];
+
+  screenshots.forEach(src => {
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = src;
+  });
+}
 
 /* --------------------------------------------------------------------------
    0. Interactive 9-Screen Continuous Wheel & Dynamic Detail Card

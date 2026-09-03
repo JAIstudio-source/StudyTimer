@@ -967,34 +967,29 @@ a:hover {
   box-shadow: 0 4px 16px rgba(99, 102, 241, 0.45);
 }
 
-.showcase-content-panel {
-  display: none;
-  animation: fadeStage 350ms ease;
-  width: 100%;
-}
-
-.showcase-content-panel.active {
+.showcase-stage-content {
   display: grid;
   grid-template-columns: 1fr;
   gap: 2rem;
   align-items: center;
+  width: 100%;
 }
 
 @media (min-width: 900px) {
-  .showcase-content-panel.active {
+  .showcase-stage-content {
     grid-template-columns: 1.1fr 0.9fr;
     gap: 3.5rem;
   }
 }
 
-@keyframes fadeStage {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
 .stage-info-col h3 {
   font-size: clamp(1.45rem, 4.5vw, 2rem);
   margin-bottom: 0.75rem;
+  transition: opacity 180ms ease;
+}
+
+.stage-info-col p {
+  transition: opacity 180ms ease;
 }
 
 .study-benefit-list {

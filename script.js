@@ -187,32 +187,98 @@ function initHeroPhoneSwitching() {
 }
 
 /* --------------------------------------------------------------------------
-   1. Interactive Android Showcase Tabs
+   1. Interactive Android Showcase Persistent Stage
    -------------------------------------------------------------------------- */
+const showcaseSlides = [
+  {
+    img: 'assets/screenshots/Pomodoro-settings__screen.jpg',
+    alt: 'StudyTimer Pomodoro Custom Settings on Android',
+    title: 'Pomodoro Interval Customization',
+    desc: 'Fine-tune every aspect of your focus sessions: adjust work blocks (25/50m), break durations, auto-start cycles, and ambient sound options.',
+    b1: 'Customizable work & break interval durations',
+    b2: 'Ambient soundscapes and vibration feedback',
+    ctaText: 'Try Pomodoro Mode'
+  },
+  {
+    img: 'assets/screenshots/Stopwatch_paused_screen.jpg',
+    alt: 'StudyTimer Paused Stopwatch Mode on Android',
+    title: 'Unconstrained Focus Stopwatch',
+    desc: 'For open-ended deep work sessions or untimed problem-solving drills. Seamless pause, lap logging, and instant subject tag switching.',
+    b1: 'Real-time session timekeeping with haptic cues',
+    b2: 'Quick resume and automated background persistence',
+    ctaText: 'Try Stopwatch Mode'
+  },
+  {
+    img: 'assets/screenshots/Custom_subject_screen.jpg',
+    alt: 'StudyTimer Custom Subject Screen on Android',
+    title: 'Custom Subject & Tag Creation',
+    desc: 'Organize multiple study streams effortlessly. Assign custom color palettes, configure daily targets, and manage subject priority in one clean view.',
+    b1: 'Unlimited custom subject tags with hex colors',
+    b2: 'Real-time completion percentage tracking',
+    ctaText: 'Manage Subjects'
+  },
+  {
+    img: 'assets/screenshots/Insight_screen_3.jpg',
+    alt: 'StudyTimer Deep Focus Analytics on Android',
+    title: 'Hour-by-Hour Study Heatmaps',
+    desc: 'Granular breakdown of your daily study distribution. Identify your cognitive prime times and compare weekly study stamina gains with visual graphs.',
+    b1: 'Detailed breakdown of focused time vs. break periods',
+    b2: 'Custom time range filters (7 Days, 30 Days, All Time)',
+    ctaText: 'View Analytics'
+  },
+  {
+    img: 'assets/screenshots/Habit-Goal_histroy_screen.jpg',
+    alt: 'StudyTimer Habit History and Goal Progress on Android',
+    title: 'Daily Habits & Goal History',
+    desc: 'Track secondary study habits alongside your timers: review flashcards, solve mock exam papers, read textbook chapters, and maintain streak history.',
+    b1: 'Daily routine check-offs with streak protection',
+    b2: 'Archived session logs for review and audits',
+    ctaText: 'Build Study Habits'
+  },
+  {
+    img: 'assets/screenshots/Cloud_sync_setting_screen.jpg',
+    alt: 'StudyTimer Cloud Sync and Google Sign-in on Android',
+    title: 'Google Cloud Sync & Backup',
+    desc: 'Enjoy offline freedom with optional cloud synchronization. Sign in with Google to automatically back up your study streaks, subjects, and analytics across Android devices.',
+    b1: 'Encrypted Supabase PostgreSQL database sync',
+    b2: 'One-click data export and permanent account deletion',
+    ctaText: 'Download StudyTimer'
+  }
+];
+
+let currentShowcaseIndex = 0;
+
 function initAndroidShowcaseTabs() {
   const tabButtons = document.querySelectorAll('.stage-tab-btn');
   const dots = document.querySelectorAll('.showcase-dot');
 
   tabButtons.forEach((button, index) => {
     button.addEventListener('click', () => {
-      switchTab(index);
+      switchShowcaseSlide(index);
     });
   });
 
   dots.forEach((dot) => {
     dot.addEventListener('click', () => {
       const idx = parseInt(dot.getAttribute('data-index'), 10);
-      switchTab(idx);
+      switchShowcaseSlide(idx);
     });
   });
 }
 
-function switchTab(index) {
+function switchShowcaseSlide(index) {
   const tabButtons = document.querySelectorAll('.stage-tab-btn');
-  const panels = document.querySelectorAll('.showcase-content-panel');
   const dots = document.querySelectorAll('.showcase-dot');
+  const imgEl = document.getElementById('showcaseImg');
+  const titleEl = document.getElementById('showcaseTitle');
+  const descEl = document.getElementById('showcaseDesc');
+  const b1El = document.getElementById('showcaseBenefit1');
+  const b2El = document.getElementById('showcaseBenefit2');
+  const ctaTextEl = document.getElementById('showcaseCtaText');
 
-  if (index < 0 || index >= tabButtons.length) return;
+  if (index < 0 || index >= showcaseSlides.length) return;
+
+  currentShowcaseIndex = index;
 
   tabButtons.forEach((btn, i) => {
     const isActive = i === index;
@@ -224,9 +290,25 @@ function switchTab(index) {
     dot.classList.toggle('active', i === index);
   });
 
-  panels.forEach((panel, i) => {
-    panel.classList.toggle('active', i === index);
-  });
+  if (imgEl) {
+    imgEl.style.opacity = '0.35';
+    imgEl.style.transition = 'opacity 150ms ease';
+  }
+
+  const slide = showcaseSlides[index];
+
+  setTimeout(() => {
+    if (imgEl) {
+      imgEl.src = slide.img;
+      imgEl.alt = slide.alt;
+      imgEl.style.opacity = '1';
+    }
+    if (titleEl) titleEl.textContent = slide.title;
+    if (descEl) descEl.textContent = slide.desc;
+    if (b1El) b1El.textContent = slide.b1;
+    if (b2El) b2El.textContent = slide.b2;
+    if (ctaTextEl) ctaTextEl.textContent = slide.ctaText;
+  }, 100);
 }
 
 /* --------------------------------------------------------------------------
@@ -259,18 +341,12 @@ function initTouchSwiping() {
     const diffX = endX - startX;
     const diffY = endY - startY;
 
-    // Trigger tab switch with zero scroll side-effects
+    // Trigger tab switch without unmounting DOM or jumping viewport
     if (Math.abs(diffX) > 35 && Math.abs(diffX) > Math.abs(diffY)) {
-      const tabButtons = document.querySelectorAll('.stage-tab-btn');
-      let currentIndex = 0;
-      tabButtons.forEach((btn, i) => {
-        if (btn.classList.contains('active')) currentIndex = i;
-      });
-
-      if (diffX < 0 && currentIndex < tabButtons.length - 1) {
-        switchTab(currentIndex + 1);
-      } else if (diffX > 0 && currentIndex > 0) {
-        switchTab(currentIndex - 1);
+      if (diffX < 0 && currentShowcaseIndex < showcaseSlides.length - 1) {
+        switchShowcaseSlide(currentShowcaseIndex + 1);
+      } else if (diffX > 0 && currentShowcaseIndex > 0) {
+        switchShowcaseSlide(currentShowcaseIndex - 1);
       }
     }
   }, { passive: true });

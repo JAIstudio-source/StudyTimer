@@ -1,6 +1,11 @@
 var CORE_ASSETS = [
     './',
     './index.html',
+    './privacy.html',
+    './terms.html',
+    './delete-account.html',
+    './thank-you.html',
+    './404.html',
     './style.css',
     './script.js',
     './assets/logo.png',
@@ -11,10 +16,10 @@ function getCacheName() {
     return fetch('./version.json')
         .then(function (response) { return response.ok ? response.json() : null; })
         .then(function (data) {
-            var version = (data && (data.versionCode || data.versionName)) || 'default';
+            var version = (data && (data.versionCode || data.versionName)) || 'v2.0.0';
             return 'studytimer-' + version;
         })
-        .catch(function () { return 'studytimer-default'; });
+        .catch(function () { return 'studytimer-v2.0.0'; });
 }
 
 function openCurrentCache() {

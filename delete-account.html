@@ -1,271 +1,165 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Delete Account &amp; Data - StudyTimer</title>
-    <link rel="icon" href="assets/logo.png" type="image/png">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=1.0.2">
-    <style>
-        body {
-            background-color: #08090C;
-            color: #E2E8F0;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0;
-            padding: 0;
-            line-height: 1.7;
-        }
-        .page-wrapper {
-            max-width: 860px;
-            margin: 3.5rem auto;
-            padding: 0 1.5rem;
-        }
-        .card {
-            background: #10121A;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 24px;
-            padding: 2.75rem;
-            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
-            margin-bottom: 2rem;
-        }
-        .badge-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: rgba(239, 68, 68, 0.15);
-            color: #F87171;
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            padding: 0.35rem 0.85rem;
-            border-radius: 9999px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            margin-bottom: 1.5rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        h1 {
-            font-size: 2.25rem;
-            font-weight: 800;
-            color: #FFFFFF;
-            letter-spacing: -0.025em;
-            margin: 0 0 0.5rem 0;
-        }
-        .subtitle {
-            color: #94A3B8;
-            font-size: 0.95rem;
-            margin-bottom: 2rem;
-        }
-        h2 {
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: #FCA5A5;
-            margin-top: 2rem;
-            margin-bottom: 0.75rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        h3 {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #E2E8F0;
-            margin-top: 1.5rem;
-            margin-bottom: 0.5rem;
-        }
-        p, ul, ol {
-            font-size: 0.95rem;
-            color: #CBD5E1;
-            margin-bottom: 1.15rem;
-        }
-        ul, ol {
-            padding-left: 1.5rem;
-        }
-        li {
-            margin-bottom: 0.5rem;
-        }
-        strong {
-            color: #F8FAFC;
-        }
-        .steps-box {
-            background: rgba(30, 41, 59, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            padding: 1.5rem;
-            margin: 1.25rem 0;
-        }
-        .form-group {
-            margin-bottom: 1.25rem;
-        }
-        label {
-            display: block;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #94A3B8;
-            margin-bottom: 0.5rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        input[type="email"], input[type="text"], textarea {
-            width: 100%;
-            box-sizing: border-box;
-            background: #181B26;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 12px;
-            padding: 0.85rem 1rem;
-            color: #FFFFFF;
-            font-family: inherit;
-            font-size: 0.95rem;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        input:focus, textarea:focus {
-            outline: none;
-            border-color: #EF4444;
-            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
-        }
-        .btn-danger {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background: #DC2626;
-            color: #FFFFFF;
-            font-weight: 700;
-            font-size: 0.95rem;
-            padding: 0.85rem 1.75rem;
-            border-radius: 12px;
-            border: none;
-            cursor: pointer;
-            transition: background 0.2s, transform 0.1s;
-            text-decoration: none;
-        }
-        .btn-danger:hover {
-            background: #B91C1C;
-        }
-        .btn-danger:active {
-            transform: scale(0.98);
-        }
-        .alert-banner {
-            background: rgba(220, 38, 38, 0.15);
-            border-left: 4px solid #EF4444;
-            padding: 1rem 1.25rem;
-            border-radius: 0 12px 12px 0;
-            margin: 1.5rem 0;
-            color: #FECACA;
-            font-size: 0.92rem;
-        }
-        a {
-            color: #818CF8;
-            text-decoration: none;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
-        .nav-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-            margin-top: 3rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            font-size: 0.9rem;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Account & Data Deletion Portal - StudyTimer Android App</title>
+  <meta name="title" content="Account & Data Deletion Portal - StudyTimer Android App">
+  <meta name="description" content="Official Google Play compliant account and study data erasure portal for StudyTimer. Request permanent deletion of all cloud sync databases and streak records.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://get-studytimer.vercel.app/delete-account.html">
+
+  <link rel="icon" href="assets/logo.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=2.1.0">
+
+  <!-- Breadcrumbs JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://get-studytimer.vercel.app/"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Account & Data Deletion",
+        "item": "https://get-studytimer.vercel.app/delete-account.html"
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
-    <div class="page-wrapper">
-        <div class="card">
-            <div class="badge-pill">⚠️ Google Play Data Safety Compliance</div>
-            <h1>Account &amp; Data Deletion Portal</h1>
-            <div class="subtitle">Request permanent erasure of your StudyTimer account, cloud backups, and personal data.</div>
+  <div class="bg-ambient-layer"></div>
 
-            <div class="alert-banner">
-                <strong>Permanent Action:</strong> Deleting your account will immediately and permanently erase all cloud sync records, study streak metrics, habit logs, custom subjects, and account identifiers. This action cannot be reversed.
-            </div>
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container nav-container">
+      <a href="/" class="brand-link">
+        <img src="assets/logo.png" alt="StudyTimer Logo" width="38" height="38">
+        <span>StudyTimer</span>
+      </a>
+      <a href="/" class="btn-secondary-pill">&larr; Return to Home</a>
+    </div>
+  </header>
 
-            <h2>Method 1: Instant In-App Deletion (Recommended)</h2>
-            <p>If you have the StudyTimer Android application installed, you can trigger an immediate, automated self-service cascading deletion without waiting:</p>
-            
-            <div class="steps-box">
-                <ol>
-                    <li>Open the <strong>StudyTimer</strong> app on your device.</li>
-                    <li>Tap the <strong>Settings (Gear icon)</strong> on the top left.</li>
-                    <li>Tap your <strong>User Profile &amp; Account</strong> card.</li>
-                    <li>Scroll to the bottom to <strong>Account Actions &amp; Deletion</strong> and tap <strong>Delete Account &amp; Data</strong>.</li>
-                    <li>Type <code style="background: rgba(239,68,68,0.25); color: #FCA5A5; padding: 2px 6px; border-radius: 4px;">DELETE</code> in the confirmation prompt and tap <strong>PERMANENTLY DELETE</strong>.</li>
-                </ol>
-            </div>
-            <p>This instantly executes a cascading delete across your Supabase cloud storage and wipes all local Room databases.</p>
-
-            <h2>Method 2: Web Deletion Request Form</h2>
-            <p>If you have uninstalled the app or lost device access, submit your registered account details below. Our support team will process and permanently purge all remote records associated with your email within <strong>48 hours</strong>.</p>
-
-            <form id="deleteRequestForm" onsubmit="handleDeleteSubmit(event)" style="margin-top: 1.5rem;">
-                <div class="form-group">
-                    <label for="userEmail">Registered Google / Account Email *</label>
-                    <input type="email" id="userEmail" required placeholder="e.g. yourname@gmail.com">
-                </div>
-                <div class="form-group">
-                    <label for="reason">Reason for Deletion (Optional)</label>
-                    <textarea id="reason" rows="3" placeholder="Let us know how we can improve..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" required style="accent-color: #DC2626; margin-right: 6px;">
-                        I understand that this action will permanently delete all my study logs, streak progress, and cloud backups.
-                    </label>
-                </div>
-                <button type="submit" class="btn-danger">Submit Deletion Request</button>
-            </form>
-
-            <div id="formSuccess" style="display: none; background: rgba(16, 185, 129, 0.2); border: 1px solid #10B981; border-radius: 12px; padding: 1.25rem; margin-top: 1.5rem; color: #6EE7B7;">
-                <strong>✓ Request Received:</strong> Your deletion request has been submitted. A confirmation email will be sent to your address once all cloud records have been permanently wiped from Supabase.
-            </div>
-
-            <h2>What Data Is Erased During Deletion?</h2>
-            <ul>
-                <li><strong>Account Credentials:</strong> User ID, linked Google account tokens, and display names.</li>
-                <li><strong>Session History:</strong> All past study sessions, break logs, and timeline timestamps.</li>
-                <li><strong>Subject Tags &amp; Goals:</strong> Custom subjects, color tags, and daily target parameters.</li>
-                <li><strong>Cloud Storage:</strong> Custom profile avatar images stored in Supabase storage buckets.</li>
-                <li><strong>Telemetry Data:</strong> The anonymous installation UUID is detached from any historical logs.</li>
-            </ul>
-
-            <div class="nav-footer">
-                <a href="index.html">&larr; Back to Home</a>
-                <div>
-                    <a href="privacy.html" style="margin-right: 1.5rem;">Privacy Policy</a>
-                    <a href="terms.html">Terms of Service</a>
-                </div>
-            </div>
-        </div>
+  <main class="container container-narrow" style="padding-top: 3.5rem; padding-bottom: 5rem;">
+    <div class="nav-breadcrumbs">
+      <a href="/">Home</a>
+      <span>/</span>
+      <span style="color: var(--text-main);">Account &amp; Data Deletion</span>
     </div>
 
-    <script>
-        function handleDeleteSubmit(e) {
-            e.preventDefault();
-            const email = document.getElementById('userEmail').value.trim();
-            const reason = document.getElementById('reason').value.trim();
+    <article class="legal-document-card">
+      <div class="eyebrow-badge" style="background: rgba(244, 63, 94, 0.12); border-color: rgba(244, 63, 94, 0.3); color: var(--accent-rose);">
+        <span>⚠️ Google Play Data Safety Compliance</span>
+      </div>
 
-            if (!email) return;
+      <h1>Account &amp; Data Deletion Portal</h1>
+      <div class="legal-date-meta">Request permanent erasure of your StudyTimer account, cloud sync databases, and study metrics.</div>
 
-            // Trigger mailto fallback for direct developer notification
-            const subject = encodeURIComponent('StudyTimer Account Deletion Request - ' + email);
-            const body = encodeURIComponent('Please permanently delete all account and study session data associated with:\n\nEmail: ' + email + '\nReason: ' + reason + '\n\nRequest submitted via web portal.');
-            
-            const mailtoUrl = 'mailto:studytimer737@gmail.com?subject=' + subject + '&body=' + body;
-            
-            document.getElementById('deleteRequestForm').style.display = 'none';
-            document.getElementById('formSuccess').style.display = 'block';
+      <div style="background: rgba(220, 38, 38, 0.12); border-left: 4px solid #EF4444; padding: 1.25rem 1.5rem; border-radius: 0 var(--radius-md) var(--radius-md) 0; margin: 1.5rem 0; color: #FECACA; font-size: 0.95rem;">
+        <strong>Permanent &amp; Irreversible Action:</strong> Deleting your account immediately erases all cloud backups, habit streaks, custom subject categories, and Google authentication identifiers. This action cannot be undone.
+      </div>
 
-            // Attempt to open email client
-            setTimeout(() => {
-                window.location.href = mailtoUrl;
-            }, 300);
-        }
-    </script>
+      <h2>Method 1: Instant In-App Deletion (Recommended)</h2>
+      <p>If you have the StudyTimer Android application installed, you can trigger an immediate automated cascading deletion without waiting:</p>
+      
+      <div style="background: rgba(11, 14, 23, 0.7); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 1.5rem 2rem; margin: 1.25rem 0;">
+        <ol style="margin-bottom: 0;">
+          <li>Open the <strong>StudyTimer</strong> app on your Android device.</li>
+          <li>Tap the <strong>Settings (Gear icon)</strong> on the top bar.</li>
+          <li>Tap your <strong>User Profile &amp; Account</strong> card.</li>
+          <li>Scroll to <strong>Account Actions</strong> and tap <strong>Delete Account &amp; Data</strong>.</li>
+          <li>Type <code style="background: rgba(239,68,68,0.25); color: #FCA5A5; padding: 2px 6px; border-radius: 4px;">DELETE</code> in the confirmation prompt and tap <strong>PERMANENTLY DELETE</strong>.</li>
+        </ol>
+      </div>
+      <p>This instantly executes a cascading delete across your Supabase cloud storage and wipes all local Room databases.</p>
+
+      <h2>Method 2: Web Deletion Request Form</h2>
+      <p>If you have uninstalled the app or lost device access, submit your registered account details below. Our support team will process and permanently purge all remote records associated with your email within <strong>48 hours</strong>.</p>
+
+      <form id="deleteRequestForm" onsubmit="handleDeleteSubmit(event)" style="margin-top: 1.5rem;">
+        <div class="study-form-group">
+          <label class="study-form-label" for="userEmail">Registered Google Account Email *</label>
+          <input type="email" id="userEmail" class="study-form-input" required placeholder="e.g. yourname@gmail.com">
+        </div>
+        <div class="study-form-group">
+          <label class="study-form-label" for="reason">Reason for Deletion (Optional)</label>
+          <textarea id="reason" class="study-form-textarea" rows="3" placeholder="Let us know how we can improve your study experience..."></textarea>
+        </div>
+        <div class="study-form-group">
+          <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 0.92rem; color: var(--text-muted);">
+            <input type="checkbox" required style="accent-color: #DC2626; margin-top: 4px;">
+            <span>I understand that this action will permanently and irrecoverably erase all my study logs, streak progress, and cloud backups.</span>
+          </label>
+        </div>
+        <button type="submit" class="btn-pill-action" style="background: #DC2626; border-color: rgba(255,255,255,0.2);">
+          <span>Submit Deletion Request</span>
+          <div class="btn-icon-wrapper" style="background: rgba(0,0,0,0.2);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          </div>
+        </button>
+      </form>
+
+      <div id="formSuccess" style="display: none; background: rgba(16, 185, 129, 0.15); border: 1px solid #10B981; border-radius: var(--radius-md); padding: 1.5rem; margin-top: 2rem; color: #6EE7B7;">
+        <h4 style="color: #FFFFFF; margin-bottom: 0.5rem;">✓ Request Submitted Successfully</h4>
+        <p style="color: #D1FAE5; margin-bottom: 0; font-size: 0.95rem;">
+          Your deletion request has been logged. All cloud backups and associated tokens for your email will be permanently purged from Supabase within 48 hours. A confirmation notification will be sent to your email.
+        </p>
+      </div>
+
+      <h2>What Data Is Erased During Deletion?</h2>
+      <ul>
+        <li><strong>Account Identifiers:</strong> Supabase Auth User ID, linked Google email, and display avatar tokens.</li>
+        <li><strong>Focus History:</strong> All past study sessions, break logs, and timeline timestamps.</li>
+        <li><strong>Subject Tags &amp; Goals:</strong> Custom subject categories, color tags, and daily target parameters.</li>
+        <li><strong>Cloud Storage:</strong> Custom profile avatar images stored in cloud storage buckets.</li>
+        <li><strong>Telemetry:</strong> Anonymous installation UUIDs are detached and purged from historical logs.</li>
+      </ul>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-legal-bar" style="border-top: none; padding-top: 0;">
+      <div>&copy; 2026 StudyTimer. All rights reserved.</div>
+      <div style="display: flex; gap: 1.5rem;">
+        <a href="/">Home</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function handleDeleteSubmit(e) {
+      e.preventDefault();
+      const emailInput = document.getElementById('userEmail');
+      const email = emailInput.value.trim();
+      const reason = document.getElementById('reason').value.trim();
+
+      if (!email) return;
+
+      const subject = encodeURIComponent('StudyTimer Account Deletion Request - ' + email);
+      const body = encodeURIComponent('Please permanently delete all account and study session data associated with:\n\nEmail: ' + email + '\nReason: ' + reason + '\n\nRequest submitted via web portal.');
+      const mailtoUrl = 'mailto:studytimer737@gmail.com?subject=' + subject + '&body=' + body;
+
+      document.getElementById('deleteRequestForm').style.display = 'none';
+      document.getElementById('formSuccess').style.display = 'block';
+
+      setTimeout(() => {
+        window.location.href = mailtoUrl;
+      }, 500);
+    }
+  </script>
 </body>
 </html>

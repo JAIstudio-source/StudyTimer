@@ -336,31 +336,30 @@ function initModalTriggers() {
     });
   });
 
-  // Share Modal & Native Share
+  // Share Action: Native Android Share on Mobile; Custom Modal on Desktop
   document.querySelectorAll('.js-open-share').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       e.preventDefault();
       const shareData = {
-        title: 'StudyTimer for Android',
-        text: 'Boost your study sessions with StudyTimer! Configurable Pomodoro intervals, custom subjects, and streak tracking on Android.',
-        url: window.location.href && window.location.href.startsWith('http') ? window.location.href : 'https://get-studytimer.vercel.app'
+        title: 'StudyTimer - Track Your Progress on Android',
+        text: 'Track your study progress and focus sessions with StudyTimer for Android! Download free:',
+        url: 'https://get-studytimer.vercel.app'
       };
 
-      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
-        navigator.share(shareData).catch((err) => {
-          if (err.name !== 'AbortError' && shareModal) {
+      const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+
+      if (navigator.share && isMobile) {
+        try {
+          await navigator.share(shareData);
+        } catch (err) {
+          // If aborted by user, do nothing. If error occurs, fallback to modal.
+          if (err && err.name !== 'AbortError' && shareModal) {
             shareModal.classList.add('active');
             document.body.style.overflow = 'hidden';
           }
-        });
-      } else if (navigator.share) {
-        navigator.share(shareData).catch((err) => {
-          if (err.name !== 'AbortError' && shareModal) {
-            shareModal.classList.add('active');
-            document.body.style.overflow = 'hidden';
-          }
-        });
+        }
       } else if (shareModal) {
+        // Desktop environment: open desktop share modal
         shareModal.classList.add('active');
         document.body.style.overflow = 'hidden';
       }

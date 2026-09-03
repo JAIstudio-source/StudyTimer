@@ -1,3 +1,11 @@
+/**
+ * StudyTimer - Production Service Worker
+ * Network-First caching strategy for CSS, JS, and HTML to guarantee fresh loads
+ * with instant offline fallback.
+ */
+
+var CACHE_NAME = 'studytimer-v3.0.0';
+
 var CORE_ASSETS = [
     './',
     './index.html',
@@ -8,58 +16,33 @@ var CORE_ASSETS = [
     './404.html',
     './style.css',
     './script.js',
+    './version.json',
     './assets/logo.png',
     './assets/Featured.webp'
 ];
 
-function getCacheName() {
-    return fetch('./version.json')
-        .then(function (response) { return response.ok ? response.json() : null; })
-        .then(function (data) {
-            var version = (data && (data.versionCode || data.versionName)) || 'v2.0.0';
-            return 'studytimer-' + version;
-        })
-        .catch(function () { return 'studytimer-v2.0.0'; });
-}
-
-function openCurrentCache() {
-    return getCacheName().then(function (name) { return caches.open(name); });
-}
-
-function purgeOldCaches(currentName) {
-    return caches.keys().then(function (keys) {
-        return Promise.all(
-            keys.filter(function (key) { return key !== currentName; })
-                .map(function (key) { return caches.delete(key); })
-        );
-    });
-}
-
-function storeInCurrentCache(request, response) {
-    return getCacheName()
-        .then(function (name) {
-            return caches.open(name).then(function (cache) {
-                return cache.put(request, response).then(function () { return name; });
-            });
-        })
-        .then(purgeOldCaches)
-        .catch(function () {});
-}
-
 self.addEventListener('install', function (event) {
-    event.waitUntil(
-        openCurrentCache()
-            .then(function (cache) { return cache.addAll(CORE_ASSETS); })
-            .catch(function () {})
-    );
     self.skipWaiting();
+    event.waitUntil(
+        caches.open(CACHE_NAME).then(function (cache) {
+            return cache.addAll(CORE_ASSETS);
+        }).catch(function () {})
+    );
 });
 
 self.addEventListener('activate', function (event) {
     event.waitUntil(
-        getCacheName()
-            .then(function (currentName) { return purgeOldCaches(currentName); })
-            .then(function () { return self.clients.claim(); })
+        caches.keys().then(function (keys) {
+            return Promise.all(
+                keys.map(function (key) {
+                    if (key !== CACHE_NAME) {
+                        return caches.delete(key);
+                    }
+                })
+            );
+        }).then(function () {
+            return self.clients.claim();
+        })
     );
 });
 
@@ -70,48 +53,29 @@ self.addEventListener('fetch', function (event) {
     var url = new URL(request.url);
     if (url.origin !== location.origin) return;
 
+    // Do not cache binary APK downloads
     if (url.pathname.endsWith('.apk')) return;
 
-    if (url.pathname.endsWith('version.json')) {
-        event.respondWith(
-            fetch(request)
-                .then(function (response) {
-                    if (response && response.status === 200) {
-                        storeInCurrentCache(request, response.clone());
-                    }
-                    return response;
-                })
-                .catch(function () { return caches.match(request); })
-        );
-        return;
-    }
-
-    if (request.mode === 'navigate') {
-        event.respondWith(
-            fetch(request)
-                .then(function (response) {
-                    if (response && response.status === 200) {
-                        storeInCurrentCache(request, response.clone());
-                    }
-                    return response;
-                })
-                .catch(function () {
-                    return caches.match(request)
-                        .then(function (cached) { return cached || caches.match('./index.html'); });
-                })
-        );
-        return;
-    }
-
+    // Network-First Strategy for HTML, CSS, JS, and Version JSON
     event.respondWith(
-        caches.match(request).then(function (cached) {
-            if (cached) return cached;
-            return fetch(request).then(function (response) {
-                if (response && response.status === 200 && response.type === 'basic') {
-                    storeInCurrentCache(request, response.clone());
+        fetch(request)
+            .then(function (networkResponse) {
+                if (networkResponse && networkResponse.status === 200) {
+                    var responseToCache = networkResponse.clone();
+                    caches.open(CACHE_NAME).then(function (cache) {
+                        cache.put(request, responseToCache);
+                    });
                 }
-                return response;
-            }).catch(function () { return caches.match(request); });
-        })
+                return networkResponse;
+            })
+            .catch(function () {
+                // Offline fallback
+                return caches.match(request).then(function (cachedResponse) {
+                    if (cachedResponse) return cachedResponse;
+                    if (request.mode === 'navigate') {
+                        return caches.match('./index.html');
+                    }
+                });
+            })
     );
 });

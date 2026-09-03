@@ -278,188 +278,36 @@
             <button class="stage-tab-btn" data-tab="cloud" role="tab" aria-selected="false">6. Cloud Sync</button>
           </div>
 
-          <!-- Tab 1: Pomodoro Custom Settings -->
-          <div class="showcase-content-panel active" id="panel-pomodoro">
-            <div class="stage-info-col">
-              <h3>Pomodoro Interval Customization</h3>
-              <p>Fine-tune every aspect of your focus sessions: adjust work blocks (25/50m), break durations, auto-start cycles, and ambient sound options.</p>
+          <!-- Single Persistent Showcase Stage (Persistent phone & DOM, zero scroll jump) -->
+          <div class="showcase-stage-content" id="showcaseStageContent">
+            <!-- Info Column -->
+            <div class="stage-info-col" id="showcaseInfoCol">
+              <h3 id="showcaseTitle">Pomodoro Interval Customization</h3>
+              <p id="showcaseDesc">Fine-tune every aspect of your focus sessions: adjust work blocks (25/50m), break durations, auto-start cycles, and ambient sound options.</p>
               <div class="study-benefit-list">
                 <div class="study-benefit-row">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                  <span>Customizable work &amp; break interval durations</span>
+                  <span id="showcaseBenefit1">Customizable work &amp; break interval durations</span>
                 </div>
                 <div class="study-benefit-row">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                  <span>Ambient soundscapes and vibration feedback</span>
+                  <span id="showcaseBenefit2">Ambient soundscapes and vibration feedback</span>
                 </div>
               </div>
-              <a href="StudyTimer-release.apk" download class="btn-pill-action js-track-download">
-                <span>Try Pomodoro Mode</span>
+              <a href="StudyTimer-release.apk" download class="btn-pill-action js-track-download" id="showcaseCta">
+                <span id="showcaseCtaText">Try Pomodoro Mode</span>
                 <div class="btn-icon-wrapper">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 </div>
               </a>
             </div>
-            <div class="stage-device-col">
-              <div class="android-device-frame">
-                <div class="android-punch-hole"></div>
-                <div class="android-speaker-slit"></div>
-                <img src="assets/screenshots/Pomodoro-settings__screen.jpg" alt="StudyTimer Pomodoro Custom Settings on Android" class="android-screen-content" loading="lazy">
-              </div>
-            </div>
-          </div>
 
-          <!-- Tab 2: Stopwatch Mode -->
-          <div class="showcase-content-panel" id="panel-stopwatch">
-            <div class="stage-info-col">
-              <h3>Unconstrained Focus Stopwatch</h3>
-              <p>For open-ended deep work sessions or untimed problem-solving drills. Seamless pause, lap logging, and instant subject tag switching.</p>
-              <div class="study-benefit-list">
-                <div class="study-benefit-row">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                  <span>Real-time session timekeeping with haptic cues</span>
-                </div>
-                <div class="study-benefit-row">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                  <span>Quick resume and automated background persistence</span>
-                </div>
-              </div>
-              <a href="StudyTimer-release.apk" download class="btn-pill-action js-track-download">
-                <span>Try Stopwatch Mode</span>
-                <div class="btn-icon-wrapper">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                </div>
-              </a>
-            </div>
-            <div class="stage-device-col">
+            <!-- Persistent Phone Column -->
+            <div class="stage-device-col" id="showcaseDeviceCol">
               <div class="android-device-frame">
                 <div class="android-punch-hole"></div>
                 <div class="android-speaker-slit"></div>
-                <img src="assets/screenshots/Stopwatch_paused_screen.jpg" alt="StudyTimer Paused Stopwatch Mode on Android" class="android-screen-content" loading="lazy">
-              </div>
-            </div>
-          </div>
-
-          <!-- Tab 3: Custom Subjects -->
-          <div class="showcase-content-panel" id="panel-subjects">
-            <div class="stage-info-col">
-              <h3>Custom Subject &amp; Tag Creation</h3>
-              <p>Organize multiple study streams effortlessly. Assign custom color palettes, configure daily targets, and manage subject priority in one clean view.</p>
-              <div class="study-benefit-list">
-                <div class="study-benefit-row">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                  <span>Unlimited custom subject tags with hex colors</span>
-                </div>
-                <div class="study-benefit-row">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                  <span>Real-time completion percentage tracking</span>
-                </div>
-              </div>
-              <a href="StudyTimer-release.apk" download class="btn-pill-action js-track-download">
-                <span>Manage Subjects</span>
-                <div class="btn-icon-wrapper">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                </div>
-              </a>
-            </div>
-            <div class="stage-device-col">
-              <div class="android-device-frame">
-                <div class="android-punch-hole"></div>
-                <div class="android-speaker-slit"></div>
-                <img src="assets/screenshots/Custom_subject_screen.jpg" alt="StudyTimer Custom Subject Screen on Android" class="android-screen-content" loading="lazy">
-              </div>
-            </div>
-          </div>
-
-          <!-- Tab 4: Analytics Depth -->
-          <div class="showcase-content-panel" id="panel-analytics">
-            <div class="stage-info-col">
-              <h3>Hour-by-Hour Study Heatmaps</h3>
-              <p>Granular breakdown of your daily study distribution. Identify your cognitive prime times and compare weekly study stamina gains with visual graphs.</p>
-              <div class="study-benefit-list">
-                <div class="study-benefit-row">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                  <span>Detailed breakdown of focused time vs. break periods</span>
-                </div>
-                <div class="study-benefit-row">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                  <span>Custom time range filters (7 Days, 30 Days, All Time)</span>
-                </div>
-              </div>
-              <a href="StudyTimer-release.apk" download class="btn-pill-action js-track-download">
-                <span>View Analytics</span>
-                <div class="btn-icon-wrapper">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                </div>
-              </a>
-            </div>
-            <div class="stage-device-col">
-              <div class="android-device-frame">
-                <div class="android-punch-hole"></div>
-                <div class="android-speaker-slit"></div>
-                <img src="assets/screenshots/Insight_screen_3.jpg" alt="StudyTimer Deep Focus Analytics on Android" class="android-screen-content" loading="lazy">
-              </div>
-            </div>
-          </div>
-
-          <!-- Tab 5: Habit History -->
-          <div class="showcase-content-panel" id="panel-habits">
-            <div class="stage-info-col">
-              <h3>Daily Habits &amp; Goal History</h3>
-              <p>Track secondary study habits alongside your timers: review flashcards, solve mock exam papers, read textbook chapters, and maintain streak history.</p>
-              <div class="study-benefit-list">
-                <div class="study-benefit-row">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                  <span>Daily routine check-offs with streak protection</span>
-                </div>
-                <div class="study-benefit-row">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                  <span>Archived session logs for review and audits</span>
-                </div>
-              </div>
-              <a href="StudyTimer-release.apk" download class="btn-pill-action js-track-download">
-                <span>Build Study Habits</span>
-                <div class="btn-icon-wrapper">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                </div>
-              </a>
-            </div>
-            <div class="stage-device-col">
-              <div class="android-device-frame">
-                <div class="android-punch-hole"></div>
-                <div class="android-speaker-slit"></div>
-                <img src="assets/screenshots/Habit-Goal_histroy_screen.jpg" alt="StudyTimer Habit History and Goal Progress on Android" class="android-screen-content" loading="lazy">
-              </div>
-            </div>
-          </div>
-
-          <!-- Tab 6: Cloud & Sync -->
-          <div class="showcase-content-panel" id="panel-cloud">
-            <div class="stage-info-col">
-              <h3>Google Cloud Sync &amp; Backup</h3>
-              <p>Enjoy offline freedom with optional cloud synchronization. Sign in with Google to automatically back up your study streaks, subjects, and analytics across Android devices.</p>
-              <div class="study-benefit-list">
-                <div class="study-benefit-row">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                  <span>Encrypted Supabase PostgreSQL database sync</span>
-                </div>
-                <div class="study-benefit-row">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                  <span>One-click data export and permanent account deletion</span>
-                </div>
-              </div>
-              <a href="StudyTimer-release.apk" download class="btn-pill-action js-track-download">
-                <span>Download StudyTimer</span>
-                <div class="btn-icon-wrapper">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                </div>
-              </a>
-            </div>
-            <div class="stage-device-col">
-              <div class="android-device-frame">
-                <div class="android-punch-hole"></div>
-                <div class="android-speaker-slit"></div>
-                <img src="assets/screenshots/Cloud_sync_setting_screen.jpg" alt="StudyTimer Cloud Sync and Google Sign-in on Android" class="android-screen-content" loading="lazy">
+                <img src="assets/screenshots/Pomodoro-settings__screen.jpg" alt="StudyTimer Pomodoro Custom Settings on Android" class="android-screen-content" id="showcaseImg" loading="lazy">
               </div>
             </div>
           </div>

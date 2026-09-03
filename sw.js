@@ -4,7 +4,7 @@
  * with instant offline fallback.
  */
 
-var CACHE_NAME = 'studytimer-v3.0.0';
+var CACHE_NAME = 'studytimer-web-v1';
 
 var CORE_ASSETS = [
     './',

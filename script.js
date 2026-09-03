@@ -207,7 +207,7 @@ function initAndroidShowcaseTabs() {
   });
 }
 
-function switchTab(index) {
+function switchTab(index, fromSwipe = false) {
   const tabButtons = document.querySelectorAll('.stage-tab-btn');
   const panels = document.querySelectorAll('.showcase-content-panel');
   const dots = document.querySelectorAll('.showcase-dot');
@@ -215,15 +215,17 @@ function switchTab(index) {
 
   if (index < 0 || index >= tabButtons.length) return;
 
+  // Lock exact window vertical scroll position to prevent browser auto-scroll
+  const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
+
   tabButtons.forEach((btn, i) => {
     const isActive = i === index;
     btn.classList.toggle('active', isActive);
     btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
     if (isActive && tabsContainer) {
-      // Only scroll the horizontal nav bar internally; NEVER move the page vertical scroll
       const btnOffsetLeft = btn.offsetLeft;
       const targetScrollLeft = btnOffsetLeft - (tabsContainer.clientWidth / 2) + (btn.clientWidth / 2);
-      tabsContainer.scrollTo({ left: targetScrollLeft, behavior: 'smooth' });
+      tabsContainer.scrollLeft = targetScrollLeft;
     }
   });
 
@@ -234,6 +236,11 @@ function switchTab(index) {
   panels.forEach((panel, i) => {
     panel.classList.toggle('active', i === index);
   });
+
+  // Ensure window scroll remains completely stable
+  if (fromSwipe) {
+    window.scrollTo({ top: currentScrollY, behavior: 'instant' });
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -243,38 +250,44 @@ function initTouchSwiping() {
   const showcaseCard = document.querySelector('.showcase-stage-card');
   if (!showcaseCard) return;
 
-  let touchStartX = 0;
-  let touchEndX = 0;
+  let startX = 0;
+  let startY = 0;
+  let endX = 0;
+  let endY = 0;
 
   showcaseCard.addEventListener('touchstart', (e) => {
-    touchStartX = e.changedTouches[0].screenX;
+    if (!e.touches || e.touches.length === 0) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    endX = startX;
+    endY = startY;
   }, { passive: true });
 
-  showcaseCard.addEventListener('touchend', (e) => {
-    touchEndX = e.changedTouches[0].screenX;
-    handleSwipeGesture();
+  showcaseCard.addEventListener('touchmove', (e) => {
+    if (!e.touches || e.touches.length === 0) return;
+    endX = e.touches[0].clientX;
+    endY = e.touches[0].clientY;
   }, { passive: true });
 
-  function handleSwipeGesture() {
-    const threshold = 50;
-    const diff = touchEndX - touchStartX;
+  showcaseCard.addEventListener('touchend', () => {
+    const diffX = endX - startX;
+    const diffY = endY - startY;
 
-    if (Math.abs(diff) < threshold) return;
+    // Only trigger if horizontal swipe is clearly dominant over vertical scrolling
+    if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY) * 1.2) {
+      const tabButtons = document.querySelectorAll('.stage-tab-btn');
+      let currentIndex = 0;
+      tabButtons.forEach((btn, i) => {
+        if (btn.classList.contains('active')) currentIndex = i;
+      });
 
-    const tabButtons = document.querySelectorAll('.stage-tab-btn');
-    let currentIndex = 0;
-    tabButtons.forEach((btn, i) => {
-      if (btn.classList.contains('active')) currentIndex = i;
-    });
-
-    if (diff < 0 && currentIndex < tabButtons.length - 1) {
-      // Swiped Left -> Next Tab
-      switchTab(currentIndex + 1);
-    } else if (diff > 0 && currentIndex > 0) {
-      // Swiped Right -> Previous Tab
-      switchTab(currentIndex - 1);
+      if (diffX < 0 && currentIndex < tabButtons.length - 1) {
+        switchTab(currentIndex + 1, true);
+      } else if (diffX > 0 && currentIndex > 0) {
+        switchTab(currentIndex - 1, true);
+      }
     }
-  }
+  }, { passive: true });
 }
 
 /* --------------------------------------------------------------------------

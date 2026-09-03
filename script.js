@@ -212,6 +212,7 @@ function switchTab(index) {
   const tabButtons = document.querySelectorAll('.stage-tab-btn');
   const panels = document.querySelectorAll('.showcase-content-panel');
   const dots = document.querySelectorAll('.showcase-dot');
+  const tabsContainer = document.querySelector('.showcase-nav-tabs');
 
   if (index < 0 || index >= tabButtons.length) return;
 
@@ -219,8 +220,11 @@ function switchTab(index) {
     const isActive = i === index;
     btn.classList.toggle('active', isActive);
     btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-    if (isActive) {
-      btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    if (isActive && tabsContainer) {
+      // Only scroll the horizontal nav bar internally; NEVER move the page vertical scroll
+      const btnOffsetLeft = btn.offsetLeft;
+      const targetScrollLeft = btnOffsetLeft - (tabsContainer.clientWidth / 2) + (btn.clientWidth / 2);
+      tabsContainer.scrollTo({ left: targetScrollLeft, behavior: 'smooth' });
     }
   });
 

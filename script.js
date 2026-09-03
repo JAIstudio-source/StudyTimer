@@ -266,7 +266,7 @@ function initAndroidShowcaseTabs() {
   });
 }
 
-function switchShowcaseSlide(index) {
+function switchShowcaseSlide(index, direction = 0) {
   const tabButtons = document.querySelectorAll('.stage-tab-btn');
   const dots = document.querySelectorAll('.showcase-dot');
   const imgEl = document.getElementById('showcaseImg');
@@ -278,7 +278,9 @@ function switchShowcaseSlide(index) {
 
   if (index < 0 || index >= showcaseSlides.length) return;
 
+  const prevIndex = currentShowcaseIndex;
   currentShowcaseIndex = index;
+  const isForward = direction !== 0 ? direction > 0 : index >= prevIndex;
 
   tabButtons.forEach((btn, i) => {
     const isActive = i === index;
@@ -291,8 +293,9 @@ function switchShowcaseSlide(index) {
   });
 
   if (imgEl) {
-    imgEl.style.opacity = '0.35';
-    imgEl.style.transition = 'opacity 150ms ease';
+    imgEl.style.transition = 'opacity 140ms ease, transform 140ms ease';
+    imgEl.style.opacity = '0.2';
+    imgEl.style.transform = isForward ? 'translateX(-30px)' : 'translateX(30px)';
   }
 
   const slide = showcaseSlides[index];
@@ -301,14 +304,24 @@ function switchShowcaseSlide(index) {
     if (imgEl) {
       imgEl.src = slide.img;
       imgEl.alt = slide.alt;
-      imgEl.style.opacity = '1';
+      imgEl.style.transition = 'none';
+      imgEl.style.transform = isForward ? 'translateX(30px)' : 'translateX(-30px)';
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          imgEl.style.transition = 'opacity 220ms ease, transform 220ms var(--ease-spring)';
+          imgEl.style.opacity = '1';
+          imgEl.style.transform = 'translateX(0)';
+        });
+      });
     }
+
     if (titleEl) titleEl.textContent = slide.title;
     if (descEl) descEl.textContent = slide.desc;
     if (b1El) b1El.textContent = slide.b1;
     if (b2El) b2El.textContent = slide.b2;
     if (ctaTextEl) ctaTextEl.textContent = slide.ctaText;
-  }, 100);
+  }, 140);
 }
 
 /* --------------------------------------------------------------------------
@@ -320,43 +333,35 @@ function initTouchSwiping() {
 
   let startX = 0;
   let startY = 0;
-  let isHorizontalSwipe = false;
+  let endX = 0;
+  let endY = 0;
 
   showcaseCard.addEventListener('touchstart', (e) => {
     if (!e.touches || e.touches.length === 0) return;
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
-    isHorizontalSwipe = false;
+    endX = startX;
+    endY = startY;
   }, { passive: true });
 
   showcaseCard.addEventListener('touchmove', (e) => {
     if (!e.touches || e.touches.length === 0) return;
-    const currentX = e.touches[0].clientX;
-    const currentY = e.touches[0].clientY;
-    const diffX = currentX - startX;
-    const diffY = currentY - startY;
+    endX = e.touches[0].clientX;
+    endY = e.touches[0].clientY;
+  }, { passive: true });
 
-    // Detect horizontal intention early and lock out vertical window scrolling
-    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 8) {
-      isHorizontalSwipe = true;
-      if (e.cancelable) {
-        e.preventDefault();
-      }
-    }
-  }, { passive: false });
-
-  showcaseCard.addEventListener('touchend', (e) => {
-    if (!e.changedTouches || e.changedTouches.length === 0) return;
-    const endX = e.changedTouches[0].clientX;
+  showcaseCard.addEventListener('touchend', () => {
     const diffX = endX - startX;
+    const diffY = endY - startY;
 
-    if (isHorizontalSwipe && Math.abs(diffX) > 30) {
+    // Detect horizontal swipe
+    if (Math.abs(diffX) > 35 && Math.abs(diffX) > Math.abs(diffY)) {
       if (diffX < 0) {
         // Swiped Left -> Next Slide
-        switchShowcaseSlide((currentShowcaseIndex + 1) % showcaseSlides.length);
+        switchShowcaseSlide((currentShowcaseIndex + 1) % showcaseSlides.length, 1);
       } else {
         // Swiped Right -> Previous Slide
-        switchShowcaseSlide((currentShowcaseIndex - 1 + showcaseSlides.length) % showcaseSlides.length);
+        switchShowcaseSlide((currentShowcaseIndex - 1 + showcaseSlides.length) % showcaseSlides.length, -1);
       }
     }
   }, { passive: true });

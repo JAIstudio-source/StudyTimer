@@ -1,7 +1,7 @@
 {
-  "versionCode": 20,
-  "versionName": "2.7.0",
+  "versionCode": 21,
+  "versionName": "3.0.0",
   "url": "https://get-studytimer.vercel.app/?download=true",
   "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-  "releaseNotes": "What's New in Version 2.7.0 🚀\n- New Pie Chart Insight: Interactive subject breakdown and focus depth distribution with dynamic theming.\n- Local Profile Avatars: Local user profile picture now available.\n- Modern Adaptive UI: Re-engineered full-screen landscape clock, fluid Insights navigation pill, and dynamic Light & OLED theme tokens across Calendar and Planner.\n- Default Subject-Wise Tagging: Fresh installs now launch directly into subject-wise focus tracking.\n- Bug Fixes & Stability Improvements: Fixed status bar insets on Android 11+, resolved Settings scroll-vs-tap gesture conflicts, and polished UI transitions."
+  "releaseNotes": "What's New in Version 3.0.0 🚀\n- 9-Screen Interactive Wheel: Full preview of all core study tracking features.\n- Network-First Caching: Instant live updates on all devices.\n- Modern Adaptive UI: Re-engineered full-screen landscape clock, fluid Insights navigation pill, and dynamic Light & OLED theme tokens across Calendar and Planner.\n- Default Subject-Wise Tagging: Fresh installs now launch directly into subject-wise focus tracking.\n- Bug Fixes & Stability Improvements: Fixed status bar insets on Android 11+, resolved Settings scroll-vs-tap gesture conflicts, and polished UI transitions."
 }

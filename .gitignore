@@ -43,3 +43,6 @@ node_modules/
 /admin/
 *.env
 schema_analytics.sql
+mcp_config.json
+.agents/mcp_config.json
+skills-lock.json

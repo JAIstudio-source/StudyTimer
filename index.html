@@ -1,663 +1,769 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>StudyTimer: Focus, Track & Plan | Distraction-Free Study Timer & Daily Planner</title>
-    <meta name="description" content="Crush your academic goals with StudyTimer - clean, distraction-free study timer, intelligent lecture manager, and daily habit planner. 100% offline & ad-free.">
-    <meta name="theme-color" content="#050505">
-    
-    <!-- Open Graph (Facebook, WhatsApp, Telegram, LinkedIn, Threads, Reddit) -->
-    <meta property="og:title" content="StudyTimer: Focus, Track & Plan">
-    <meta property="og:description" content="Crush your academic goals with a clean, distraction-free study timer, intelligent lecture manager, and powerful habits planner—100% offline and ad-free.">
-    <meta property="og:image" content="https://get-studytimer.vercel.app/assets/screenshot/banner.png?v=3">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="StudyTimer banner showing focus, lecture management and habit planning features">
-    <meta property="og:image:secure_url" content="https://get-studytimer.vercel.app/assets/screenshot/banner.png?v=3">
-    <meta property="og:type" content="website">
-    <meta property="og:site_name" content="StudyTimer by Pushkar Studio">
-    <meta property="og:url" content="https://get-studytimer.vercel.app/">
-    <meta property="og:locale" content="en_US">
-    
-    <!-- Threads (uses Open Graph tags above) -->
-    <meta name="threads:image" content="https://get-studytimer.vercel.app/assets/screenshot/banner.png?v=3">
-    <meta property="og:see_also" content="https://www.threads.net/@studytimer.j">
-    
-    <!-- Reddit -->
-    <meta name="reddit:card" content="summary_large_image">
-    <meta name="reddit:title" content="StudyTimer: Focus, Track & Plan">
-    <meta name="reddit:description" content="Clean, distraction-free study timer, intelligent lecture manager, and daily habit planner—100% offline and ad-free.">
-    <meta name="reddit:image" content="https://get-studytimer.vercel.app/assets/screenshot/banner.png?v=3">
-    <meta property="og:see_also" content="https://www.reddit.com/user/study_timer/">
-    
-    <!-- Telegram -->
-    <meta property="telegram:channel" content="https://t.me/studytimerapp">
-    <meta property="telegram:image" content="https://get-studytimer.vercel.app/assets/screenshot/banner.png?v=3">
-    
-    <!-- LinkedIn -->
-    <meta name="linkedin:card" content="summary_large_image">
-    
-    <link rel="canonical" href="https://get-studytimer.vercel.app/">
-    <link rel="icon" href="assets/logo.png" type="image/png">
-    <link rel="apple-touch-icon" href="assets/logo.png">
-    <meta name="apple-mobile-web-app-title" content="StudyTimer">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="msapplication-TileImage" content="assets/logo.png">
-    <meta name="msapplication-TileColor" content="#050505">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <link rel="stylesheet" href="style.css?v=1.0.1">
-    
-    <!-- JSON-LD Structured Data for Mobile App -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "StudyTimer",
-      "alternateName": "StudyTimer: Focus, Track & Plan",
-      "url": "https://get-studytimer.vercel.app/",
-      "image": "https://get-studytimer.vercel.app/assets/screenshot/banner.png?v=3",
-      "logo": "https://get-studytimer.vercel.app/assets/logo.png",
-      "description": "Distraction-free offline study timer, lecture manager, habit planner, and 6-month focus heatmaps for Android.",
-      "applicationCategory": "EducationalApplication",
-      "operatingSystem": "Android 9+",
-      "softwareVersion": "2.6.0",
-      "downloadURL": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-      "installUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "USD"
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  
+  <!-- Primary Meta Tags -->
+  <title>StudyTimer - Android Pomodoro Focus Timer, Custom Subjects & Habit Streaks</title>
+  <meta name="title" content="StudyTimer - Android Pomodoro Focus Timer, Custom Subjects & Habit Streaks">
+  <meta name="description" content="Level up your study stamina with StudyTimer for Android. Configurable Pomodoro intervals, custom subject tagging, daily streak calendars, cloud sync, and deep focus analytics. 100% free and ad-free.">
+  <meta name="keywords" content="study timer android, pomodoro app, custom subjects, study streak tracker, habit tracker, focus timer, study analytics, android study app, exam prep timer">
+  <meta name="author" content="StudyTimer">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://get-studytimer.vercel.app/">
+
+  <!-- Favicon & Touch Icons -->
+  <link rel="icon" href="assets/logo.png" type="image/png">
+  <link rel="apple-touch-icon" href="assets/logo.png">
+  <meta name="theme-color" content="#05070B">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://get-studytimer.vercel.app/">
+  <meta property="og:title" content="StudyTimer - Android Pomodoro Focus Timer & Custom Subjects">
+  <meta property="og:description" content="Level up your study stamina with StudyTimer for Android. Configurable Pomodoro intervals, custom subject tagging, habit streak calendars, and deep analytics.">
+  <meta property="og:image" content="https://get-studytimer.vercel.app/assets/Featured.webp">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://get-studytimer.vercel.app/">
+  <meta property="twitter:title" content="StudyTimer - Android Pomodoro Focus Timer & Custom Subjects">
+  <meta property="twitter:description" content="Level up your study stamina with StudyTimer for Android. Configurable Pomodoro intervals, custom subject tagging, and deep analytics.">
+  <meta property="twitter:image" content="https://get-studytimer.vercel.app/assets/Featured.webp">
+
+  <!-- Google Fonts & Stylesheet -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=2.3.0">
+
+  <!-- Structured Data / JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://get-studytimer.vercel.app/#app",
+        "name": "StudyTimer",
+        "operatingSystem": "Android",
+        "applicationCategory": "ProductivityApplication",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "description": "Android focus and study timer featuring customizable Pomodoro cycles, custom subject tagging, streak calendars, and deep time analytics.",
+        "image": "https://get-studytimer.vercel.app/assets/logo.png",
+        "downloadUrl": "https://get-studytimer.vercel.app/StudyTimer-release.apk"
       },
-      "publisher": {
+      {
         "@type": "Organization",
-        "name": "Pushkar Studio",
-        "url": "https://get-studytimer.vercel.app/"
-      },
-      "author": {
-        "@type": "Person",
-        "name": "Pushkar Saini"
-      },
-      "keywords": "study timer, pomodoro, focus timer, habit planner, lecture manager, offline, ad-free",
-      "inLanguage": "en"
-    }
-    </script>
-
-    <!-- Vercel Analytics & Speed Insights -->
-    <script defer src="/_vercel/insights/script.js"></script>
-    <script defer src="/_vercel/speed-insights/script.js"></script>
-</head>
-<body data-theme="amoled">
-    <a class="skip-link" href="#main-content">Skip to main content</a>
-    <div id="scroll-progress"></div>
-
-    <!-- Mobile Glass Header Navigation -->
-    <nav id="navbar" class="glass" role="navigation" aria-label="Main navigation">
-        <div class="nav-container">
-            <!-- Mobile Navigation Toggle (Far Left) -->
-            <button class="mobile-menu-toggle" id="menu-toggle" aria-label="Toggle Navigation Menu">
-                <svg class="hamburger-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-            </button>
-
-            <!-- Brand Logo & Title (Middle on Mobile) -->
-            <a href="#home" class="nav-brand">
-                <img src="assets/logo.png" alt="Study Timer Logo" width="30" height="30" class="logo-float">
-                <span>Study Timer</span>
-            </a>
-
-            <ul class="nav-links" id="nav-links">
-                <li><a href="#home" class="nav-item active">Home</a></li>
-                <li><a href="#live-timer" class="nav-item">Web Timer</a></li>
-                <li><a href="#features" class="nav-item">Features</a></li>
-                <li><a href="#heatmap-demo" class="nav-item">Analytics</a></li>
-                <li><a href="#screenshots" class="nav-item">Screenshots</a></li>
-                <li><a href="#whats-new" class="nav-item">What's New</a></li>
-                <li><a href="#faq" class="nav-item">FAQ</a></li>
-                <li class="nav-theme-item">
-                    <span class="theme-nav-label">Theme Preview:</span>
-                    <div class="theme-options">
-                        <button class="theme-pill active" data-theme-name="amoled" title="AMOLED Black">
-                            <span class="theme-dot amoled-dot"></span> AMOLED
-                        </button>
-                        <button class="theme-pill" data-theme-name="indigo" title="Midnight Indigo">
-                            <span class="theme-dot indigo-dot"></span> Midnight
-                        </button>
-                        <button class="theme-pill" data-theme-name="slate" title="Deep Slate">
-                            <span class="theme-dot slate-dot"></span> Slate
-                        </button>
-                        <button class="theme-pill" data-theme-name="emerald" title="Emerald Focus">
-                            <span class="theme-dot emerald-dot"></span> Emerald
-                        </button>
-                    </div>
-                </li>
-            </ul>
-
-            <div class="nav-actions">
-                <a href="StudyTimer-release.apk" class="btn primary-btn download-link nav-download" id="nav-download">
-                    Download
-                </a>
-            </div>
-        </div>
-    </nav>
-    <div class="nav-backdrop" id="nav-backdrop" aria-hidden="true"></div>
-
-    <main id="main-content" tabindex="-1">
-    
-    <!-- Hero Section (Mobile First) -->
-    <header id="home" class="hero section-padding">
-        <div class="hero-bg" aria-hidden="true">
-            <div class="blob blob-1" aria-hidden="true"></div>
-            <div class="blob blob-2" aria-hidden="true"></div>
-        </div>
-        <canvas id="particles-canvas" aria-hidden="true"></canvas>
-        
-        <div class="hero-content reveal">
-            <div class="hero-inner">
-                <div class="hero-copy">
-                    <div class="badge-group">
-                        <span class="hero-pill">100% Offline & Ad-Free</span>
-                        <span class="badge-accent">Android App</span>
-                    </div>
-                    
-                    <div class="hero-branding">
-                        <img src="assets/logo.png" alt="Study Timer" class="hero-logo logo-float" width="88" height="88">
-                        <h1 class="hero-title">Focus, Track & <span>Plan</span></h1>
-                    </div>
-
-                    <p class="hero-subtitle">Crush your academic goals with a clean, distraction-free study timer, intelligent lecture manager, and powerful daily habits planner.</p>
-
-                    <div class="hero-actions">
-                        <a href="StudyTimer-release.apk" class="btn primary-btn glow-btn download-link hero-download" id="hero-download">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                            <span>Download APK</span>
-                            <span class="btn-subtext app-version">v2.6.0</span>
-                        </a>
-
-                        <a href="#live-timer" class="btn secondary-btn try-demo-btn">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
-                            Try Web Demo
-                        </a>
-                    </div>
-
-                    <div class="hero-meta-strip">
-                        <span class="meta-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Free & Open Source</span>
-                        <span class="meta-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Zero Intrusive Ads</span>
-                        <span class="meta-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Latest <span class="app-version">v2.6.0</span></span>
-                    </div>
-                </div>
-
-                <aside class="hero-visual glass">
-                    <div class="hero-preview-card">
-                        <img src="assets/featured.png" alt="Study Timer app overview showcase" loading="eager" class="featured-img-main">
-                    </div>
-                    <div class="hero-visual-meta">
-                        <p class="hero-visual-note">Flexible focus engine, class duration tracking, daily task goals, 6-month heatmaps, and customizable AMOLED dark themes.</p>
-                        <div class="hero-visual-stats">
-                            <div>
-                                <strong>100%</strong>
-                                <span>Offline & Private</span>
-                            </div>
-                            <div>
-                                <strong>0</strong>
-                                <span>Intrusive Ads</span>
-                            </div>
-                            <div>
-                                <strong>6 Mo</strong>
-                                <span>Focus Heatmaps</span>
-                            </div>
-                        </div>
-                    </div>
-                </aside>
-            </div>
-        </div>
-    </header>
-
-    <!-- LIVE WEB FOCUS TIMER DEMO SECTION -->
-    <section id="live-timer" class="section-padding live-timer-section">
-        <div class="container">
-            <div class="section-header reveal">
-                <span class="section-tag">Interactive Web Preview</span>
-                <h2>Try the Focus Engine</h2>
-                <p>Experience StudyTimer's distraction-free countdown and stopwatch controls right inside your browser.</p>
-            </div>
-
-            <div class="timer-widget-card glass reveal">
-                <!-- Mode Selector Pills -->
-                <div class="timer-modes-selector">
-                    <button class="timer-mode-btn active" data-mode="focus" data-minutes="25">
-                        Focus (25m)
-                    </button>
-                    <button class="timer-mode-btn" data-mode="shortBreak" data-minutes="5">
-                        Short Break (5m)
-                    </button>
-                    <button class="timer-mode-btn" data-mode="longBreak" data-minutes="15">
-                        Long Break (15m)
-                    </button>
-                    <button class="timer-mode-btn" data-mode="lecture" data-minutes="50">
-                        Lecture Mode (50m)
-                    </button>
-                </div>
-
-                <!-- Circular Progress & Display -->
-                <div class="timer-display-container">
-                    <svg class="timer-ring" width="240" height="240" viewBox="0 0 240 240">
-                        <circle class="timer-ring-bg" cx="120" cy="120" r="105" stroke-width="10" />
-                        <circle class="timer-ring-progress" id="timer-progress" cx="120" cy="120" r="105" stroke-width="10" stroke-dasharray="660" stroke-dashoffset="0" />
-                    </svg>
-                    <div class="timer-readout">
-                        <span class="timer-mode-label" id="timer-mode-label">Deep Focus</span>
-                        <div class="timer-clock" id="timer-clock">25:00</div>
-                        <span class="timer-status-text" id="timer-status-text">Ready to study</span>
-                    </div>
-                </div>
-
-                <!-- Timer Controls -->
-                <div class="timer-controls">
-                    <button class="timer-action-btn primary-action" id="timer-toggle-btn" aria-label="Start Timer">
-                        <svg class="icon-play" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                        <svg class="icon-pause hidden" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-                        <span id="timer-btn-text">Start Session</span>
-                    </button>
-                    <button class="timer-action-btn secondary-action" id="timer-reset-btn" aria-label="Reset Timer">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                        Reset
-                    </button>
-                    <button class="timer-action-btn icon-only-action" id="timer-sound-btn" title="Toggle Sound Chime" aria-label="Toggle Sound">
-                        <svg class="icon-sound-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- KEY FEATURES GRID -->
-    <section id="features" class="section-padding">
-        <div class="container">
-            <div class="section-header reveal">
-                <span class="section-tag">Powerful Features</span>
-                <h2>Everything You Need to Focus</h2>
-                <p>Designed for university lectures, competitive exam prep, and daily focus building.</p>
-            </div>
-            
-            <div class="features-grid">
-                <div class="feature-card glass reveal">
-                    <div class="feature-icon primary-text">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    </div>
-                    <h3>Flexible Focus & Pomodoro</h3>
-                    <p>Fluid stopwatches, Pomodoro countdowns, and target study goals with tactile haptic feedback.</p>
-                </div>
-                
-                <div class="feature-card glass reveal delay-1">
-                    <div class="feature-icon accent-text">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-                    </div>
-                    <h3>Interactive Lecture Mode</h3>
-                    <p>Fixed class duration tracking with smart session-end prompts, quick extensions, and automatic break fallbacks.</p>
-                </div>
-                
-                <div class="feature-card glass reveal delay-2">
-                    <div class="feature-icon primary-text">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                    </div>
-                    <h3>Habits & Lecture Planner</h3>
-                    <p>Dedicated planners built to organize daily study routines, lectures, tasks, and remaining target calculations.</p>
-                </div>
-                
-                <div class="feature-card glass reveal">
-                    <div class="feature-icon accent-text">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                    </div>
-                    <h3>6-Month Focus Heatmaps</h3>
-                    <p>Visualize long-term study consistency, pinpoint peak productive hours, and maintain daily study streaks.</p>
-                </div>
-                
-                <div class="feature-card glass reveal delay-1">
-                    <div class="feature-icon primary-text">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-                    </div>
-                    <h3>AMOLED & Slate Themes</h3>
-                    <p>True AMOLED pitch-black and deep dark modes designed to save battery and ease eye strain during night sessions.</p>
-                </div>
-                
-                <div class="feature-card glass reveal delay-2">
-                    <div class="feature-icon accent-text">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                    </div>
-                    <h3>Secure Cloud Backup</h3>
-                    <p>Optionally sign in to safely back up your history logs and restore them anytime on new Android devices.</p>
-                </div>
-                
-                <div class="feature-card glass reveal">
-                    <div class="feature-icon primary-text">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
-                    </div>
-                    <h3>100% Offline & Private</h3>
-                    <p>Zero intrusive data collection, zero third-party ads, and local JSON / CSV data export and import support.</p>
-                </div>
-
-                <div class="feature-card glass reveal delay-1">
-                    <div class="feature-icon accent-text">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                    </div>
-                    <h3>Immersive Landscape Mode</h3>
-                    <p>Hide status bars and notifications for completely distraction-free desk study or tablet setup.</p>
-                </div>
-
-                <div class="feature-card glass reveal delay-2">
-                    <div class="feature-icon primary-text">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                    </div>
-                    <h3>Exact Historical Logs</h3>
-                    <p>Per-day study target tracking ensures historical logs, study streaks, and subject averages remain exact.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- INTERACTIVE HEATMAP DEMO SECTION -->
-    <section id="heatmap-demo" class="section-padding heatmap-section">
-        <div class="container">
-            <div class="section-header reveal">
-                <span class="section-tag">Consistency Visualizer</span>
-                <h2>6-Month Focus Heatmap</h2>
-                <p>Tap any day to see study hours, completed sessions, and streak counts in real-time.</p>
-            </div>
-
-            <div class="heatmap-card glass reveal">
-                <div class="heatmap-top-bar">
-                    <div class="heatmap-stats">
-                        <div class="h-stat">
-                            <span class="h-label">Total Study Time</span>
-                            <strong class="h-val">342.5 hrs</strong>
-                        </div>
-                        <div class="h-stat">
-                            <span class="h-label">Current Streak</span>
-                            <strong class="h-val accent-text">🔥 14 Days</strong>
-                        </div>
-                        <div class="h-stat">
-                            <span class="h-label">Daily Average</span>
-                            <strong class="h-val">3.2 hrs/day</strong>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Interactive Heatmap Grid Container -->
-                <div class="heatmap-grid-wrapper">
-                    <div class="heatmap-grid" id="heatmap-grid">
-                        <!-- Dynamically populated cells via script.js -->
-                    </div>
-                </div>
-
-                <!-- Mobile Heatmap Popover/Tooltip Display -->
-                <div class="heatmap-tooltip-bar" id="heatmap-tooltip">
-                    <div class="h-tooltip-content">
-                        <span class="h-tooltip-date">Tap any cell above to inspect study activity</span>
-                    </div>
-                </div>
-
-                <div class="heatmap-legend">
-                    <span>Less</span>
-                    <span class="legend-box level-0"></span>
-                    <span class="legend-box level-1"></span>
-                    <span class="legend-box level-2"></span>
-                    <span class="legend-box level-3"></span>
-                    <span class="legend-box level-4"></span>
-                    <span>More</span>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- SCREENSHOTS SHOWCASE CAROUSEL (WITH MOBILE DEVICE MOCKUP) -->
-    <section id="screenshots" class="section-padding screenshots-section">
-        <div class="container">
-            <div class="section-header reveal">
-                <span class="section-tag">App Preview</span>
-                <h2>Minimalist & Distraction-Free UI</h2>
-                <p>Designed to optimize study flow, track subjects, and respect your battery and attention.</p>
-            </div>
-
-            <!-- Screenshot Navigation Selector Tabs -->
-            <div class="screenshot-tabs reveal">
-                <button class="screenshot-tab-btn active" data-index="0">Focus Modes</button>
-                <button class="screenshot-tab-btn" data-index="1">Habit Planner</button>
-                <button class="screenshot-tab-btn" data-index="2">Study Calendar</button>
-                <button class="screenshot-tab-btn" data-index="3">Analytics</button>
-                <button class="screenshot-tab-btn" data-index="4">Session Logs</button>
-                <button class="screenshot-tab-btn" data-index="5">Appearance</button>
-                <button class="screenshot-tab-btn" data-index="6">Settings</button>
-            </div>
-            
-            <div class="modern-screenshots carousel-container reveal">
-                <button class="carousel-btn prev-btn" aria-label="Previous screenshot">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-                </button>
-                
-                <div class="carousel-track" id="carousel-track">
-                    <div class="modern-image-wrapper">
-                        <img src="assets/screenshot/modes.png" alt="Focus Modes & Timers" loading="lazy" class="screenshot-img" data-title="Focus Modes & Timers">
-                        <span class="img-caption">Focus Modes & Timers</span>
-                    </div>
-                    <div class="modern-image-wrapper">
-                        <img src="assets/screenshot/planner.png" alt="Habit & Lecture Planner" loading="lazy" class="screenshot-img" data-title="Habit & Lecture Planner">
-                        <span class="img-caption">Habit & Lecture Planner</span>
-                    </div>
-                    <div class="modern-image-wrapper">
-                        <img src="assets/screenshot/calendar.png" alt="Study Calendar & Streaks" loading="lazy" class="screenshot-img" data-title="Study Calendar & Streaks">
-                        <span class="img-caption">Study Calendar & Streaks</span>
-                    </div>
-                    <div class="modern-image-wrapper">
-                        <img src="assets/screenshot/insight_1.png" alt="Analytics & Weekly Trends" loading="lazy" class="screenshot-img" data-title="Analytics & Weekly Trends">
-                        <span class="img-caption">Analytics & Weekly Trends</span>
-                    </div>
-                    <div class="modern-image-wrapper">
-                        <img src="assets/screenshot/insight_2.png" alt="Session Breakdown" loading="lazy" class="screenshot-img" data-title="Session Breakdown">
-                        <span class="img-caption">Session Breakdown</span>
-                    </div>
-                    <div class="modern-image-wrapper">
-                        <img src="assets/screenshot/appearance.png" alt="AMOLED & Soft Dark Themes" loading="lazy" class="screenshot-img" data-title="Themes & Customization">
-                        <span class="img-caption">Themes & Customization</span>
-                    </div>
-                    <div class="modern-image-wrapper">
-                        <img src="assets/screenshot/settings.png" alt="Settings & Data Control" loading="lazy" class="screenshot-img" data-title="Settings & Data Control">
-                        <span class="img-caption">Settings & Data Control</span>
-                    </div>
-                </div>
-
-                <button class="carousel-btn next-btn" aria-label="Next screenshot">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-                </button>
-                
-                <div class="carousel-controls">
-                    <div class="carousel-indicators">
-                        <div class="indicator active"></div>
-                        <div class="indicator"></div>
-                        <div class="indicator"></div>
-                        <div class="indicator"></div>
-                        <div class="indicator"></div>
-                        <div class="indicator"></div>
-                        <div class="indicator"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- FAQ ACCORDION SECTION -->
-    <section id="faq" class="section-padding faq-section">
-        <div class="container">
-            <div class="section-header reveal">
-                <span class="section-tag">Got Questions?</span>
-                <h2>Frequently Asked Questions</h2>
-                <p>Everything you need to know about StudyTimer features, data privacy, and download.</p>
-            </div>
-
-            <div class="faq-container reveal">
-                <div class="faq-item glass">
-                    <button class="faq-question">
-                        <span>Is StudyTimer really 100% free and open-source?</span>
-                        <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
-                    <div class="faq-answer">
-                        <p>Yes! StudyTimer is completely free, open-source, and contains zero ads, zero paywalls, and zero tracking analytics. The source code is publicly accessible on GitHub.</p>
-                    </div>
-                </div>
-
-                <div class="faq-item glass">
-                    <button class="faq-question">
-                        <span>How does offline data storage and Cloud Backup work?</span>
-                        <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
-                    <div class="faq-answer">
-                        <p>All your focus sessions, tasks, and streaks are stored locally on your Android device. You can export or import JSON/CSV backup logs anytime. Optionally, you can log in to back up your data securely to the cloud.</p>
-                    </div>
-                </div>
-
-                <div class="faq-item glass">
-                    <button class="faq-question">
-                        <span>What makes Lecture Mode different from standard Pomodoro?</span>
-                        <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
-                    <div class="faq-answer">
-                        <p>Lecture Mode is built for students attending fixed-time university classes (e.g. 50m, 90m). It features class duration alerts, quick extension triggers, and automatic break fallbacks suited for class timetables.</p>
-                    </div>
-                </div>
-
-                <div class="faq-item glass">
-                    <button class="faq-question">
-                        <span>Which Android devices and versions are supported?</span>
-                        <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
-                    <div class="faq-answer">
-                        <p>StudyTimer supports all Android devices running Android 9 (Pie) and above. It is optimized for both smartphones and tablet landscape mode.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- DOWNLOAD APK SECTION -->
-    <section id="download" class="section-padding download-section">
-        <div class="container">
-            <div class="download-card glass reveal">
-                <div class="download-content">
-                    <span class="download-badge">Official Release</span>
-                    <h2>Ready to Master Your Study Goals?</h2>
-                    <p>Download the latest release APK directly and transform your daily productivity.</p>
-                    
-                    <ul class="download-specs">
-                        <li><span class="spec-label">Latest Version</span> <span class="app-version">v2.6.0</span></li>
-                        <li><span class="spec-label">Requirements</span> Android 9+</li>
-                        <li><span class="spec-label">Download Size</span> <span class="app-size">4.57 MB</span></li>
-                        <li><span class="spec-label">License</span> 100% Free & Open Source</li>
-                    </ul>
-
-                    <div class="release-notes-box" id="whats-new">
-                        <h4>What's New in Version <span class="app-version">v2.6.0</span> 🚀</h4>
-                        <p class="release-notes-text">Stopwatch Isolation: Stopwatch sessions are now cleanly separated from subject distributions, ensuring untagged focus hours don't skew subject charts while fully preserving lifetime focus stats.
-
-Pie Chart Visibility Setting: The Subject Pie Chart toggle under Settings &rarr; Charts &amp; Visualization now reactively hides or reveals the pie chart across Insights immediately.
-
-In-App Feedback &amp; Diagnostics: Direct in-app reporting dialog with automated diagnostic summaries and 5-minute spam protection.
-
-Enhanced Visuals &amp; Performance: Fixed AMOLED container shifts and polished UI transitions.</p>
-                    </div>
-                </div>
-
-                <div class="download-action">
-                    <a href="StudyTimer-release.apk" class="btn primary-btn glow-btn download-link w-full main-download-btn">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        <span>Download APK Now</span>
-                    </a>
-
-                    <button class="btn secondary-btn share-app-btn w-full" id="share-app-btn">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-                        <span>Share with Friends</span>
-                    </button>
-                    
-                    <button class="btn secondary-btn qr-trigger-btn w-full" id="qr-modal-btn">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                        <span>Scan QR Code for Mobile</span>
-                    </button>
-
-                    <p class="open-source-note">Verified Clean APK • No Ads • 100% Privacy</p>
-
-                    <noscript>
-                        <p class="noscript-note">JavaScript is disabled. Use the button above to download the latest APK directly.</p>
-                    </noscript>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    </main>
-
-    <!-- FOOTER -->
-    <footer class="footer">
-        <div class="container footer-content">
-            <div class="footer-brand">
-                <img src="assets/logo.png" alt="Study Timer Logo" width="28" height="28">
-                <span>Study Timer</span>
-            </div>
-            <div class="footer-links">
-                <a href="privacy.html" class="footer-link">Privacy Policy</a>
-                <a href="terms.html" class="footer-link">Terms of Service</a>
-                <a href="delete-account.html" class="footer-link">Delete Account</a>
-                <a href="https://github.com/JAIstudio-source/StudyTimer" target="_blank" rel="noopener noreferrer" class="footer-link">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-                    GitHub Source Code
-                </a>
-            </div>
-            <div class="footer-credit">
-                <p>Made with ❤️ by Pushkar Saini</p>
-                <p class="copyright">© <span id="year">2026</span> Pushkar Studio. All rights reserved.</p>
-            </div>
-        </div>
-    </footer>
-
-
-    <!-- LIGHTBOX MODAL FOR SCREENSHOTS -->
-    <div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="Fullscreen screenshot view">
-        <button class="lightbox-close" aria-label="Close fullscreen">&times;</button>
-        <div class="lightbox-content">
-            <img class="lightbox-img" src="" alt="Fullscreen screenshot view">
-            <p class="lightbox-caption" id="lightbox-caption"></p>
-        </div>
-    </div>
-
-    <!-- QR CODE DOWNLOAD MODAL -->
-    <div id="qr-modal" class="qr-modal" role="dialog" aria-modal="true" aria-label="Scan QR Code to Download">
-        <div class="qr-modal-content glass">
-            <button class="qr-modal-close" id="qr-close-btn" aria-label="Close Modal">&times;</button>
-            <h3>Scan on Mobile</h3>
-            <p>Scan this QR code with your mobile camera to download the APK directly on your phone.</p>
-            <div class="qr-code-wrapper">
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk" alt="StudyTimer APK Download QR Code" class="qr-img">
-            </div>
-            <p class="qr-subtext">Direct Github Release Download Link</p>
-        </div>
-    </div>
-
-    <!-- BACK TO TOP BUTTON -->
-    <button id="back-to-top" aria-label="Back to top">↑</button>
-
-    <!-- Vercel Speed Insights Script (Loaded via standalone Vercel CDN/script for plain HTML/JS) -->
-    <script defer src="/_vercel/insights/script.js"></script>
-    <script src="script.js?v=1.0.1"></script>
-
-    <!-- Service Worker Registration (offline support) -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function () {
-                navigator.serviceWorker.register('./sw.js').catch(function () {});
-            });
+        "@id": "https://get-studytimer.vercel.app/#organization",
+        "name": "StudyTimer",
+        "url": "https://get-studytimer.vercel.app/",
+        "logo": "https://get-studytimer.vercel.app/assets/logo.png",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "email": "studytimer737@gmail.com",
+          "contactType": "customer support"
         }
-    </script>
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://get-studytimer.vercel.app/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Is StudyTimer free to use on Android?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes! StudyTimer is 100% free with zero ads, subscription fees, or paywalled features. All Pomodoro interval modes, custom subject tools, streak calendars, and analytics heatmaps are fully unlocked."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do custom subjects and target goals work?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "You can create unlimited custom subjects (e.g. Physics, Coding, Mathematics, History) with custom hex color tags. Set target daily or weekly hours, and the app automatically tracks your real-time progress bars as you study."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does StudyTimer work completely offline?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. StudyTimer is architected offline-first using a local SQLite/Room database. All your study sessions, habits, and subject logs are stored securely on your device, and automatically sync to your Google cloud backup when an internet connection is detected."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I install the StudyTimer APK on Android?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Tap the 'Download Free APK' button on this page. Once the APK file finishes downloading, tap the file in your notification drawer or Downloads folder to install. If prompted by Android, enable 'Allow from this source'."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <div class="bg-ambient-layer"></div>
+
+  <!-- Header & Navigation (Compact Mobile Header) -->
+  <header class="site-header">
+    <div class="container nav-container">
+      <a href="/" class="brand-link">
+        <img src="assets/logo.png" alt="StudyTimer Android App Logo" width="34" height="34">
+        <span>StudyTimer</span>
+      </a>
+
+      <nav>
+        <ul class="nav-menu">
+          <li><a href="#heroPhoneStage" class="nav-item">Focus Engine</a></li>
+          <li><a href="#showcase" class="nav-item">App Tour</a></li>
+          <li><a href="#comparison" class="nav-item">Comparison</a></li>
+          <li><a href="#faq" class="nav-item">FAQ</a></li>
+          <li><a href="privacy.html" class="nav-item">Privacy Policy</a></li>
+        </ul>
+      </nav>
+
+      <div class="nav-actions-group">
+        <button class="btn-secondary-pill desktop-only-qr js-open-qr" aria-label="Scan QR Code">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          <span>QR</span>
+        </button>
+        <a href="StudyTimer-release.apk" download class="btn-pill-action header-install-btn js-track-download">
+          <span>Get APK</span>
+          <div class="btn-icon-wrapper">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          </div>
+        </a>
+        <button class="mobile-menu-trigger" aria-label="Toggle Menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero Section (Above The Fold CTA) -->
+    <section class="hero-wrapper">
+      <div class="container hero-box">
+        <div class="eyebrow-badge">
+          <span class="status-dot"></span>
+          <span>Native Android Study &amp; Focus Engine</span>
+        </div>
+
+        <h1 class="hero-heading">
+          Build Unbreakable Focus Stamina. <br>
+          <span class="gradient-title">Master Every Study Session.</span>
+        </h1>
+
+        <p class="hero-subtext">
+          Engineered for students and exam takers. Configurable Pomodoro intervals, custom subject tagging, streak calendars, and deep focus analytics on Android.
+        </p>
+
+        <!-- Above-The-Fold Mobile First CTA -->
+        <div class="hero-actions">
+          <a href="StudyTimer-release.apk" download class="btn-pill-action js-track-download" id="heroDownloadBtn">
+            <span>Download Free Android APK</span>
+            <div class="btn-icon-wrapper">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </div>
+          </a>
+
+          <button class="btn-secondary-pill js-open-share">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+            <span>Share with Friends</span>
+          </button>
+        </div>
+
+        <div class="hero-trust-row">
+          <div class="trust-badge-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>100% Free &amp; Zero Ads</span>
+          </div>
+          <div class="trust-badge-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>Offline-First (Room DB)</span>
+          </div>
+          <div class="trust-badge-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>Google Cloud Backup</span>
+          </div>
+        </div>
+
+        <!-- 3-Phone Interactive Android Hero Stage -->
+        <div class="android-stage-wrapper" id="heroPhoneStage">
+          <div class="android-stage-glow"></div>
+
+          <!-- Left Flanker Screen: Analytics -->
+          <div class="android-flanker left" id="heroPhoneLeft" role="button" aria-label="Switch to Focus Analytics Screen" tabindex="0">
+            <div class="android-punch-hole"></div>
+            <div class="android-speaker-slit"></div>
+            <img src="assets/screenshots/Insight_screen_1.jpg" alt="StudyTimer Focus Analytics on Android" class="android-screen-content" loading="lazy" id="heroImgLeft">
+          </div>
+
+          <!-- Center Active Android Phone -->
+          <div class="hero-center-phone-slot" id="heroPhoneCenter">
+            <div class="android-device-frame">
+              <div class="android-punch-hole"></div>
+              <div class="android-speaker-slit"></div>
+              <img src="assets/screenshots/Pomodoro_timer_Screen.jpg" alt="StudyTimer Active Pomodoro Focus Timer Interface on Android" class="android-screen-content" loading="eager" id="heroImgCenter">
+            </div>
+          </div>
+
+          <!-- Right Flanker Screen: Streak Calendar -->
+          <div class="android-flanker right" id="heroPhoneRight" role="button" aria-label="Switch to Streak Calendar Screen" tabindex="0">
+            <div class="android-punch-hole"></div>
+            <div class="android-speaker-slit"></div>
+            <img src="assets/screenshots/Goal_calendar_screen.jpg" alt="StudyTimer Monthly Study Streak Calendar on Android" class="android-screen-content" loading="lazy" id="heroImgRight">
+          </div>
+        </div>
+
+        <!-- Dynamic Wheel Feature Card (All 9 Core App Screens) -->
+        <div class="dynamic-wheel-info-card" id="wheelInfoCard">
+          <div class="wheel-card-shell">
+            <div class="wheel-card-core">
+              <div class="wheel-tag-badge" id="wheelBadge">1 of 9 &bull; Focus Engine</div>
+              <h3 class="wheel-feature-title" id="wheelTitle">Active Pomodoro Focus Engine</h3>
+              <p class="wheel-feature-desc" id="wheelDesc">
+                Real-time countdown dial with ambient soundscapes, customizable work cycles, and distraction-free visual stamina feedback.
+              </p>
+
+              <!-- Wheel Navigation Controls -->
+              <div class="wheel-nav-row">
+                <button class="wheel-nav-btn" id="wheelPrevBtn" aria-label="Previous Screen">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                </button>
+                <div class="wheel-dots-track" id="wheelDotsTrack">
+                  <button class="wheel-dot active" data-index="0" aria-label="Screen 1"></button>
+                  <button class="wheel-dot" data-index="1" aria-label="Screen 2"></button>
+                  <button class="wheel-dot" data-index="2" aria-label="Screen 3"></button>
+                  <button class="wheel-dot" data-index="3" aria-label="Screen 4"></button>
+                  <button class="wheel-dot" data-index="4" aria-label="Screen 5"></button>
+                  <button class="wheel-dot" data-index="5" aria-label="Screen 6"></button>
+                  <button class="wheel-dot" data-index="6" aria-label="Screen 7"></button>
+                  <button class="wheel-dot" data-index="7" aria-label="Screen 8"></button>
+                  <button class="wheel-dot" data-index="8" aria-label="Screen 9"></button>
+                </div>
+                <button class="wheel-nav-btn" id="wheelNextBtn" aria-label="Next Screen">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Touch Swipable Android Showcase Stage -->
+    <section class="section-chapter" id="showcase">
+      <div class="container">
+        <div class="bento-section-head">
+          <div class="eyebrow-badge">Touch Swipable Tour</div>
+          <h2>Explore the Native <span class="gradient-title">Android Screens</span></h2>
+          <p style="font-size: 0.9rem; color: var(--accent-cyan); margin-top: 0.25rem;">&larr; Swipe left/right on mobile to flip screens &rarr;</p>
+        </div>
+
+        <div class="showcase-stage-card">
+          <!-- Stage Tabs (Scrollable on Mobile) -->
+          <div class="showcase-nav-tabs" role="tablist">
+            <button class="stage-tab-btn active" data-tab="pomodoro" role="tab" aria-selected="true">1. Pomodoro Settings</button>
+            <button class="stage-tab-btn" data-tab="stopwatch" role="tab" aria-selected="false">2. Stopwatch</button>
+            <button class="stage-tab-btn" data-tab="subjects" role="tab" aria-selected="false">3. Custom Subjects</button>
+            <button class="stage-tab-btn" data-tab="analytics" role="tab" aria-selected="false">4. Time Analytics</button>
+            <button class="stage-tab-btn" data-tab="habits" role="tab" aria-selected="false">5. Streak History</button>
+            <button class="stage-tab-btn" data-tab="cloud" role="tab" aria-selected="false">6. Cloud Sync</button>
+          </div>
+
+          <!-- Tab 1: Pomodoro Custom Settings -->
+          <div class="showcase-content-panel active" id="panel-pomodoro">
+            <div class="stage-info-col">
+              <h3>Pomodoro Interval Customization</h3>
+              <p>Fine-tune every aspect of your focus sessions: adjust work blocks (25/50m), break durations, auto-start cycles, and ambient sound options.</p>
+              <div class="study-benefit-list">
+                <div class="study-benefit-row">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>Customizable work &amp; break interval durations</span>
+                </div>
+                <div class="study-benefit-row">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>Ambient soundscapes and vibration feedback</span>
+                </div>
+              </div>
+              <a href="StudyTimer-release.apk" download class="btn-pill-action js-track-download">
+                <span>Try Pomodoro Mode</span>
+                <div class="btn-icon-wrapper">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                </div>
+              </a>
+            </div>
+            <div class="stage-device-col">
+              <div class="android-device-frame">
+                <div class="android-punch-hole"></div>
+                <div class="android-speaker-slit"></div>
+                <img src="assets/screenshots/Pomodoro-settings__screen.jpg" alt="StudyTimer Pomodoro Custom Settings on Android" class="android-screen-content" loading="lazy">
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 2: Stopwatch Mode -->
+          <div class="showcase-content-panel" id="panel-stopwatch">
+            <div class="stage-info-col">
+              <h3>Unconstrained Focus Stopwatch</h3>
+              <p>For open-ended deep work sessions or untimed problem-solving drills. Seamless pause, lap logging, and instant subject tag switching.</p>
+              <div class="study-benefit-list">
+                <div class="study-benefit-row">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>Real-time session timekeeping with haptic cues</span>
+                </div>
+                <div class="study-benefit-row">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>Quick resume and automated background persistence</span>
+                </div>
+              </div>
+              <a href="StudyTimer-release.apk" download class="btn-pill-action js-track-download">
+                <span>Try Stopwatch Mode</span>
+                <div class="btn-icon-wrapper">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                </div>
+              </a>
+            </div>
+            <div class="stage-device-col">
+              <div class="android-device-frame">
+                <div class="android-punch-hole"></div>
+                <div class="android-speaker-slit"></div>
+                <img src="assets/screenshots/Stopwatch_paused_screen.jpg" alt="StudyTimer Paused Stopwatch Mode on Android" class="android-screen-content" loading="lazy">
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 3: Custom Subjects -->
+          <div class="showcase-content-panel" id="panel-subjects">
+            <div class="stage-info-col">
+              <h3>Custom Subject &amp; Tag Creation</h3>
+              <p>Organize multiple study streams effortlessly. Assign custom color palettes, configure daily targets, and manage subject priority in one clean view.</p>
+              <div class="study-benefit-list">
+                <div class="study-benefit-row">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>Unlimited custom subject tags with hex colors</span>
+                </div>
+                <div class="study-benefit-row">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>Real-time completion percentage tracking</span>
+                </div>
+              </div>
+              <a href="StudyTimer-release.apk" download class="btn-pill-action js-track-download">
+                <span>Manage Subjects</span>
+                <div class="btn-icon-wrapper">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                </div>
+              </a>
+            </div>
+            <div class="stage-device-col">
+              <div class="android-device-frame">
+                <div class="android-punch-hole"></div>
+                <div class="android-speaker-slit"></div>
+                <img src="assets/screenshots/Custom_subject_screen.jpg" alt="StudyTimer Custom Subject Screen on Android" class="android-screen-content" loading="lazy">
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 4: Analytics Depth -->
+          <div class="showcase-content-panel" id="panel-analytics">
+            <div class="stage-info-col">
+              <h3>Hour-by-Hour Study Heatmaps</h3>
+              <p>Granular breakdown of your daily study distribution. Identify your cognitive prime times and compare weekly study stamina gains with visual graphs.</p>
+              <div class="study-benefit-list">
+                <div class="study-benefit-row">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>Detailed breakdown of focused time vs. break periods</span>
+                </div>
+                <div class="study-benefit-row">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>Custom time range filters (7 Days, 30 Days, All Time)</span>
+                </div>
+              </div>
+              <a href="StudyTimer-release.apk" download class="btn-pill-action js-track-download">
+                <span>View Analytics</span>
+                <div class="btn-icon-wrapper">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                </div>
+              </a>
+            </div>
+            <div class="stage-device-col">
+              <div class="android-device-frame">
+                <div class="android-punch-hole"></div>
+                <div class="android-speaker-slit"></div>
+                <img src="assets/screenshots/Insight_screen_3.jpg" alt="StudyTimer Deep Focus Analytics on Android" class="android-screen-content" loading="lazy">
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 5: Habit History -->
+          <div class="showcase-content-panel" id="panel-habits">
+            <div class="stage-info-col">
+              <h3>Daily Habits &amp; Goal History</h3>
+              <p>Track secondary study habits alongside your timers: review flashcards, solve mock exam papers, read textbook chapters, and maintain streak history.</p>
+              <div class="study-benefit-list">
+                <div class="study-benefit-row">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>Daily routine check-offs with streak protection</span>
+                </div>
+                <div class="study-benefit-row">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>Archived session logs for review and audits</span>
+                </div>
+              </div>
+              <a href="StudyTimer-release.apk" download class="btn-pill-action js-track-download">
+                <span>Build Study Habits</span>
+                <div class="btn-icon-wrapper">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                </div>
+              </a>
+            </div>
+            <div class="stage-device-col">
+              <div class="android-device-frame">
+                <div class="android-punch-hole"></div>
+                <div class="android-speaker-slit"></div>
+                <img src="assets/screenshots/Habit-Goal_histroy_screen.jpg" alt="StudyTimer Habit History and Goal Progress on Android" class="android-screen-content" loading="lazy">
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 6: Cloud & Sync -->
+          <div class="showcase-content-panel" id="panel-cloud">
+            <div class="stage-info-col">
+              <h3>Google Cloud Sync &amp; Backup</h3>
+              <p>Enjoy offline freedom with optional cloud synchronization. Sign in with Google to automatically back up your study streaks, subjects, and analytics across Android devices.</p>
+              <div class="study-benefit-list">
+                <div class="study-benefit-row">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>Encrypted Supabase PostgreSQL database sync</span>
+                </div>
+                <div class="study-benefit-row">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>One-click data export and permanent account deletion</span>
+                </div>
+              </div>
+              <a href="StudyTimer-release.apk" download class="btn-pill-action js-track-download">
+                <span>Download StudyTimer</span>
+                <div class="btn-icon-wrapper">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                </div>
+              </a>
+            </div>
+            <div class="stage-device-col">
+              <div class="android-device-frame">
+                <div class="android-punch-hole"></div>
+                <div class="android-speaker-slit"></div>
+                <img src="assets/screenshots/Cloud_sync_setting_screen.jpg" alt="StudyTimer Cloud Sync and Google Sign-in on Android" class="android-screen-content" loading="lazy">
+              </div>
+            </div>
+          </div>
+
+          <!-- Interactive Pagination Dots -->
+          <div class="showcase-pagination-dots" role="tablist" aria-label="Showcase Screen Navigation">
+            <button class="showcase-dot active" data-index="0" aria-label="Screen 1: Pomodoro"></button>
+            <button class="showcase-dot" data-index="1" aria-label="Screen 2: Stopwatch"></button>
+            <button class="showcase-dot" data-index="2" aria-label="Screen 3: Custom Subjects"></button>
+            <button class="showcase-dot" data-index="3" aria-label="Screen 4: Time Analytics"></button>
+            <button class="showcase-dot" data-index="4" aria-label="Screen 5: Streak History"></button>
+            <button class="showcase-dot" data-index="5" aria-label="Screen 6: Cloud Sync"></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Comparison Table Section -->
+    <section class="section-chapter" id="comparison">
+      <div class="container">
+        <div class="bento-section-head">
+          <div class="eyebrow-badge">The Competitive Edge</div>
+          <h2>How StudyTimer Compares to <span class="gradient-title">Generic Timer Apps</span></h2>
+          <p>Built specifically around the actual workflow of students, programmers, and exam candidates.</p>
+        </div>
+
+        <div class="comparison-container">
+          <table class="study-compare-table">
+            <thead>
+              <tr>
+                <th>Focus Feature</th>
+                <th class="highlight-timer">StudyTimer (Android)</th>
+                <th>Standard Stopwatches</th>
+                <th>Generic Pomodoro Apps</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Subject Tags &amp; Targets</strong></td>
+                <td class="highlight-timer"><span class="icon-pass">✓</span> Unlimited Subjects &amp; Targets</td>
+                <td><span class="icon-fail">✕</span> None</td>
+                <td><span class="icon-fail">✕</span> Paywalled / Basic</td>
+              </tr>
+              <tr>
+                <td><strong>Study Streak Calendar</strong></td>
+                <td class="highlight-timer"><span class="icon-pass">✓</span> Visual Monthly Streaks</td>
+                <td><span class="icon-fail">✕</span> None</td>
+                <td><span class="icon-fail">✕</span> Limited</td>
+              </tr>
+              <tr>
+                <td><strong>Deep Time Heatmaps</strong></td>
+                <td class="highlight-timer"><span class="icon-pass">✓</span> Free In-Depth Analytics</td>
+                <td><span class="icon-fail">✕</span> None</td>
+                <td><span class="icon-fail">✕</span> Monthly Subscription</td>
+              </tr>
+              <tr>
+                <td><strong>Offline-First Room DB</strong></td>
+                <td class="highlight-timer"><span class="icon-pass">✓</span> 100% Offline Compatible</td>
+                <td><span class="icon-pass">✓</span> Offline</td>
+                <td><span class="icon-fail">✕</span> Requires Connection</td>
+              </tr>
+              <tr>
+                <td><strong>Ad Distraction Policy</strong></td>
+                <td class="highlight-timer"><span class="icon-pass">✓</span> 100% Ad-Free &amp; Clean</td>
+                <td><span class="icon-fail">✕</span> Annoying Banner Ads</td>
+                <td><span class="icon-fail">✕</span> Video Interstitials</td>
+              </tr>
+              <tr>
+                <td><strong>Google Cloud Sync</strong></td>
+                <td class="highlight-timer"><span class="icon-pass">✓</span> Encrypted Supabase RLS</td>
+                <td><span class="icon-fail">✕</span> Local Only</td>
+                <td><span class="icon-fail">✕</span> Clunky / Proprietary</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ Accordion Section -->
+    <section class="section-chapter" id="faq">
+      <div class="container">
+        <div class="bento-section-head">
+          <div class="eyebrow-badge">Study FAQ</div>
+          <h2>Frequently Asked <span class="gradient-title">Study Questions</span></h2>
+          <p>Everything you need to know about StudyTimer for Android, custom subjects, and data safety.</p>
+        </div>
+
+        <div class="study-faq-deck">
+          <div class="study-faq-item active">
+            <button class="study-faq-trigger" aria-expanded="true">
+              <span>Is StudyTimer completely free to download and use on Android?</span>
+              <svg class="study-faq-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="study-faq-body">
+              <p>Yes, StudyTimer is 100% free! All core features including custom subject timers, streak management, deep analytics charts, and cloud sync are fully available with zero hidden paywalls or subscription fees.</p>
+            </div>
+          </div>
+
+          <div class="study-faq-item">
+            <button class="study-faq-trigger" aria-expanded="false">
+              <span>How do custom course subjects and targets work?</span>
+              <svg class="study-faq-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="study-faq-body">
+              <p>You can create unlimited custom subjects (e.g. Physics, Coding, Mathematics, History) with custom hex color tags. Set target daily or weekly hours, and the app automatically tracks your real-time progress bars as you study.</p>
+            </div>
+          </div>
+
+          <div class="study-faq-item">
+            <button class="study-faq-trigger" aria-expanded="false">
+              <span>Does StudyTimer work when I have no internet connection?</span>
+              <svg class="study-faq-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="study-faq-body">
+              <p>Yes. StudyTimer is built with an offline-first architecture using a secure local database on your Android device. All your focus sessions, habit records, and subject stats are recorded locally and sync automatically when your device reconnects to the network.</p>
+            </div>
+          </div>
+
+          <div class="study-faq-item">
+            <button class="study-faq-trigger" aria-expanded="false">
+              <span>How do I install the APK file on my Android device?</span>
+              <svg class="study-faq-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="study-faq-body">
+              <p>Tap the <strong>Get APK</strong> button on this site. Once downloaded, open the APK from your notification bar or Downloads folder. If prompted by Android, toggle "Allow from this source" in security settings, and tap Install. The app is 100% safe and verified.</p>
+            </div>
+          </div>
+
+          <div class="study-faq-item">
+            <button class="study-faq-trigger" aria-expanded="false">
+              <span>How do I back up my study streaks across devices?</span>
+              <svg class="study-faq-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="study-faq-body">
+              <p>Open the app settings and sign in with your Google Account. Your subjects, daily targets, and session streaks will back up in real-time, allowing you to restore your progress if you switch devices.</p>
+            </div>
+          </div>
+
+          <div class="study-faq-item">
+            <button class="study-faq-trigger" aria-expanded="false">
+              <span>How can I delete my account and erase all study records?</span>
+              <svg class="study-faq-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="study-faq-body">
+              <p>You can instantly delete all account records within the app (Settings &gt; Account &gt; Delete Account) or submit a deletion request via our <a href="delete-account.html">Account Deletion Portal</a>.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bottom High-Conversion Download Callout -->
+    <section class="section-chapter">
+      <div class="container">
+        <div class="bottom-callout-banner">
+          <h2>Ready to Supercharge Your Study Habits?</h2>
+          <p style="margin: 0 auto 1.5rem; max-width: 580px;">Join thousands of learners mastering their focus stamina with StudyTimer on Android today. Free, offline-friendly, and beautifully designed.</p>
+          
+          <div class="hero-actions">
+            <a href="StudyTimer-release.apk" download class="btn-pill-action js-track-download">
+              <span>Download Free Android APK</span>
+              <div class="btn-icon-wrapper">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              </div>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Sticky Mobile Download Bar (Android Styled) -->
+  <aside class="sticky-android-cta" aria-label="Quick Mobile Download">
+    <div class="sticky-cta-content">
+      <div>
+        <div style="font-family: var(--font-display); font-weight: 700; font-size: 0.92rem; color: #FFFFFF;">StudyTimer APK</div>
+        <div style="font-size: 0.75rem; color: var(--accent-emerald);">Free Android Download</div>
+      </div>
+      <a href="StudyTimer-release.apk" download class="btn-pill-action js-track-download">
+        <span>Download</span>
+        <div class="btn-icon-wrapper">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        </div>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Cookie Consent Banner -->
+  <div class="cookie-card-fixed" id="cookieBanner" role="dialog" aria-labelledby="cookieTitle">
+    <h4 id="cookieTitle">Privacy &amp; Cookie Preferences</h4>
+    <p>We use essential local storage and anonymous telemetry to enhance your study session syncing. Learn more in our <a href="privacy.html">Privacy Policy</a>.</p>
+    <div style="display: flex; gap: 0.5rem;">
+      <button class="btn-pill-action" id="cookieAcceptBtn" style="padding: 0.45rem 1rem; font-size: 0.85rem; min-height: 38px;">Accept</button>
+      <button class="btn-secondary-pill" id="cookieDeclineBtn" style="padding: 0.45rem 1rem; font-size: 0.85rem; min-height: 38px;">Decline</button>
+    </div>
+  </div>
+
+  <!-- QR Code Modal (Desktop) -->
+  <div class="modal-screen-mask" id="qrModal" role="dialog" aria-labelledby="qrModalTitle" aria-modal="true">
+    <div class="modal-content-card">
+      <button class="modal-close-trigger js-close-modal" aria-label="Close Modal">&times;</button>
+      <h3 id="qrModalTitle" style="text-align: center; margin-bottom: 0.5rem;">Scan to Install on Android</h3>
+      <p style="text-align: center; margin-bottom: 1.25rem; font-size: 0.88rem;">Scan this QR code with your Android camera to download the official StudyTimer release APK directly to your device.</p>
+      
+      <div style="display: flex; justify-content: center; margin-bottom: 1.25rem;">
+        <div style="background: #FFFFFF; padding: 0.85rem; border-radius: 16px;">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://get-studytimer.vercel.app/StudyTimer-release.apk" alt="StudyTimer Android APK QR Code" width="160" height="160">
+        </div>
+      </div>
+      
+      <div style="display: flex; gap: 0.5rem;">
+        <button class="btn-secondary-pill js-copy-link" style="flex: 1; justify-content: center;" data-url="https://get-studytimer.vercel.app/StudyTimer-release.apk">Copy Link</button>
+        <button class="btn-pill-action js-close-modal" style="flex: 1; justify-content: center; padding: 0.5rem 1rem;">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Social Share Modal -->
+  <div class="modal-screen-mask" id="shareModal" role="dialog" aria-labelledby="shareModalTitle" aria-modal="true">
+    <div class="modal-content-card">
+      <button class="modal-close-trigger js-close-share-modal" aria-label="Close Share Modal">&times;</button>
+      <h3 id="shareModalTitle" style="text-align: center; margin-bottom: 0.5rem;">Share StudyTimer</h3>
+      <p style="text-align: center; margin-bottom: 1.25rem; font-size: 0.88rem;">Help your study partners and classmates master their focus sessions!</p>
+      
+      <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.25rem;">
+        <a href="https://api.whatsapp.com/send?text=Check%20out%20StudyTimer%20for%20Android%20-%20Pomodoro%20timer,%20custom%20subjects,%20and%20study%20streaks:%20https://get-studytimer.vercel.app" target="_blank" rel="noopener" class="btn-secondary-pill" style="justify-content: center;">
+          <span>Share on WhatsApp</span>
+        </a>
+        <a href="https://t.me/share/url?url=https://get-studytimer.vercel.app&text=Check%20out%20StudyTimer%20for%20Android%20-%20Pomodoro%20timer,%20custom%20subjects,%20and%20study%20streaks!" target="_blank" rel="noopener" class="btn-secondary-pill" style="justify-content: center;">
+          <span>Share on Telegram</span>
+        </a>
+        <a href="https://twitter.com/intent/tweet?text=Level%20up%20your%20study%20routine%20with%20StudyTimer%20for%20Android!%20Focus%20timer,%20custom%20subjects,%20and%20habit%20streaks:&url=https://get-studytimer.vercel.app" target="_blank" rel="noopener" class="btn-secondary-pill" style="justify-content: center;">
+          <span>Share on X / Twitter</span>
+        </a>
+        <button class="btn-pill-action js-copy-link" data-url="https://get-studytimer.vercel.app" style="justify-content: center; padding: 0.75rem 1.25rem;">
+          <span>Copy Website Link</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Site Footer (Symmetrical Mobile-First) -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-nav-grid">
+        <div class="footer-brand-summary">
+          <a href="/" class="brand-link">
+            <img src="assets/logo.png" alt="StudyTimer Logo" width="34" height="34">
+            <span>StudyTimer</span>
+          </a>
+          <p>
+            The distraction-free Android study companion for Pomodoro discipline, custom course targets, and habit streaks.
+          </p>
+        </div>
+
+        <div class="footer-col-block">
+          <h5>Study App</h5>
+          <ul>
+            <li><a href="#heroPhoneStage">Focus Engine</a></li>
+            <li><a href="#showcase">Screenshots</a></li>
+            <li><a href="#comparison">Comparison</a></li>
+            <li><a href="StudyTimer-release.apk" download>Download APK</a></li>
+            <li><a href="thank-you.html">Setup Guide</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col-block">
+          <h5>Legal &amp; Privacy</h5>
+          <ul>
+            <li><a href="privacy.html">Privacy Policy</a></li>
+            <li><a href="terms.html">Terms of Service</a></li>
+            <li><a href="delete-account.html">Account &amp; Data Deletion</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-support-block">
+          <h5>Developer Support</h5>
+          <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.5rem;">
+            <li><span style="color: var(--text-muted); font-size: 0.88rem;">Direct Developer Email:</span></li>
+            <li><a href="mailto:studytimer737@gmail.com" style="color: var(--primary-light); font-weight: 600; font-size: 0.95rem;">studytimer737@gmail.com</a></li>
+            <li><span style="color: var(--text-subtle); font-size: 0.8rem;">Platform: Native Android &bull; Response: &lt; 24h</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-legal-bar">
+        <div>&copy; 2026 StudyTimer. All rights reserved. Google Play and Android are trademarks of Google LLC.</div>
+        <div style="display: flex; gap: 1.25rem; justify-content: center;">
+          <a href="privacy.html">Privacy</a>
+          <a href="terms.html">Terms</a>
+          <a href="delete-account.html">Data Safety</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="speed-insights.js" defer></script>
+  <script src="script.js?v=2.3.0" defer></script>
 </body>
 </html>

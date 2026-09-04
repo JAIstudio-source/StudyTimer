@@ -1,11 +1,8 @@
 {
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/.well-known/mcp", "destination": "/api/mcp" },
     { "source": "/about", "destination": "/about.html" },
-    { "source": "/contact", "destination": "/contact.html" },
-    { "source": "/docs", "destination": "/docs.html" },
-    { "source": "/developers", "destination": "/docs.html" }
+    { "source": "/contact", "destination": "/contact.html" }
   ],
   "headers": [
     {
@@ -25,14 +22,6 @@
       "headers": [
         { "key": "Content-Type", "value": "text/markdown; charset=utf-8" },
         { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" },
-        { "key": "Vary", "value": "Accept, Accept-Encoding" }
-      ]
-    },
-    {
-      "source": "/(openapi\\.json|openapi\\.yaml|\\.well-known/mcp\\.json)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" },
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
         { "key": "Vary", "value": "Accept, Accept-Encoding" }
       ]
     },

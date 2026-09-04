@@ -1,15 +1,13 @@
-# StudyTimer 2.7.0 (versionCode 20)
+# StudyTimer 2.8.0 (versionCode 21)
 
-What's New in Version 2.7.0 🚀
-- **New Pie Chart Insight**: Interactive subject breakdown and focus depth distribution with dynamic theming.
-- **Local Profile Avatars**: Instant local photo storage and avatar selection with zero network delays.
-- **Modern Adaptive UI**: Re-engineered full-screen landscape clock, fluid Insights navigation pill, and dynamic Light & OLED theme tokens across Calendar and Planner.
-- **Default Subject-Wise Tagging**: Fresh installs now launch directly into subject-wise focus tracking.
-- **Bug Fixes & Stability Improvements**: Fixed status bar insets on Android 11+, resolved Settings scroll-vs-tap gesture conflicts, and polished UI transitions.
+What's New in Version 2.8.0 🚀
+- **Immersive Full-Screen Modes**: Pure distraction-free full-screen stopwatch and timer view in both portrait and landscape orientation with tap-to-expand, double-tap pause controls, and ultra-low battery consumption.
+- **Adjust Today's Focus Time**: Easily add missed offline study sessions or deduct accidental timer time for the current day without mutating immutable historical logs.
+- **Edit Yesterday's Habits**: Review and check off missed goals or habits from yesterday directly inside the Daily Planner.
+- **Enhanced performance, increased stability, battery optimization.**
 
 ## Compatibility
 - Android 9 (API 28) through Android 16 (API 36)
-- Signed with official release key.
 
 ## Installation
-Install `StudyTimer-release.apk` (v2.7.0). Updating preserves all your study logs, streaks, and settings.
+Install `StudyTimer-release.apk` (v2.8.0). Updating preserves all your study logs, streaks, and settings.

@@ -1,0 +1,148 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "StudyTimer Developer & Model Context Protocol API",
+    "version": "1.0.0",
+    "description": "Public REST and MCP APIs for StudyTimer Android application, providing feedback ingestion, MCP server handshake, and app discovery.",
+    "contact": {
+      "name": "StudyTimer Engineering",
+      "email": "studytimer737@gmail.com",
+      "url": "https://get-studytimer.vercel.app/contact.html"
+    },
+    "license": {
+      "name": "Proprietary",
+      "url": "https://get-studytimer.vercel.app/terms.html"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://get-studytimer.vercel.app",
+      "description": "Production Server"
+    }
+  ],
+  "paths": {
+    "/api/feedback": {
+      "post": {
+        "summary": "Submit User Feedback or Bug Report",
+        "description": "Submits user feedback, feature suggestions, or crash diagnostics to the StudyTimer support team with sliding-window rate limits.",
+        "operationId": "submitFeedback",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["message"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "User email for follow-up"
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": ["bug", "feature_request", "general", "account"],
+                    "default": "general"
+                  },
+                  "message": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 3000,
+                    "description": "Feedback or report details"
+                  },
+                  "app_version": {
+                    "type": "string",
+                    "example": "3.0.0"
+                  },
+                  "device_info": {
+                    "type": "string",
+                    "example": "Samsung Galaxy S23 (Android 14)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Feedback submitted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Feedback submitted successfully." }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or invalid payload"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          }
+        }
+      }
+    },
+    "/.well-known/mcp": {
+      "get": {
+        "summary": "MCP Server Manifest & Capability Discovery",
+        "description": "Returns Model Context Protocol (MCP) server manifest, tool schemas, and capabilities for AI agents.",
+        "operationId": "getMcpManifest",
+        "responses": {
+          "200": {
+            "description": "MCP Manifest and capability definitions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "protocolVersion": { "type": "string", "example": "2024-11-05" },
+                    "serverInfo": {
+                      "type": "object",
+                      "properties": {
+                        "name": { "type": "string", "example": "studytimer-mcp-server" },
+                        "version": { "type": "string", "example": "1.0.0" }
+                      }
+                    },
+                    "tools": { "type": "array" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "MCP JSON-RPC Endpoint",
+        "description": "Execute Model Context Protocol JSON-RPC 2.0 requests (initialize, tools/list, tools/call).",
+        "operationId": "callMcpRpc",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["jsonrpc", "method"],
+                "properties": {
+                  "jsonrpc": { "type": "string", "enum": ["2.0"] },
+                  "id": { "type": ["string", "number", "null"] },
+                  "method": { "type": "string" },
+                  "params": { "type": "object" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JSON-RPC response or SSE stream"
+          }
+        }
+      }
+    }
+  }
+}

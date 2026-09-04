@@ -1,7 +1,7 @@
 # StudyTimer - LLMs & AI Agent Reference Manual
 Version: 3.0.0
 Canonical Domain: https://get-studytimer.vercel.app/
-Developer Contact: studytimer737@gmail.com
+Support Contact: studytimer737@gmail.com
 
 ---
 

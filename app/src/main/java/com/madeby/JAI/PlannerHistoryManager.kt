@@ -42,29 +42,26 @@ object PlannerHistoryManager {
     fun snapshotForDate(context: Context, dateStr: String, goals: List<PlannerGoal>) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val dayFocusSecs = prefs.getLong("${dateStr}_focus_total", 0L)
-        var focusPool = (dayFocusSecs / 60).toInt()
-
-        val sortedGoals = goals.sortedBy { it.targetMinutes }
-        val checkedGoals = sortedGoals.filter { it.completed }.sortedBy { it.checkedAt }
-        val uncheckedGoals = sortedGoals.filter { !it.completed }
+        val totalFocusMins = (dayFocusSecs / 60).toInt()
+        val dailySubjectDurations = SubjectTagManager.getSubjectDurationsForDate(context, dateStr)
 
         val achievementMap = mutableMapOf<String, Boolean>()
-        for (g in checkedGoals) {
+        for (g in goals) {
+            if (!g.completed) {
+                achievementMap[g.id] = false
+                continue
+            }
             val target = g.targetMinutes
             if (target > 0) {
-                if (focusPool >= target) {
-                    focusPool -= target
-                    achievementMap[g.id] = true
+                val availableMins = if (!g.subjectId.isNullOrBlank() && g.subjectId != "all") {
+                    ((dailySubjectDurations[g.subjectId] ?: 0L) / 60).toInt()
                 } else {
-                    focusPool = 0
-                    achievementMap[g.id] = false
+                    totalFocusMins
                 }
+                achievementMap[g.id] = availableMins >= target
             } else {
                 achievementMap[g.id] = true
             }
-        }
-        for (g in uncheckedGoals) {
-            achievementMap[g.id] = false
         }
 
         val array = JSONArray()
@@ -77,6 +74,9 @@ object PlannerHistoryManager {
                 put("completed", g.completed)
                 put("checkedAt", g.checkedAt)
                 put("isAchieved", isAchieved)
+                if (g.subjectId != null) {
+                    put("subjectId", g.subjectId)
+                }
             }
             array.put(obj)
         }
@@ -97,6 +97,7 @@ object PlannerHistoryManager {
                 val obj = array.getJSONObject(i)
                 val completed = obj.optBoolean("completed", false)
                 val isAchieved = obj.optBoolean("isAchieved", completed)
+                val subId = if (obj.has("subjectId") && !obj.isNull("subjectId")) obj.optString("subjectId", null) else null
                 list.add(
                     PlannerGoalSnapshot(
                         goalId = obj.optString("goalId", ""),
@@ -104,7 +105,8 @@ object PlannerHistoryManager {
                         targetMinutes = obj.optInt("targetMinutes", 0),
                         completed = completed,
                         checkedAt = obj.optLong("checkedAt", 0L),
-                        isAchieved = isAchieved
+                        isAchieved = isAchieved,
+                        subjectId = subId
                     )
                 )
             }

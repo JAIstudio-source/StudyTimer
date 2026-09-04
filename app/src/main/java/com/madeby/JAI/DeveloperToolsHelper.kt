@@ -124,10 +124,13 @@ object DeveloperToolsHelper {
         quickGrid.addView(quickActionBtn("+25m Focus", themeCoordinator.primaryColor) {
             fastForwardSession(activity, 25 * 60L)
         })
+        quickGrid.addView(quickActionBtn("Adjust Today", Color.parseColor("#38BDF8")) {
+            showAdjustTodayTimeDialog(activity, themeCoordinator)
+        })
         quickGrid.addView(quickActionBtn("Manual Log", Color.parseColor("#8B5CF6")) {
             showManualSessionLoggerDialog(activity, themeCoordinator)
         })
-        quickGrid.addView(quickActionBtn("Seed 7D Data", Color.parseColor("#10B981")) {
+        quickGrid.addView(quickActionBtn("Seed 7D", Color.parseColor("#10B981")) {
             seedRealisticHistory(activity, days = 7, deterministicSeed = 42L)
         })
 
@@ -242,6 +245,11 @@ object DeveloperToolsHelper {
 
         // 1. Manual Session Logger & Mocking
         addSection("MANUAL SESSION LOGGER & MOCKING", "✍️") {
+            addView(devButton("⏱️ Adjust Today's Study Time", "Add missed focus time or deduct accidental time for today only", Color.parseColor("#38BDF8")) {
+                dialog.dismiss()
+                showAdjustTodayTimeDialog(activity, themeCoordinator)
+            })
+
             addView(devButton("✍️ Custom Manual Session Builder", "Start & End Time pickers, real-time duration, custom or untagged subject") {
                 dialog.dismiss()
                 showManualSessionLoggerDialog(activity, themeCoordinator)
@@ -287,6 +295,63 @@ object DeveloperToolsHelper {
                 activity.recalculateStreak()
                 activity.statsDirty = true
                 activity.tabPageCache.clear()
+            })
+        }
+
+        // 2. Planner & Habits Lab
+        addSection("PLANNER & HABITS LAB", "📋") {
+            addView(devButton("✍️ Custom Historical Planner Snapshot Builder", "Date picker, select custom goals/habits & status for ANY past date", Color.parseColor("#8B5CF6")) {
+                dialog.dismiss()
+                showCustomPlannerSnapshotLoggerDialog(activity, themeCoordinator)
+            })
+
+            addView(devButton("🌱 Seed Sample Daily Goals & Habits", "Populates 4 structured planner goals linked with subjects") {
+                seedSampleGoals(activity)
+                Toast.makeText(activity, "Seeded sample daily planner goals!", Toast.LENGTH_SHORT).show()
+                activity.refreshStatsPanel()
+                activity.tabPageCache.clear()
+            })
+
+            addView(devButton("🌅 Simulate Next-Day Rollover", "Snapshots today's completion status & resets habits for a new day") {
+                simulatePlannerDayRollover(activity)
+                Toast.makeText(activity, "Simulated rollover: Snapshotted today & reset habits for a new day!", Toast.LENGTH_SHORT).show()
+                activity.refreshStatsPanel()
+                activity.tabPageCache.clear()
+            })
+
+            addView(devButton("🔥 Seed 14-Day Realistic Habit History", "Generates 14 days of daily habit snapshots for streaks & matrices") {
+                seedRealisticHabitHistory(activity, days = 14)
+                Toast.makeText(activity, "Generated 14 days of habit history!", Toast.LENGTH_SHORT).show()
+                activity.refreshStatsPanel()
+                activity.tabPageCache.clear()
+            })
+
+            addView(devButton("✅ Mark All Today's Habits Completed", "Sets all current goals as done to test streaks & celebrations") {
+                markAllTodayGoals(activity, completed = true)
+                Toast.makeText(activity, "Marked all habits completed for today!", Toast.LENGTH_SHORT).show()
+                activity.refreshStatsPanel()
+                activity.tabPageCache.clear()
+            })
+
+            addView(devButton("🔄 Reset Today's Habits to Incomplete", "Unchecks all current goals for today") {
+                markAllTodayGoals(activity, completed = false)
+                Toast.makeText(activity, "Reset all habits to incomplete for today!", Toast.LENGTH_SHORT).show()
+                activity.refreshStatsPanel()
+                activity.tabPageCache.clear()
+            })
+
+            addView(devButton("🗑️ Wipe Planner & Habit History", "Clears all historical snapshots and resets active goals", Color.parseColor("#EF4444")) {
+                AlertDialog.Builder(activity)
+                    .setTitle("Wipe Planner History?")
+                    .setMessage("This will delete all past habit completion snapshots and reset current goals.")
+                    .setPositiveButton("WIPE PLANNER") { _, _ ->
+                        wipePlannerData(activity)
+                        Toast.makeText(activity, "Planner & habit history cleared!", Toast.LENGTH_SHORT).show()
+                        activity.refreshStatsPanel()
+                        activity.tabPageCache.clear()
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
             })
         }
 
@@ -419,11 +484,9 @@ object DeveloperToolsHelper {
                 CelebrationEngine.showCelebrationDialog(activity, isGoalAchieved = false, streak = 14)
             })
 
-            addView(devButton("Trigger Haptic Buzz & Audio Ding", "Fires study completion sound and vibration waveform") {
+            addView(devButton("Trigger Haptic Pulse", "Fires study completion haptic vibration waveform") {
                 try {
                     activity.window.decorView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-                    val tone = android.media.ToneGenerator(android.media.AudioManager.STREAM_NOTIFICATION, 80)
-                    tone.startTone(android.media.ToneGenerator.TONE_PROP_BEEP, 300)
                 } catch (_: Exception) {}
             })
         }
@@ -999,5 +1062,657 @@ object DeveloperToolsHelper {
         val cloudTs = System.currentTimeMillis() + 3600000L * 24L
 
         activity.showSyncConflictDialog(localTs, cloudTs, mockCloudRecord)
+    }
+
+    /**
+     * Precise Dialog for adjusting study focus time for the CURRENT DAY ONLY.
+     * Allows adding missed offline study or deducting accidental/over-recorded time,
+     * maintaining historical integrity and syncing live statistics.
+     */
+    fun showAdjustTodayTimeDialog(activity: MainActivity, themeCoordinator: ThemeCoordinator) {
+        val dialog = Dialog(activity)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val dp = { v: Int -> (v * activity.resources.displayMetrics.density).toInt() }
+
+        val sharedPrefs = activity.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val dateDisplayFmt = SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault()).format(Date())
+
+        val currentTotalSecs = sharedPrefs.getLong("${todayStr}_focus_total", 0L)
+        val currentTotalMins = currentTotalSecs / 60L
+
+        val root = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            background = themeCoordinator.createDialogBackground(28f)
+            setPadding(dp(22), dp(22), dp(22), dp(20))
+        }
+
+        // Title & Subtitle
+        root.addView(TextView(activity).apply {
+            text = "⏱️ Adjust Today's Study Time"
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 17f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        })
+        root.addView(TextView(activity).apply {
+            text = "📅 $dateDisplayFmt\n• Current Today's Focus: ${currentTotalMins / 60}h ${currentTotalMins % 60}m ($currentTotalMins mins)"
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.75f
+            textSize = 12f
+            setPadding(0, dp(4), 0, dp(14))
+        })
+
+        // Mode Toggle (Add vs Deduct)
+        var isAddMode = true
+        val modeToggleRow = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 14f)
+            setPadding(dp(4), dp(4), dp(4), dp(4))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 0, dp(12))
+            }
+        }
+
+        val addBtn = TextView(activity).apply {
+            text = "➕ Add Time (Missed)"
+            textSize = 11.5f
+            gravity = Gravity.CENTER
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(dp(8), dp(10), dp(8), dp(10))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val deductBtn = TextView(activity).apply {
+            text = "➖ Deduct Time (Accidental)"
+            textSize = 11.5f
+            gravity = Gravity.CENTER
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(dp(8), dp(10), dp(8), dp(10))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        modeToggleRow.addView(addBtn)
+        modeToggleRow.addView(deductBtn)
+        root.addView(modeToggleRow)
+
+        // Preset minute chips container
+        val presetContainer = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, 0, 0, dp(10))
+        }
+
+        // Minutes Input Field
+        val minutesInput = EditText(activity).apply {
+            hint = "Enter minutes (e.g. 30)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            setText("30")
+            setTextColor(themeCoordinator.textColor)
+            setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
+            textSize = 14f
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 12f)
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+
+        // Subject Selector
+        val subjects = SubjectTagManager.getAllSubjects(activity)
+        var selectedSubject: SubjectTag? = subjects.firstOrNull()
+
+        val subjectPickerBtn = TextView(activity).apply {
+            text = "Subject Tag: ${selectedSubject?.iconEmoji ?: "⏱"} ${selectedSubject?.name ?: "General Focus"}"
+            setTextColor(themeCoordinator.textColor)
+            textSize = 13f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 60), 12f)
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, dp(10), 0, dp(12))
+            }
+        }
+
+        subjectPickerBtn.setOnClickListener {
+            val options = mutableListOf("⏱ General Focus (Untagged)")
+            options.addAll(subjects.map { "${it.iconEmoji} ${it.name}" })
+            AlertDialog.Builder(activity, getPickerThemeRes())
+                .setTitle("Attribute to Subject")
+                .setItems(options.toTypedArray()) { _, which ->
+                    if (which == 0) {
+                        selectedSubject = null
+                        subjectPickerBtn.text = "Subject Tag: ⏱ General Focus (Untagged)"
+                    } else {
+                        selectedSubject = subjects[which - 1]
+                        subjectPickerBtn.text = "Subject Tag: ${selectedSubject?.iconEmoji} ${selectedSubject?.name}"
+                    }
+                }
+                .show()
+        }
+
+        // Live Calculation Summary Preview
+        val summaryPreviewText = TextView(activity).apply {
+            textSize = 12.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(dp(4), dp(2), dp(4), dp(14))
+        }
+
+        fun updateUI() {
+            if (isAddMode) {
+                addBtn.setTextColor(Color.WHITE)
+                addBtn.background = GradientDrawable().apply {
+                    cornerRadius = dp(10).toFloat()
+                    setColor(themeCoordinator.primaryColor)
+                }
+                deductBtn.setTextColor(tintedColor(themeCoordinator.textColor, 140))
+                deductBtn.background = null
+            } else {
+                deductBtn.setTextColor(Color.WHITE)
+                deductBtn.background = GradientDrawable().apply {
+                    cornerRadius = dp(10).toFloat()
+                    setColor(Color.parseColor("#EF4444"))
+                }
+                addBtn.setTextColor(tintedColor(themeCoordinator.textColor, 140))
+                addBtn.background = null
+            }
+
+            presetContainer.removeAllViews()
+            val presets = if (isAddMode) listOf(15L, 30L, 45L, 60L, 120L) else listOf(10L, 15L, 30L, 45L, 60L)
+            for (p in presets) {
+                val chip = Button(activity).apply {
+                    val label = if (p >= 60 && p % 60 == 0L) "${p / 60}h" else "${p}m"
+                    text = if (isAddMode) "+$label" else "-$label"
+                    textSize = 11f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    setTextColor(Color.WHITE)
+                    background = GradientDrawable().apply {
+                        cornerRadius = dp(10).toFloat()
+                        setColor(if (isAddMode) Color.parseColor("#1E293B") else Color.parseColor("#3F1B1B"))
+                    }
+                    layoutParams = LinearLayout.LayoutParams(0, dp(36), 1f).apply {
+                        setMargins(dp(2), 0, dp(2), 0)
+                    }
+                    setOnClickListener {
+                        minutesInput.setText(p.toString())
+                    }
+                }
+                presetContainer.addView(chip)
+            }
+
+            val enteredMins = minutesInput.text.toString().toLongOrNull() ?: 0L
+            val enteredSecs = enteredMins * 60L
+            if (isAddMode) {
+                val newTotalSecs = currentTotalSecs + enteredSecs
+                val newH = newTotalSecs / 3600L
+                val newM = (newTotalSecs % 3600L) / 60L
+                summaryPreviewText.text = "✨ Will add ${enteredMins}m to today's focus → New Total: ${newH}h ${newM}m"
+                summaryPreviewText.setTextColor(themeCoordinator.primaryColor)
+            } else {
+                val newTotalSecs = (currentTotalSecs - enteredSecs).coerceAtLeast(0L)
+                val newH = newTotalSecs / 3600L
+                val newM = (newTotalSecs % 3600L) / 60L
+                summaryPreviewText.text = "⚠️ Will deduct ${enteredMins}m from today's focus → New Total: ${newH}h ${newM}m"
+                summaryPreviewText.setTextColor(Color.parseColor("#F59E0B"))
+            }
+        }
+
+        addBtn.setOnClickListener {
+            isAddMode = true
+            updateUI()
+        }
+        deductBtn.setOnClickListener {
+            isAddMode = false
+            updateUI()
+        }
+
+        minutesInput.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { updateUI() }
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
+
+        root.addView(presetContainer)
+        root.addView(minutesInput)
+        root.addView(subjectPickerBtn)
+        root.addView(summaryPreviewText)
+
+        // Apply Button
+        val applyBtn = Button(activity).apply {
+            text = "APPLY ADJUSTMENT TO TODAY"
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = GradientDrawable().apply {
+                cornerRadius = dp(14).toFloat()
+                setColor(if (isAddMode) themeCoordinator.primaryColor else Color.parseColor("#EF4444"))
+            }
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(48))
+            setOnClickListener {
+                val enteredMins = minutesInput.text.toString().toLongOrNull() ?: 0L
+                if (enteredMins <= 0) {
+                    Toast.makeText(activity, "Please enter a valid number of minutes", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+
+                val deltaSecs = if (isAddMode) enteredMins * 60L else -(enteredMins * 60L)
+                val updatedDayTotal = (currentTotalSecs + deltaSecs).coerceAtLeast(0L)
+                val now = System.currentTimeMillis()
+
+                sharedPrefs.edit()
+                    .putLong("${todayStr}_focus_total", updatedDayTotal)
+                    .putLong("last_data_modified_timestamp", now)
+                    .apply()
+
+                if (selectedSubject != null) {
+                    SubjectTagManager.adjustSubjectStudyTime(activity, selectedSubject!!.id, deltaSecs, todayStr)
+                }
+
+                if (isAddMode) {
+                    val startMs = now - (enteredMins * 60 * 1000L)
+                    TimelineLogger.recordRaw(
+                        context = activity,
+                        state = "STUDYING",
+                        timestamp = startMs,
+                        subId = selectedSubject?.id,
+                        subName = selectedSubject?.name,
+                        subColor = selectedSubject?.colorHex
+                    )
+                    TimelineLogger.recordRaw(
+                        context = activity,
+                        state = "IDLE",
+                        timestamp = now
+                    )
+                }
+
+                activity.recalculateStreak()
+                activity.statsDirty = true
+                activity.tabPageCache.clear()
+                activity.refreshStatsPanel()
+
+                Thread {
+                    kotlinx.coroutines.runBlocking {
+                        CloudSyncManager.syncDataToCloud(activity)
+                    }
+                }.start()
+
+                val msg = if (isAddMode) "Added ${enteredMins}m to today's focus!" else "Deducted ${enteredMins}m from today's focus!"
+                Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            }
+        }
+        root.addView(applyBtn)
+
+        updateUI()
+
+        dialog.setContentView(root)
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+        dialog.window?.setLayout((activity.resources.displayMetrics.widthPixels * 0.90f).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
+        dialog.show()
+    }
+
+    private fun seedSampleGoals(activity: MainActivity) {
+        val sampleGoals = listOf(
+            PlannerGoal(title = "📐 Solve 20 Calculus problems", note = "Derivatives and Integrals", targetMinutes = 60, subjectId = "math"),
+            PlannerGoal(title = "⚛️ Physics Numerical Practice", note = "Thermodynamics chapter", targetMinutes = 45, subjectId = "physics"),
+            PlannerGoal(title = "🧪 Review Organic Mechanisms", note = "Reaction pathways & notes", targetMinutes = 30, subjectId = "chemistry"),
+            PlannerGoal(title = "💧 Daily Hydration & Flashcards", note = "Quick evening revision", targetMinutes = 0, subjectId = null)
+        )
+        activity.saveSessionGoalsToJson(sampleGoals)
+        val prefs = activity.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        prefs.edit().putString("last_planner_reset_date", todayStr).apply()
+    }
+
+    private fun simulatePlannerDayRollover(activity: MainActivity) {
+        val prefs = activity.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val currentGoals = activity.loadSessionGoalsFromJson(prefs.getString("session_goals_json", "[]") ?: "[]")
+        if (currentGoals.isNotEmpty()) {
+            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            PlannerHistoryManager.snapshotToday(activity, currentGoals)
+            val resetGoals = currentGoals.map { it.copy(completed = false, checkedAt = 0L) }
+            activity.saveSessionGoalsToJson(resetGoals)
+            prefs.edit().putString("last_planner_reset_date", todayStr).apply()
+        }
+    }
+
+    private fun seedRealisticHabitHistory(activity: MainActivity, days: Int = 14) {
+        val sampleGoals = listOf(
+            PlannerGoal(id = "sample_goal_1", title = "📐 Solve Calculus Problems", targetMinutes = 45, subjectId = "math"),
+            PlannerGoal(id = "sample_goal_2", title = "⚛️ Physics Core Concept Review", targetMinutes = 30, subjectId = "physics"),
+            PlannerGoal(id = "sample_goal_3", title = "🧪 Organic Chemistry Reactions", targetMinutes = 30, subjectId = "chemistry"),
+            PlannerGoal(id = "sample_goal_4", title = "💧 Daily Review & Flashcards", targetMinutes = 0, subjectId = null)
+        )
+        activity.saveSessionGoalsToJson(sampleGoals)
+
+        val prefs = activity.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val cal = Calendar.getInstance()
+        val rng = Random(888L)
+
+        for (i in days downTo 1) {
+            cal.time = Date()
+            cal.add(Calendar.DAY_OF_YEAR, -i)
+            val dateStr = sdf.format(cal.time)
+            val isSunday = cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY
+
+            val snapshots = sampleGoals.map { g ->
+                val completed = if (isSunday) rng.nextFloat() < 0.60f else rng.nextFloat() < 0.85f
+                val isAchieved = completed
+                val checkedTime = if (completed) cal.timeInMillis + (18 * 3600 * 1000L) else 0L
+                PlannerGoalSnapshot(
+                    goalId = g.id,
+                    title = g.title,
+                    targetMinutes = g.targetMinutes,
+                    completed = completed,
+                    checkedAt = checkedTime,
+                    isAchieved = isAchieved,
+                    subjectId = g.subjectId
+                )
+            }
+
+            val array = JSONArray()
+            for (s in snapshots) {
+                array.put(JSONObject().apply {
+                    put("goalId", s.goalId)
+                    put("title", s.title)
+                    put("targetMinutes", s.targetMinutes)
+                    put("completed", s.completed)
+                    put("checkedAt", s.checkedAt)
+                    put("isAchieved", s.isAchieved)
+                    if (s.subjectId != null) put("subjectId", s.subjectId)
+                })
+            }
+            editor.putString("${dateStr}_planner_snapshot", array.toString())
+        }
+        val todayStr = sdf.format(Date())
+        editor.putString("last_planner_reset_date", todayStr)
+        editor.apply()
+    }
+
+    private fun markAllTodayGoals(activity: MainActivity, completed: Boolean) {
+        val prefs = activity.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val currentGoals = activity.loadSessionGoalsFromJson(prefs.getString("session_goals_json", "[]") ?: "[]")
+        val updated = currentGoals.map {
+            it.copy(completed = completed, checkedAt = if (completed) System.currentTimeMillis() else 0L)
+        }
+        activity.saveSessionGoalsToJson(updated)
+    }
+
+    private fun wipePlannerData(activity: MainActivity) {
+        val prefs = activity.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+        for (k in prefs.all.keys) {
+            if (k.endsWith("_planner_snapshot")) {
+                editor.remove(k)
+            }
+        }
+        editor.putString("session_goals_json", "[]")
+        editor.apply()
+    }
+
+    data class EditableGoalItem(
+        var id: String,
+        var title: String,
+        var targetMinutes: Int,
+        var completed: Boolean,
+        var isAchieved: Boolean,
+        var subjectId: String?
+    )
+
+    fun showCustomPlannerSnapshotLoggerDialog(activity: MainActivity, themeCoordinator: ThemeCoordinator) {
+        val dialog = Dialog(activity)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val dp = { v: Int -> (v * activity.resources.displayMetrics.density).toInt() }
+
+        val root = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            background = themeCoordinator.createDialogBackground(28f)
+            setPadding(dp(20), dp(20), dp(20), dp(18))
+        }
+
+        // Title
+        root.addView(TextView(activity).apply {
+            text = "✍️ Custom Historical Planner Logger"
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 17f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        })
+        root.addView(TextView(activity).apply {
+            text = "Select any past date and set custom habit completion statuses to test streaks, matrices & insights."
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.7f
+            textSize = 12f
+            setPadding(0, dp(2), 0, dp(12))
+        })
+
+        val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) } // default yesterday
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val dateDisplayFmt = SimpleDateFormat("EEEE, dd MMM yyyy", Locale.getDefault())
+
+        val datePickerBtn = TextView(activity).apply {
+            text = "📅 Selected Date: ${dateDisplayFmt.format(cal.time)}"
+            setTextColor(themeCoordinator.textColor)
+            textSize = 13.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 60), 12f)
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 0, dp(12))
+            }
+        }
+        root.addView(datePickerBtn)
+
+        val itemsList = mutableListOf<EditableGoalItem>()
+
+        fun loadGoalsForCurrentDate() {
+            val dateStr = sdf.format(cal.time)
+            itemsList.clear()
+            val existingSnapshots = PlannerHistoryManager.loadDaySnapshot(activity, dateStr)
+            if (existingSnapshots.isNotEmpty()) {
+                for (s in existingSnapshots) {
+                    itemsList.add(EditableGoalItem(s.goalId, s.title, s.targetMinutes, s.completed, s.isAchieved, s.subjectId))
+                }
+            } else {
+                val currentGoals = activity.loadSessionGoalsFromJson(activity.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).getString("session_goals_json", "[]") ?: "[]")
+                if (currentGoals.isNotEmpty()) {
+                    for (g in currentGoals) {
+                        itemsList.add(EditableGoalItem(g.id, g.title, g.targetMinutes, true, true, g.subjectId))
+                    }
+                } else {
+                    itemsList.add(EditableGoalItem("g1", "📐 Calculus Practice", 45, true, true, "math"))
+                    itemsList.add(EditableGoalItem("g2", "⚛️ Physics Numerical Set", 30, true, true, "physics"))
+                    itemsList.add(EditableGoalItem("g3", "🧪 Chemistry Theory Revision", 30, false, false, "chemistry"))
+                    itemsList.add(EditableGoalItem("g4", "💧 Daily Routine & Flashcards", 0, true, true, null))
+                }
+            }
+        }
+        loadGoalsForCurrentDate()
+
+        val goalsScrollView = ScrollView(activity).apply {
+            isVerticalScrollBarEnabled = false
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                (activity.resources.displayMetrics.heightPixels * 0.38f).toInt()
+            )
+        }
+
+        val goalsContainer = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        goalsScrollView.addView(goalsContainer)
+
+        fun renderGoalsList() {
+            goalsContainer.removeAllViews()
+            for ((idx, item) in itemsList.withIndex()) {
+                val row = LinearLayout(activity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    background = themeCoordinator.createCardBackground(14f)
+                    setPadding(dp(12), dp(10), dp(12), dp(10))
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        setMargins(0, 0, 0, dp(6))
+                    }
+                }
+
+                // Completion Toggle
+                val toggleBtn = TextView(activity).apply {
+                    text = if (item.completed) "✓ Completed" else "✗ Incomplete"
+                    textSize = 11.5f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    setTextColor(Color.WHITE)
+                    background = GradientDrawable().apply {
+                        cornerRadius = dp(10).toFloat()
+                        setColor(if (item.completed) Color.parseColor("#10B981") else Color.parseColor("#475569"))
+                    }
+                    setPadding(dp(10), dp(6), dp(10), dp(6))
+                    setOnClickListener {
+                        item.completed = !item.completed
+                        item.isAchieved = item.completed
+                        renderGoalsList()
+                    }
+                }
+
+                val titleCol = LinearLayout(activity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                        setMargins(dp(10), 0, dp(10), 0)
+                    }
+                }
+                titleCol.addView(TextView(activity).apply {
+                    text = item.title
+                    setTextColor(themeCoordinator.textColor)
+                    textSize = 13.5f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                })
+                titleCol.addView(TextView(activity).apply {
+                    text = if (item.targetMinutes > 0) "Target: ${item.targetMinutes}m" else "Daily Habit (No target)"
+                    setTextColor(themeCoordinator.textColor)
+                    alpha = 0.55f
+                    textSize = 11f
+                })
+
+                val removeBtn = TextView(activity).apply {
+                    text = "✕"
+                    textSize = 14f
+                    setTextColor(Color.parseColor("#EF4444"))
+                    alpha = 0.7f
+                    setPadding(dp(8), dp(4), dp(8), dp(4))
+                    setOnClickListener {
+                        itemsList.removeAt(idx)
+                        renderGoalsList()
+                    }
+                }
+
+                row.addView(toggleBtn)
+                row.addView(titleCol)
+                row.addView(removeBtn)
+                goalsContainer.addView(row)
+            }
+        }
+        renderGoalsList()
+
+        datePickerBtn.setOnClickListener {
+            val dpd = DatePickerDialog(
+                activity,
+                getPickerThemeRes(),
+                { _, y, m, d ->
+                    cal.set(Calendar.YEAR, y)
+                    cal.set(Calendar.MONTH, m)
+                    cal.set(Calendar.DAY_OF_MONTH, d)
+                    datePickerBtn.text = "📅 Selected Date: ${dateDisplayFmt.format(cal.time)}"
+                    loadGoalsForCurrentDate()
+                    renderGoalsList()
+                },
+                cal.get(Calendar.YEAR),
+                cal.get(Calendar.MONTH),
+                cal.get(Calendar.DAY_OF_MONTH)
+            )
+            dpd.show()
+        }
+
+        root.addView(goalsScrollView)
+
+        // Add custom habit button
+        val addCustomHabitBtn = TextView(activity).apply {
+            text = "➕ Add Another Habit to this Date"
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 12.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            gravity = Gravity.CENTER
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 35), 10f)
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, dp(8), 0, dp(12))
+            }
+            setOnClickListener {
+                val inputEdit = EditText(activity).apply {
+                    hint = "Habit title (e.g. 📝 Flashcards review)"
+                    setTextColor(themeCoordinator.textColor)
+                    setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
+                    background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 10f)
+                    setPadding(dp(12), dp(10), dp(12), dp(10))
+                }
+                AlertDialog.Builder(activity, getPickerThemeRes())
+                    .setTitle("Add Habit to Snapshot")
+                    .setView(inputEdit)
+                    .setPositiveButton("Add") { _, _ ->
+                        val t = inputEdit.text.toString().trim()
+                        if (t.isNotEmpty()) {
+                            itemsList.add(EditableGoalItem("custom_${System.currentTimeMillis()}", t, 30, true, true, null))
+                            renderGoalsList()
+                        }
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+            }
+        }
+        root.addView(addCustomHabitBtn)
+
+        // Save Button
+        val saveBtn = Button(activity).apply {
+            text = "SAVE SNAPSHOT FOR THIS DATE"
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = GradientDrawable().apply {
+                cornerRadius = dp(14).toFloat()
+                setColor(themeCoordinator.primaryColor)
+            }
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(48))
+            setOnClickListener {
+                if (itemsList.isEmpty()) {
+                    Toast.makeText(activity, "Please add at least one goal/habit for this snapshot", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+
+                val dateStr = sdf.format(cal.time)
+                val array = JSONArray()
+                for (item in itemsList) {
+                    array.put(JSONObject().apply {
+                        put("goalId", item.id)
+                        put("title", item.title)
+                        put("targetMinutes", item.targetMinutes)
+                        put("completed", item.completed)
+                        put("checkedAt", if (item.completed) cal.timeInMillis + (18 * 3600 * 1000L) else 0L)
+                        put("isAchieved", item.isAchieved)
+                        if (item.subjectId != null) put("subjectId", item.subjectId)
+                    })
+                }
+
+                val prefs = activity.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+                prefs.edit().putString("${dateStr}_planner_snapshot", array.toString()).apply()
+
+                activity.statsDirty = true
+                activity.tabPageCache.clear()
+                activity.refreshStatsPanel()
+
+                Toast.makeText(activity, "Saved planner snapshot for $dateStr!", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            }
+        }
+        root.addView(saveBtn)
+
+        dialog.setContentView(root)
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+        dialog.window?.setLayout((activity.resources.displayMetrics.widthPixels * 0.92f).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
+        dialog.show()
     }
 }

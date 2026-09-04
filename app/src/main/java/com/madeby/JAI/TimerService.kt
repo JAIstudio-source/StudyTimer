@@ -186,6 +186,7 @@ class TimerService : Service() {
                 val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
                 val savedRemaining = prefs.getLong("focus_remaining_secs", 0L)
                 val savedLectureEnabled = prefs.getBoolean("lecture_mode_enabled", false)
+                val pomodoroConfiguredSecs = prefs.safeLong("study_interval_minutes", 25L) * 60L
                 when {
                     savedLectureEnabled && savedRemaining > 0L -> {
                         focusRemainingSecs = savedRemaining
@@ -193,11 +194,14 @@ class TimerService : Service() {
                         lectureModeEnabled = true
                     }
                     timerMode == "COUNTDOWN" -> {
-                        focusRemainingSecs = if (savedRemaining > 0L) savedRemaining else focusCountdownSecs
+                        focusCountdownSecs = pomodoroConfiguredSecs
+                        focusRemainingSecs = if (savedRemaining > 0L) savedRemaining else pomodoroConfiguredSecs
+                        breakCountdownSecs = prefs.safeLong("break_interval_minutes", 5L) * 60L
                         breakRemainingSecs = prefs.getLong("break_remaining_secs", 0L)
+                        lectureModeEnabled = false
                     }
                     else -> {
-                        // STOPWATCH or LECTURE manual start
+                        // STOPWATCH or manual start
                         focusRemainingSecs = 0L
                         breakRemainingSecs = 0L
                         breakCountdownSecs = 0L
@@ -435,7 +439,6 @@ class TimerService : Service() {
     }
 
     private fun checkScheduledLectures(nowSecs: Long) {
-        // Scheduled timetable lecture check only if lecture mode is enabled
         val sharedPrefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
         val jsonStr = sharedPrefs.getString("lecture_schedules_json", "[]") ?: "[]"
         val items = loadLectureSchedulesFromJson(jsonStr).filter { it.enabled }
@@ -444,47 +447,22 @@ class TimerService : Service() {
         val cal = Calendar.getInstance().apply { timeInMillis = nowSecs * 1000 }
         val currentMins = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
         val currentSecs = cal.get(Calendar.SECOND)
+        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.time)
 
         for (item in items) {
             val startMins = parseTimeToMinutes(item.startTime) ?: continue
             val endMins = parseTimeToMinutes(item.endTime) ?: continue
 
             if (currentMins in startMins until endMins) {
-                val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.time)
                 val skipKey = "skipped_lecture_${todayStr}_${item.title}_${item.startTime}"
                 if (sharedPrefs.getBoolean(skipKey, false)) continue
-
-                sharedPrefs.edit().putString("active_lecture_subject_id", item.subjectId).apply()
-
-                // Already running this lecture — no action needed
-                if (timerMode == "LECTURE" && currentTimerState == TimerState.STUDYING && lectureModeEnabled) break
 
                 val remainingSecs = ((endMins - currentMins) * 60 - currentSecs).toLong().coerceAtLeast(1L)
 
                 when (currentTimerState) {
-                    TimerState.IDLE, TimerState.BREAK -> {
-                        // If user is IDLE and scheduled lecture starts, automatically arm lecture
-                        currentTimerState = TimerState.STUDYING
-                        timerMode = "LECTURE"
-                        lectureModeEnabled = true
-                        accumulatedStudy = 0L
-                        currentBreakSeconds = 0L
-                        focusRemainingSecs = remainingSecs
-                        focusCountdownSecs = remainingSecs
-                        lecturePromptTimestamp = 0L
-                        lastTimestamp = nowSecs
-                        val sub = SubjectTagManager.resolveSubject(this, item.subjectId)
-                        TimelineLogger.record(this, TimerState.STUDYING, subId = sub.id, subName = sub.name, subColor = sub.colorHex)
-                        saveState()
-                        updateForegroundNotification()
-                        postLectureStartedNotification(item.title)
-                        StudyWidgetProvider.refresh(this)
-                    }
-                    TimerState.STUDYING -> {
-                        if (timerMode != "LECTURE") {
-                            // User is manually studying in another mode — ask them to switch via dialog
-                            val switchKey = "lecture_switch_asked_${todayStr}_${item.title}_${item.startTime}"
-                            if (sharedPrefs.getBoolean(switchKey, false)) break
+                    TimerState.IDLE -> {
+                        val switchKey = "lecture_switch_asked_${todayStr}_${item.title}_${item.startTime}"
+                        if (!sharedPrefs.getBoolean(switchKey, false)) {
                             sharedPrefs.edit()
                                 .putBoolean("pending_switch_to_lecture", true)
                                 .putBoolean(switchKey, true)
@@ -497,13 +475,34 @@ class TimerService : Service() {
                             postLectureStartedNotification(item.title)
                         }
                     }
+                    TimerState.STUDYING -> {
+                        if (timerMode == "LECTURE" && lectureModeEnabled) {
+                            // Active lecture countdown is currently running
+                        } else {
+                            // User is manually studying in stopwatch/custom mode — ask them to switch via dialog
+                            val switchKey = "lecture_switch_asked_${todayStr}_${item.title}_${item.startTime}"
+                            if (!sharedPrefs.getBoolean(switchKey, false)) {
+                                sharedPrefs.edit()
+                                    .putBoolean("pending_switch_to_lecture", true)
+                                    .putBoolean(switchKey, true)
+                                    .putString("pending_lecture_title", item.title)
+                                    .putString("pending_lecture_start", item.startTime)
+                                    .putString("pending_lecture_end", item.endTime)
+                                    .putLong("pending_lecture_remaining_secs", remainingSecs)
+                                    .putString("pending_lecture_skip_key", skipKey)
+                                    .apply()
+                                postLectureStartedNotification(item.title)
+                            }
+                        }
+                    }
                     else -> {}
                 }
                 break
             } else if (currentMins >= endMins && currentTimerState == TimerState.STUDYING
-                && (timerMode == "LECTURE" || lectureModeEnabled) && focusRemainingSecs <= 0L) {
+                && timerMode == "LECTURE" && lectureModeEnabled && focusRemainingSecs <= 0L && focusCountdownSecs > 0L) {
 
                 currentTimerState = TimerState.LECTURE_ENDED
+                lectureModeEnabled = false
                 lecturePromptTimestamp = nowSecs
                 focusRemainingSecs = 0L
                 lastTimestamp = nowSecs
@@ -800,7 +799,12 @@ class TimerService : Service() {
         accumulatedStudy = sharedPrefs.getLong("accumulatedStudy", 0L)
         currentBreakSeconds = sharedPrefs.getLong("currentBreakSeconds", 0L)
         timerMode = sharedPrefs.getString("timer_mode", "STOPWATCH") ?: "STOPWATCH"
-        focusCountdownSecs = sharedPrefs.getLong("focus_countdown_secs", 1500L)
+        val pomodoroConfiguredSecs = sharedPrefs.safeLong("study_interval_minutes", 25L) * 60L
+        focusCountdownSecs = if (timerMode == "LECTURE") {
+            sharedPrefs.getLong("focus_countdown_secs", pomodoroConfiguredSecs)
+        } else {
+            pomodoroConfiguredSecs
+        }
         focusRemainingSecs = sharedPrefs.getLong("focus_remaining_secs", 0L)
         breakCountdownSecs = sharedPrefs.getLong("break_countdown_secs", 300L)
         breakRemainingSecs = sharedPrefs.getLong("break_remaining_secs", 0L)

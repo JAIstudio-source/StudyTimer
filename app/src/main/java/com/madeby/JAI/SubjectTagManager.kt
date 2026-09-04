@@ -247,8 +247,8 @@ object SubjectTagManager {
         return SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
     }
 
-    fun recordSubjectStudyTime(context: Context, subjectId: String, durationSecs: Long, dateKey: String = getTodayKey()) {
-        if (durationSecs <= 0) return
+    fun adjustSubjectStudyTime(context: Context, subjectId: String, deltaSecs: Long, dateKey: String = getTodayKey()) {
+        if (deltaSecs == 0L) return
         val prefs = getPrefs(context)
         
         // 1. Update Global Total
@@ -256,7 +256,8 @@ object SubjectTagManager {
         try {
             val json = JSONObject(jsonStr)
             val current = json.optLong(subjectId, 0L)
-            json.put(subjectId, current + durationSecs)
+            val updated = (current + deltaSecs).coerceAtLeast(0L)
+            json.put(subjectId, updated)
             prefs.edit().putString(KEY_SUBJECT_DURATIONS, json.toString()).apply()
         } catch (_: Exception) {}
 
@@ -266,10 +267,16 @@ object SubjectTagManager {
             val dailyJson = JSONObject(dailyStr)
             val dayObj = dailyJson.optJSONObject(dateKey) ?: JSONObject()
             val curDaySecs = dayObj.optLong(subjectId, 0L)
-            dayObj.put(subjectId, curDaySecs + durationSecs)
+            val updatedDay = (curDaySecs + deltaSecs).coerceAtLeast(0L)
+            dayObj.put(subjectId, updatedDay)
             dailyJson.put(dateKey, dayObj)
             prefs.edit().putString(KEY_DAILY_SUBJECT_DURATIONS, dailyJson.toString()).apply()
         } catch (_: Exception) {}
+    }
+
+    fun recordSubjectStudyTime(context: Context, subjectId: String, durationSecs: Long, dateKey: String = getTodayKey()) {
+        if (durationSecs <= 0) return
+        adjustSubjectStudyTime(context, subjectId, durationSecs, dateKey)
     }
 
     fun recordSubjectBreakTime(context: Context, subjectId: String, durationSecs: Long, dateKey: String = getTodayKey()) {

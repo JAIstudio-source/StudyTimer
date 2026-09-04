@@ -64,7 +64,7 @@ class HeatmapView @JvmOverloads constructor(
     }
     private val monthSdf = SimpleDateFormat("MMM", Locale.getDefault())
     private val dateSdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    private val weekdayLetters = arrayOf("S", "M", "T", "W", "T", "F", "S")
+    private val weekdayLetters = arrayOf("M", "T", "W", "T", "F", "S", "S")
 
     fun setData(data: Map<String, Long>, primaryColor: Int, text: Int, goalFor: (String) -> Long) {
         primary = primaryColor
@@ -77,11 +77,9 @@ class HeatmapView @JvmOverloads constructor(
         val todayCal = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
         }
-        val thisWeekSunday = Calendar.getInstance().apply {
-            timeInMillis = todayCal.timeInMillis - (get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY) * 86400000L
-        }
+        val thisWeekMonday = WeekHelper.mondayOf(todayCal)
         val start = Calendar.getInstance().apply {
-            timeInMillis = thisWeekSunday.timeInMillis - 25L * 7L * 86400000L
+            timeInMillis = thisWeekMonday.timeInMillis - 25L * 7L * 86400000L
         }
 
         numCols = 26

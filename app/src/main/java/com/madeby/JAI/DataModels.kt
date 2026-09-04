@@ -24,7 +24,8 @@ data class PlannerGoal(
     val targetMinutes: Int = 0,
     val completed: Boolean = false,
     val checkedAt: Long = 0L,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val subjectId: String? = null
 )
 
 typealias SessionGoal = PlannerGoal
@@ -35,7 +36,8 @@ data class PlannerGoalSnapshot(
     val targetMinutes: Int,
     val completed: Boolean,
     val checkedAt: Long = 0L,
-    val isAchieved: Boolean = true
+    val isAchieved: Boolean = true,
+    val subjectId: String? = null
 )
 
 data class PlannerDayRecord(

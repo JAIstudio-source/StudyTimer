@@ -20,7 +20,7 @@ fun secret(key: String, default: String = ""): String =
 
 android {
     namespace = "com.madeby.JAI"
-    compileSdk = 36
+    compileSdk = 34
 
     buildFeatures {
         buildConfig = true
@@ -33,12 +33,11 @@ android {
     defaultConfig {
         applicationId = "com.madeby.JAI"
         
-        // Supports Android 9 (API 28) up to Android 16 (API 36)
         minSdk = 28
-        targetSdk = 36
+        targetSdk = 34
         
-        versionCode = 20
-        versionName = "2.7.0"
+        versionCode = 21
+        versionName = "2.8.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

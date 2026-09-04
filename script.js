@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
   initServiceWorker();
+  initLatestVersionFetcher();
   preloadScreenshotAssets();
   initHeroPhoneSwitching();
   initAndroidShowcaseTabs();
@@ -608,5 +609,79 @@ function initMobileDrawer() {
         navMenu.style.display = 'none';
       }
     });
+  });
+}
+
+/* --------------------------------------------------------------------------
+   9. Dynamic Latest Version Fetcher (GitHub version.json with Local Fallback)
+   -------------------------------------------------------------------------- */
+const GITHUB_VERSION_URL = 'https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/version.json';
+const LOCAL_VERSION_URL = './version.json';
+const VERSION_STORAGE_KEY = 'studytimer_version_cache';
+const VERSION_CACHE_TTL = 10 * 60 * 1000; // 10 minutes cache
+
+async function initLatestVersionFetcher() {
+  const versionElements = document.querySelectorAll('.js-app-version');
+  if (!versionElements.length) return;
+
+  // 1. Instant hydration from sessionStorage if available and fresh
+  try {
+    const cached = sessionStorage.getItem(VERSION_STORAGE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed && parsed.data && (Date.now() - parsed.timestamp < VERSION_CACHE_TTL)) {
+        applyVersionToDom(parsed.data, versionElements);
+        return;
+      }
+    }
+  } catch (_) {}
+
+  // 2. Fetch directly from GitHub raw version.json (with fallback to local version.json)
+  try {
+    let versionData = null;
+    const ghRes = await fetch(GITHUB_VERSION_URL, { cache: 'no-cache' }).catch(() => null);
+
+    if (ghRes && ghRes.ok) {
+      versionData = await ghRes.json();
+    } else {
+      const localRes = await fetch(LOCAL_VERSION_URL, { cache: 'no-cache' }).catch(() => null);
+      if (localRes && localRes.ok) {
+        versionData = await localRes.json();
+      }
+    }
+
+    if (versionData && (versionData.versionName || versionData.versionCode)) {
+      applyVersionToDom(versionData, versionElements);
+      try {
+        sessionStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify({
+          data: versionData,
+          timestamp: Date.now()
+        }));
+      } catch (_) {}
+    }
+  } catch (err) {
+    console.debug('StudyTimer version fetch notice:', err);
+  }
+}
+
+function applyVersionToDom(data, elements) {
+  if (!data || !elements) return;
+  const versionName = data.versionName;
+  const versionCode = data.versionCode;
+  const versionText = versionName ? `v${versionName}` : (versionCode ? `v${versionCode}` : '');
+  if (!versionText) return;
+
+  const tooltip = versionCode ? `Version ${versionName || ''} (Code ${versionCode})` : `Version ${versionName}`;
+
+  elements.forEach(el => {
+    el.textContent = versionText;
+    el.setAttribute('title', tooltip);
+    el.setAttribute('aria-label', tooltip);
+    if (versionCode) {
+      el.setAttribute('data-version-code', String(versionCode));
+    }
+    if (versionName) {
+      el.setAttribute('data-version-name', String(versionName));
+    }
   });
 }

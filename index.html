@@ -41,6 +41,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=3.0.0">
 
+  <!-- Machine-Readable Discovery & Agent Standards -->
+  <link rel="alternate" type="text/markdown" href="/llms.txt" title="StudyTimer LLMs & Agent Guide">
+  <link rel="service-desc" type="application/json" href="/openapi.json" title="StudyTimer OpenAPI Specification">
+
   <!-- Structured Data / JSON-LD -->
   <script type="application/ld+json">
   {
@@ -50,16 +54,39 @@
         "@type": "SoftwareApplication",
         "@id": "https://get-studytimer.vercel.app/#app",
         "name": "StudyTimer",
-        "operatingSystem": "Android",
+        "url": "https://get-studytimer.vercel.app/",
+        "operatingSystem": "Android 8.0 and higher",
         "applicationCategory": "ProductivityApplication",
+        "applicationSubCategory": "Study & Focus Timer",
         "offers": {
           "@type": "Offer",
           "price": "0",
-          "priceCurrency": "USD"
+          "priceCurrency": "USD",
+          "availability": "https://schema.org/InStock"
         },
-        "description": "Android focus and study timer featuring customizable Pomodoro cycles, custom subject tagging, streak calendars, and deep time analytics.",
+        "description": "Android focus and study timer featuring customizable Pomodoro cycles, custom subject tagging, streak calendars, and deep time analytics. 100% free and offline-first.",
         "image": "https://get-studytimer.vercel.app/assets/logo.png",
-        "downloadUrl": "https://get-studytimer.vercel.app/StudyTimer-release.apk"
+        "screenshot": "https://get-studytimer.vercel.app/assets/screenshots/Pomodoro_timer_Screen.jpg",
+        "downloadUrl": "https://get-studytimer.vercel.app/StudyTimer-release.apk",
+        "softwareVersion": "3.0.0",
+        "fileSize": "6.7MB",
+        "author": {
+          "@id": "https://get-studytimer.vercel.app/#organization"
+        },
+        "publisher": {
+          "@id": "https://get-studytimer.vercel.app/#organization"
+        },
+        "featureList": [
+          "Configurable Pomodoro Intervals (25/50m)",
+          "Custom Subject Tagging with Hex Color Badges",
+          "Visual Monthly Study Streak Calendars",
+          "Deep Hourly Time Heatmaps & Analytics",
+          "Offline-First SQLite/Room Database",
+          "Encrypted Google Cloud Sync"
+        ],
+        "sameAs": [
+          "https://get-studytimer.vercel.app/"
+        ]
       },
       {
         "@type": "Organization",
@@ -67,10 +94,33 @@
         "name": "StudyTimer",
         "url": "https://get-studytimer.vercel.app/",
         "logo": "https://get-studytimer.vercel.app/assets/logo.png",
+        "description": "StudyTimer develops native Android productivity and focus enhancement software for students and professionals worldwide.",
+        "email": "studytimer737@gmail.com",
         "contactPoint": {
           "@type": "ContactPoint",
           "email": "studytimer737@gmail.com",
-          "contactType": "customer support"
+          "contactType": "customer support",
+          "availableLanguage": ["English"]
+        },
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "500 Howard Street",
+          "addressLocality": "San Francisco",
+          "addressRegion": "CA",
+          "postalCode": "94105",
+          "addressCountry": "US"
+        },
+        "sameAs": [
+          "https://get-studytimer.vercel.app/"
+        ]
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://get-studytimer.vercel.app/#website",
+        "name": "StudyTimer",
+        "url": "https://get-studytimer.vercel.app/",
+        "publisher": {
+          "@id": "https://get-studytimer.vercel.app/#organization"
         }
       },
       {
@@ -132,7 +182,9 @@
           <li><a href="#showcase" class="nav-item">App Tour</a></li>
           <li><a href="#comparison" class="nav-item">Comparison</a></li>
           <li><a href="#faq" class="nav-item">FAQ</a></li>
-          <li><a href="privacy.html" class="nav-item">Privacy Policy</a></li>
+          <li><a href="about.html" class="nav-item">About</a></li>
+          <li><a href="contact.html" class="nav-item">Contact</a></li>
+          <li><a href="privacy.html" class="nav-item">Privacy</a></li>
         </ul>
       </nav>
 
@@ -230,7 +282,7 @@
           <div class="wheel-card-shell">
             <div class="wheel-card-core">
               <div class="wheel-tag-badge" id="wheelBadge">1 of 9 &bull; Focus Engine</div>
-              <h3 class="wheel-feature-title" id="wheelTitle">Active Pomodoro Focus Engine</h3>
+              <h2 class="wheel-feature-title" id="wheelTitle">Active Pomodoro Focus Engine</h2>
               <p class="wheel-feature-desc" id="wheelDesc">
                 Real-time countdown dial with ambient soundscapes, customizable work cycles, and distraction-free visual stamina feedback.
               </p>
@@ -561,7 +613,7 @@
         </div>
 
         <div class="footer-col-block">
-          <h5>Study App</h5>
+          <h3 class="footer-heading">Study App</h3>
           <ul>
             <li><a href="#heroPhoneStage">Focus Engine</a></li>
             <li><a href="#showcase">Screenshots</a></li>
@@ -572,16 +624,28 @@
         </div>
 
         <div class="footer-col-block">
-          <h5>Legal &amp; Privacy</h5>
+          <h3 class="footer-heading">Company &amp; Trust</h3>
           <ul>
+            <li><a href="about.html">About StudyTimer</a></li>
+            <li><a href="contact.html">Contact &amp; Support</a></li>
             <li><a href="privacy.html">Privacy Policy</a></li>
             <li><a href="terms.html">Terms of Service</a></li>
             <li><a href="delete-account.html">Account &amp; Data Deletion</a></li>
           </ul>
         </div>
 
+        <div class="footer-col-block">
+          <h3 class="footer-heading">Developers &amp; AI</h3>
+          <ul>
+            <li><a href="docs.html">Developer Portal</a></li>
+            <li><a href="openapi.json">OpenAPI Spec (JSON)</a></li>
+            <li><a href="llms.txt">LLMs / Agents Guide</a></li>
+            <li><a href="llms-full.txt">Full LLM Context</a></li>
+          </ul>
+        </div>
+
         <div class="footer-support-block">
-          <h5>Developer Support</h5>
+          <h3 class="footer-heading">Developer Support</h3>
           <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.5rem;">
             <li><span style="color: var(--text-muted); font-size: 0.88rem;">Direct Developer Email:</span></li>
             <li><a href="mailto:studytimer737@gmail.com" style="color: var(--primary-light); font-weight: 600; font-size: 0.95rem;">studytimer737@gmail.com</a></li>
@@ -592,7 +656,10 @@
 
       <div class="footer-legal-bar">
         <div>&copy; 2026 StudyTimer. All rights reserved. Google Play and Android are trademarks of Google LLC.</div>
-        <div style="display: flex; gap: 1.25rem; justify-content: center;">
+        <div style="display: flex; gap: 1.25rem; justify-content: center; flex-wrap: wrap;">
+          <a href="about.html">About</a>
+          <a href="contact.html">Contact</a>
+          <a href="docs.html">Docs</a>
           <a href="privacy.html">Privacy</a>
           <a href="terms.html">Terms</a>
           <a href="delete-account.html">Data Safety</a>

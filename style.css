@@ -1389,7 +1389,11 @@ a:hover {
   flex-direction: column;
 }
 
-.footer-col-block h5 {
+.footer-col-block h3,
+.footer-col-block h5,
+.footer-support-block h3,
+.footer-support-block h5,
+.footer-heading {
   font-family: var(--font-display);
   font-size: 0.88rem;
   font-weight: 700;

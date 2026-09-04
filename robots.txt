@@ -1,6 +1,10 @@
 User-agent: *
 Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /openapi.json
+Allow: /openapi.yaml
+Allow: /.well-known/mcp
 Disallow: /admin/
-Disallow: /api/
 
 Sitemap: https://get-studytimer.vercel.app/sitemap.xml

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>About StudyTimer - Distraction-Free Android Study &amp; Focus App</title>
+  <meta name="title" content="About StudyTimer - Distraction-Free Android Study &amp; Focus App">
+  <meta name="description" content="Learn about StudyTimer: our mission to provide students and learners with a 100% free, ad-free, offline-first Pomodoro timer and subject streak tracker on Android.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://get-studytimer.vercel.app/about.html">
+
+  <link rel="icon" href="assets/logo.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=3.0.0">
+
+  <!-- Machine-Readable Standards -->
+  <link rel="alternate" type="text/markdown" href="/about.md" title="About StudyTimer (Markdown)">
+  <link rel="help" type="text/markdown" href="/llms.txt" title="LLMs & Agent Guide">
+
+  <!-- Structured Data / JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://get-studytimer.vercel.app/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "About StudyTimer",
+            "item": "https://get-studytimer.vercel.app/about.html"
+          }
+        ]
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://get-studytimer.vercel.app/#organization",
+        "name": "StudyTimer",
+        "url": "https://get-studytimer.vercel.app/",
+        "logo": "https://get-studytimer.vercel.app/assets/logo.png",
+        "description": "StudyTimer develops native Android productivity and focus enhancement software for students and professionals worldwide.",
+        "email": "studytimer737@gmail.com",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "email": "studytimer737@gmail.com",
+          "contactType": "customer support",
+          "availableLanguage": ["English"]
+        },
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "500 Howard Street",
+          "addressLocality": "San Francisco",
+          "addressRegion": "CA",
+          "postalCode": "94105",
+          "addressCountry": "US"
+        },
+        "sameAs": [
+          "https://get-studytimer.vercel.app/"
+        ]
+      },
+      {
+        "@type": "AboutPage",
+        "@id": "https://get-studytimer.vercel.app/about.html#aboutpage",
+        "name": "About StudyTimer",
+        "url": "https://get-studytimer.vercel.app/about.html",
+        "mainEntity": {
+          "@id": "https://get-studytimer.vercel.app/#organization"
+        }
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <div class="bg-ambient-layer"></div>
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container nav-container">
+      <a href="/" class="brand-link">
+        <img src="assets/logo.png" alt="StudyTimer Logo" width="38" height="38">
+        <span>StudyTimer</span>
+      </a>
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <a href="contact.html" class="btn-secondary-pill">Contact</a>
+        <a href="/" class="btn-secondary-pill">&larr; Return to Home</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container container-narrow" style="padding-top: 3.5rem; padding-bottom: 5rem;">
+    <div class="nav-breadcrumbs">
+      <a href="/">Home</a>
+      <span>/</span>
+      <span style="color: var(--text-main);">About StudyTimer</span>
+    </div>
+
+    <article class="legal-document-card">
+      <div class="eyebrow-badge">
+        <span>📖 Our Mission &amp; Philosophy</span>
+      </div>
+
+      <h1>About StudyTimer</h1>
+      <div class="legal-date-meta">Native Android Focus &bull; Offline-First Architecture &bull; 100% Free &amp; Ad-Free</div>
+
+      <p>
+        <strong>StudyTimer</strong> was created to solve a singular, persistent challenge faced by students, self-taught programmers, and exam candidates: digital distractions eroding deep focus during critical study sessions. While modern app stores are filled with timer apps, most are cluttered with intrusive full-screen video ads, aggressive paywalls, mandatory recurring subscriptions, or complex interfaces that distract from the task at hand.
+      </p>
+
+      <h2>1. The Distraction-Free Philosophy</h2>
+      <p>
+        We believe that effective learning requires sustained cognitive flow. StudyTimer is built with strict design principles:
+      </p>
+      <ul>
+        <li><strong>100% Free Forever:</strong> Every feature—including custom Pomodoro intervals, subject tagging, streak calendars, and deep analytics heatmaps—is fully unlocked with zero subscription tiers.</li>
+        <li><strong>Zero In-App Advertisements:</strong> We never display banner ads, popups, or interstitial video ads that disrupt concentration or break focus streaks.</li>
+        <li><strong>Offline-First Independence:</strong> Your focus sessions should never depend on network availability. StudyTimer runs 100% locally on your Android device without requiring an active internet connection.</li>
+      </ul>
+
+      <h2>2. Architecture &amp; Engineering</h2>
+      <p>
+        Engineered specifically for Android with native Jetpack components and high-performance room databases:
+      </p>
+      <ul>
+        <li><strong>Local SQLite / Room Database:</strong> All session timestamps, subject hours, and habit records are written to a secure, encrypted local database on your Android device, guaranteeing instant response times and offline resilience.</li>
+        <li><strong>Encrypted Supabase Cloud Sync:</strong> When you connect your Google Account, data syncs securely using PostgreSQL Row Level Security (RLS) over HTTPS (TLS 1.3), ensuring seamless multi-device backups.</li>
+        <li><strong>Battery &amp; Memory Optimization:</strong> Background timer services are optimized for Android Doze mode with minimal CPU wake locks and zero unnecessary background network polling.</li>
+      </ul>
+
+      <h2>3. Core Capabilities</h2>
+      <p>
+        StudyTimer provides a comprehensive focus toolkit tailored for real learning workflows:
+      </p>
+      <ul>
+        <li><strong>Configurable Pomodoro Engine:</strong> Set custom focus blocks (25m, 50m, or arbitrary lengths), short/long breaks, auto-start cycles, and ambient soundscapes.</li>
+        <li><strong>Custom Subject Management:</strong> Color-tag distinct subjects (e.g., Mathematics, Organic Chemistry, Computer Science) and assign daily or weekly hour targets with real-time progress bars.</li>
+        <li><strong>Visual Study Streak Calendars:</strong> Track consistency with interactive monthly heatmaps and habit chains.</li>
+        <li><strong>Deep Time Analytics:</strong> Review hourly breakdown charts, subject ratios, and productivity trends over days, weeks, and months.</li>
+      </ul>
+
+      <h2>4. Data Sovereignty &amp; Privacy</h2>
+      <p>
+        You retain absolute ownership of your study records. We do not sell user data, track personal browsing habits, or integrate third-party ad networks. You can export your data or execute a permanent cascading account deletion at any time directly within the app or through our web portal.
+      </p>
+
+      <h2>5. Get in Touch</h2>
+      <p>
+        Have suggestions, questions, or bug reports? We welcome feedback from the student and developer community:
+      </p>
+      <p style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: var(--radius-md); padding: 1.5rem;">
+        <strong>StudyTimer Engineering Team</strong><br>
+        Developer Email: <a href="mailto:studytimer737@gmail.com">studytimer737@gmail.com</a><br>
+        Web Portal: <a href="https://get-studytimer.vercel.app">https://get-studytimer.vercel.app</a><br>
+        Developer Docs: <a href="docs.html">Developer &amp; API Documentation</a><br>
+        Contact Page: <a href="contact.html">Contact &amp; Support Channels</a>
+      </p>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-legal-bar" style="border-top: none; padding-top: 0;">
+      <div>&copy; 2026 StudyTimer. All rights reserved.</div>
+      <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+        <a href="/">Home</a>
+        <a href="contact.html">Contact</a>
+        <a href="docs.html">Docs</a>
+        <a href="privacy.html">Privacy Policy</a>
+        <a href="terms.html">Terms</a>
+        <a href="delete-account.html">Account Deletion</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

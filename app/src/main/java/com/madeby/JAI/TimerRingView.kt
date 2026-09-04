@@ -15,8 +15,22 @@ import kotlin.math.min
 
 class TimerRingView(context: Context) : View(context) {
     private val density = resources.displayMetrics.density
-    private val strokePx = 14f * density
-    private val padPx = 26f * density
+    private var strokePx = 13f * density
+    private var padPx = 14f * density
+
+    var isFullscreen = false
+        set(value) {
+            if (field != value) {
+                field = value
+                strokePx = if (value) 14f * density else 13f * density
+                padPx = if (value) 10f * density else 14f * density
+                ringPaint.strokeWidth = strokePx
+                trackPaint.strokeWidth = strokePx
+                innerHaloPaint.strokeWidth = strokePx * 2.2f
+                requestLayout()
+                invalidate()
+            }
+        }
 
     private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -31,7 +45,7 @@ class TimerRingView(context: Context) : View(context) {
     private val innerHaloPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
-        strokeWidth = strokePx * 2.4f
+        strokeWidth = strokePx * 2.2f
         alpha = 26
     }
 
@@ -49,7 +63,8 @@ class TimerRingView(context: Context) : View(context) {
         val w = MeasureSpec.getSize(widthMeasureSpec)
         val h = MeasureSpec.getSize(heightMeasureSpec)
         val base = if (h > 0) min(w, h) else w
-        val size = (base * 0.88f).toInt().coerceAtLeast(1)
+        val scale = if (isFullscreen) 0.96f else 0.91f
+        val size = (base * scale).toInt().coerceAtLeast(1)
         setMeasuredDimension(size, size)
     }
 
@@ -79,24 +94,35 @@ class TimerRingView(context: Context) : View(context) {
         }
     }
 
+    private var lastShaderColor = 0
+    private var lastShaderCx = -1f
+    private var lastShaderCy = -1f
+    private val shaderMatrix = Matrix()
+    private var cachedSweepShader: SweepGradient? = null
+
     private fun applyArcShader(cx: Float, cy: Float) {
         if (sweepDeg <= 0.01f) {
             ringPaint.shader = null
             return
         }
-        val light = blend(color, -1, 0.40f)
-        val deep = blend(color, 0xFF000000.toInt(), 0.15f)
-        val shader = SweepGradient(
-            0f, 0f,
-            intArrayOf(light, color, deep),
-            floatArrayOf(0f, 0.7f, 1f)
-        )
-        val matrix = Matrix().apply {
-            postTranslate(cx, cy)
-            postRotate(-90f, cx, cy)
+        if (cachedSweepShader == null || lastShaderColor != color || lastShaderCx != cx || lastShaderCy != cy) {
+            lastShaderColor = color
+            lastShaderCx = cx
+            lastShaderCy = cy
+            val light = blend(color, -1, 0.40f)
+            val deep = blend(color, 0xFF000000.toInt(), 0.15f)
+            cachedSweepShader = SweepGradient(
+                0f, 0f,
+                intArrayOf(light, color, deep),
+                floatArrayOf(0f, 0.7f, 1f)
+            )
+            shaderMatrix.reset()
+            shaderMatrix.postTranslate(cx, cy)
+            shaderMatrix.postRotate(-90f, cx, cy)
+            cachedSweepShader!!.setLocalMatrix(shaderMatrix)
+            ringPaint.shader = cachedSweepShader
+            ringPaint.setShadowLayer(8f * density, 0f, 0f, Color.argb(100, Color.red(color), Color.green(color), Color.blue(color)))
         }
-        shader.setLocalMatrix(matrix)
-        ringPaint.shader = shader
     }
 
     private fun blend(from: Int, to: Int, t: Float): Int {
@@ -128,7 +154,6 @@ class TimerRingView(context: Context) : View(context) {
             innerHaloPaint.alpha = 24
             canvas.drawArc(ringBounds, -90f, sweepDeg, false, innerHaloPaint)
 
-            ringPaint.setShadowLayer(12f * density, 0f, 0f, Color.argb(130, Color.red(color), Color.green(color), Color.blue(color)))
             applyArcShader(cx, cy)
             canvas.drawArc(ringBounds, -90f, sweepDeg, false, ringPaint)
         }

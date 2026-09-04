@@ -186,9 +186,9 @@ class MainActivity : AppCompatActivity() {
     private var currentBreakSeconds: Long = 0
 
     internal var timerMode: String = "STOPWATCH"
-    private var focusCountdownSecs: Long = 1500L
-    private var focusRemainingSecs: Long = 0L
-    private var prePauseState: TimerState = TimerState.STUDYING
+    internal var focusCountdownSecs: Long = 1500L
+    internal var focusRemainingSecs: Long = 0L
+    internal var prePauseState: TimerState = TimerState.STUDYING
 
     private var lastKeepScreenOn = -1
 
@@ -274,8 +274,22 @@ class MainActivity : AppCompatActivity() {
     private lateinit var panelHost: FrameLayout
     internal lateinit var navHeader: LinearLayout
     internal lateinit var statusBadgeContainer: LinearLayout
+    internal var extraControlsContainer: LinearLayout? = null
+    internal var statsFloatingIcon: ImageView? = null
+    internal var isPortraitFullscreenActive = false
+    private var lastConfigOrientation = Configuration.ORIENTATION_UNDEFINED
+    private var lastFullscreenToggleTime = 0L
+    private var lastActionTriggerTime = 0L
     private var isZenModeActive = false
     private var isNavigatingBack = false
+    internal val appPrefs by lazy { getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE) }
+
+    internal fun canExecuteAction(): Boolean {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastActionTriggerTime < 250L) return false
+        lastActionTriggerTime = now
+        return true
+    }
     internal var calendarYear = 0
     internal var calendarMonth = 0
     private val NOTIFICATION_PERMISSION_REQUEST_CODE = 101
@@ -1392,12 +1406,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         panelHost = FrameLayout(this).apply {
-            setPadding(dp(16), dp(16), dp(16), dp(16))
+            setPadding(dp(16), dp(4), dp(16), dp(16))
             layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         }
         panelHost.addView(panelContainer)
         rootLayout.addView(panelHost)
         setContentView(rootLayout)
+        lastConfigOrientation = resources.configuration.orientation
         updateStatusBarIcons()
 
         tabDragSlop = android.view.ViewConfiguration.get(this).scaledTouchSlop
@@ -1424,6 +1439,10 @@ class MainActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             private var lastBackTime = 0L
             override fun handleOnBackPressed() {
+                if (isPortraitFullscreenActive) {
+                    exitPortraitFullscreenMode()
+                    return
+                }
                 if (currentPanel == AppPanel.HEATMAP) {
                     // Pop from full-screen Heatmap back to Insights
                     navigateToPanel(AppPanel.STATS)
@@ -1553,16 +1572,28 @@ class MainActivity : AppCompatActivity() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        val sharedPrefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val orientationChanged = (newConfig.orientation != lastConfigOrientation)
+        lastConfigOrientation = newConfig.orientation
+
+        val sharedPrefs = appPrefs
         val isLandscapeEnabled = sharedPrefs.getBoolean("is_landscape_mode_enabled", sharedPrefs.getBoolean("true_fullscreen_landscape", true))
         val isLandscape = (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) && isLandscapeEnabled
-        if (isLandscape && currentPanel == AppPanel.FOCUS) {
-            applyImmersiveModeForLandscape()
+        if (orientationChanged) {
+            isPortraitFullscreenActive = false
+            if (isLandscape && currentPanel == AppPanel.FOCUS) {
+                applyImmersiveModeForLandscape()
+            } else {
+                showSystemUI()
+            }
+            buildCurrentPanel()
+            updateVisualStyles()
         } else {
-            showSystemUI()
+            if (isLandscape && currentPanel == AppPanel.FOCUS) {
+                applyImmersiveModeForLandscape()
+            } else if (isPortraitFullscreenActive && currentPanel == AppPanel.FOCUS) {
+                hideSystemUI()
+            }
         }
-        buildCurrentPanel()
-        updateVisualStyles()
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent?): Boolean {
@@ -1816,6 +1847,10 @@ class MainActivity : AppCompatActivity() {
 
     internal fun navigateToPanel(targetPanel: AppPanel) {
         isNavigatingBack = false
+
+        if (isPortraitFullscreenActive && targetPanel != AppPanel.FOCUS) {
+            exitPortraitFullscreenMode()
+        }
 
         if (targetPanel == AppPanel.STATS && currentPanel != AppPanel.STATS) {
             currentStatsTab = AppStatsTab.OVERVIEW
@@ -2140,7 +2175,7 @@ class MainActivity : AppCompatActivity() {
         val headerRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(4), dp(2), dp(4), dp(6))
+            setPadding(dp(4), 0, dp(4), dp(4))
         }
         headerRow.addView(TextView(this).apply {
             text = getString(R.string.insights_title)
@@ -2645,7 +2680,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         pieHeaderRow.addView(TextView(this@MainActivity).apply {
-            text = "📊 ANALYTICS DISTRIBUTION"
+            text = "📊 SUBJECT DISTRIBUTION"
             setTextColor(themeCoordinator.primaryColor)
             textSize = 11f
             letterSpacing = 0.18f
@@ -2654,12 +2689,13 @@ class MainActivity : AppCompatActivity() {
         })
 
         val tapDetailsBtn = TextView(this@MainActivity).apply {
-            text = "Tap chart for details ↗"
-            setTextColor(themeCoordinator.primaryColor)
-            textSize = 11f
+            text = "See Details ›"
+            setTextColor(Color.WHITE)
+            textSize = 11.5f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(dp(10), dp(4), dp(10), dp(4))
-            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 40), 12f)
+            setPadding(dp(12), dp(5), dp(12), dp(5))
+            background = themeCoordinator.createGlassChip(themeCoordinator.primaryColor, 14f)
+            setOnClickListener { showPieChartDetailsModal() }
         }
 
         pieHeaderRow.addView(tapDetailsBtn)
@@ -2718,14 +2754,14 @@ class MainActivity : AppCompatActivity() {
                         setPadding(0, dp(24), 0, dp(24))
                     }
                     emptyBox.addView(TextView(this@MainActivity).apply {
-                        text = "📊 Not Enough Data"
+                        text = "📊 No Focus Recorded Today"
                         setTextColor(themeCoordinator.textColor)
                         textSize = 15f
                         typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                         gravity = Gravity.CENTER
                     })
                     emptyBox.addView(TextView(this@MainActivity).apply {
-                        text = "Log at least 1 minute of focus time to track your subject breakdown."
+                        text = "Complete at least 1 minute of focus time to view your distribution."
                         setTextColor(themeCoordinator.textColor)
                         alpha = 0.55f
                         textSize = 12.5f
@@ -3493,6 +3529,7 @@ class MainActivity : AppCompatActivity() {
             val list = mutableListOf<SessionGoal>()
             for (i in 0 until array.length()) {
                 val obj = array.getJSONObject(i)
+                val subId = if (obj.has("subjectId") && !obj.isNull("subjectId")) obj.optString("subjectId", null) else null
                 list.add(SessionGoal(
                     id = obj.optString("id", UUID.randomUUID().toString()),
                     title = obj.optString("title", ""),
@@ -3500,7 +3537,8 @@ class MainActivity : AppCompatActivity() {
                     targetMinutes = obj.optInt("targetMinutes", 0),
                     completed = obj.optBoolean("completed", false),
                     checkedAt = obj.optLong("checkedAt", 0L),
-                    createdAt = obj.optLong("createdAt", System.currentTimeMillis())
+                    createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
+                    subjectId = subId
                 ))
             }
             list
@@ -3520,6 +3558,9 @@ class MainActivity : AppCompatActivity() {
                 put("completed", goal.completed)
                 put("checkedAt", goal.checkedAt)
                 put("createdAt", goal.createdAt)
+                if (goal.subjectId != null) {
+                    put("subjectId", goal.subjectId)
+                }
             }
             array.put(obj)
         }
@@ -3636,7 +3677,6 @@ class MainActivity : AppCompatActivity() {
         dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.90f).toInt(), LinearLayout.LayoutParams.WRAP_CONTENT)
         dialog.show()
     }
-
     private fun getStatusBarHeight(): Int {
         var result = 0
         val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
@@ -3652,21 +3692,26 @@ class MainActivity : AppCompatActivity() {
         val goalsList = loadSessionGoalsFromJson(goalsJson)
         val (plannerPrimary, plannerSecondary) = resolvePlannerColors()
 
+        val todayStr = cachedTodayStr.ifEmpty { dateKeyFmt.format(Date()) }
+        val dailySubjectDurations = SubjectTagManager.getSubjectDurationsForDate(this, todayStr)
         val todayFocusMins = (snap.todayFocus / 60).toInt()
-        val sortedGoals = goalsList.sortedBy { it.targetMinutes }
-        val checkedGoals = sortedGoals.filter { it.completed }.sortedBy { it.checkedAt }
-        var pool = todayFocusMins
-        val trulyAchievedIds = mutableSetOf<String>()
 
-        for (goal in checkedGoals) {
-            val targetMins = goal.targetMinutes
-            if (targetMins > 0) {
-                if (pool >= targetMins) {
-                    pool -= targetMins
+        val trulyAchievedIds = mutableSetOf<String>()
+        for (goal in goalsList) {
+            if (goal.completed) {
+                val targetMins = goal.targetMinutes
+                if (targetMins > 0) {
+                    val actualMins = if (!goal.subjectId.isNullOrBlank() && goal.subjectId != "all") {
+                        ((dailySubjectDurations[goal.subjectId] ?: 0L) / 60).toInt()
+                    } else {
+                        todayFocusMins
+                    }
+                    if (actualMins >= targetMins) {
+                        trulyAchievedIds.add(goal.id)
+                    }
+                } else {
                     trulyAchievedIds.add(goal.id)
                 }
-            } else {
-                trulyAchievedIds.add(goal.id)
             }
         }
 
@@ -3727,50 +3772,73 @@ class MainActivity : AppCompatActivity() {
             progress = progressPct
             progressTintList = android.content.res.ColorStateList.valueOf(lineProgressColor)
             progressBackgroundTintList = android.content.res.ColorStateList.valueOf(if (themeCoordinator.isDarkMode()) 0xFF222430.toInt() else 0xFFE2E8F0.toInt())
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(8)).apply { setMargins(0, dp(4), 0, 0) }
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(8)).apply { setMargins(0, 0, 0, dp(14)) }
         }
         summaryCard.addView(progressBar)
+
+        val actionsRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, 0, 0, 0)
+        }
+        val yesterdayActionBtn = TextView(this).apply {
+            text = "⏮️ Yesterday's Habits"
+            setTextColor(themeCoordinator.textColor)
+            textSize = 12.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 35), 12f)
+            setPadding(dp(10), dp(8), dp(10), dp(8))
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                setMargins(0, 0, dp(4), 0)
+            }
+            setOnClickListener { showEditYesterdayGoalsDialog() }
+        }
+        val gridBtn = TextView(this).apply {
+            text = "📊 Habit Grid Matrix"
+            setTextColor(plannerPrimary)
+            textSize = 12.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = themeCoordinator.createGlassChip(tintedColor(plannerPrimary, 120), 12f)
+            setPadding(dp(10), dp(8), dp(10), dp(8))
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                setMargins(dp(4), 0, 0, 0)
+            }
+            setOnClickListener { showPlannerMatrixDialog() }
+        }
+        actionsRow.addView(yesterdayActionBtn)
+        actionsRow.addView(gridBtn)
+        summaryCard.addView(actionsRow)
         parent.addView(summaryCard)
 
         if (goalsList.isEmpty()) {
             val emptyCard = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
-                background = GradientDrawable().apply {
-                    cornerRadius = dp(20).toFloat()
-                    val emptyBg = if (themeCoordinator.isDarkMode()) {
-                        if (themeCoordinator.activeBgMode == "ECLIPSE") 0xFF1E293B.toInt() else 0xFF14151D.toInt()
-                    } else {
-                        0xFFF1F5F9.toInt()
-                    }
-                    val strokeCol = if (themeCoordinator.isDarkMode()) 0xFF282A36.toInt() else 0xFFCBD5E1.toInt()
-                    setColor(emptyBg)
-                    setStroke(dp(1), strokeCol, dp(6).toFloat(), dp(4).toFloat()) // modern dashed border
-                }
-                setPadding(dp(24), dp(36), dp(24), dp(36))
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(4), 0, dp(12)) }
+                background = themeCoordinator.createCardBackground()
+                setPadding(dp(20), dp(32), dp(20), dp(32))
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, dp(12)) }
             }
             emptyCard.addView(TextView(this).apply {
                 text = "🎯"
-                textSize = 38f
+                textSize = 36f
                 gravity = Gravity.CENTER
+                setPadding(0, 0, 0, dp(10))
             })
             emptyCard.addView(TextView(this).apply {
-                text = "Set Your Daily Targets"
+                text = "No Goals Planned for Today"
                 setTextColor(themeCoordinator.textColor)
                 textSize = 16f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                 gravity = Gravity.CENTER
-                setPadding(0, dp(10), 0, dp(4))
             })
-
             emptyCard.addView(TextView(this).apply {
-                text = "Break your day into structured study and lecture goals to stay disciplined."
+                text = "Set daily subject study goals or micro-tasks with target times to keep your consistency."
                 setTextColor(themeCoordinator.textColor)
                 alpha = 0.55f
-                textSize = 12.5f
+                textSize = 13f
                 gravity = Gravity.CENTER
-                setPadding(0, 0, 0, dp(16))
+                setPadding(dp(16), dp(4), dp(16), dp(16))
             })
 
             val addFirstBtn = TextView(this).apply {
@@ -3792,7 +3860,6 @@ class MainActivity : AppCompatActivity() {
             val goalsContainer = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
             }
-            val uncheckedGoals = sortedGoals.filter { !it.completed }
 
             class GoalDisplayInfo(
                 val isChecked: Boolean,
@@ -3802,60 +3869,60 @@ class MainActivity : AppCompatActivity() {
             )
 
             val infoMap = mutableMapOf<String, GoalDisplayInfo>()
-            var focusPool = todayFocusMins
-
             val greenColor = 0xFF22C55E.toInt()
             val redColor = 0xFFEF4444.toInt()
 
-            for (goal in checkedGoals) {
+            for (goal in goalsList) {
                 val targetMins = goal.targetMinutes
-                if (targetMins > 0) {
-                    if (focusPool >= targetMins) {
-                        focusPool -= targetMins
+                val actualMins = if (!goal.subjectId.isNullOrBlank() && goal.subjectId != "all") {
+                    ((dailySubjectDurations[goal.subjectId] ?: 0L) / 60).toInt()
+                } else {
+                    todayFocusMins
+                }
+
+                if (goal.completed) {
+                    if (targetMins > 0) {
+                        if (actualMins >= targetMins) {
+                            infoMap[goal.id] = GoalDisplayInfo(
+                                isChecked = true,
+                                progressText = "\u2713 ${targetMins}m Goal Reached",
+                                chipColor = greenColor,
+                                isDeficit = false
+                            )
+                        } else {
+                            val deficit = targetMins - actualMins
+                            infoMap[goal.id] = GoalDisplayInfo(
+                                isChecked = true,
+                                progressText = "${deficit}m remaining (${actualMins}/${targetMins}m)",
+                                chipColor = redColor,
+                                isDeficit = true
+                            )
+                        }
+                    } else {
                         infoMap[goal.id] = GoalDisplayInfo(
                             isChecked = true,
-                            progressText = "\u2713 ${targetMins}m Goal Reached",
+                            progressText = "\u2713 Goal Reached",
                             chipColor = greenColor,
                             isDeficit = false
                         )
-                    } else {
-                        val deficit = targetMins - focusPool
-                        focusPool = 0
-                        infoMap[goal.id] = GoalDisplayInfo(
-                            isChecked = true,
-                            progressText = "${deficit}m remaining",
-                            chipColor = redColor,
-                            isDeficit = true
-                        )
                     }
                 } else {
-                    infoMap[goal.id] = GoalDisplayInfo(
-                        isChecked = true,
-                        progressText = "\u2713 Goal Reached",
-                        chipColor = greenColor,
-                        isDeficit = false
-                    )
-                }
-            }
-
-            for (goal in uncheckedGoals) {
-                val targetMins = goal.targetMinutes
-                if (targetMins > 0) {
-                    val alloc = minOf(focusPool, targetMins)
-                    focusPool = (focusPool - alloc).coerceAtLeast(0)
-                    infoMap[goal.id] = GoalDisplayInfo(
-                        isChecked = false,
-                        progressText = "${alloc}/${targetMins}m",
-                        chipColor = themeCoordinator.primaryColor,
-                        isDeficit = false
-                    )
-                } else {
-                    infoMap[goal.id] = GoalDisplayInfo(
-                        isChecked = false,
-                        progressText = "0/0m",
-                        chipColor = themeCoordinator.primaryColor,
-                        isDeficit = false
-                    )
+                    if (targetMins > 0) {
+                        val isDone = actualMins >= targetMins
+                        infoMap[goal.id] = GoalDisplayInfo(
+                            isChecked = false,
+                            progressText = "${actualMins}/${targetMins}m",
+                            chipColor = if (isDone) greenColor else themeCoordinator.primaryColor,
+                            isDeficit = false
+                        )
+                    } else {
+                        infoMap[goal.id] = GoalDisplayInfo(
+                            isChecked = false,
+                            progressText = "Manual Check",
+                            chipColor = themeCoordinator.primaryColor,
+                            isDeficit = false
+                        )
+                    }
                 }
             }
 
@@ -3907,6 +3974,17 @@ class MainActivity : AppCompatActivity() {
                     typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                     if (isChecked) paintFlags = paintFlags or android.graphics.Paint.STRIKE_THRU_TEXT_FLAG
                 })
+                if (!goal.subjectId.isNullOrBlank() && goal.subjectId != "all") {
+                    val sub = SubjectTagManager.resolveSubject(this, goal.subjectId)
+                    val subBadge = TextView(this).apply {
+                        text = "${sub.iconEmoji} ${sub.name}"
+                        setTextColor(try { Color.parseColor(sub.colorHex) } catch (_: Exception) { plannerPrimary })
+                        textSize = 11.5f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        setPadding(0, dp(1), 0, 0)
+                    }
+                    textCol.addView(subBadge)
+                }
                 if (goal.note.isNotBlank()) {
                     textCol.addView(TextView(this).apply {
                         text = goal.note
@@ -4334,6 +4412,282 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
+    internal fun showEditYesterdayGoalsDialog() {
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+
+        val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+        val yesterdayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.time)
+        val yesterdayDisplayStr = SimpleDateFormat("EEEE, dd MMMM", Locale.getDefault()).format(cal.time)
+
+        val (plannerPrimary, _) = resolvePlannerColors()
+        val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val dailySubjectDurations = SubjectTagManager.getSubjectDurationsForDate(this, yesterdayStr)
+        val dayFocusSecs = prefs.getLong("${yesterdayStr}_focus_total", 0L)
+        val yesterdayFocusMins = (dayFocusSecs / 60).toInt()
+
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = themeCoordinator.createDialogBackground(28f)
+            setPadding(dp(20), dp(20), dp(20), dp(18))
+        }
+
+        // Header Title
+        val headerRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, 0, 0, dp(4))
+        }
+        headerRow.addView(TextView(this).apply {
+            text = "⏮️ Yesterday's Goals & Habits"
+            setTextColor(plannerPrimary)
+            textSize = 17f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        val closeBtn = TextView(this).apply {
+            text = "✕"
+            textSize = 16f
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.6f
+            setPadding(dp(10), dp(4), dp(10), dp(4))
+            setOnClickListener { dialog.dismiss() }
+        }
+        headerRow.addView(closeBtn)
+        root.addView(headerRow)
+
+        root.addView(TextView(this).apply {
+            text = "📅 $yesterdayDisplayStr\n• Recorded Focus: ${yesterdayFocusMins / 60}h ${yesterdayFocusMins % 60}m"
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.75f
+            textSize = 12.5f
+            setPadding(0, 0, 0, dp(12))
+        })
+
+        data class YesterdayGoalItem(
+            var id: String,
+            var title: String,
+            var targetMinutes: Int,
+            var completed: Boolean,
+            var isAchieved: Boolean,
+            var subjectId: String?
+        )
+
+        val itemsList = mutableListOf<YesterdayGoalItem>()
+        val existingSnapshots = PlannerHistoryManager.loadDaySnapshot(this, yesterdayStr)
+        if (existingSnapshots.isNotEmpty()) {
+            for (s in existingSnapshots) {
+                itemsList.add(YesterdayGoalItem(s.goalId, s.title, s.targetMinutes, s.completed, s.isAchieved, s.subjectId))
+            }
+        } else {
+            val currentGoals = loadSessionGoalsFromJson(prefs.getString("session_goals_json", "[]") ?: "[]")
+            for (g in currentGoals) {
+                val target = g.targetMinutes
+                val actual = if (!g.subjectId.isNullOrBlank() && g.subjectId != "all") {
+                    ((dailySubjectDurations[g.subjectId] ?: 0L) / 60).toInt()
+                } else {
+                    yesterdayFocusMins
+                }
+                val autoDone = target == 0 || (target > 0 && actual >= target)
+                itemsList.add(YesterdayGoalItem(g.id, g.title, g.targetMinutes, autoDone, autoDone, g.subjectId))
+            }
+        }
+
+        val scroll = ScrollView(this).apply {
+            isVerticalScrollBarEnabled = false
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                (resources.displayMetrics.heightPixels * 0.40f).toInt()
+            )
+        }
+
+        val goalsContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        scroll.addView(goalsContainer)
+
+        fun renderGoals() {
+            goalsContainer.removeAllViews()
+            if (itemsList.isEmpty()) {
+                goalsContainer.addView(TextView(this@MainActivity).apply {
+                    text = "No habits listed for yesterday. Tap '+ Add Habit' below to add what you completed yesterday."
+                    setTextColor(themeCoordinator.textColor)
+                    alpha = 0.6f
+                    textSize = 13f
+                    gravity = Gravity.CENTER
+                    setPadding(dp(16), dp(24), dp(16), dp(24))
+                })
+            }
+            for ((idx, item) in itemsList.withIndex()) {
+                val card = LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    background = themeCoordinator.createCardBackground(14f)
+                    setPadding(dp(12), dp(10), dp(12), dp(10))
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        setMargins(0, 0, 0, dp(6))
+                    }
+                }
+
+                val toggleBadge = TextView(this@MainActivity).apply {
+                    text = if (item.completed) "✓ Done" else "✗ Missed"
+                    textSize = 11.5f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    setTextColor(Color.WHITE)
+                    background = GradientDrawable().apply {
+                        cornerRadius = dp(10).toFloat()
+                        setColor(if (item.completed) Color.parseColor("#10B981") else Color.parseColor("#475569"))
+                    }
+                    setPadding(dp(10), dp(6), dp(10), dp(6))
+                    setOnClickListener {
+                        item.completed = !item.completed
+                        item.isAchieved = item.completed
+                        renderGoals()
+                    }
+                }
+                card.addView(toggleBadge)
+
+                val textCol = LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                        setMargins(dp(10), 0, dp(8), 0)
+                    }
+                }
+                textCol.addView(TextView(this@MainActivity).apply {
+                    text = item.title
+                    setTextColor(themeCoordinator.textColor)
+                    textSize = 13.5f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                })
+
+                val target = item.targetMinutes
+                val actual = if (!item.subjectId.isNullOrBlank() && item.subjectId != "all") {
+                    ((dailySubjectDurations[item.subjectId] ?: 0L) / 60).toInt()
+                } else {
+                    yesterdayFocusMins
+                }
+                val subText = if (target > 0) "Target: ${target}m • Logged: ${actual}m" else "Daily Habit"
+                textCol.addView(TextView(this@MainActivity).apply {
+                    text = subText
+                    setTextColor(themeCoordinator.textColor)
+                    alpha = 0.55f
+                    textSize = 11f
+                })
+                card.addView(textCol)
+
+                val removeBtn = TextView(this@MainActivity).apply {
+                    text = "✕"
+                    textSize = 14f
+                    setTextColor(Color.parseColor("#EF4444"))
+                    alpha = 0.7f
+                    setPadding(dp(8), dp(4), dp(8), dp(4))
+                    setOnClickListener {
+                        itemsList.removeAt(idx)
+                        renderGoals()
+                    }
+                }
+                card.addView(removeBtn)
+                goalsContainer.addView(card)
+            }
+        }
+        renderGoals()
+
+        root.addView(scroll)
+
+        val addRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, dp(8), 0, dp(12))
+        }
+
+        val addHabitBtn = TextView(this).apply {
+            text = "➕ Add Habit to Yesterday"
+            setTextColor(plannerPrimary)
+            textSize = 12.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            gravity = Gravity.CENTER
+            background = themeCoordinator.createGlassChip(tintedColor(plannerPrimary, 35), 10f)
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            setOnClickListener {
+                val inputEdit = EditText(this@MainActivity).apply {
+                    hint = "Habit title"
+                    setTextColor(themeCoordinator.textColor)
+                    setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
+                    background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 10f)
+                    setPadding(dp(12), dp(10), dp(12), dp(10))
+                }
+                android.app.AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Add Yesterday's Habit")
+                    .setView(inputEdit)
+                    .setPositiveButton("Add") { _, _ ->
+                        val t = inputEdit.text.toString().trim()
+                        if (t.isNotEmpty()) {
+                            itemsList.add(YesterdayGoalItem("custom_${System.currentTimeMillis()}", t, 30, true, true, null))
+                            renderGoals()
+                        }
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+            }
+        }
+        addRow.addView(addHabitBtn)
+        root.addView(addRow)
+
+        val saveBtn = Button(this).apply {
+            text = "SAVE YESTERDAY'S HABITS"
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = GradientDrawable().apply {
+                cornerRadius = dp(14).toFloat()
+                setColor(plannerPrimary)
+            }
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(48))
+            setOnClickListener {
+                val array = org.json.JSONArray()
+                for (item in itemsList) {
+                    val target = item.targetMinutes
+                    val actual = if (!item.subjectId.isNullOrBlank() && item.subjectId != "all") {
+                        ((dailySubjectDurations[item.subjectId] ?: 0L) / 60).toInt()
+                    } else {
+                        yesterdayFocusMins
+                    }
+                    val isAchieved = if (item.completed) (target == 0 || actual >= target) else false
+                    array.put(org.json.JSONObject().apply {
+                        put("goalId", item.id)
+                        put("title", item.title)
+                        put("targetMinutes", item.targetMinutes)
+                        put("completed", item.completed)
+                        put("checkedAt", if (item.completed) cal.timeInMillis + (18 * 3600 * 1000L) else 0L)
+                        put("isAchieved", isAchieved)
+                        if (item.subjectId != null) put("subjectId", item.subjectId)
+                    })
+                }
+
+                prefs.edit().putString("${yesterdayStr}_planner_snapshot", array.toString()).apply()
+                statsDirty = true
+                tabPageCache.clear()
+                recalculateStreak()
+                refreshStatsPanel()
+
+                Thread {
+                    kotlinx.coroutines.runBlocking {
+                        CloudSyncManager.syncDataToCloud(this@MainActivity)
+                    }
+                }.start()
+
+                Toast.makeText(this@MainActivity, "Yesterday's goals updated!", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            }
+        }
+        root.addView(saveBtn)
+
+        dialog.setContentView(root)
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.90f).toInt(), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+        dialog.show()
+    }
+
     internal fun migrateHistoricalDailyGoals(context: Context) {
         val prefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
         val globalGoal = (prefs.all["daily_goal_secs"] as? Number)?.toLong() ?: 2700L
@@ -4395,7 +4749,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         topHeaderRow.addView(TextView(this).apply {
-            text = "📊 GOAL & HABIT GRID"
+            text = "📊 GOALS & HABITS"
             setTextColor(plannerPrimary)
             textSize = 17f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
@@ -4459,7 +4813,42 @@ class MainActivity : AppCompatActivity() {
             item.id to h
         }
 
-        val sortedDatesAll = allDates.mapNotNull { runCatching { sdf.parse(it) }.getOrNull() }.sortedDescending()
+        val allCandidateDates = mutableListOf<Date>()
+        for (dStr in allDates) {
+            runCatching { sdf.parse(dStr) }.getOrNull()?.let { allCandidateDates.add(it) }
+        }
+        for (key in prefs.all.keys) {
+            if (key.endsWith("_planner_snapshot")) {
+                runCatching { sdf.parse(key.removeSuffix("_planner_snapshot")) }.getOrNull()?.let { allCandidateDates.add(it) }
+            }
+            if (key.endsWith("_focus_total")) {
+                val total = (prefs.all[key] as? Number)?.toLong() ?: 0L
+                if (total > 0) {
+                    runCatching { sdf.parse(key.removeSuffix("_focus_total")) }.getOrNull()?.let { allCandidateDates.add(it) }
+                }
+            }
+        }
+        for (g in goalsList) {
+            if (g.createdAt > 0) {
+                allCandidateDates.add(Date(g.createdAt))
+            }
+        }
+        runCatching {
+            TimelineLogger.load(this).forEach { entry ->
+                if (entry.timestamp > 0) allCandidateDates.add(Date(entry.timestamp))
+            }
+        }
+
+        val earliestDate = allCandidateDates.minOrNull() ?: Date()
+        val earliestCal = Calendar.getInstance().apply {
+            time = earliestDate
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        var currentAllTimeDays = 30
 
         val matrixContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -4468,12 +4857,25 @@ class MainActivity : AppCompatActivity() {
         fun renderMatrix(rangeDays: Int) {
             matrixContainer.removeAllViews()
             val calendarList = mutableListOf<Date>()
-            val futureOffset = 3
+            val futureOffset = if (rangeDays == 0) 0 else 3
             val startCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, futureOffset) }
-            val count = if (rangeDays > 0) rangeDays else maxOf(14, sortedDatesAll.size + futureOffset)
+            val count = if (rangeDays > 0) rangeDays else currentAllTimeDays
+            var reachedEarliest = false
+
             for (i in 0 until count) {
                 val c = startCal.clone() as Calendar
                 c.add(Calendar.DAY_OF_YEAR, -i)
+                val dayCal = Calendar.getInstance().apply {
+                    time = c.time
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                if (rangeDays == 0 && dayCal.before(earliestCal)) {
+                    reachedEarliest = true
+                    break
+                }
                 calendarList.add(c.time)
             }
             val filteredDates = calendarList
@@ -4638,6 +5040,26 @@ class MainActivity : AppCompatActivity() {
             splitLayout.addView(rightScroll)
 
             matrixContainer.addView(splitLayout)
+
+            if (rangeDays == 0 && !reachedEarliest) {
+                val loadMoreBtn = TextView(this@MainActivity).apply {
+                    text = "⬇ Load More (+30 Days History)"
+                    setTextColor(plannerPrimary)
+                    textSize = 12.5f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    background = themeCoordinator.createGlassChip(tintedColor(plannerPrimary, 70), 12f)
+                    setPadding(dp(14), dp(8), dp(14), dp(8))
+                    gravity = Gravity.CENTER
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        setMargins(0, dp(10), 0, 0)
+                    }
+                    setOnClickListener {
+                        currentAllTimeDays += 30
+                        renderMatrix(0)
+                    }
+                }
+                matrixContainer.addView(loadMoreBtn)
+            }
         }
 
         // Filter Bar (14 Days | 30 Days | All Time)
@@ -5627,6 +6049,83 @@ class MainActivity : AppCompatActivity() {
         }
         inputsBox.addView(durationInput)
 
+        // Subject Tag Selector
+        inputsBox.addView(TextView(this).apply {
+            text = "Subject Tag (Linked to Timer Focus)"
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.8f
+            textSize = 12.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(0, dp(4), 0, dp(6))
+        })
+
+        var selectedSubjectId: String? = null
+        val allSubjects = SubjectTagManager.getAllSubjects(this)
+        val subjectChipScroll = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 0, dp(14))
+            }
+        }
+        val subjectChipRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+        }
+
+        fun refreshSubjectChips() {
+            subjectChipRow.removeAllViews()
+
+            // "All / General" Chip
+            val isAllSelected = selectedSubjectId == null || selectedSubjectId == "all"
+            val allChip = TextView(this).apply {
+                text = "🌐 All Subjects"
+                textSize = 12f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(if (isAllSelected) Color.WHITE else themeCoordinator.textColor)
+                background = if (isAllSelected) {
+                    themeCoordinator.createGlassChip(themeCoordinator.primaryColor, 12f)
+                } else {
+                    themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 12f)
+                }
+                setPadding(dp(12), dp(6), dp(12), dp(6))
+                setOnClickListener {
+                    selectedSubjectId = null
+                    refreshSubjectChips()
+                }
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(0, 0, dp(8), 0)
+                }
+            }
+            subjectChipRow.addView(allChip)
+
+            for (sub in allSubjects) {
+                val isSelected = selectedSubjectId == sub.id
+                val subColor = try { Color.parseColor(sub.colorHex) } catch (_: Exception) { themeCoordinator.primaryColor }
+                val chip = TextView(this).apply {
+                    text = "${sub.iconEmoji} ${sub.name}"
+                    textSize = 12f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    setTextColor(if (isSelected) Color.WHITE else themeCoordinator.textColor)
+                    background = if (isSelected) {
+                        themeCoordinator.createGlassChip(subColor, 12f)
+                    } else {
+                        themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 12f)
+                    }
+                    setPadding(dp(12), dp(6), dp(12), dp(6))
+                    setOnClickListener {
+                        selectedSubjectId = sub.id
+                        refreshSubjectChips()
+                    }
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        setMargins(0, 0, dp(8), 0)
+                    }
+                }
+                subjectChipRow.addView(chip)
+            }
+        }
+        refreshSubjectChips()
+        subjectChipScroll.addView(subjectChipRow)
+        inputsBox.addView(subjectChipScroll)
+
         scrollContainer.addView(inputsBox)
         content.addView(scrollContainer)
 
@@ -5651,7 +6150,7 @@ class MainActivity : AppCompatActivity() {
                     val rawMins = durationInput.text.toString().toIntOrNull() ?: 0
                     val targetMins = rawMins.coerceAtMost(1440)
                     val currentGoals = loadSessionGoalsFromJson(getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).getString("session_goals_json", "[]") ?: "[]").toMutableList()
-                    currentGoals.add(PlannerGoal(title = titleText, note = noteText, targetMinutes = targetMins))
+                    currentGoals.add(PlannerGoal(title = titleText, note = noteText, targetMinutes = targetMins, subjectId = selectedSubjectId))
                     saveSessionGoalsToJson(currentGoals)
                     refreshStatsPanel()
                 }
@@ -5739,6 +6238,83 @@ class MainActivity : AppCompatActivity() {
         }
         inputsBox.addView(durationInput)
 
+        // Subject Tag Selector
+        inputsBox.addView(TextView(this).apply {
+            text = "Subject Tag (Linked to Timer Focus)"
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.8f
+            textSize = 12.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(0, dp(4), 0, dp(6))
+        })
+
+        var selectedSubjectId: String? = goal.subjectId
+        val allSubjects = SubjectTagManager.getAllSubjects(this)
+        val subjectChipScroll = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 0, dp(14))
+            }
+        }
+        val subjectChipRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+        }
+
+        fun refreshSubjectChips() {
+            subjectChipRow.removeAllViews()
+
+            // "All / General" Chip
+            val isAllSelected = selectedSubjectId == null || selectedSubjectId == "all"
+            val allChip = TextView(this).apply {
+                text = "🌐 All Subjects"
+                textSize = 12f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(if (isAllSelected) Color.WHITE else themeCoordinator.textColor)
+                background = if (isAllSelected) {
+                    themeCoordinator.createGlassChip(plannerPrimary, 12f)
+                } else {
+                    themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 12f)
+                }
+                setPadding(dp(12), dp(6), dp(12), dp(6))
+                setOnClickListener {
+                    selectedSubjectId = null
+                    refreshSubjectChips()
+                }
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(0, 0, dp(8), 0)
+                }
+            }
+            subjectChipRow.addView(allChip)
+
+            for (sub in allSubjects) {
+                val isSelected = selectedSubjectId == sub.id
+                val subColor = try { Color.parseColor(sub.colorHex) } catch (_: Exception) { plannerPrimary }
+                val chip = TextView(this).apply {
+                    text = "${sub.iconEmoji} ${sub.name}"
+                    textSize = 12f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    setTextColor(if (isSelected) Color.WHITE else themeCoordinator.textColor)
+                    background = if (isSelected) {
+                        themeCoordinator.createGlassChip(subColor, 12f)
+                    } else {
+                        themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 12f)
+                    }
+                    setPadding(dp(12), dp(6), dp(12), dp(6))
+                    setOnClickListener {
+                        selectedSubjectId = sub.id
+                        refreshSubjectChips()
+                    }
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        setMargins(0, 0, dp(8), 0)
+                    }
+                }
+                subjectChipRow.addView(chip)
+            }
+        }
+        refreshSubjectChips()
+        subjectChipScroll.addView(subjectChipRow)
+        inputsBox.addView(subjectChipScroll)
+
         scrollContainer.addView(inputsBox)
         content.addView(scrollContainer)
 
@@ -5767,7 +6343,7 @@ class MainActivity : AppCompatActivity() {
                     val idx = currentGoals.indexOfFirst { it.id == goal.id }
                     if (idx >= 0) {
                         val oldG = currentGoals[idx]
-                        currentGoals[idx] = PlannerGoal(id = oldG.id, title = newTitle, note = newNote, targetMinutes = newTargetMins, completed = oldG.completed, checkedAt = oldG.checkedAt, createdAt = oldG.createdAt)
+                        currentGoals[idx] = PlannerGoal(id = oldG.id, title = newTitle, note = newNote, targetMinutes = newTargetMins, completed = oldG.completed, checkedAt = oldG.checkedAt, createdAt = oldG.createdAt, subjectId = selectedSubjectId)
                         saveSessionGoalsToJson(currentGoals)
                         refreshStatsPanel()
                     }
@@ -7670,12 +8246,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupTimerLoop() {
         updateRunnable = Runnable {
-            val sharedPrefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+            val sharedPrefs = appPrefs
             accumulatedStudy = sharedPrefs.getLong("accumulatedStudy", 0L)
             currentBreakSeconds = sharedPrefs.getLong("currentBreakSeconds", 0L)
             currentTimerState = TimerState.valueOf(sharedPrefs.getString("timerState", "IDLE") ?: "IDLE")
             timerMode = sharedPrefs.getString("timer_mode", "STOPWATCH") ?: "STOPWATCH"
-            focusCountdownSecs = sharedPrefs.getLong("focus_countdown_secs", 1500L)
+            val pomodoroConfiguredSecs = sharedPrefs.safeLong("study_interval_minutes", 25L) * 60L
+            focusCountdownSecs = if (timerMode == "LECTURE") {
+                sharedPrefs.getLong("focus_countdown_secs", pomodoroConfiguredSecs)
+            } else {
+                pomodoroConfiguredSecs
+            }
             focusRemainingSecs = sharedPrefs.getLong("focus_remaining_secs", 0L)
             prePauseState = runCatching { TimerState.valueOf(sharedPrefs.getString("pre_pause_state", "STUDYING") ?: "STUDYING") }.getOrDefault(TimerState.STUDYING)
 
@@ -7684,7 +8265,7 @@ class MainActivity : AppCompatActivity() {
             val dayBucket = (System.currentTimeMillis() + TimeZone.getDefault().getOffset(System.currentTimeMillis())) / 86400000L
             if (dayBucket != lastDayBucket) {
                 lastDayBucket = dayBucket
-                cachedTodayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                cachedTodayStr = dateKeyFmt.format(Date())
                 statsDirty = true
                 if (!sharedPrefs.contains("${cachedTodayStr}_goal_secs")) {
                     sharedPrefs.edit().putLong("${cachedTodayStr}_goal_secs", sharedPrefs.getLong("daily_goal_secs", 2700L)).apply()
@@ -7709,7 +8290,6 @@ class MainActivity : AppCompatActivity() {
                 showSwitchToLectureDialog()
             }
 
-
             if (currentPanel == AppPanel.FOCUS) {
                 val isLectureModeActive = sharedPrefs.getBoolean("lecture_mode_enabled", false)
                 val isStudying = currentTimerState == TimerState.STUDYING ||
@@ -7718,38 +8298,52 @@ class MainActivity : AppCompatActivity() {
                     (currentTimerState == TimerState.PAUSED && prePauseState == TimerState.BREAK)
                 val showCountdown = (timerMode == "COUNTDOWN" || isLectureModeActive) && isStudying
 
-                studyTimerDisplay.text = when {
-                    showCountdown -> formatCountdown(focusRemainingSecs)
+                val nextStudyText = when {
+                    showCountdown -> formatCountdown(if (focusRemainingSecs > 0L) focusRemainingSecs else focusCountdownSecs)
+                    timerMode == "COUNTDOWN" && currentTimerState == TimerState.IDLE -> formatCountdown(pomodoroConfiguredSecs)
                     else -> formatTime(accumulatedStudy)
+                }
+                if (studyTimerDisplay.text != nextStudyText) {
+                    studyTimerDisplay.text = nextStudyText
                 }
 
                 val breakCountdownSecs = sharedPrefs.getLong("break_countdown_secs", 300L)
                 val breakRemainingSecs = sharedPrefs.getLong("break_remaining_secs", 0L)
 
-                breakTimerDisplay.text = when {
+                val nextBreakText = when {
                     isBreaking && timerMode == "COUNTDOWN" && breakCountdownSecs > 0L -> formatCountdown(breakRemainingSecs)
                     else -> formatTime(currentBreakSeconds)
                 }
+                if (breakTimerDisplay.text != nextBreakText) {
+                    breakTimerDisplay.text = nextBreakText
+                }
 
-                if (lastIsBreakingState != isBreaking) {
-                    lastIsBreakingState = isBreaking
-                    val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-                    if (isBreaking) {
-                        breakTimerDisplay.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
-                        breakTimerDisplay.textSize = if (isLandscape) 96f else 54f
-                        breakTimerDisplay.setPadding(0, 0, 0, 5)
+                val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+                if (isLandscape) {
+                    if (lastIsBreakingState != isBreaking) {
+                        lastIsBreakingState = isBreaking
+                        if (isBreaking) {
+                            breakTimerDisplay.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
+                            breakTimerDisplay.textSize = 96f
+                            breakTimerDisplay.setPadding(0, 0, 0, 5)
 
-                        studyTimerDisplay.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
-                        studyTimerDisplay.textSize = if (isLandscape) 24f else 20f
-                        studyTimerDisplay.setPadding(0, 0, 0, if (isLandscape) 20 else 40)
-                    } else {
-                        studyTimerDisplay.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
-                        studyTimerDisplay.textSize = if (isLandscape) 96f else 54f
-                        studyTimerDisplay.setPadding(0, 0, 0, 5)
+                            studyTimerDisplay.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
+                            studyTimerDisplay.textSize = 24f
+                            studyTimerDisplay.setPadding(0, 0, 0, 20)
+                        } else {
+                            studyTimerDisplay.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
+                            studyTimerDisplay.textSize = 96f
+                            studyTimerDisplay.setPadding(0, 0, 0, 5)
 
-                        breakTimerDisplay.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
-                        breakTimerDisplay.textSize = if (isLandscape) 24f else 20f
-                        breakTimerDisplay.setPadding(0, 0, 0, if (isLandscape) 20 else 40)
+                            breakTimerDisplay.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
+                            breakTimerDisplay.textSize = 24f
+                            breakTimerDisplay.setPadding(0, 0, 0, 20)
+                        }
+                    }
+                } else {
+                    if (lastIsBreakingState != isBreaking || timerStateChanged) {
+                        lastIsBreakingState = isBreaking
+                        applyPortraitFullscreenLayout()
                     }
                 }
 
@@ -7941,7 +8535,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun executeStateToggle() {
-        val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        if (!canExecuteAction()) return
+        val prefs = appPrefs
         val isFreedomMode = prefs.getBoolean("pomodoro_freedom_mode", false)
         if (currentTimerState == TimerState.STUDYING && timerMode == "COUNTDOWN" && !isFreedomMode) {
             // Save current remaining focus countdown before break so returning to focus resumes from this position
@@ -7969,6 +8564,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     internal fun handlePause() {
+        if (!canExecuteAction()) return
         statsDirty = true
         val intent = Intent(this, TimerService::class.java).apply {
             action = TimerService.ACTION_PAUSE
@@ -7983,6 +8579,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     internal fun handleStartBreakOnly(breakSecs: Long = 300L) {
+        if (!canExecuteAction()) return
         statsDirty = true
         val intent = Intent(this, TimerService::class.java).apply {
             action = TimerService.ACTION_START_BREAK
@@ -8445,7 +9042,7 @@ class MainActivity : AppCompatActivity() {
                 statusBadge.background = themeCoordinator.createGlassChip(themeCoordinator.primaryColor, 30f)
                 studyTimerDisplay.setTextColor(timerColor)
                 breakTimerDisplay.setTextColor(themeCoordinator.textColor); if (!isZenModeActive) breakTimerDisplay.visibility = View.VISIBLE
-                mainBtn.text = if (timerMode == "LECTURE") "End Lecture & Start Break" else getString(R.string.take_a_break)
+                mainBtn.text = if (timerMode == "LECTURE") "Pause Lec & Start Break" else getString(R.string.take_a_break)
                 mainBtn.setTextColor(mainBtnTextColor)
                 mainBtn.background = rippleBackground(themeCoordinator.secondaryColor); pauseBtn.visibility = pauseButtonVisibility(); pauseBtn.text = getString(R.string.btn_pause); pauseBtn.setOnClickListener { handlePause() }; pauseBtn.setTextColor(themeCoordinator.textColor); pauseBtn.background = outlinedButtonBackground(); stopBtn.visibility = View.VISIBLE; stopBtn.ringColor = themeCoordinator.primaryColor
             }
@@ -8476,11 +9073,16 @@ class MainActivity : AppCompatActivity() {
                 mainBtn.background = rippleBackground(themeCoordinator.primaryColor); pauseBtn.visibility = View.GONE; stopBtn.visibility = View.VISIBLE; stopBtn.ringColor = themeCoordinator.primaryColor
             }
         }
+        if (isPortraitFullscreenActive) {
+            applyPortraitFullscreenLayout()
+        }
         updateStatusBarIcons()
     }
 
     internal fun updateStatusBarIcons() {
         try {
+            window.statusBarColor = themeCoordinator.bgColor
+            window.navigationBarColor = themeCoordinator.bgColor
             val isLight = themeCoordinator.activeBgMode == "LIGHT"
             val decor = window.peekDecorView() ?: window.decorView
             androidx.core.view.WindowCompat.getInsetsController(window, decor).let { controller ->
@@ -8489,6 +9091,8 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (_: Exception) {
             try {
+                window.statusBarColor = themeCoordinator.bgColor
+                window.navigationBarColor = themeCoordinator.bgColor
                 val isLight = themeCoordinator.activeBgMode == "LIGHT"
                 @Suppress("DEPRECATION")
                 var flags = window.decorView.systemUiVisibility
@@ -8534,10 +9138,28 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (::updateRunnable.isInitialized) {
+            handler.removeCallbacks(updateRunnable)
+            handler.post(updateRunnable)
+        }
+        val currentOrientation = resources.configuration.orientation
+        if (lastConfigOrientation != currentOrientation) {
+            lastConfigOrientation = currentOrientation
+            isPortraitFullscreenActive = false
+            buildCurrentPanel()
+            updateVisualStyles()
+        }
         applyImmersiveModeForLandscape()
         StudyWidgetProvider.refresh(this)
         checkOngoingScheduledLecturePrompt()
         checkCelebration()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (::updateRunnable.isInitialized) {
+            handler.removeCallbacks(updateRunnable)
+        }
     }
 
 
@@ -8717,48 +9339,66 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
+    internal fun toggleLandscapeControls() {
+        if (resources.configuration.orientation != Configuration.ORIENTATION_LANDSCAPE) return
+        val sharedPrefs = appPrefs
+        val isLandscapeEnabled = sharedPrefs.getBoolean("is_landscape_mode_enabled", sharedPrefs.getBoolean("true_fullscreen_landscape", true))
+        if (!isLandscapeEnabled) return
+
+        if (!::controlActionContainer.isInitialized) return
+        if (controlActionContainer.visibility == View.GONE) {
+            if (::navHeader.isInitialized) navHeader.visibility = View.VISIBLE
+            if (::statusBadgeContainer.isInitialized) statusBadgeContainer.visibility = View.VISIBLE
+            if (::breakTimerDisplay.isInitialized) breakTimerDisplay.visibility = View.VISIBLE
+            controlActionContainer.visibility = View.VISIBLE
+            if (::studyTimerDisplay.isInitialized) studyTimerDisplay.textSize = 64f
+        } else {
+            if (::navHeader.isInitialized) navHeader.visibility = View.GONE
+            if (::statusBadgeContainer.isInitialized) statusBadgeContainer.visibility = View.GONE
+            if (::breakTimerDisplay.isInitialized) breakTimerDisplay.visibility = View.GONE
+            controlActionContainer.visibility = View.GONE
+            if (::studyTimerDisplay.isInitialized) studyTimerDisplay.textSize = 110f
+        }
+    }
+
     internal fun applyTrueFullscreenMode() {
-        val sharedPrefs = getSharedPreferences("StudyTimerPrefs", MODE_PRIVATE)
+        val sharedPrefs = appPrefs
         val isLandscapeEnabled = sharedPrefs.getBoolean("is_landscape_mode_enabled", sharedPrefs.getBoolean("true_fullscreen_landscape", true))
         val isLandscape = (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) && isLandscapeEnabled
 
         if (!isLandscape) {
             isZenModeActive = false
-            panelContainer.setOnClickListener(null)
+            if (isPortraitFullscreenActive) {
+                // Keep portrait fullscreen handler
+            } else {
+                panelContainer.setOnClickListener(null)
+            }
             return
         }
 
         if (isLandscapeEnabled) {
             isZenModeActive = true
-            navHeader.visibility = View.GONE
-            statusBadgeContainer.visibility = View.GONE
-            breakTimerDisplay.visibility = View.GONE
-            controlActionContainer.visibility = View.GONE
-            studyTimerDisplay.textSize = 110f
+            if (::navHeader.isInitialized) navHeader.visibility = View.GONE
+            if (::statusBadgeContainer.isInitialized) statusBadgeContainer.visibility = View.GONE
+            if (::breakTimerDisplay.isInitialized) breakTimerDisplay.visibility = View.GONE
+            if (::controlActionContainer.isInitialized) controlActionContainer.visibility = View.GONE
+            if (::studyTimerDisplay.isInitialized) studyTimerDisplay.textSize = 110f
 
             panelContainer.setOnClickListener {
-                if (controlActionContainer.visibility == View.GONE) {
-                    navHeader.visibility = View.VISIBLE
-                    statusBadgeContainer.visibility = View.VISIBLE
-                    breakTimerDisplay.visibility = View.VISIBLE
-                    controlActionContainer.visibility = View.VISIBLE
-                    studyTimerDisplay.textSize = 64f
-                } else {
-                    navHeader.visibility = View.GONE
-                    statusBadgeContainer.visibility = View.GONE
-                    breakTimerDisplay.visibility = View.GONE
-                    controlActionContainer.visibility = View.GONE
-                    studyTimerDisplay.textSize = 110f
-                }
+                toggleLandscapeControls()
+            }
+            rootLayout.setOnClickListener {
+                toggleLandscapeControls()
             }
         } else {
             isZenModeActive = false
-            navHeader.visibility = View.VISIBLE
-            statusBadgeContainer.visibility = View.VISIBLE
-            breakTimerDisplay.visibility = View.VISIBLE
-            controlActionContainer.visibility = View.VISIBLE
-            studyTimerDisplay.textSize = 64f
+            if (::navHeader.isInitialized) navHeader.visibility = View.VISIBLE
+            if (::statusBadgeContainer.isInitialized) statusBadgeContainer.visibility = View.VISIBLE
+            if (::breakTimerDisplay.isInitialized) breakTimerDisplay.visibility = View.VISIBLE
+            if (::controlActionContainer.isInitialized) controlActionContainer.visibility = View.VISIBLE
+            if (::studyTimerDisplay.isInitialized) studyTimerDisplay.textSize = 64f
             panelContainer.setOnClickListener(null)
+            rootLayout.setOnClickListener(null)
         }
     }
 
@@ -8774,6 +9414,143 @@ class MainActivity : AppCompatActivity() {
             hideSystemUI()
         } else {
             showSystemUI()
+        }
+    }
+
+    internal fun togglePortraitFullscreenMode() {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastFullscreenToggleTime < 350L) return
+        lastFullscreenToggleTime = now
+
+        if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) return
+        if (currentPanel != AppPanel.FOCUS) return
+        if (isPortraitFullscreenActive) {
+            exitPortraitFullscreenMode()
+        } else {
+            enterPortraitFullscreenMode()
+        }
+    }
+
+    internal fun enterPortraitFullscreenMode() {
+        isPortraitFullscreenActive = true
+        hideSystemUI()
+        if (::navHeader.isInitialized) navHeader.visibility = View.GONE
+        if (::statusBadgeContainer.isInitialized) statusBadgeContainer.visibility = View.GONE
+        extraControlsContainer?.visibility = View.GONE
+        if (::controlActionContainer.isInitialized) controlActionContainer.visibility = View.GONE
+        statsFloatingIcon?.visibility = View.GONE
+        applyPortraitFullscreenLayout()
+        panelContainer.setOnClickListener {
+            if (isPortraitFullscreenActive) {
+                togglePortraitFullscreenMode()
+            }
+        }
+        rootLayout.setOnClickListener {
+            if (isPortraitFullscreenActive) {
+                togglePortraitFullscreenMode()
+            }
+        }
+        try { window.decorView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP) } catch (_: Exception) {}
+    }
+
+    internal fun exitPortraitFullscreenMode() {
+        isPortraitFullscreenActive = false
+        showSystemUI()
+        val sharedPrefs = getSharedPreferences("StudyTimerPrefs", MODE_PRIVATE)
+        val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        if (!isLandscape) {
+            if (::navHeader.isInitialized) navHeader.visibility = View.VISIBLE
+            if (::statusBadgeContainer.isInitialized) statusBadgeContainer.visibility = View.VISIBLE
+            val timerModeSetting = sharedPrefs.getString("timer_mode", "SUBJECT") ?: "SUBJECT"
+            val showSubjectTagging = sharedPrefs.getBoolean("enable_subject_tagging", true) && timerModeSetting != "STOPWATCH"
+            if (showSubjectTagging) {
+                extraControlsContainer?.visibility = View.VISIBLE
+            }
+            if (::controlActionContainer.isInitialized) controlActionContainer.visibility = View.VISIBLE
+            statsFloatingIcon?.visibility = View.VISIBLE
+            applyPortraitFullscreenLayout()
+            panelContainer.setOnClickListener(null)
+            rootLayout.setOnClickListener(null)
+        }
+        try { window.decorView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP) } catch (_: Exception) {}
+    }
+
+    internal fun applyPortraitFullscreenLayout() {
+        if (!::studyTimerDisplay.isInitialized || !::breakTimerDisplay.isInitialized) return
+        val isBreaking = currentTimerState == TimerState.BREAK ||
+            (currentTimerState == TimerState.PAUSED && prePauseState == TimerState.BREAK)
+        val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val sharedPrefs = getSharedPreferences("StudyTimerPrefs", MODE_PRIVATE)
+        val timerMode = sharedPrefs.getString("timer_mode", "STOPWATCH") ?: "STOPWATCH"
+        val hasRing = (timerMode == "COUNTDOWN" || timerMode == "LECTURE")
+
+        if (::timerRing.isInitialized) {
+            timerRing.isFullscreen = (!isLandscape && isPortraitFullscreenActive)
+        }
+
+        if (!isLandscape && isPortraitFullscreenActive) {
+            val centerShift = -dp(32).toFloat()
+            studyTimerDisplay.translationY = centerShift
+            breakTimerDisplay.translationY = centerShift
+            if (::timerRing.isInitialized) timerRing.translationY = centerShift
+
+            val activeText = if (isBreaking) breakTimerDisplay.text.toString() else studyTimerDisplay.text.toString()
+            val fullscreenTextSize = when {
+                hasRing && activeText.length <= 5 -> 62f
+                hasRing -> 50f
+                activeText.length <= 5 -> 72f
+                else -> 66f
+            }
+
+            if (isBreaking) {
+                breakTimerDisplay.visibility = View.VISIBLE
+                breakTimerDisplay.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
+                breakTimerDisplay.textSize = fullscreenTextSize
+                breakTimerDisplay.setPadding(0, 0, 0, 0)
+
+                studyTimerDisplay.visibility = if (currentTimerState == TimerState.PAUSED) View.VISIBLE else View.GONE
+                if (currentTimerState == TimerState.PAUSED) {
+                    studyTimerDisplay.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
+                    studyTimerDisplay.textSize = 20f
+                    studyTimerDisplay.setPadding(0, 0, 0, 40)
+                }
+            } else {
+                studyTimerDisplay.visibility = View.VISIBLE
+                studyTimerDisplay.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
+                studyTimerDisplay.textSize = fullscreenTextSize
+                studyTimerDisplay.setPadding(0, 0, 0, 0)
+
+                breakTimerDisplay.visibility = if (currentTimerState == TimerState.PAUSED) View.VISIBLE else View.GONE
+                if (currentTimerState == TimerState.PAUSED) {
+                    breakTimerDisplay.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
+                    breakTimerDisplay.textSize = 20f
+                    breakTimerDisplay.setPadding(0, 0, 0, 40)
+                }
+            }
+        } else if (!isLandscape) {
+            studyTimerDisplay.translationY = 0f
+            breakTimerDisplay.translationY = 0f
+            if (::timerRing.isInitialized) timerRing.translationY = 0f
+
+            studyTimerDisplay.visibility = View.VISIBLE
+            breakTimerDisplay.visibility = View.VISIBLE
+            if (isBreaking) {
+                breakTimerDisplay.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
+                breakTimerDisplay.textSize = 54f
+                breakTimerDisplay.setPadding(0, 0, 0, 5)
+
+                studyTimerDisplay.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
+                studyTimerDisplay.textSize = 20f
+                studyTimerDisplay.setPadding(0, 0, 0, 40)
+            } else {
+                studyTimerDisplay.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
+                studyTimerDisplay.textSize = 54f
+                studyTimerDisplay.setPadding(0, 0, 0, 5)
+
+                breakTimerDisplay.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
+                breakTimerDisplay.textSize = 20f
+                breakTimerDisplay.setPadding(0, 0, 0, 40)
+            }
         }
     }
 
@@ -8802,16 +9579,6 @@ class MainActivity : AppCompatActivity() {
         } else {
             @Suppress("DEPRECATION")
             window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
-        }
-    }
-
-    val customAudioPickerLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        if (uri != null) {
-            try {
-                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (_: Exception) {}
-            AmbientSoundEngine.selectPreset(this, AmbientSoundEngine.Preset.CUSTOM, uri)
-            buildFocusPanel()
         }
     }
 
@@ -9155,103 +9922,30 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Exception) {}
     }
 
-    fun showAmbientSoundDialog(context: Context = this) {
-        try {
-            val dialog = Dialog(this)
-            dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
-            dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-            val container = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                background = themeCoordinator.createDialogBackground(28f)
-                setPadding(dp(22), dp(22), dp(22), dp(20))
-                layoutParams = LinearLayout.LayoutParams(
-                    (resources.displayMetrics.widthPixels * 0.90f).toInt().coerceAtMost(dp(420)),
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-            }
-
-            val title = TextView(this).apply {
-                text = "🎧 Ambient Focus Soundscapes"
-                textSize = 18f
-                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                setTextColor(themeCoordinator.textColor)
-                gravity = Gravity.CENTER
-                setPadding(0, 0, 0, dp(14))
-            }
-            container.addView(title)
-
-            val scrollContainer = android.widget.ScrollView(this).apply {
-                isVerticalScrollBarEnabled = true
-                overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    dp(280)
-                )
-            }
-
-            val soundsListContainer = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                layoutParams = FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    FrameLayout.LayoutParams.WRAP_CONTENT
-                )
-            }
-
-            for (preset in AmbientSoundEngine.Preset.values()) {
-                if (preset == AmbientSoundEngine.Preset.CUSTOM) continue
-                val isSelected = AmbientSoundEngine.getActivePreset() == preset
-                val btn = Button(this).apply {
-                    text = preset.displayName
-                    textSize = 13.5f
-                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                    setTextColor(if (isSelected) Color.WHITE else themeCoordinator.textColor)
-                    background = if (isSelected) {
-                        GradientDrawable().apply {
-                            setColor(themeCoordinator.primaryColor)
-                            cornerRadius = dp(14).toFloat()
-                        }
-                    } else {
-                        themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 14f)
-                    }
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                        setMargins(0, dp(3), 0, dp(3))
-                    }
-                    setOnClickListener {
-                        AmbientSoundEngine.selectPreset(this@MainActivity, preset)
-                        dialog.dismiss()
-                        buildFocusPanel()
-                    }
-                }
-                soundsListContainer.addView(btn)
-            }
-
-            scrollContainer.addView(soundsListContainer)
-            container.addView(scrollContainer)
-
-            val importBtn = Button(this).apply {
-                text = "📁 Import Custom Audio File (.mp3/.wav)"
-                textSize = 13.5f
-                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                setTextColor(themeCoordinator.accentColor)
-                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.accentColor, 40), 14f)
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                    setMargins(0, dp(14), 0, 0)
-                }
-                setOnClickListener {
-                    dialog.dismiss()
-                    customAudioPickerLauncher.launch("audio/*")
-                }
-            }
-            container.addView(importBtn)
-
-            dialog.setContentView(container)
-            dialog.show()
-        } catch (_: Exception) {}
-    }
-
     private fun showPieChartDetailsModal(initialDateKey: String = SubjectTagManager.getTodayKey()) {
         val dialog = Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        dialog.window?.apply {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                setDecorFitsSystemWindows(false)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                attributes.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+            addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+            statusBarColor = Color.TRANSPARENT
+            navigationBarColor = Color.TRANSPARENT
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(themeCoordinator.bgColor))
+            setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
+            try {
+                val isLight = themeCoordinator.activeBgMode == "LIGHT"
+                val decor = peekDecorView() ?: decorView
+                androidx.core.view.WindowCompat.getInsetsController(this, decor).let { controller ->
+                    controller.isAppearanceLightStatusBars = isLight
+                    controller.isAppearanceLightNavigationBars = isLight
+                }
+            } catch (_: Exception) {}
+        }
         var currentDateKey = initialDateKey
         val sdfKey = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val sdfDisplay = SimpleDateFormat("EEE, dd MMM yyyy", Locale.getDefault())
@@ -9259,8 +9953,8 @@ class MainActivity : AppCompatActivity() {
 
         val rootLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#090C15"))
-            setPadding(dp(20), dp(36), dp(20), dp(20))
+            setBackgroundColor(themeCoordinator.bgColor)
+            setPadding(dp(16), getStatusBarHeight() + dp(4), dp(16), dp(16))
         }
 
         val headerRow = LinearLayout(this).apply {
@@ -9270,7 +9964,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         headerRow.addView(TextView(this).apply {
-            text = "📊 Detailed Session Analytics"
+            text = "📊 Subject Details"
             setTextColor(themeCoordinator.textColor)
             textSize = 20f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)

@@ -35,13 +35,12 @@ import kotlin.math.max
  *
  * Hub Sections:
  * 0. Top User Profile Card (Avatar/Initials, display name, email, Google Connected status)
- * 1. Timer & Focus Controls (Interval pickers, auto-start breaks, strict mode, mode picker)
- * 2. Sound & Ambience (Ambient loop selectors, volume slider, completion chime)
- * 3. Analytics & Goals (Daily goal target picker, streak settings, heatmap/pie chart options)
- * 4. Cloud, Sync & Backups (Google account sync, backup JSON/CSV export/import)
- * 5. Theme & Styling (AMOLED/Slate/Light, 3D Bubble/Glass/Classic, Accent colors)
- * 6. User Profile Management Sub-Screen
- * 7. Developer & Advanced (Strictly gated behind dev unlock / debug)
+ * 1. Timer & Focus (Interval pickers, auto-start breaks, strict mode, mode picker)
+ * 2. Goals & Reminders (Daily goal target picker, custom reminder picker, streak settings)
+ * 3. Theme & Appearance (AMOLED/Slate/Light, 3D Bubble/Glass/Classic, Accent colors)
+ * 4. Cloud & Backups (Google account sync, backup JSON/CSV export/import)
+ * 5. User Profile Management Sub-Screen
+ * 6. Developer & Advanced (Strictly gated behind dev unlock / debug)
  */
 class SettingsPanelBuilder(private val host: MainActivity) {
 
@@ -96,7 +95,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
             val headerRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(6), dp(16), dp(6), dp(8))
+                setPadding(dp(6), dp(4), dp(6), dp(6))
             }
 
             val backArrowBtn = TextView(this).apply {
@@ -119,44 +118,36 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 text = when (currentSettingsTab) {
                     AppSettingsTab.HUB -> getString(R.string.settings_title)
                     AppSettingsTab.TIMER -> "Timer & Focus"
-                    AppSettingsTab.AMBIENCE -> "Sound & Ambience"
-                    AppSettingsTab.ANALYTICS -> "Analytics & Goals"
-                    AppSettingsTab.CLOUD -> "Cloud, Sync & Backups"
+                    AppSettingsTab.ANALYTICS -> "Goals & Reminders"
                     AppSettingsTab.THEME -> "Theme & Appearance"
-                    AppSettingsTab.PROFILE -> "User Profile & Account"
-                    AppSettingsTab.DEVELOPER -> "Developer & Advanced"
+                    AppSettingsTab.CLOUD -> "Cloud & Backups"
+                    AppSettingsTab.PROFILE -> "Profile & Account"
+                    AppSettingsTab.DEVELOPER -> "Developer Tools"
                     else -> getString(R.string.settings_title)
                 }
                 setTextColor(themeCoordinator.textColor)
                 textSize = 22f
-                letterSpacing = 0.02f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                setOnLongClickListener {
-                    isDevModeUnlocked = true
-                    Toast.makeText(context, getString(R.string.toast_dev_config_enabled), Toast.LENGTH_SHORT).show()
-                    navigateToPanel(AppPanel.SETTINGS)
-                    true
-                }
+                letterSpacing = -0.01f
             }
             headerRow.addView(headerText)
             settingsRootLayout.addView(headerRow)
 
             val subtitleText = TextView(this).apply {
                 text = when (currentSettingsTab) {
-                    AppSettingsTab.HUB -> "Preferences, account management & sync architecture"
-                    AppSettingsTab.TIMER -> "Session lengths, break intervals & timer behaviors"
-                    AppSettingsTab.AMBIENCE -> "Ambient soundscapes, volume levels & completion alerts"
-                    AppSettingsTab.ANALYTICS -> "Daily targets, heatmap parameters & chart filters"
-                    AppSettingsTab.CLOUD -> "Cloud backup, local JSON export & sync conflict resolution"
-                    AppSettingsTab.THEME -> "AMOLED dark palettes, UI styles & accent colorways"
-                    AppSettingsTab.PROFILE -> "User credentials, custom avatar & cloud session"
-                    AppSettingsTab.DEVELOPER -> "Mock data generator, schema inspector & conflict simulation"
+                    AppSettingsTab.HUB -> "Customize your timer, theme, goals & backups"
+                    AppSettingsTab.TIMER -> "Focus durations, break times & timer mode"
+                    AppSettingsTab.ANALYTICS -> "Daily targets, goal reminders & chart display"
+                    AppSettingsTab.THEME -> "OLED black, light mode, styles & colors"
+                    AppSettingsTab.CLOUD -> "Google account sync, auto-backup & restore"
+                    AppSettingsTab.PROFILE -> "Profile photo, display name & account status"
+                    AppSettingsTab.DEVELOPER -> "Diagnostic tools & debug settings"
                     else -> getString(R.string.settings_subtitle)
                 }
                 setTextColor(themeCoordinator.textColor)
-                alpha = 0.45f
+                alpha = 0.5f
                 textSize = 13f
-                setPadding(dp(6), 0, dp(6), dp(16))
+                setPadding(dp(6), 0, dp(6), dp(14))
             }
             settingsRootLayout.addView(subtitleText)
 
@@ -394,36 +385,29 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
                 val focusMins = sharedPrefs.safeLong("study_interval_minutes", 25L)
                 val breakMins = sharedPrefs.safeLong("break_interval_minutes", 5L)
-                val timerSub = "Focus: ${focusMins}m  •  Break: ${breakMins}m  •  ${timerMode.lowercase().capitalize(Locale.ROOT)} Mode"
-
-                val isAmbienceOn = sharedPrefs.safeBoolean("enable_ambient_sounds", false)
-                val ambTrack = sharedPrefs.getString("ambient_sound_type", "RAIN") ?: "Rain"
-                val ambVol = sharedPrefs.getInt("ambient_sound_volume", 50)
-                val ambienceSub = if (isAmbienceOn) "${ambTrack.capitalize(Locale.ROOT)} Active • ${ambVol}% Volume" else "Ambient Soundscapes & Completion Alerts"
+                val timerSub = "Focus: ${focusMins}m  •  Break: ${breakMins}m  •  ${timerMode.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }} Mode"
 
                 val dailyGoalSecs = sharedPrefs.getLong("daily_goal_secs", 7200L)
-                val analyticsSub = "Target: ${formatGoalLabel(dailyGoalSecs)} • Heatmap & Breakdown Filters"
+                val analyticsSub = "Target: ${formatGoalLabel(dailyGoalSecs)} • Goal Reminders & Stats"
 
-                val cloudSub = if (isGoogleAuth) "Connected: $userEmail • Supabase Sync" else "Sign In, Backup & Cloud Restore"
+                val themeSub = "${themeCoordinator.activeBgMode.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }} Palette • ${if (themeCoordinator.isGlassStyle()) "Glass" else "Standard"} Style"
 
-                val themeSub = "${themeCoordinator.activeBgMode.capitalize(Locale.ROOT)} Palette • ${if (themeCoordinator.isGlassStyle()) "Glass" else "Standard"} Style"
+                val cloudSub = if (isGoogleAuth) "Connected: $userEmail • Auto Backup Active" else "Sign In, Backup & Cloud Restore"
 
                 // 1. UNIFIED PREFERENCES CARD GROUP
                 layout.addView(createSectionLabel("PREFERENCES"))
                 val prefsCard = createSettingsCard()
-                addHubRowToCard(prefsCard, "⏱️", "Timer & Focus Controls", timerSub, AppSettingsTab.TIMER)
+                addHubRowToCard(prefsCard, "⏱️", "Timer & Focus", timerSub, AppSettingsTab.TIMER)
                 prefsCard.addView(createDivider())
-                addHubRowToCard(prefsCard, "🎧", "Sound & Ambience", ambienceSub, AppSettingsTab.AMBIENCE)
-                prefsCard.addView(createDivider())
-                addHubRowToCard(prefsCard, "📊", "Analytics & Goals", analyticsSub, AppSettingsTab.ANALYTICS)
-                prefsCard.addView(createDivider())
-                addHubRowToCard(prefsCard, "☁️", "Cloud, Sync & Backups", cloudSub, AppSettingsTab.CLOUD)
+                addHubRowToCard(prefsCard, "📊", "Goals & Reminders", analyticsSub, AppSettingsTab.ANALYTICS)
                 prefsCard.addView(createDivider())
                 addHubRowToCard(prefsCard, "🎨", "Theme & Appearance", themeSub, AppSettingsTab.THEME)
+                prefsCard.addView(createDivider())
+                addHubRowToCard(prefsCard, "☁️", "Cloud, Sync & Backups", cloudSub, AppSettingsTab.CLOUD)
 
                 if (isDevModeUnlocked) {
                     prefsCard.addView(createDivider())
-                    addHubRowToCard(prefsCard, "🛠️", "Developer & Advanced", "Mock Data Generator, State & Schema Inspector", AppSettingsTab.DEVELOPER)
+                    addHubRowToCard(prefsCard, "🛠️", "Developer Tools", "Diagnostic tools & debug settings", AppSettingsTab.DEVELOPER)
                 }
                 layout.addView(prefsCard)
 
@@ -887,6 +871,9 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 stopwatchRow.setOnClickListener {
                     sharedPrefs.edit().putString("timer_mode", "STOPWATCH").putBoolean("lecture_mode_enabled", false).apply()
                     timerMode = "STOPWATCH"
+                    if (currentTimerState == TimerState.IDLE) {
+                        focusRemainingSecs = 0L
+                    }
                     navigateToPanel(AppPanel.SETTINGS)
                 }
                 timerModeCard.addView(stopwatchRow)
@@ -894,8 +881,18 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
                 val countdownRow = createSettingsRow("⏳", getString(R.string.mode_pomodoro), getString(R.string.mode_pomodoro_sub), modeRadio(isCountdown))
                 countdownRow.setOnClickListener {
-                    sharedPrefs.edit().putString("timer_mode", "COUNTDOWN").putBoolean("lecture_mode_enabled", false).apply()
+                    val pomoMins = sharedPrefs.safeLong("study_interval_minutes", 25L)
+                    val pomoSecs = pomoMins * 60L
+                    sharedPrefs.edit()
+                        .putString("timer_mode", "COUNTDOWN")
+                        .putBoolean("lecture_mode_enabled", false)
+                        .putLong("focus_countdown_secs", pomoSecs)
+                        .apply()
                     timerMode = "COUNTDOWN"
+                    if (currentTimerState == TimerState.IDLE) {
+                        focusCountdownSecs = pomoSecs
+                        focusRemainingSecs = pomoSecs
+                    }
                     navigateToPanel(AppPanel.SETTINGS)
                 }
                 timerModeCard.addView(countdownRow)
@@ -903,8 +900,19 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
                 val subjectRow = createSettingsRow("📚", "Subject-wise Tagging", "Tag and track focus time by dedicated subject", modeRadio(isSubject))
                 subjectRow.setOnClickListener {
-                    sharedPrefs.edit().putString("timer_mode", "SUBJECT").putBoolean("lecture_mode_enabled", false).putBoolean("show_subject_pie_chart", true).apply()
+                    val pomoMins = sharedPrefs.safeLong("study_interval_minutes", 25L)
+                    val pomoSecs = pomoMins * 60L
+                    sharedPrefs.edit()
+                        .putString("timer_mode", "SUBJECT")
+                        .putBoolean("lecture_mode_enabled", false)
+                        .putBoolean("show_subject_pie_chart", true)
+                        .putLong("focus_countdown_secs", pomoSecs)
+                        .apply()
                     timerMode = "SUBJECT"
+                    if (currentTimerState == TimerState.IDLE) {
+                        focusCountdownSecs = pomoSecs
+                        focusRemainingSecs = pomoSecs
+                    }
                     navigateToPanel(AppPanel.SETTINGS)
                 }
                 timerModeCard.addView(subjectRow)
@@ -998,7 +1006,6 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
                             val repeatHandler = Handler(Looper.getMainLooper())
                             var holdTicks = 0
-                            var repeatRunnable: Runnable? = null
 
                             fun performStep() {
                                 val cur = sharedPrefs.safeLong(key, defaultVal)
@@ -1012,14 +1019,24 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                                 val next = max(minVal, Math.min(maxVal, cur + effectiveDelta))
                                 val editor = sharedPrefs.edit().putLong(key, next)
                                 if (key == "study_interval_minutes") {
-                                    editor.putLong("focus_countdown_secs", next * 60L)
+                                    val nextSecs = next * 60L
+                                    editor.putLong("focus_countdown_secs", nextSecs)
+                                    if (currentTimerState == TimerState.IDLE) {
+                                        focusCountdownSecs = nextSecs
+                                        if (timerMode == "COUNTDOWN") {
+                                            focusRemainingSecs = nextSecs
+                                        }
+                                    }
+                                } else if (key == "break_interval_minutes") {
+                                    val nextBreakSecs = next * 60L
+                                    editor.putLong("break_countdown_secs", nextBreakSecs)
                                 }
                                 editor.apply()
                                 valText.text = formatIntervalValue(next, unit)
                                 try { btn.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP) } catch (_: Exception) {}
                             }
 
-                            repeatRunnable = object : Runnable {
+                            val repeatRunnable: Runnable = object : Runnable {
                                 override fun run() {
                                     holdTicks++
                                     performStep()
@@ -1127,59 +1144,89 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 }
                 displayCard.addView(createSettingsRow("⚪", "Pure White Timer", "Keep main timer clock digits crisp white regardless of active accent theme", pureWhiteSwitch))
                 layout.addView(displayCard)
+
+                layout.addView(createSectionLabel("MANUAL STUDY LOGGING & TIME ADJUSTMENT"))
+                val adjustCard = createSettingsCard()
+                val adjustRow = createSettingsRow("⏱️", "Adjust Today's Study Time", "Add missed offline focus time or deduct accidental time for today only")
+                adjustRow.setOnClickListener {
+                    DeveloperToolsHelper.showAdjustTodayTimeDialog(host, themeCoordinator)
+                }
+                adjustCard.addView(adjustRow)
+                layout.addView(adjustCard)
             }
 
             // ==========================================
-            // 4. SOUND & AMBIENCE SUB-SCREEN
-            // ==========================================
-            else if (currentSettingsTab == AppSettingsTab.AMBIENCE) {
-                layout.addView(createSectionLabel("AMBIENT FOCUS SOUNDSCAPES"))
-                val ambientCard = createSettingsCard()
-                val ambientEnabled = sharedPrefs.safeBoolean("enable_ambient_sounds", false)
-                val ambientSwitch = SwitchMaterial(this).apply {
-                    isChecked = ambientEnabled
-                    setOnCheckedChangeListener { _, isChecked ->
-                        sharedPrefs.edit().putBoolean("enable_ambient_sounds", isChecked).apply()
-                        if (!isChecked) AmbientSoundEngine.stop()
-                    }
-                }
-                ambientCard.addView(createSettingsRow("🎧", "Ambient Focus Soundscapes", "Enable background audio soundscapes during focus sessions", ambientSwitch))
-                ambientCard.addView(createDivider())
-
-                val volRow = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    setPadding(dp(18), dp(12), dp(18), dp(14))
-                }
-                val curVol = sharedPrefs.getInt("ambient_sound_volume", 50)
-                val volLabel = TextView(this).apply {
-                    text = "🔊 Soundscape Volume: $curVol%"
-                    setTextColor(themeCoordinator.textColor)
-                    textSize = 14f
-                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                }
-                volRow.addView(volLabel)
-                val volSeekBar = SeekBar(this).apply {
-                    max = 100
-                    progress = curVol
-                    setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                        override fun onProgressChanged(sb: SeekBar?, prog: Int, fromUser: Boolean) {
-                            volLabel.text = "🔊 Soundscape Volume: $prog%"
-                            sharedPrefs.edit().putInt("ambient_sound_volume", prog).apply()
-                            AmbientSoundEngine.setVolume(prog / 100f)
-                        }
-                        override fun onStartTrackingTouch(sb: SeekBar?) {}
-                        override fun onStopTrackingTouch(sb: SeekBar?) {}
-                    })
-                }
-                volRow.addView(volSeekBar)
-                ambientCard.addView(volRow)
-                layout.addView(ambientCard)
-            }
-
-            // ==========================================
-            // 5. ANALYTICS & GOALS SUB-SCREEN
+            // 4. ANALYTICS & GOALS SUB-SCREEN
             // ==========================================
             else if (currentSettingsTab == AppSettingsTab.ANALYTICS) {
+                layout.addView(createSectionLabel("DAILY GOAL REACH REMINDER"))
+                val reminderCard = createSettingsCard()
+                val reminderEnabled = sharedPrefs.getBoolean("reminder_enabled", true)
+                val reminderSwitch = SwitchMaterial(this).apply {
+                    isChecked = reminderEnabled
+                    setOnCheckedChangeListener { _, isChecked ->
+                        sharedPrefs.edit().putBoolean("reminder_enabled", isChecked).apply()
+                        if (isChecked) {
+                            GoalReminderScheduler.schedule(context)
+                        } else {
+                            GoalReminderScheduler.cancel(context)
+                        }
+                    }
+                }
+                reminderCard.addView(createSettingsRow("🔔", "Goal Reach Reminder", "Daily evening nudge if your focus goal is not yet achieved", reminderSwitch))
+                reminderCard.addView(createDivider())
+
+                val remHour = sharedPrefs.safeInt("reminder_hour", 20)
+                val remMinute = sharedPrefs.safeInt("reminder_minute", 0)
+                val timeLabel = TextView(this).apply {
+                    text = TimeFormat.formatHourMinute(context, remHour, remMinute)
+                    textSize = 14f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    setTextColor(themeCoordinator.primaryColor)
+                    background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 40), 10f)
+                    setPadding(dp(12), dp(6), dp(12), dp(6))
+                }
+                val timeRow = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(dp(18), dp(14), dp(18), dp(14))
+                    setOnClickListener {
+                        val curH = sharedPrefs.safeInt("reminder_hour", 20)
+                        val curM = sharedPrefs.safeInt("reminder_minute", 0)
+                        val is24H = TimeFormat.is24Hour(context)
+                        android.app.TimePickerDialog(context, { _, hourOfDay, minute ->
+                            sharedPrefs.edit()
+                                .putInt("reminder_hour", hourOfDay)
+                                .putInt("reminder_minute", minute)
+                                .apply()
+                            timeLabel.text = TimeFormat.formatHourMinute(context, hourOfDay, minute)
+                            GoalReminderScheduler.schedule(context)
+                        }, curH, curM, is24H).show()
+                    }
+                }
+                timeRow.addView(TextView(this).apply { text = "⏰"; textSize = 22f; setPadding(0, 0, dp(14), 0) })
+                val timeTextCol = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                }
+                timeTextCol.addView(TextView(this).apply {
+                    text = "Reminder Time"
+                    setTextColor(themeCoordinator.textColor)
+                    textSize = 15f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+                })
+                timeTextCol.addView(TextView(this).apply {
+                    text = "Tap to set custom daily alert time"
+                    setTextColor(themeCoordinator.textColor)
+                    alpha = 0.5f
+                    textSize = 12f
+                    setPadding(0, 3, 0, 0)
+                })
+                timeRow.addView(timeTextCol)
+                timeRow.addView(timeLabel)
+                reminderCard.addView(timeRow)
+                layout.addView(reminderCard)
+
                 layout.addView(createSectionLabel("DAILY TARGETS & STREAKS"))
                 val goalCard = createSettingsCard()
                 val goalValueText = TextView(this).apply {
@@ -1238,6 +1285,12 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     }
                 }
                 goalCard.addView(createSettingsRow("🔥", getString(R.string.streak_uses_goal), getString(R.string.streak_uses_goal_sub), streakGoalSwitch))
+                goalCard.addView(createDivider())
+                val adjustStatsRow = createSettingsRow("⏱️", "Adjust Today's Focus Total", "Add missed study minutes or deduct accidental time for today")
+                adjustStatsRow.setOnClickListener {
+                    DeveloperToolsHelper.showAdjustTodayTimeDialog(host, themeCoordinator)
+                }
+                goalCard.addView(adjustStatsRow)
                 layout.addView(goalCard)
 
                 layout.addView(createSectionLabel("INSIGHTS & VISUALIZATION FILTERS"))
@@ -1552,7 +1605,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         setPadding(dp(18), dp(14), dp(18), dp(16))
                     }
 
-                    val headerRow = LinearLayout(this).apply {
+                    val colorHeaderRow = LinearLayout(this).apply {
                         orientation = LinearLayout.HORIZONTAL
                         gravity = Gravity.CENTER_VERTICAL
                         setPadding(0, 0, 0, dp(12))
@@ -1571,7 +1624,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                             setStroke(dp(2), Color.argb(100, 255, 255, 255))
                         }
                     }
-                    headerRow.addView(previewCircle)
+                    colorHeaderRow.addView(previewCircle)
 
                     val textCol = LinearLayout(this).apply {
                         orientation = LinearLayout.VERTICAL
@@ -1597,8 +1650,8 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         setPadding(0, 2, 0, 0)
                     }
                     textCol.addView(hexLabel)
-                    headerRow.addView(textCol)
-                    cardContainer.addView(headerRow)
+                    colorHeaderRow.addView(textCol)
+                    cardContainer.addView(colorHeaderRow)
 
                     // Curated Aesthetic Soft Swatches Horizontal Scroll
                     val swatchesScroll = android.widget.HorizontalScrollView(this).apply {

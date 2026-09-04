@@ -28,14 +28,14 @@ class FocusPanelBuilder(private val host: MainActivity) {
             gravity = Gravity.CENTER_VERTICAL
             visibility = if (isLandscape) View.GONE else View.VISIBLE
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                setMargins(dp(16), if (isLandscape) dp(8) else 50, dp(16), if (isLandscape) dp(4) else 20)
+                setMargins(0, if (isLandscape) dp(4) else dp(2), 0, if (isLandscape) dp(4) else dp(8))
             }
         }
 
         val settingsIconView = ImageView(this).apply {
             setImageResource(R.drawable.ic_settings) 
             setColorFilter(themeCoordinator.primaryColor)
-            setPadding(dp(14), dp(14), dp(14), dp(14))
+            setPadding(dp(12), dp(12), dp(12), dp(12))
             background = if (themeCoordinator.isGlassStyle() || themeCoordinator.isBubbleStyle()) themeCoordinator.createGlassIconBackground(tintedColor(themeCoordinator.primaryColor, 70)) else null
             contentDescription = getString(R.string.cd_open_settings)
             setOnClickListener { navigateToPanel(AppPanel.SETTINGS) }
@@ -97,7 +97,7 @@ class FocusPanelBuilder(private val host: MainActivity) {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
-                setMargins(0, if (isLandscape) dp(8) else 12, 0, 0)
+                setMargins(0, if (isLandscape) dp(4) else dp(4), 0, 0)
             }
             addView(statusBadge)
 
@@ -148,6 +148,18 @@ class FocusPanelBuilder(private val host: MainActivity) {
         }
 
         val gestureDetector = android.view.GestureDetector(this, object : android.view.GestureDetector.SimpleOnGestureListener() {
+            override fun onDown(e: MotionEvent): Boolean = true
+
+            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                if (isLandscape) {
+                    toggleLandscapeControls()
+                    return true
+                } else {
+                    togglePortraitFullscreenMode()
+                    return true
+                }
+            }
+
             override fun onDoubleTap(e: MotionEvent): Boolean {
                 if (currentTimerState == TimerState.STUDYING || currentTimerState == TimerState.BREAK) {
                     handlePause()
@@ -161,7 +173,9 @@ class FocusPanelBuilder(private val host: MainActivity) {
                 return false
             }
         })
-        centerClocksWrapper.setOnTouchListener { _, event -> gestureDetector.onTouchEvent(event) }
+        centerClocksWrapper.setOnTouchListener { _, event ->
+            gestureDetector.onTouchEvent(event)
+        }
 
         centerClocksWrapper.addView(timerRing)
         centerClocksWrapper.addView(statusBadgeContainer)
@@ -169,7 +183,6 @@ class FocusPanelBuilder(private val host: MainActivity) {
         centerClocksWrapper.addView(breakTimerDisplay)
         val timerModeSetting = sharedPrefs.getString("timer_mode", "SUBJECT") ?: "SUBJECT"
         val showSubjectTagging = sharedPrefs.getBoolean("enable_subject_tagging", true) && timerModeSetting != "STOPWATCH"
-        val showAmbientSounds = sharedPrefs.safeBoolean("enable_ambient_sounds", false)
 
         val extraControlsContainer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -178,6 +191,7 @@ class FocusPanelBuilder(private val host: MainActivity) {
                 setMargins(0, dp(6), 0, dp(6))
             }
         }
+        host.extraControlsContainer = extraControlsContainer
 
         if (showSubjectTagging) {
             val isLectureRunning = timerModeSetting == "LECTURE" && (currentTimerState == TimerState.STUDYING || currentTimerState == TimerState.PAUSED)
@@ -210,24 +224,6 @@ class FocusPanelBuilder(private val host: MainActivity) {
                 }
             }
             extraControlsContainer.addView(subjectTagBtn)
-        }
-
-        if (showAmbientSounds) {
-            val activePreset = AmbientSoundEngine.getActivePreset()
-            val ambientSoundBtn = TextView(this).apply {
-                text = "🎧 ${activePreset.displayName}"
-                textSize = 12.5f
-                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                setTextColor(themeCoordinator.textColor)
-                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.accentColor, 90), 16f)
-                setPadding(dp(14), dp(6), dp(14), dp(6))
-                gravity = Gravity.CENTER
-                setOnClickListener { host.showAmbientSoundDialog(host) }
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                    setMargins(dp(6), 0, dp(6), 0)
-                }
-            }
-            extraControlsContainer.addView(ambientSoundBtn)
         }
 
         controlActionContainer = LinearLayout(this).apply {
@@ -324,10 +320,11 @@ class FocusPanelBuilder(private val host: MainActivity) {
                 setMargins(0, 0, dp(16), if (isLandscape) 5 else 20)
             }
         }
+        host.statsFloatingIcon = statsFloatingIcon
 
         panelContainer.addView(navHeader)
         panelContainer.addView(centerClocksWrapper)
-        if (!isLandscape && (showSubjectTagging || showAmbientSounds)) {
+        if (!isLandscape && showSubjectTagging) {
             panelContainer.addView(extraControlsContainer)
         }
         panelContainer.addView(controlActionContainer)

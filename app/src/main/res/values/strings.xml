@@ -64,7 +64,7 @@
     <!-- Focus panel -->
     <string name="btn_pause">❚❚ PAUSE</string>
     <string name="btn_hold_to_end">HOLD TO END SESSION</string>
-    <string name="crunching_numbers">Crunching numbers…</string>
+    <string name="crunching_numbers">Loading study stats…</string>
 
     <!-- Heatmap fullscreen -->
     <string name="heatmap_fullscreen_title">FOCUS HEATMAP · FULL SCREEN</string>

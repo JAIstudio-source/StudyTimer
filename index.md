@@ -4,13 +4,11 @@
 
 ## Quick Links
 - **Download Free APK:** https://get-studytimer.vercel.app/StudyTimer-release.apk
-- **Developer Documentation:** https://get-studytimer.vercel.app/docs.html
-- **OpenAPI Specification:** https://get-studytimer.vercel.app/openapi.json
-- **LLMs & Agent Guide:** https://get-studytimer.vercel.app/llms.txt
-- **Model Context Protocol (MCP) Server:** https://get-studytimer.vercel.app/.well-known/mcp
 - **About StudyTimer:** https://get-studytimer.vercel.app/about.html
 - **Contact & Support:** https://get-studytimer.vercel.app/contact.html
 - **Privacy Policy:** https://get-studytimer.vercel.app/privacy.html
+- **Terms of Service:** https://get-studytimer.vercel.app/terms.html
+- **Account Deletion Portal:** https://get-studytimer.vercel.app/delete-account.html
 
 ## Key Features
 
@@ -49,6 +47,6 @@
 2. Tap the APK file in your notification bar or Downloads folder on your Android device.
 3. Enable "Allow from this source" if prompted by Android security settings and complete installation.
 
-## Developer & Agent Support
+## Support & Contact
 - Support Email: studytimer737@gmail.com
 - Organization: StudyTimer, 500 Howard Street, San Francisco, CA 94105, United States

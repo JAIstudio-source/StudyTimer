@@ -1,13 +1,13 @@
-# Contact & Developer Support - StudyTimer
+# Contact & Support - StudyTimer
 
 > Response Time SLA: Under 24 Hours &bull; Mon-Sun Active Support
 
 ## Primary Contact Channels
-- **Direct Developer Email:** studytimer737@gmail.com
+- **Direct Support Email:** studytimer737@gmail.com
 - **Website:** https://get-studytimer.vercel.app/
 - **Account & Data Deletion:** https://get-studytimer.vercel.app/delete-account.html
-- **Developer Portal:** https://get-studytimer.vercel.app/docs.html
-- **OpenAPI Spec:** https://get-studytimer.vercel.app/openapi.json
+- **Privacy Policy:** https://get-studytimer.vercel.app/privacy.html
+- **Terms of Service:** https://get-studytimer.vercel.app/terms.html
 
 ## Support Standards & SLA
 - Support questions & bug reports: under 24 hours turnaround.

@@ -1,7 +1,7 @@
 {
-  "versionCode": 21,
-  "versionName": "2.8.0",
+  "versionCode": 22,
+  "versionName": "2.9.0",
   "url": "https://get-studytimer.vercel.app/?download=true",
   "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-  "releaseNotes": "What's New in Version 2.8.0 🚀\n- Immersive Full-Screen Modes: Distraction-free full-screen view in both portrait and landscape with double-tap controls and optimized battery usage.\n- Adjust Today's Focus Time: Add missed offline study or deduct accidental timer sessions for today without mutating historical data.\n- Edit Yesterday's Habits: Review and check off missed goals from yesterday directly in the Daily Planner.\n- Enhanced performance, increased stability, battery optimization."
+  "releaseNotes": "What's New in Version 2.9.0 🚀\n- Accidental Time Addition & Deduction: Add missed study time or deduct accidental timer sessions & break times with real-time sync across all insights, heatmaps, and charts.\n- Reworked Habit & Goal Planner: Completely reworked daily goals and habits checklist with seamless state management and zero screen flickering.\n- Improved Stability & Bug Fixes: Enhanced database consistency, improved developer suite, and major performance optimizations."
 }

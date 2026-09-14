@@ -384,4 +384,25 @@ object SubjectTagManager {
     fun clearAllSubjectDurations(context: Context) {
         getPrefs(context).edit().remove(KEY_SUBJECT_DURATIONS).remove(KEY_DAILY_SUBJECT_DURATIONS).apply()
     }
+
+    fun getSubjectHeatmapData(context: Context, subjectId: String): Map<String, Long> {
+        val map = HashMap<String, Long>()
+        val prefs = getPrefs(context)
+        val dailyStr = prefs.getString(KEY_DAILY_SUBJECT_DURATIONS, "{}") ?: "{}"
+        try {
+            val dailyJson = JSONObject(dailyStr)
+            val keys = dailyJson.keys()
+            while (keys.hasNext()) {
+                val dateKey = keys.next()
+                val dayObj = dailyJson.optJSONObject(dateKey)
+                if (dayObj != null) {
+                    val secs = dayObj.optLong(subjectId, 0L)
+                    if (secs > 0L) {
+                        map[dateKey] = secs
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+        return map
+    }
 }

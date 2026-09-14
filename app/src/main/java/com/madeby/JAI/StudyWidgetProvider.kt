@@ -49,7 +49,7 @@ class StudyWidgetProvider : AppWidgetProvider() {
             val primary = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && prefs.getBoolean("dynamic_color", false)) {
                 context.getColor(android.R.color.system_accent1_500)
             } else {
-                prefs.safeInt("customPrimary", 0xFF7DD3FC.toInt())
+                prefs.safeInt("customPrimary", 0xFFA78BFA.toInt())
             }
 
             val views = RemoteViews(context.packageName, R.layout.study_widget_layout)

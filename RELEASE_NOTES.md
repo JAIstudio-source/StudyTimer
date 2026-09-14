@@ -1,13 +1,12 @@
-# StudyTimer 2.8.0 (versionCode 21)
+# StudyTimer 2.9.0 (versionCode 22)
 
-What's New in Version 2.8.0 🚀
-- **Immersive Full-Screen Modes**: Pure distraction-free full-screen stopwatch and timer view in both portrait and landscape orientation with tap-to-expand, double-tap pause controls, and ultra-low battery consumption.
-- **Adjust Today's Focus Time**: Easily add missed offline study sessions or deduct accidental timer time for the current day without mutating immutable historical logs.
-- **Edit Yesterday's Habits**: Review and check off missed goals or habits from yesterday directly inside the Daily Planner.
-- **Enhanced performance, increased stability, battery optimization.**
+What's New in Version 2.9.0 🚀
+- **Accidental Time Addition & Deduction**: Easily add missed offline study time or deduct accidental timer sessions and break times for today. All time adjustments instantly sync with your today's focus stats, heatmaps, subject distributions, and weekly charts.
+- **Reworked Habit & Goal Planner**: Completely overhauled daily habits and goal checklist with instant completion toggling, persistent streak tracking, and eliminated screen flickering.
+- **Improved Stability & Bug Fixes**: Enhanced database consistency, developer suite improvements, export summary card fixes, and performance optimizations.
 
 ## Compatibility
 - Android 9 (API 28) through Android 16 (API 36)
 
 ## Installation
-Install `StudyTimer-release.apk` (v2.8.0). Updating preserves all your study logs, streaks, and settings.
+Install `StudyTimer-release.apk` (v2.9.0). Updating preserves all your study logs, streaks, and settings.

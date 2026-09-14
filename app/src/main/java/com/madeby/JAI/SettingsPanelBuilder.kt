@@ -1147,9 +1147,9 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
                 layout.addView(createSectionLabel("MANUAL STUDY LOGGING & TIME ADJUSTMENT"))
                 val adjustCard = createSettingsCard()
-                val adjustRow = createSettingsRow("⏱️", "Adjust Today's Study Time", "Add missed offline focus time or deduct accidental time for today only")
+                val adjustRow = createSettingsRow("⏱️", "Adjust Today's Time", "Add missed focus/break minutes or deduct accidental time for today")
                 adjustRow.setOnClickListener {
-                    DeveloperToolsHelper.showAdjustTodayTimeDialog(host, themeCoordinator)
+                    DeveloperToolsHelper.showAdjustTodayTimeDialog(host, themeCoordinator, isDeveloperExtended = false)
                 }
                 adjustCard.addView(adjustRow)
                 layout.addView(adjustCard)
@@ -1286,9 +1286,9 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 }
                 goalCard.addView(createSettingsRow("🔥", getString(R.string.streak_uses_goal), getString(R.string.streak_uses_goal_sub), streakGoalSwitch))
                 goalCard.addView(createDivider())
-                val adjustStatsRow = createSettingsRow("⏱️", "Adjust Today's Focus Total", "Add missed study minutes or deduct accidental time for today")
+                val adjustStatsRow = createSettingsRow("⏱️", "Adjust Today's Focus & Break", "Add missed study/break minutes or deduct accidental time for today")
                 adjustStatsRow.setOnClickListener {
-                    DeveloperToolsHelper.showAdjustTodayTimeDialog(host, themeCoordinator)
+                    DeveloperToolsHelper.showAdjustTodayTimeDialog(host, themeCoordinator, isDeveloperExtended = false)
                 }
                 goalCard.addView(adjustStatsRow)
                 layout.addView(goalCard)

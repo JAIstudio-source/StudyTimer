@@ -143,7 +143,7 @@ class TimerService : Service() {
         val primaryColor = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && sharedPrefs.getBoolean("dynamic_color", false)) {
             getColor(android.R.color.system_accent1_500)
         } else {
-            sharedPrefs.safeInt("customPrimary", 0xFF7DD3FC.toInt())
+            sharedPrefs.safeInt("customPrimary", 0xFFA78BFA.toInt())
         }
 
         val largeIconRes = if (currentTimerState == TimerState.STUDYING) R.drawable.ic_lecture_logo else R.drawable.ic_flame

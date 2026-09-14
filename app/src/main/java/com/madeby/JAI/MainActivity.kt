@@ -182,8 +182,17 @@ class MainActivity : AppCompatActivity() {
     internal val tabPageCache = HashMap<String, CachedTabPage>()
     private var selectedDaysFilter = 7
 
-    private var accumulatedStudy: Long = 0
-    private var currentBreakSeconds: Long = 0
+    internal var accumulatedStudy: Long = 0
+    internal var currentBreakSeconds: Long = 0
+
+    internal fun resetRunningSessionAccumulators() {
+        accumulatedStudy = 0L
+        currentBreakSeconds = 0L
+        getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit()
+            .putLong("accumulatedStudy", 0L)
+            .putLong("currentBreakSeconds", 0L)
+            .apply()
+    }
 
     internal var timerMode: String = "STOPWATCH"
     internal var focusCountdownSecs: Long = 1500L
@@ -1356,10 +1365,10 @@ class MainActivity : AppCompatActivity() {
             sharedPrefs.edit()
                 .putString("activeBgMode", "OLED")
                 .putString("ui_style", "BUBBLE")
-                .putInt("customHue", 234)
-                .putInt("customPrimary", Color.HSVToColor(floatArrayOf(234f, 0.65f, 0.95f)))
-                .putInt("customSecondaryHue", 1)
-                .putInt("customSecondary", Color.HSVToColor(floatArrayOf(1f, 0.65f, 0.95f)))
+                .putInt("customHue", 255)
+                .putInt("customPrimary", Color.parseColor("#A78BFA"))
+                .putInt("customSecondaryHue", 199)
+                .putInt("customSecondary", Color.parseColor("#38BDF8"))
                 .putString("timer_mode", "SUBJECT")
                 .putBoolean("enable_subject_tagging", true)
                 .putBoolean("show_subject_pie_chart", true)
@@ -2024,14 +2033,10 @@ class MainActivity : AppCompatActivity() {
         })
         root.addView(headerRow)
 
-        val heatmapScroll = HorizontalScrollView(this).apply {
-            isHorizontalScrollBarEnabled = false
-            isVerticalScrollBarEnabled = false
-            overScrollMode = View.OVER_SCROLL_NEVER
-            isFillViewport = true
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
-        }
-        heatmapScroll.addView(HeatmapView(this).apply {
+        val allSubjects = SubjectTagManager.getAllSubjects(this)
+        var activeHeatmapSubjectId: String? = null
+
+        val heatmapView = HeatmapView(this).apply {
             forcedCellSize = dp(32).toFloat()
             setData(heatmapData, themeCoordinator.primaryColor, themeCoordinator.textColor, { resolveGoalFor(it) })
             onDayTap = { dateStr ->
@@ -2039,7 +2044,72 @@ class MainActivity : AppCompatActivity() {
                 val lbl = if (d != null) SimpleDateFormat("dd MMM, yyyy", Locale.getDefault()).format(d) else dateStr
                 this@MainActivity.showDayDialog(dateStr, lbl)
             }
-        })
+        }
+
+        val subjectScroll = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 0, dp(10))
+            }
+        }
+        val subjectRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+
+        fun refreshHeatmapFilterChips() {
+            subjectRow.removeAllViews()
+            val isAll = activeHeatmapSubjectId == null
+            val allChip = TextView(this).apply {
+                text = "🌐 All Subjects"
+                textSize = 11.5f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(if (isAll) Color.WHITE else themeCoordinator.textColor)
+                background = if (isAll) themeCoordinator.createGlassChip(themeCoordinator.primaryColor, 12f) else themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 12f)
+                setPadding(dp(12), dp(6), dp(12), dp(6))
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(0, 0, dp(6), 0)
+                }
+                setOnClickListener {
+                    activeHeatmapSubjectId = null
+                    refreshHeatmapFilterChips()
+                    heatmapView.setData(heatmapData, themeCoordinator.primaryColor, themeCoordinator.textColor, { resolveGoalFor(it) })
+                }
+            }
+            subjectRow.addView(allChip)
+
+            for (sub in allSubjects) {
+                val isSel = activeHeatmapSubjectId == sub.id
+                val subCol = try { Color.parseColor(sub.colorHex) } catch (_: Exception) { themeCoordinator.primaryColor }
+                val chip = TextView(this).apply {
+                    text = "${sub.iconEmoji} ${sub.name}"
+                    textSize = 11.5f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    setTextColor(if (isSel) Color.WHITE else themeCoordinator.textColor)
+                    background = if (isSel) themeCoordinator.createGlassChip(subCol, 12f) else themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 12f)
+                    setPadding(dp(12), dp(6), dp(12), dp(6))
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        setMargins(0, 0, dp(6), 0)
+                    }
+                    setOnClickListener {
+                        activeHeatmapSubjectId = sub.id
+                        refreshHeatmapFilterChips()
+                        val filteredData = SubjectTagManager.getSubjectHeatmapData(this@MainActivity, sub.id)
+                        heatmapView.setData(filteredData, subCol, themeCoordinator.textColor, { resolveGoalFor(it) })
+                    }
+                }
+                subjectRow.addView(chip)
+            }
+        }
+        refreshHeatmapFilterChips()
+        subjectScroll.addView(subjectRow)
+        root.addView(subjectScroll)
+
+        val heatmapScroll = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            isVerticalScrollBarEnabled = false
+            overScrollMode = View.OVER_SCROLL_NEVER
+            isFillViewport = true
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+        }
+        heatmapScroll.addView(heatmapView)
         heatmapScroll.post { heatmapScroll.fullScroll(View.FOCUS_RIGHT) }
         root.addView(heatmapScroll)
 
@@ -2238,7 +2308,55 @@ class MainActivity : AppCompatActivity() {
         }
 
         // 2. ISOLATED TAB CONTENT CONTAINER (Takes only remaining space below header)
-        val tabHost = FrameLayout(this).apply {
+        val isSwipeNavEnabled = sharedPrefs.getBoolean("swipe_insights_nav", true)
+        val tabHost = object : FrameLayout(this) {
+            var onSwipeLeft: (() -> Unit)? = null
+            var onSwipeRight: (() -> Unit)? = null
+            private var downX = 0f
+            private var downY = 0f
+            private var isHorizontalSwipe = false
+
+            override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+                if (!isSwipeNavEnabled) return super.onInterceptTouchEvent(ev)
+                when (ev.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        downX = ev.x
+                        downY = ev.y
+                        isHorizontalSwipe = false
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        val dx = Math.abs(ev.x - downX)
+                        val dy = Math.abs(ev.y - downY)
+                        val slop = android.view.ViewConfiguration.get(context).scaledTouchSlop * 2
+                        if (dx > slop && dx > dy * 2f) {
+                            isHorizontalSwipe = true
+                            parent?.requestDisallowInterceptTouchEvent(true)
+                            return true
+                        }
+                    }
+                }
+                return super.onInterceptTouchEvent(ev)
+            }
+
+            override fun onTouchEvent(ev: MotionEvent): Boolean {
+                if (!isSwipeNavEnabled) return super.onTouchEvent(ev)
+                when (ev.actionMasked) {
+                    MotionEvent.ACTION_UP -> {
+                        if (isHorizontalSwipe) {
+                            val diff = ev.x - downX
+                            if (diff < -dp(45)) {
+                                onSwipeLeft?.invoke()
+                                return true
+                            } else if (diff > dp(45)) {
+                                onSwipeRight?.invoke()
+                                return true
+                            }
+                        }
+                    }
+                }
+                return true
+            }
+        }.apply {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
             setBackgroundColor(Color.TRANSPARENT)
         }
@@ -2276,6 +2394,38 @@ class MainActivity : AppCompatActivity() {
                 setMargins(dp(24), 0, dp(24), dp(16))
             }
         }
+
+        tabHost.onSwipeLeft = {
+            val nextTab = when (currentStatsTab) {
+                AppStatsTab.OVERVIEW -> AppStatsTab.TIMELINE
+                AppStatsTab.TIMELINE -> AppStatsTab.PLANNER
+                AppStatsTab.PLANNER -> null
+            }
+            if (nextTab != null) {
+                currentStatsTab = nextTab
+                val nextTabView = getOrCreateTabView(nextTab)
+                (nextTabView.parent as? android.view.ViewGroup)?.removeView(nextTabView)
+                tabHost.removeAllViews()
+                tabHost.addView(nextTabView)
+                pillBar.selectTab(nextTab, animated = true)
+            }
+        }
+        tabHost.onSwipeRight = {
+            val prevTab = when (currentStatsTab) {
+                AppStatsTab.PLANNER -> AppStatsTab.TIMELINE
+                AppStatsTab.TIMELINE -> AppStatsTab.OVERVIEW
+                AppStatsTab.OVERVIEW -> null
+            }
+            if (prevTab != null) {
+                currentStatsTab = prevTab
+                val prevTabView = getOrCreateTabView(prevTab)
+                (prevTabView.parent as? android.view.ViewGroup)?.removeView(prevTabView)
+                tabHost.removeAllViews()
+                tabHost.addView(prevTabView)
+                pillBar.selectTab(prevTab, animated = true)
+            }
+        }
+
         insightsPillBarRef = pillBar
         statsRoot.addView(pillBar)
     }
@@ -2323,7 +2473,7 @@ class MainActivity : AppCompatActivity() {
             text = "⚡ TODAY'S FOCUS"
             setTextColor(themeCoordinator.primaryColor)
             textSize = 11f
-            letterSpacing = 0.16f
+            letterSpacing = 0.18f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         })
         heroTopRow.addView(LinearLayout(this@MainActivity).apply { layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) })
@@ -2332,7 +2482,7 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             background = GradientDrawable().apply {
-                cornerRadius = dp(12).toFloat()
+                cornerRadius = dp(14).toFloat()
                 val streakBg = if (themeCoordinator.isDarkMode()) {
                     if (themeCoordinator.activeBgMode == "ECLIPSE") 0xFF1E293B.toInt() else 0xFF1E212D.toInt()
                 } else {
@@ -2363,7 +2513,7 @@ class MainActivity : AppCompatActivity() {
         val heroCenterRow = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(12), 0, dp(12))
+            setPadding(0, dp(10), 0, dp(10))
         }
 
         val counterCol = LinearLayout(this@MainActivity).apply {
@@ -2375,7 +2525,7 @@ class MainActivity : AppCompatActivity() {
         timeRow.addView(TextView(this@MainActivity).apply {
             text = getString(R.string.duration_h_m, todayH, todayM)
             setTextColor(themeCoordinator.textColor)
-            textSize = 36f
+            textSize = 32f
             letterSpacing = -0.03f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         })
@@ -2390,14 +2540,14 @@ class MainActivity : AppCompatActivity() {
         }
 
         val trendChip = TextView(this@MainActivity).apply {
-            textSize = 11f
+            textSize = 11.5f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(dp(8), dp(3), dp(8), dp(3))
+            setPadding(dp(7), dp(2), dp(7), dp(2))
             when {
                 yesterdaySecs == 0L && todayFocus == 0L -> {
                     text = "0%"
                     setTextColor(themeCoordinator.textColor)
-                    alpha = 0.45f
+                    alpha = 0.55f
                 }
                 trendPct > 0 -> {
                     text = "+${trendPct}%"
@@ -2412,11 +2562,11 @@ class MainActivity : AppCompatActivity() {
                 else -> {
                     text = "0%"
                     setTextColor(themeCoordinator.textColor)
-                    alpha = 0.5f
+                    alpha = 0.6f
                 }
             }
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                setMargins(dp(10), 0, 0, dp(6))
+                setMargins(dp(8), 0, 0, dp(4))
             }
         }
         timeRow.addView(trendChip)
@@ -2425,16 +2575,16 @@ class MainActivity : AppCompatActivity() {
         val targetSubtext = TextView(this@MainActivity).apply {
             text = "Target: ${formatGoalLabel(heroGoalSecs)} · ${(heroGoalPctRaw).toInt()}% achieved"
             setTextColor(themeCoordinator.textColor)
-            alpha = 0.6f
+            alpha = 0.7f
             textSize = 12f
-            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
-            setPadding(0, dp(2), 0, 0)
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            setPadding(0, dp(3), 0, 0)
         }
         counterCol.addView(targetSubtext)
         heroCenterRow.addView(counterCol)
 
         // Circular Progress Ring
-        val ringSize = dp(68)
+        val ringSize = dp(64)
         val goalRingWrap = FrameLayout(this@MainActivity).apply {
             layoutParams = LinearLayout.LayoutParams(ringSize, ringSize)
         }
@@ -2449,14 +2599,14 @@ class MainActivity : AppCompatActivity() {
             text = if (goalReached) "✓" else "${heroGoalPctRaw.toInt()}%"
             gravity = Gravity.CENTER
             setTextColor(goalRingColor)
-            textSize = if (goalReached) 20f else 13f
+            textSize = if (goalReached) 18f else 13f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         })
         heroCenterRow.addView(goalRingWrap)
         heroCard.addView(heroCenterRow)
 
-        // Inline Badges Row: [⏳ 39m to go] | [☕ 0m break] | [📊 7D Avg: ...]
+        // Inline Badges Row: [🎯 Goal Reached!] | [☕ 0m break] | [📊 7D Avg: ...]
         val inlineBadgesRow = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -2478,21 +2628,21 @@ class MainActivity : AppCompatActivity() {
                     setColor(badgeBg)
                     setStroke(dp(1), strokeCol)
                 }
-                setPadding(dp(10), dp(6), dp(10), dp(6))
+                setPadding(dp(10), dp(5), dp(10), dp(5))
                 addView(TextView(this@MainActivity).apply {
                     text = emoji
-                    textSize = 11f
+                    textSize = 11.5f
                     setPadding(0, 0, dp(4), 0)
                 })
                 addView(TextView(this@MainActivity).apply {
                     text = textStr
                     setTextColor(themeCoordinator.textColor)
-                    alpha = 0.85f
+                    alpha = 0.9f
                     textSize = 11.5f
-                    typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                 })
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                    setMargins(0, 0, dp(8), 0)
+                    setMargins(0, 0, dp(6), 0)
                 }
             }
         }
@@ -2515,10 +2665,10 @@ class MainActivity : AppCompatActivity() {
             val isActive = selectedDaysFilter == filterValues[idx]
             chipRow.addView(TextView(this).apply {
                 text = filterLabels[idx]
-                textSize = 13f
-                setPadding(dp(14), dp(8), dp(14), dp(8))
+                textSize = 12.5f
+                setPadding(dp(14), dp(6), dp(14), dp(6))
                 setTextColor(if (isActive) themeCoordinator.primaryColor else themeCoordinator.textColor)
-                alpha = if (isActive) 1f else 0.5f
+                alpha = if (isActive) 1f else 0.65f
                 typeface = Typeface.create("sans-serif-medium", if (isActive) Typeface.BOLD else Typeface.NORMAL)
                 background = if (isActive) themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 110), 20f) else null
                 setOnClickListener {
@@ -2526,7 +2676,7 @@ class MainActivity : AppCompatActivity() {
                     sharedPrefs.edit().putInt("selected_days_filter", selectedDaysFilter).apply()
                     navigateToPanel(AppPanel.STATS)
                 }
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, dp(8), 0) }
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, dp(6), 0) }
             })
         }
         chartCard.addView(chipRow)
@@ -2534,9 +2684,10 @@ class MainActivity : AppCompatActivity() {
         chartCard.addView(TextView(this).apply {
             text = getString(R.string.goal_mark, formatGoalLabel(dailyGoalSecs()))
             setTextColor(themeCoordinator.textColor)
-            alpha = 0.45f
-            textSize = 11f
-            setPadding(dp(4), 0, dp(4), dp(6))
+            alpha = 0.5f
+            textSize = 11.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            setPadding(dp(4), 0, dp(4), dp(8))
         })
 
         val chartContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -3493,9 +3644,15 @@ class MainActivity : AppCompatActivity() {
             content.addView(exportCardBtn)
     }
 
-    internal fun refreshStatsPanel() {
+    internal fun invalidateStatsCache() {
         statsDirty = true
-        tabPageCache.remove(statsTabKey(AppStatsTab.PLANNER))
+        statsSnapshotGen++
+        statsSnapshotCache = null
+        tabPageCache.clear()
+    }
+
+    internal fun refreshStatsPanel() {
+        invalidateStatsCache()
         if (currentPanel == AppPanel.STATS) {
             navigateToPanel(AppPanel.STATS)
         }
@@ -3694,29 +3851,48 @@ class MainActivity : AppCompatActivity() {
 
         val todayStr = cachedTodayStr.ifEmpty { dateKeyFmt.format(Date()) }
         val dailySubjectDurations = SubjectTagManager.getSubjectDurationsForDate(this, todayStr)
-        val todayFocusMins = (snap.todayFocus / 60).toInt()
+        val todayFocusSecs = snap.todayFocus
+
+        val progressMap = PlannerHistoryManager.calculateGoalProgress(goalsList, todayFocusSecs, dailySubjectDurations)
+
+        fun reloadPlanner() {
+            val curSnap = statsSnapshotCache ?: computeStatsSnapshot().also { statsSnapshotCache = it }
+            parent.removeAllViews()
+            renderPlannerTabContent(parent, curSnap)
+        }
+
+        // Auto-complete goals (subject-tagged or untagged) whose target time has reached
+        var goalsUpdated = false
+        val activeGoalsList = goalsList.map { goal ->
+            val prog = progressMap[goal.id]
+            if (goal.targetMinutes > 0 && prog != null && prog.isAchieved && !goal.completed) {
+                goalsUpdated = true
+                goal.copy(completed = true, checkedAt = System.currentTimeMillis())
+            } else {
+                goal
+            }
+        }
+        if (goalsUpdated) {
+            saveSessionGoalsToJson(activeGoalsList)
+            PlannerHistoryManager.snapshotToday(this, activeGoalsList)
+        }
 
         val trulyAchievedIds = mutableSetOf<String>()
-        for (goal in goalsList) {
-            if (goal.completed) {
-                val targetMins = goal.targetMinutes
-                if (targetMins > 0) {
-                    val actualMins = if (!goal.subjectId.isNullOrBlank() && goal.subjectId != "all") {
-                        ((dailySubjectDurations[goal.subjectId] ?: 0L) / 60).toInt()
-                    } else {
-                        todayFocusMins
-                    }
-                    if (actualMins >= targetMins) {
-                        trulyAchievedIds.add(goal.id)
-                    }
-                } else {
+        for (goal in activeGoalsList) {
+            val prog = progressMap[goal.id]
+            val targetMins = goal.targetMinutes
+            val actualMins = prog?.actualMinutes ?: 0
+            if (targetMins > 0) {
+                if (actualMins >= targetMins) {
                     trulyAchievedIds.add(goal.id)
                 }
+            } else if (goal.completed) {
+                trulyAchievedIds.add(goal.id)
             }
         }
 
         val completedCount = trulyAchievedIds.size
-        val totalCount = goalsList.size
+        val totalCount = activeGoalsList.size
         val progressPct = if (totalCount > 0) (completedCount * 100) / totalCount else 0
 
         val summaryCard = LinearLayout(this).apply {
@@ -3730,7 +3906,7 @@ class MainActivity : AppCompatActivity() {
         topRow.addView(TextView(this).apply {
             text = "DAILY PLANNER & GOALS"
             setTextColor(plannerPrimary)
-            textSize = 12f
+            textSize = 14f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             letterSpacing = 0.15f
         })
@@ -3739,10 +3915,10 @@ class MainActivity : AppCompatActivity() {
         val addBtn = TextView(this).apply {
             text = "+ Add Goal"
             setTextColor(plannerPrimary)
-            textSize = 13f
+            textSize = 14f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             background = themeCoordinator.createGlassChip(tintedColor(plannerPrimary, 120), 12f)
-            setPadding(dp(12), dp(6), dp(12), dp(6))
+            setPadding(dp(14), dp(7), dp(14), dp(7))
             setOnClickListener { showAddSessionGoalDialog() }
         }
         topRow.addView(addBtn)
@@ -3755,14 +3931,14 @@ class MainActivity : AppCompatActivity() {
         progressRow.addView(TextView(this).apply {
             text = "$completedCount of $totalCount completed"
             setTextColor(themeCoordinator.textColor)
-            textSize = 14.5f
+            textSize = 16f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         })
         progressRow.addView(LinearLayout(this).apply { layoutParams = LinearLayout.LayoutParams(0, 0, 1f) })
         progressRow.addView(TextView(this).apply {
             text = "$progressPct%"
             setTextColor(lineProgressColor)
-            textSize = 15f
+            textSize = 17f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         })
         summaryCard.addView(progressRow)
@@ -3783,10 +3959,10 @@ class MainActivity : AppCompatActivity() {
         val yesterdayActionBtn = TextView(this).apply {
             text = "⏮️ Yesterday's Habits"
             setTextColor(themeCoordinator.textColor)
-            textSize = 12.5f
+            textSize = 13.5f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 35), 12f)
-            setPadding(dp(10), dp(8), dp(10), dp(8))
+            setPadding(dp(12), dp(8), dp(12), dp(8))
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
                 setMargins(0, 0, dp(4), 0)
@@ -3796,10 +3972,10 @@ class MainActivity : AppCompatActivity() {
         val gridBtn = TextView(this).apply {
             text = "📊 Habit Grid Matrix"
             setTextColor(plannerPrimary)
-            textSize = 12.5f
+            textSize = 13.5f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             background = themeCoordinator.createGlassChip(tintedColor(plannerPrimary, 120), 12f)
-            setPadding(dp(10), dp(8), dp(10), dp(8))
+            setPadding(dp(12), dp(8), dp(12), dp(8))
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
                 setMargins(dp(4), 0, 0, 0)
@@ -3811,7 +3987,7 @@ class MainActivity : AppCompatActivity() {
         summaryCard.addView(actionsRow)
         parent.addView(summaryCard)
 
-        if (goalsList.isEmpty()) {
+        if (activeGoalsList.isEmpty()) {
             val emptyCard = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
@@ -3835,8 +4011,8 @@ class MainActivity : AppCompatActivity() {
             emptyCard.addView(TextView(this).apply {
                 text = "Set daily subject study goals or micro-tasks with target times to keep your consistency."
                 setTextColor(themeCoordinator.textColor)
-                alpha = 0.55f
-                textSize = 13f
+                alpha = 0.7f
+                textSize = 13.5f
                 gravity = Gravity.CENTER
                 setPadding(dp(16), dp(4), dp(16), dp(16))
             })
@@ -3844,7 +4020,7 @@ class MainActivity : AppCompatActivity() {
             val addFirstBtn = TextView(this).apply {
                 text = "+ Add Your First Daily Target"
                 setTextColor(Color.WHITE)
-                textSize = 13.5f
+                textSize = 14f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                 background = GradientDrawable().apply {
                     cornerRadius = dp(14).toFloat()
@@ -3872,61 +4048,47 @@ class MainActivity : AppCompatActivity() {
             val greenColor = 0xFF22C55E.toInt()
             val redColor = 0xFFEF4444.toInt()
 
-            for (goal in goalsList) {
+            for (goal in activeGoalsList) {
                 val targetMins = goal.targetMinutes
-                val actualMins = if (!goal.subjectId.isNullOrBlank() && goal.subjectId != "all") {
-                    ((dailySubjectDurations[goal.subjectId] ?: 0L) / 60).toInt()
-                } else {
-                    todayFocusMins
-                }
+                val prog = progressMap[goal.id]
+                val actualMins = prog?.actualMinutes ?: 0
 
-                if (goal.completed) {
-                    if (targetMins > 0) {
-                        if (actualMins >= targetMins) {
-                            infoMap[goal.id] = GoalDisplayInfo(
-                                isChecked = true,
-                                progressText = "\u2713 ${targetMins}m Goal Reached",
-                                chipColor = greenColor,
-                                isDeficit = false
-                            )
-                        } else {
-                            val deficit = targetMins - actualMins
-                            infoMap[goal.id] = GoalDisplayInfo(
-                                isChecked = true,
-                                progressText = "${deficit}m remaining (${actualMins}/${targetMins}m)",
-                                chipColor = redColor,
-                                isDeficit = true
-                            )
-                        }
-                    } else {
+                if (targetMins > 0) {
+                    val isDone = actualMins >= targetMins
+                    if (isDone) {
                         infoMap[goal.id] = GoalDisplayInfo(
                             isChecked = true,
-                            progressText = "\u2713 Goal Reached",
+                            progressText = "${actualMins}/${targetMins}m",
                             chipColor = greenColor,
                             isDeficit = false
                         )
-                    }
-                } else {
-                    if (targetMins > 0) {
-                        val isDone = actualMins >= targetMins
+                    } else if (goal.completed) {
+                        val deficit = targetMins - actualMins
                         infoMap[goal.id] = GoalDisplayInfo(
-                            isChecked = false,
-                            progressText = "${actualMins}/${targetMins}m",
-                            chipColor = if (isDone) greenColor else themeCoordinator.primaryColor,
-                            isDeficit = false
+                            isChecked = true,
+                            progressText = "${actualMins}/${targetMins}m (${deficit}m left)",
+                            chipColor = redColor,
+                            isDeficit = true
                         )
                     } else {
                         infoMap[goal.id] = GoalDisplayInfo(
                             isChecked = false,
-                            progressText = "Manual Check",
+                            progressText = "${actualMins}/${targetMins}m",
                             chipColor = themeCoordinator.primaryColor,
                             isDeficit = false
                         )
                     }
+                } else {
+                    infoMap[goal.id] = GoalDisplayInfo(
+                        isChecked = goal.completed,
+                        progressText = if (goal.completed) "✓ Done" else "Manual Check",
+                        chipColor = if (goal.completed) greenColor else themeCoordinator.primaryColor,
+                        isDeficit = false
+                    )
                 }
             }
 
-            for (goal in goalsList) {
+            for (goal in activeGoalsList) {
                 val info = infoMap[goal.id] ?: continue
                 val isChecked = info.isChecked
                 val targetMins = goal.targetMinutes
@@ -3952,12 +4114,12 @@ class MainActivity : AppCompatActivity() {
                     layoutParams = LinearLayout.LayoutParams(dp(24), dp(24)).apply { setMargins(0, 0, dp(12), 0) }
                     setOnClickListener {
                         val now = System.currentTimeMillis()
-                        val updated = goalsList.map {
+                        val updated = activeGoalsList.map {
                             if (it.id == goal.id) it.copy(completed = !it.completed, checkedAt = if (!it.completed) now else 0L) else it
                         }
                         saveSessionGoalsToJson(updated)
                         PlannerHistoryManager.snapshotToday(this@MainActivity, updated)
-                        refreshStatsPanel()
+                        reloadPlanner()
                     }
                 }
                 goalCard.addView(checkBtn)
@@ -3970,7 +4132,7 @@ class MainActivity : AppCompatActivity() {
                 textCol.addView(TextView(this).apply {
                     text = goal.title
                     setTextColor(if (isChecked) tintedColor(themeCoordinator.textColor, 120) else themeCoordinator.textColor)
-                    textSize = 15f
+                    textSize = 16f
                     typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                     if (isChecked) paintFlags = paintFlags or android.graphics.Paint.STRIKE_THRU_TEXT_FLAG
                 })
@@ -3979,9 +4141,9 @@ class MainActivity : AppCompatActivity() {
                     val subBadge = TextView(this).apply {
                         text = "${sub.iconEmoji} ${sub.name}"
                         setTextColor(try { Color.parseColor(sub.colorHex) } catch (_: Exception) { plannerPrimary })
-                        textSize = 11.5f
+                        textSize = 13f
                         typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                        setPadding(0, dp(1), 0, 0)
+                        setPadding(0, dp(2), 0, 0)
                     }
                     textCol.addView(subBadge)
                 }
@@ -3989,8 +4151,8 @@ class MainActivity : AppCompatActivity() {
                     textCol.addView(TextView(this).apply {
                         text = goal.note
                         setTextColor(themeCoordinator.textColor)
-                        alpha = 0.5f
-                        textSize = 12f
+                        alpha = 0.7f
+                        textSize = 13.5f
                         setPadding(0, dp(2), 0, 0)
                     })
                 }
@@ -4000,7 +4162,7 @@ class MainActivity : AppCompatActivity() {
                     val chipView = TextView(this).apply {
                         text = info.progressText
                         setTextColor(info.chipColor)
-                        textSize = 12f
+                        textSize = 13f
                         typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                         background = themeCoordinator.createGlassChip(tintedColor(info.chipColor, 100), 10f)
                         setPadding(dp(8), dp(4), dp(8), dp(4))
@@ -4008,6 +4170,67 @@ class MainActivity : AppCompatActivity() {
                         setOnClickListener { showGoalHistoryDialog(goal) }
                     }
                     goalCard.addView(chipView)
+                }
+
+                // Hold & Drag Reorder Handle
+                if (activeGoalsList.size > 1) {
+                    val gripBtn = TextView(this).apply {
+                        text = "⠿"
+                        textSize = 17f
+                        setTextColor(tintedColor(themeCoordinator.textColor, 70))
+                        setPadding(dp(6), dp(4), dp(4), dp(4))
+                    }
+                    goalCard.addView(gripBtn)
+
+                    // Enable Hold & Drag on the goal card
+                    goalCard.setOnLongClickListener { v ->
+                        val clipData = android.content.ClipData.newPlainText("goal_id", goal.id)
+                        val shadow = View.DragShadowBuilder(v)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                            v.startDragAndDrop(clipData, shadow, goal.id, 0)
+                        } else {
+                            @Suppress("DEPRECATION")
+                            v.startDrag(clipData, shadow, goal.id, 0)
+                        }
+                        v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        true
+                    }
+
+                    goalCard.setOnDragListener { v, event ->
+                        when (event.action) {
+                            android.view.DragEvent.ACTION_DRAG_STARTED -> true
+                            android.view.DragEvent.ACTION_DRAG_ENTERED -> {
+                                v.alpha = 0.55f
+                                true
+                            }
+                            android.view.DragEvent.ACTION_DRAG_EXITED -> {
+                                v.alpha = 1.0f
+                                true
+                            }
+                            android.view.DragEvent.ACTION_DROP -> {
+                                v.alpha = 1.0f
+                                val draggedGoalId = event.localState as? String
+                                if (!draggedGoalId.isNullOrEmpty() && draggedGoalId != goal.id) {
+                                    val fromIdx = activeGoalsList.indexOfFirst { it.id == draggedGoalId }
+                                    val toIdx = activeGoalsList.indexOfFirst { it.id == goal.id }
+                                    if (fromIdx != -1 && toIdx != -1 && fromIdx != toIdx) {
+                                        val mutable = activeGoalsList.toMutableList()
+                                        val moved = mutable.removeAt(fromIdx)
+                                        mutable.add(toIdx, moved)
+                                        saveSessionGoalsToJson(mutable)
+                                        PlannerHistoryManager.snapshotToday(this@MainActivity, mutable)
+                                        reloadPlanner()
+                                    }
+                                }
+                                true
+                            }
+                            android.view.DragEvent.ACTION_DRAG_ENDED -> {
+                                v.alpha = 1.0f
+                                true
+                            }
+                            else -> true
+                        }
+                    }
                 }
 
                 val deleteBtn = TextView(this).apply {
@@ -4021,9 +4244,10 @@ class MainActivity : AppCompatActivity() {
                             title = "Delete Goal?",
                             message = "Are you sure you want to remove '${goal.title}' from your planner?"
                         ) {
-                            val updated = goalsList.filter { it.id != goal.id }
+                            val updated = activeGoalsList.filter { it.id != goal.id }
                             saveSessionGoalsToJson(updated)
-                            refreshStatsPanel()
+                            PlannerHistoryManager.snapshotToday(this@MainActivity, updated)
+                            reloadPlanner()
                         }
                     }
                 }
@@ -4034,7 +4258,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Planner Insights Section (always computed)
-        val overallInsights = PlannerHistoryManager.computeOverallPlannerInsights(this, goalsList)
+        val overallInsights = PlannerHistoryManager.computeOverallPlannerInsights(this, activeGoalsList)
 
         parent.addView(createSectionLabel("Planner Insights"))
 
@@ -4063,21 +4287,21 @@ class MainActivity : AppCompatActivity() {
             textCol.addView(TextView(this@MainActivity).apply {
                 text = title
                 setTextColor(themeCoordinator.textColor)
-                textSize = 14f
+                textSize = 15f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             })
             textCol.addView(TextView(this@MainActivity).apply {
                 text = sub
                 setTextColor(themeCoordinator.textColor)
-                alpha = 0.5f
-                textSize = 12f
+                alpha = 0.7f
+                textSize = 13f
                 setPadding(0, dp(2), 0, 0)
             })
             row.addView(textCol)
             row.addView(TextView(this@MainActivity).apply {
                 text = value
                 setTextColor(plannerSecondary)
-                textSize = 15f
+                textSize = 16f
                 typeface = Typeface.create("sans-serif", Typeface.BOLD)
             })
             insightsCard.addView(row)
@@ -4091,7 +4315,7 @@ class MainActivity : AppCompatActivity() {
         val matrixBtn = TextView(this).apply {
             text = "📊 Goal & Habit Grid"
             setTextColor(if (themeCoordinator.isDarkMode()) Color.WHITE else themeCoordinator.primaryColor)
-            textSize = 13f
+            textSize = 14f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             val btnBg = if (themeCoordinator.isDarkMode()) tintedColor(plannerPrimary, 120) else tintedColor(plannerPrimary, 30)
             background = themeCoordinator.createGlassChip(btnBg, 14f)
@@ -4105,7 +4329,7 @@ class MainActivity : AppCompatActivity() {
         val themeBtn = TextView(this).apply {
             text = "🎨 Planner Theme"
             setTextColor(if (themeCoordinator.isDarkMode()) Color.WHITE else themeCoordinator.primaryColor)
-            textSize = 13f
+            textSize = 14f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             val btnBg = if (themeCoordinator.isDarkMode()) tintedColor(plannerPrimary, 120) else tintedColor(plannerPrimary, 30)
             background = themeCoordinator.createGlassChip(btnBg, 14f)
@@ -4361,7 +4585,7 @@ class MainActivity : AppCompatActivity() {
             setPadding(0, dp(10), 0, dp(8))
         }
         legendRow.addView(TextView(this).apply {
-            text = "● Achieved   ✕ Deficit   ○ Missed"
+            text = "● Achieved   ✕ Time Left   ○ Missed"
             setTextColor(themeCoordinator.textColor)
             alpha = 0.6f
             textSize = 11f
@@ -4481,14 +4705,10 @@ class MainActivity : AppCompatActivity() {
             }
         } else {
             val currentGoals = loadSessionGoalsFromJson(prefs.getString("session_goals_json", "[]") ?: "[]")
+            val progressMap = PlannerHistoryManager.calculateGoalProgress(currentGoals, yesterdayFocusMins * 60L, dailySubjectDurations)
             for (g in currentGoals) {
-                val target = g.targetMinutes
-                val actual = if (!g.subjectId.isNullOrBlank() && g.subjectId != "all") {
-                    ((dailySubjectDurations[g.subjectId] ?: 0L) / 60).toInt()
-                } else {
-                    yesterdayFocusMins
-                }
-                val autoDone = target == 0 || (target > 0 && actual >= target)
+                val prog = progressMap[g.id]
+                val autoDone = if (g.targetMinutes > 0) (prog?.isAchieved ?: false) else g.completed
                 itemsList.add(YesterdayGoalItem(g.id, g.title, g.targetMinutes, autoDone, autoDone, g.subjectId))
             }
         }
@@ -6037,7 +6257,7 @@ class MainActivity : AppCompatActivity() {
         inputsBox.addView(noteInput)
 
         val durationInput = android.widget.EditText(this).apply {
-            hint = "Target minutes (max 1440m / 24h)"
+            hint = "Target minutes (e.g. 60 or tap preset)"
             inputType = android.text.InputType.TYPE_CLASS_NUMBER
             filters = arrayOf(android.text.InputFilter.LengthFilter(4))
             setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
@@ -6045,9 +6265,40 @@ class MainActivity : AppCompatActivity() {
             textSize = 14f
             background = themeCoordinator.createCardBackground()
             setPadding(dp(12), dp(10), dp(12), dp(10))
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, dp(10)) }
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, dp(6)) }
         }
+
+        // 1-Tap Duration Presets Row
+        val durationPresets = listOf(15, 25, 45, 60, 90, 120)
+        val presetScroll = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 0, dp(12))
+            }
+        }
+        val presetRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        for (m in durationPresets) {
+            val chip = TextView(this).apply {
+                text = "${m}m"
+                textSize = 11.5f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(themeCoordinator.textColor)
+                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 40), 10f)
+                setPadding(dp(10), dp(5), dp(10), dp(5))
+                setOnClickListener {
+                    durationInput.setText(m.toString())
+                    durationInput.setSelection(durationInput.text.length)
+                }
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(0, 0, dp(6), 0)
+                }
+            }
+            presetRow.addView(chip)
+        }
+        presetScroll.addView(presetRow)
+
         inputsBox.addView(durationInput)
+        inputsBox.addView(presetScroll)
 
         // Subject Tag Selector
         inputsBox.addView(TextView(this).apply {
@@ -6996,8 +7247,8 @@ class MainActivity : AppCompatActivity() {
         return TextView(this).apply {
             text = title
             setTextColor(themeCoordinator.primaryColor)
-            textSize = 12f
-            letterSpacing = 0.18f
+            textSize = 14f
+            letterSpacing = 0.15f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             setPadding(dp(6), dp(16), 0, dp(8))
         }
@@ -7484,22 +7735,22 @@ class MainActivity : AppCompatActivity() {
             letterSpacing = 0.1f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         })
+        val goalLabel = formatGoalLabel(goal)
+        val focusLabel = if (focusSecs >= 3600) "${focusSecs / 3600}h ${(focusSecs % 3600) / 60}m" else "${(focusSecs % 3600) / 60}m"
+        val pct = if (goal > 0L) (focusSecs.toFloat() / goal.toFloat() * 100f).toInt() else 0
         content.addView(TextView(this).apply {
             text = if (goalReached) {
-                getString(R.string.goal_reached_yes)
-            } else {
-                val pct = if (goal > 0L) (focusSecs.toFloat() / goal.toFloat() * 100f).toInt() else 0
+                "🎯 Daily Goal: $goalLabel • Reached ($focusLabel, $pct%)"
+            } else if (goal > 0L) {
                 val remaining = max(0L, goal - focusSecs)
-                val achieved = getString(R.string.cal_goal_pct, pct)
-                val toGo = getString(R.string.x_to_go, formatGoalLabel(remaining))
-                android.text.SpannableStringBuilder()
-                    .append(achieved, android.text.style.ForegroundColorSpan(0xFF43D36E.toInt()), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    .append("  \u00B7  ", android.text.style.ForegroundColorSpan(goalColor), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    .append(toGo, android.text.style.ForegroundColorSpan(goalColor), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                val toGo = "${formatGoalLabel(remaining)} left"
+                "🎯 Daily Goal: $goalLabel • $pct% ($toGo)"
+            } else {
+                "🎯 Focus: $focusLabel (No goal set)"
             }
             setTextColor(goalColor)
             alpha = 1f
-            textSize = 13f
+            textSize = 13.5f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             setPadding(0, dp(6), 0, 0)
         })
@@ -7823,11 +8074,11 @@ class MainActivity : AppCompatActivity() {
         var currentStats = computeWeekStats(weekOffset)
         renderCard(currentStats)
 
-        // Scaled preview — fits the screen without scrolling
+        // Scaled preview — fits the screen comfortably without scrolling
         val dm = resources.displayMetrics
-        val maxW = (dm.widthPixels - dp(64)).coerceAtMost(dp(330))
-        val reservedH = dp(60 + 16 + 28 + 24 + 48 + 8 + 56)
-        val maxH = (dm.heightPixels - reservedH).coerceAtLeast(dp(280))
+        val reservedH = dp(20 + 20 + 14 + 44 + 16 + 48 + 32)
+        val maxH = (dm.heightPixels - reservedH).coerceIn(dp(260), dp(580))
+        val maxW = (dm.widthPixels - dp(40)).coerceAtMost(dp(350))
         var previewWidth = maxW
         var previewHeight = (previewWidth / CARD_ASPECT).toInt()
         if (previewHeight > maxH) {
@@ -7835,7 +8086,9 @@ class MainActivity : AppCompatActivity() {
             previewWidth = (previewHeight * CARD_ASPECT).toInt()
         }
 
-        val dialogRoot = FrameLayout(this)
+        val dialogRoot = FrameLayout(this).apply {
+            setBackgroundColor(0xF0070A10.toInt())
+        }
 
         val scrollView = android.widget.ScrollView(this).apply {
             isFillViewport = true
@@ -7843,13 +8096,13 @@ class MainActivity : AppCompatActivity() {
         }
         val contentColumn = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(16), dp(60), dp(16), dp(16))
+            gravity = Gravity.CENTER
+            setPadding(dp(16), dp(16), dp(16), dp(16))
         }
         scrollView.addView(contentColumn)
 
         val previewImageView = ImageView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(previewWidth, previewHeight).apply { setMargins(0, 0, 0, dp(28)) }
+            layoutParams = LinearLayout.LayoutParams(previewWidth, previewHeight).apply { setMargins(0, 0, 0, dp(14)) }
             scaleType = ImageView.ScaleType.FIT_CENTER
             contentDescription = getString(R.string.cd_weekly_card_preview)
             setImageBitmap(currentBitmap)
@@ -7916,7 +8169,7 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams(previewWidth, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                setMargins(0, 0, 0, dp(24))
+                setMargins(0, 0, 0, dp(16))
             }
         }
         weekNavRow.addView(prevWeekBtn)
@@ -7956,7 +8209,7 @@ class MainActivity : AppCompatActivity() {
             setTextColor(themeCoordinator.textColor)
             background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 40), 50f)
             setOnClickListener { dialog.dismiss() }
-            layoutParams = LinearLayout.LayoutParams(0, dp(48), 1f).apply {
+            layoutParams = LinearLayout.LayoutParams(0, dp(46), 1f).apply {
                 setMargins(0, 0, dp(8), 0)
             }
         }
@@ -7973,7 +8226,7 @@ class MainActivity : AppCompatActivity() {
                     handler.post { loadingOverlay.visibility = View.GONE; dialog.dismiss() }
                 }.start()
             }
-            layoutParams = LinearLayout.LayoutParams(0, dp(48), 1f).apply {
+            layoutParams = LinearLayout.LayoutParams(0, dp(46), 1f).apply {
                 setMargins(0, 0, dp(8), 0)
             }
         }
@@ -8015,7 +8268,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }.start()
             }
-            layoutParams = LinearLayout.LayoutParams(0, dp(48), 1f)
+            layoutParams = LinearLayout.LayoutParams(0, dp(46), 1f)
         }
 
         actionRow.addView(closeBtn)
@@ -8027,7 +8280,7 @@ class MainActivity : AppCompatActivity() {
         dialogRoot.addView(loadingOverlay)
 
         dialog.setContentView(dialogRoot)
-        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0xF2080C14.toInt()))
         dialog.window?.setLayout(
             android.view.ViewGroup.LayoutParams.MATCH_PARENT,
             android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -8173,14 +8426,14 @@ class MainActivity : AppCompatActivity() {
         textContainer.addView(TextView(this).apply {
             text = title
             setTextColor(themeCoordinator.textColor)
-            textSize = 15f
-            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            textSize = 16f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         })
         textContainer.addView(TextView(this).apply {
             text = subtitle
             setTextColor(themeCoordinator.textColor)
-            alpha = 0.5f
-            textSize = 12f
+            alpha = 0.65f
+            textSize = 13.5f
             typeface = Typeface.create("sans-serif", Typeface.NORMAL)
             setPadding(0, 3, 0, 0)
         })

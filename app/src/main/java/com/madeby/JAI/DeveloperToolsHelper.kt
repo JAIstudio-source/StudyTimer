@@ -124,8 +124,8 @@ object DeveloperToolsHelper {
         quickGrid.addView(quickActionBtn("+25m Focus", themeCoordinator.primaryColor) {
             fastForwardSession(activity, 25 * 60L)
         })
-        quickGrid.addView(quickActionBtn("Adjust Today", Color.parseColor("#38BDF8")) {
-            showAdjustTodayTimeDialog(activity, themeCoordinator)
+        quickGrid.addView(quickActionBtn("Adjust Time", Color.parseColor("#38BDF8")) {
+            showAdjustTodayTimeDialog(activity, themeCoordinator, isDeveloperExtended = true)
         })
         quickGrid.addView(quickActionBtn("Manual Log", Color.parseColor("#8B5CF6")) {
             showManualSessionLoggerDialog(activity, themeCoordinator)
@@ -142,6 +142,7 @@ object DeveloperToolsHelper {
         val dialog = Dialog(activity)
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
         val dp = { value: Int -> (value * activity.resources.displayMetrics.density).toInt() }
+        val displayMetrics = activity.resources.displayMetrics
 
         val root = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
@@ -155,13 +156,25 @@ object DeveloperToolsHelper {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, 0, 0, dp(14))
         }
-        titleRow.addView(TextView(activity).apply {
+        val titleCol = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        titleCol.addView(TextView(activity).apply {
             text = "⚡ Developer Architecture Suite"
             setTextColor(themeCoordinator.textColor)
             textSize = 17f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         })
+        titleCol.addView(TextView(activity).apply {
+            text = "Diagnostics, Custom Mocking & Edge-case Testing"
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 11.5f
+            alpha = 0.85f
+            setPadding(0, dp(2), 0, 0)
+        })
+        titleRow.addView(titleCol)
+
         val closeBtn = TextView(activity).apply {
             text = "✕"
             textSize = 16f
@@ -175,9 +188,10 @@ object DeveloperToolsHelper {
 
         val scroll = ScrollView(activity).apply {
             isVerticalScrollBarEnabled = false
+            overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                (activity.resources.displayMetrics.heightPixels * 0.72f).toInt()
+                (displayMetrics.heightPixels * 0.72f).toInt()
             )
         }
         val content = LinearLayout(activity).apply {
@@ -245,9 +259,9 @@ object DeveloperToolsHelper {
 
         // 1. Manual Session Logger & Mocking
         addSection("MANUAL SESSION LOGGER & MOCKING", "✍️") {
-            addView(devButton("⏱️ Adjust Today's Study Time", "Add missed focus time or deduct accidental time for today only", Color.parseColor("#38BDF8")) {
+            addView(devButton("⏱️ Adjust Focus & Break Time (Extended)", "Pick any date, add/deduct/set focus & break records with full accuracy", Color.parseColor("#38BDF8")) {
                 dialog.dismiss()
-                showAdjustTodayTimeDialog(activity, themeCoordinator)
+                showAdjustTodayTimeDialog(activity, themeCoordinator, isDeveloperExtended = true)
             })
 
             addView(devButton("✍️ Custom Manual Session Builder", "Start & End Time pickers, real-time duration, custom or untagged subject") {
@@ -526,11 +540,14 @@ object DeveloperToolsHelper {
         root.addView(scroll)
 
         dialog.setContentView(root)
-        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
-        dialog.window?.setLayout(
-            (activity.resources.displayMetrics.widthPixels * 0.92f).toInt(),
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        )
+        dialog.window?.apply {
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+            setGravity(Gravity.CENTER)
+            setLayout(
+                (activity.resources.displayMetrics.widthPixels * 0.92f).toInt(),
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
         dialog.show()
     }
 
@@ -1065,81 +1082,214 @@ object DeveloperToolsHelper {
     }
 
     /**
-     * Precise Dialog for adjusting study focus time for the CURRENT DAY ONLY.
-     * Allows adding missed offline study or deducting accidental/over-recorded time,
-     * maintaining historical integrity and syncing live statistics.
+     * Dialog for adjusting study focus and break time.
+     * In Normal mode (for standard users), it accurately adjusts TODAY's focus or break time.
+     * In Developer mode, its capabilities are extended to allow selecting ANY date (historical/future)
+     * and performing Add, Deduct, or Direct Set adjustments.
      */
-    fun showAdjustTodayTimeDialog(activity: MainActivity, themeCoordinator: ThemeCoordinator) {
+    fun showAdjustTodayTimeDialog(
+        activity: MainActivity,
+        themeCoordinator: ThemeCoordinator,
+        isDeveloperExtended: Boolean = false,
+        initialDate: String? = null
+    ) {
         val dialog = Dialog(activity)
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
         val dp = { v: Int -> (v * activity.resources.displayMetrics.density).toInt() }
+        val displayMetrics = activity.resources.displayMetrics
 
         val sharedPrefs = activity.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-        val dateDisplayFmt = SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault()).format(Date())
+        var targetDateStr = initialDate ?: todayStr
 
-        val currentTotalSecs = sharedPrefs.getLong("${todayStr}_focus_total", 0L)
-        val currentTotalMins = currentTotalSecs / 60L
+        var isFocusCategory = true // true = Study Focus, false = Break Time
+        var actionMode = 0 // 0 = Add, 1 = Deduct, 2 = Set (dev only)
+
+        val subjects = SubjectTagManager.getAllSubjects(activity)
+        var selectedSubject: SubjectTag? = subjects.firstOrNull()
 
         val root = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             background = themeCoordinator.createDialogBackground(28f)
-            setPadding(dp(22), dp(22), dp(22), dp(20))
+            setPadding(dp(20), dp(18), dp(20), dp(18))
         }
 
-        // Title & Subtitle
-        root.addView(TextView(activity).apply {
-            text = "⏱️ Adjust Today's Study Time"
-            setTextColor(themeCoordinator.primaryColor)
-            textSize = 17f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-        })
-        root.addView(TextView(activity).apply {
-            text = "📅 $dateDisplayFmt\n• Current Today's Focus: ${currentTotalMins / 60}h ${currentTotalMins % 60}m ($currentTotalMins mins)"
-            setTextColor(themeCoordinator.textColor)
-            alpha = 0.75f
-            textSize = 12f
-            setPadding(0, dp(4), 0, dp(14))
-        })
-
-        // Mode Toggle (Add vs Deduct)
-        var isAddMode = true
-        val modeToggleRow = LinearLayout(activity).apply {
+        // Title Bar with Close ✕ button
+        val titleBar = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
-            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 14f)
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, 0, 0, dp(10))
+        }
+        val titleText = TextView(activity).apply {
+            text = if (isDeveloperExtended) "🛠️ Adjust Time & Data (Extended)" else "⏱️ Adjust Today's Time"
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 16.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        val closeBtn = TextView(activity).apply {
+            text = "✕"
+            textSize = 16f
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.6f
+            setPadding(dp(10), dp(4), dp(4), dp(4))
+            setOnClickListener { dialog.dismiss() }
+        }
+        titleBar.addView(titleText)
+        titleBar.addView(closeBtn)
+        root.addView(titleBar)
+
+        val scroll = ScrollView(activity).apply {
+            isVerticalScrollBarEnabled = false
+            overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                (displayMetrics.heightPixels * 0.72f).toInt()
+            )
+        }
+        val content = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, 0, 0, dp(12))
+        }
+
+        // 1. Category Switcher: Focus vs Break
+        val categoryRow = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 25), 14f)
             setPadding(dp(4), dp(4), dp(4), dp(4))
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                setMargins(0, 0, 0, dp(12))
+                setMargins(0, 0, 0, dp(10))
+            }
+        }
+
+        val focusTab = TextView(activity).apply {
+            text = "⏱️ Study Focus"
+            textSize = 12.5f
+            gravity = Gravity.CENTER
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(dp(8), dp(10), dp(8), dp(10))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val breakTab = TextView(activity).apply {
+            text = "☕ Break Time"
+            textSize = 12.5f
+            gravity = Gravity.CENTER
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(dp(8), dp(10), dp(8), dp(10))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        categoryRow.addView(focusTab)
+        categoryRow.addView(breakTab)
+        content.addView(categoryRow)
+
+        // 2. Date Information / Selector
+        val dateCard = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 20), 12f)
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 0, dp(10))
+            }
+        }
+
+        val dateLabel = TextView(activity).apply {
+            textSize = 12f
+            setTextColor(themeCoordinator.textColor)
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        dateCard.addView(dateLabel)
+
+        var updateUI: () -> Unit = {}
+
+        if (isDeveloperExtended) {
+            val pickDateBtn = TextView(activity).apply {
+                text = "📅 Pick Date ▾"
+                textSize = 11.5f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(Color.WHITE)
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(8).toFloat()
+                    setColor(Color.parseColor("#38BDF8"))
+                }
+                setPadding(dp(10), dp(6), dp(10), dp(6))
+                setOnClickListener {
+                    val cal = Calendar.getInstance()
+                    try {
+                        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(targetDateStr)?.let {
+                            cal.time = it
+                        }
+                    } catch (_: Exception) {}
+
+                    DatePickerDialog(
+                        activity,
+                        getPickerThemeRes(),
+                        { _, year, month, dayOfMonth ->
+                            targetDateStr = String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, dayOfMonth)
+                            activity.runOnUiThread { updateUI() }
+                        },
+                        cal.get(Calendar.YEAR),
+                        cal.get(Calendar.MONTH),
+                        cal.get(Calendar.DAY_OF_MONTH)
+                    ).show()
+                }
+            }
+            dateCard.addView(pickDateBtn)
+        }
+        content.addView(dateCard)
+
+        // 3. Action Mode Toggle (Add vs Deduct vs Set)
+        val modeToggleRow = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 25), 14f)
+            setPadding(dp(4), dp(4), dp(4), dp(4))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 0, dp(10))
             }
         }
 
         val addBtn = TextView(activity).apply {
-            text = "➕ Add Time (Missed)"
+            text = "➕ Add"
             textSize = 11.5f
             gravity = Gravity.CENTER
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(dp(8), dp(10), dp(8), dp(10))
+            setPadding(dp(6), dp(8), dp(6), dp(8))
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
 
         val deductBtn = TextView(activity).apply {
-            text = "➖ Deduct Time (Accidental)"
+            text = "➖ Deduct"
             textSize = 11.5f
             gravity = Gravity.CENTER
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(dp(8), dp(10), dp(8), dp(10))
+            setPadding(dp(6), dp(8), dp(6), dp(8))
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val setBtn = TextView(activity).apply {
+            text = "🎯 Set Total"
+            textSize = 11.5f
+            gravity = Gravity.CENTER
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(dp(6), dp(8), dp(6), dp(8))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            visibility = if (isDeveloperExtended) View.VISIBLE else View.GONE
         }
 
         modeToggleRow.addView(addBtn)
         modeToggleRow.addView(deductBtn)
-        root.addView(modeToggleRow)
+        if (isDeveloperExtended) modeToggleRow.addView(setBtn)
+        content.addView(modeToggleRow)
 
-        // Preset minute chips container
+        // Preset Chips Container
         val presetContainer = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(0, 0, 0, dp(10))
         }
+        content.addView(presetContainer)
 
         // Minutes Input Field
         val minutesInput = EditText(activity).apply {
@@ -1148,25 +1298,25 @@ object DeveloperToolsHelper {
             setText("30")
             setTextColor(themeCoordinator.textColor)
             setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
-            textSize = 14f
+            textSize = 14.5f
             background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 12f)
             setPadding(dp(14), dp(12), dp(14), dp(12))
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 0, dp(8))
+            }
         }
+        content.addView(minutesInput)
 
-        // Subject Selector
-        val subjects = SubjectTagManager.getAllSubjects(activity)
-        var selectedSubject: SubjectTag? = subjects.firstOrNull()
-
+        // Subject Selector (Only visible for Study Focus)
         val subjectPickerBtn = TextView(activity).apply {
             text = "Subject Tag: ${selectedSubject?.iconEmoji ?: "⏱"} ${selectedSubject?.name ?: "General Focus"}"
             setTextColor(themeCoordinator.textColor)
             textSize = 13f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 60), 12f)
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 50), 12f)
             setPadding(dp(14), dp(10), dp(14), dp(10))
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                setMargins(0, dp(10), 0, dp(12))
+                setMargins(0, 0, 0, dp(10))
             }
         }
 
@@ -1183,48 +1333,145 @@ object DeveloperToolsHelper {
                         selectedSubject = subjects[which - 1]
                         subjectPickerBtn.text = "Subject Tag: ${selectedSubject?.iconEmoji} ${selectedSubject?.name}"
                     }
+                    updateUI()
                 }
                 .show()
         }
+        content.addView(subjectPickerBtn)
 
-        // Live Calculation Summary Preview
-        val summaryPreviewText = TextView(activity).apply {
-            textSize = 12.5f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(dp(4), dp(2), dp(4), dp(14))
+        // Live Calculation Summary Preview Card
+        val summaryCard = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            background = themeCoordinator.createCardBackground(18f)
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 0, dp(14))
+            }
         }
 
-        fun updateUI() {
-            if (isAddMode) {
-                addBtn.setTextColor(Color.WHITE)
-                addBtn.background = GradientDrawable().apply {
+        val summaryCurrentText = TextView(activity).apply {
+            textSize = 12f
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.7f
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            setPadding(0, 0, 0, dp(4))
+        }
+
+        val summaryResultText = TextView(activity).apply {
+            textSize = 13f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        }
+
+        summaryCard.addView(summaryCurrentText)
+        summaryCard.addView(summaryResultText)
+        content.addView(summaryCard)
+
+        // Apply Button
+        val applyBtn = Button(activity).apply {
+            text = "APPLY ADJUSTMENT"
+            setTextColor(Color.WHITE)
+            textSize = 13.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(48))
+        }
+        content.addView(applyBtn)
+
+        scroll.addView(content)
+        root.addView(scroll)
+
+        updateUI = {
+            val isTargetToday = targetDateStr == todayStr
+
+            // Calculate current effective focus & break times
+            val currentStoredFocus = sharedPrefs.getLong("${targetDateStr}_focus_total", 0L)
+            val runningStudy = if (isTargetToday) activity.accumulatedStudy else 0L
+            val effectiveFocusSecs = currentStoredFocus + runningStudy
+            val effectiveFocusMins = effectiveFocusSecs / 60L
+
+            val currentStoredBreak = sharedPrefs.getLong("${targetDateStr}_break_total", 0L)
+            val runningBreak = if (isTargetToday) activity.currentBreakSeconds else 0L
+            val effectiveBreakSecs = currentStoredBreak + runningBreak
+            val effectiveBreakMins = effectiveBreakSecs / 60L
+
+            // Date label
+            val dateDisplay = try {
+                val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(targetDateStr)
+                SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault()).format(parsed ?: Date())
+            } catch (_: Exception) {
+                targetDateStr
+            }
+
+            dateLabel.text = if (isTargetToday) {
+                "📅 Today • $dateDisplay"
+            } else {
+                "📅 Target Date • $dateDisplay ($targetDateStr)"
+            }
+
+            // Category Tab Styles
+            if (isFocusCategory) {
+                focusTab.setTextColor(Color.WHITE)
+                focusTab.background = GradientDrawable().apply {
                     cornerRadius = dp(10).toFloat()
                     setColor(themeCoordinator.primaryColor)
                 }
-                deductBtn.setTextColor(tintedColor(themeCoordinator.textColor, 140))
-                deductBtn.background = null
+                breakTab.setTextColor(tintedColor(themeCoordinator.textColor, 140))
+                breakTab.background = null
+                subjectPickerBtn.visibility = View.VISIBLE
             } else {
-                deductBtn.setTextColor(Color.WHITE)
-                deductBtn.background = GradientDrawable().apply {
+                breakTab.setTextColor(Color.WHITE)
+                breakTab.background = GradientDrawable().apply {
                     cornerRadius = dp(10).toFloat()
-                    setColor(Color.parseColor("#EF4444"))
+                    setColor(Color.parseColor("#F43F5E"))
                 }
-                addBtn.setTextColor(tintedColor(themeCoordinator.textColor, 140))
-                addBtn.background = null
+                focusTab.setTextColor(tintedColor(themeCoordinator.textColor, 140))
+                focusTab.background = null
+                subjectPickerBtn.visibility = View.GONE
             }
 
+            // Action Mode Tab Styles
+            val activeColor = when (actionMode) {
+                0 -> if (isFocusCategory) themeCoordinator.primaryColor else Color.parseColor("#F43F5E")
+                1 -> Color.parseColor("#EF4444")
+                else -> Color.parseColor("#38BDF8")
+            }
+
+            addBtn.setTextColor(if (actionMode == 0) Color.WHITE else tintedColor(themeCoordinator.textColor, 140))
+            addBtn.background = if (actionMode == 0) GradientDrawable().apply {
+                cornerRadius = dp(10).toFloat(); setColor(activeColor)
+            } else null
+
+            deductBtn.setTextColor(if (actionMode == 1) Color.WHITE else tintedColor(themeCoordinator.textColor, 140))
+            deductBtn.background = if (actionMode == 1) GradientDrawable().apply {
+                cornerRadius = dp(10).toFloat(); setColor(Color.parseColor("#EF4444"))
+            } else null
+
+            setBtn.setTextColor(if (actionMode == 2) Color.WHITE else tintedColor(themeCoordinator.textColor, 140))
+            setBtn.background = if (actionMode == 2) GradientDrawable().apply {
+                cornerRadius = dp(10).toFloat(); setColor(Color.parseColor("#38BDF8"))
+            } else null
+
+            // Presets
             presetContainer.removeAllViews()
-            val presets = if (isAddMode) listOf(15L, 30L, 45L, 60L, 120L) else listOf(10L, 15L, 30L, 45L, 60L)
+            val presets = when {
+                actionMode == 2 -> if (isFocusCategory) listOf(0L, 30L, 60L, 120L, 240L) else listOf(0L, 5L, 15L, 30L, 60L)
+                isFocusCategory -> if (actionMode == 0) listOf(15L, 30L, 45L, 60L, 120L) else listOf(10L, 15L, 30L, 45L, 60L)
+                else -> if (actionMode == 0) listOf(5L, 10L, 15L, 20L, 30L) else listOf(5L, 10L, 15L, 20L, 30L)
+            }
+
             for (p in presets) {
                 val chip = Button(activity).apply {
                     val label = if (p >= 60 && p % 60 == 0L) "${p / 60}h" else "${p}m"
-                    text = if (isAddMode) "+$label" else "-$label"
+                    text = when (actionMode) {
+                        0 -> "+$label"
+                        1 -> "-$label"
+                        else -> label
+                    }
                     textSize = 11f
                     typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                     setTextColor(Color.WHITE)
                     background = GradientDrawable().apply {
                         cornerRadius = dp(10).toFloat()
-                        setColor(if (isAddMode) Color.parseColor("#1E293B") else Color.parseColor("#3F1B1B"))
+                        setColor(if (actionMode == 1) Color.parseColor("#3F1B1B") else Color.parseColor("#1E293B"))
                     }
                     layoutParams = LinearLayout.LayoutParams(0, dp(36), 1f).apply {
                         setMargins(dp(2), 0, dp(2), 0)
@@ -1238,27 +1485,95 @@ object DeveloperToolsHelper {
 
             val enteredMins = minutesInput.text.toString().toLongOrNull() ?: 0L
             val enteredSecs = enteredMins * 60L
-            if (isAddMode) {
-                val newTotalSecs = currentTotalSecs + enteredSecs
+
+            if (isFocusCategory) {
+                val curH = effectiveFocusMins / 60L
+                val curM = effectiveFocusMins % 60L
+                summaryCurrentText.text = "• Current Recorded Focus: ${curH}h ${curM}m ($effectiveFocusMins mins)"
+
+                val newTotalSecs = when (actionMode) {
+                    0 -> effectiveFocusSecs + enteredSecs
+                    1 -> (effectiveFocusSecs - enteredSecs).coerceAtLeast(0L)
+                    else -> enteredSecs
+                }
                 val newH = newTotalSecs / 3600L
                 val newM = (newTotalSecs % 3600L) / 60L
-                summaryPreviewText.text = "✨ Will add ${enteredMins}m to today's focus → New Total: ${newH}h ${newM}m"
-                summaryPreviewText.setTextColor(themeCoordinator.primaryColor)
+
+                when (actionMode) {
+                    0 -> {
+                        summaryResultText.text = "✨ Will add ${enteredMins}m → New Focus Total: ${newH}h ${newM}m"
+                        summaryResultText.setTextColor(themeCoordinator.primaryColor)
+                        applyBtn.text = "ADD ${enteredMins}m TO FOCUS"
+                    }
+                    1 -> {
+                        summaryResultText.text = "⚠️ Will deduct ${enteredMins}m → New Focus Total: ${newH}h ${newM}m"
+                        summaryResultText.setTextColor(Color.parseColor("#F59E0B"))
+                        applyBtn.text = "DEDUCT ${enteredMins}m FROM FOCUS"
+                    }
+                    else -> {
+                        summaryResultText.text = "🎯 Will set total focus to ${enteredMins}m (${newH}h ${newM}m)"
+                        summaryResultText.setTextColor(Color.parseColor("#38BDF8"))
+                        applyBtn.text = "SET FOCUS TOTAL TO ${enteredMins}m"
+                    }
+                }
             } else {
-                val newTotalSecs = (currentTotalSecs - enteredSecs).coerceAtLeast(0L)
+                // Break Category
+                val curH = effectiveBreakMins / 60L
+                val curM = effectiveBreakMins % 60L
+                summaryCurrentText.text = "• Current Recorded Break: ${curH}h ${curM}m ($effectiveBreakMins mins)"
+
+                val newTotalSecs = when (actionMode) {
+                    0 -> effectiveBreakSecs + enteredSecs
+                    1 -> (effectiveBreakSecs - enteredSecs).coerceAtLeast(0L)
+                    else -> enteredSecs
+                }
                 val newH = newTotalSecs / 3600L
                 val newM = (newTotalSecs % 3600L) / 60L
-                summaryPreviewText.text = "⚠️ Will deduct ${enteredMins}m from today's focus → New Total: ${newH}h ${newM}m"
-                summaryPreviewText.setTextColor(Color.parseColor("#F59E0B"))
+
+                when (actionMode) {
+                    0 -> {
+                        summaryResultText.text = "☕ Will add ${enteredMins}m → New Break Total: ${newH}h ${newM}m"
+                        summaryResultText.setTextColor(Color.parseColor("#F43F5E"))
+                        applyBtn.text = "ADD ${enteredMins}m TO BREAK"
+                    }
+                    1 -> {
+                        summaryResultText.text = "⚠️ Will deduct ${enteredMins}m → New Break Total: ${newH}h ${newM}m"
+                        summaryResultText.setTextColor(Color.parseColor("#F59E0B"))
+                        applyBtn.text = "DEDUCT ${enteredMins}m FROM BREAK"
+                    }
+                    else -> {
+                        summaryResultText.text = "🎯 Will set total break to ${enteredMins}m (${newH}h ${newM}m)"
+                        summaryResultText.setTextColor(Color.parseColor("#38BDF8"))
+                        applyBtn.text = "SET BREAK TOTAL TO ${enteredMins}m"
+                    }
+                }
+            }
+
+            applyBtn.background = GradientDrawable().apply {
+                cornerRadius = dp(14).toFloat()
+                setColor(activeColor)
             }
         }
 
+        focusTab.setOnClickListener {
+            isFocusCategory = true
+            updateUI()
+        }
+        breakTab.setOnClickListener {
+            isFocusCategory = false
+            updateUI()
+        }
+
         addBtn.setOnClickListener {
-            isAddMode = true
+            actionMode = 0
             updateUI()
         }
         deductBtn.setOnClickListener {
-            isAddMode = false
+            actionMode = 1
+            updateUI()
+        }
+        setBtn.setOnClickListener {
+            actionMode = 2
             updateUI()
         }
 
@@ -1268,82 +1583,155 @@ object DeveloperToolsHelper {
             override fun afterTextChanged(s: android.text.Editable?) {}
         })
 
-        root.addView(presetContainer)
-        root.addView(minutesInput)
-        root.addView(subjectPickerBtn)
-        root.addView(summaryPreviewText)
-
-        // Apply Button
-        val applyBtn = Button(activity).apply {
-            text = "APPLY ADJUSTMENT TO TODAY"
-            setTextColor(Color.WHITE)
-            textSize = 13f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            background = GradientDrawable().apply {
-                cornerRadius = dp(14).toFloat()
-                setColor(if (isAddMode) themeCoordinator.primaryColor else Color.parseColor("#EF4444"))
+        applyBtn.setOnClickListener {
+            val enteredMins = minutesInput.text.toString().toLongOrNull()
+            if (enteredMins == null || (actionMode != 2 && enteredMins <= 0)) {
+                Toast.makeText(activity, "Please enter a valid number of minutes", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(48))
-            setOnClickListener {
-                val enteredMins = minutesInput.text.toString().toLongOrNull() ?: 0L
-                if (enteredMins <= 0) {
-                    Toast.makeText(activity, "Please enter a valid number of minutes", Toast.LENGTH_SHORT).show()
-                    return@setOnClickListener
+
+            val enteredSecs = enteredMins * 60L
+            val isTargetToday = targetDateStr == todayStr
+            val now = System.currentTimeMillis()
+
+            if (isFocusCategory) {
+                val currentStoredFocus = sharedPrefs.getLong("${targetDateStr}_focus_total", 0L)
+                val runningStudy = if (isTargetToday) activity.accumulatedStudy else 0L
+                val currentEffectiveFocus = currentStoredFocus + runningStudy
+
+                val newTotalFocus = when (actionMode) {
+                    0 -> currentEffectiveFocus + enteredSecs
+                    1 -> (currentEffectiveFocus - enteredSecs).coerceAtLeast(0L)
+                    else -> enteredSecs
                 }
+                val deltaSecs = newTotalFocus - currentEffectiveFocus
 
-                val deltaSecs = if (isAddMode) enteredMins * 60L else -(enteredMins * 60L)
-                val updatedDayTotal = (currentTotalSecs + deltaSecs).coerceAtLeast(0L)
-                val now = System.currentTimeMillis()
-
-                sharedPrefs.edit()
-                    .putLong("${todayStr}_focus_total", updatedDayTotal)
-                    .putLong("last_data_modified_timestamp", now)
-                    .apply()
-
-                if (selectedSubject != null) {
-                    SubjectTagManager.adjustSubjectStudyTime(activity, selectedSubject!!.id, deltaSecs, todayStr)
-                }
-
-                if (isAddMode) {
-                    val startMs = now - (enteredMins * 60 * 1000L)
-                    TimelineLogger.recordRaw(
+                when (actionMode) {
+                    0 -> TimelineLogger.appendBlockForDay(
                         context = activity,
-                        state = "STUDYING",
-                        timestamp = startMs,
+                        dateStr = targetDateStr,
+                        durationSecs = enteredSecs,
+                        state = "MANUAL_FOCUS",
                         subId = selectedSubject?.id,
                         subName = selectedSubject?.name,
                         subColor = selectedSubject?.colorHex
                     )
-                    TimelineLogger.recordRaw(
+                    1 -> TimelineLogger.deductDurationForDay(
                         context = activity,
-                        state = "IDLE",
-                        timestamp = now
+                        dateStr = targetDateStr,
+                        deductSecs = enteredSecs,
+                        isBreak = false
+                    )
+                    else -> TimelineLogger.setTotalDurationForDay(
+                        context = activity,
+                        dateStr = targetDateStr,
+                        targetSecs = enteredSecs,
+                        isBreak = false,
+                        subId = selectedSubject?.id,
+                        subName = selectedSubject?.name,
+                        subColor = selectedSubject?.colorHex
                     )
                 }
 
-                activity.recalculateStreak()
-                activity.statsDirty = true
-                activity.tabPageCache.clear()
-                activity.refreshStatsPanel()
+                sharedPrefs.edit()
+                    .putLong("${targetDateStr}_focus_total", newTotalFocus)
+                    .putLong("${targetDateStr}_focus_manual", 0L)
+                    .putLong("last_data_modified_timestamp", now)
+                    .apply()
 
-                Thread {
-                    kotlinx.coroutines.runBlocking {
-                        CloudSyncManager.syncDataToCloud(activity)
-                    }
-                }.start()
+                if (isTargetToday) {
+                    activity.accumulatedStudy = 0L
+                    sharedPrefs.edit().putLong("accumulatedStudy", 0L).apply()
+                }
 
-                val msg = if (isAddMode) "Added ${enteredMins}m to today's focus!" else "Deducted ${enteredMins}m from today's focus!"
+                if (selectedSubject != null && deltaSecs != 0L) {
+                    SubjectTagManager.adjustSubjectStudyTime(activity, selectedSubject!!.id, deltaSecs, targetDateStr)
+                }
+
+                val msg = when (actionMode) {
+                    0 -> "Added ${enteredMins}m to ${if (isTargetToday) "today's" else targetDateStr} focus!"
+                    1 -> "Deducted ${enteredMins}m from ${if (isTargetToday) "today's" else targetDateStr} focus!"
+                    else -> "Set ${if (isTargetToday) "today's" else targetDateStr} focus total to ${enteredMins}m!"
+                }
                 Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show()
-                dialog.dismiss()
+            } else {
+                // Break Category
+                val currentStoredBreak = sharedPrefs.getLong("${targetDateStr}_break_total", 0L)
+                val runningBreak = if (isTargetToday) activity.currentBreakSeconds else 0L
+                val currentEffectiveBreak = currentStoredBreak + runningBreak
+
+                val newTotalBreak = when (actionMode) {
+                    0 -> currentEffectiveBreak + enteredSecs
+                    1 -> (currentEffectiveBreak - enteredSecs).coerceAtLeast(0L)
+                    else -> enteredSecs
+                }
+
+                when (actionMode) {
+                    0 -> TimelineLogger.appendBlockForDay(
+                        context = activity,
+                        dateStr = targetDateStr,
+                        durationSecs = enteredSecs,
+                        state = "MANUAL_BREAK"
+                    )
+                    1 -> TimelineLogger.deductDurationForDay(
+                        context = activity,
+                        dateStr = targetDateStr,
+                        deductSecs = enteredSecs,
+                        isBreak = true
+                    )
+                    else -> TimelineLogger.setTotalDurationForDay(
+                        context = activity,
+                        dateStr = targetDateStr,
+                        targetSecs = enteredSecs,
+                        isBreak = true
+                    )
+                }
+
+                sharedPrefs.edit()
+                    .putLong("${targetDateStr}_break_total", newTotalBreak)
+                    .putLong("${targetDateStr}_break_manual", 0L)
+                    .putLong("last_data_modified_timestamp", now)
+                    .apply()
+
+                if (isTargetToday) {
+                    activity.currentBreakSeconds = 0L
+                    sharedPrefs.edit().putLong("currentBreakSeconds", 0L).apply()
+                }
+
+                val msg = when (actionMode) {
+                    0 -> "Added ${enteredMins}m to ${if (isTargetToday) "today's" else targetDateStr} break!"
+                    1 -> "Deducted ${enteredMins}m from ${if (isTargetToday) "today's" else targetDateStr} break!"
+                    else -> "Set ${if (isTargetToday) "today's" else targetDateStr} break total to ${enteredMins}m!"
+                }
+                Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show()
             }
+
+            TimelineLogger.invalidate()
+            activity.statsEngine.forceReconcileDayTotals(targetDateStr)
+            activity.invalidateStatsCache()
+            activity.recalculateStreak()
+            activity.refreshStatsPanel()
+            activity.updateVisualStyles()
+            StudyWidgetProvider.refresh(activity)
+
+            Thread {
+                kotlinx.coroutines.runBlocking {
+                    CloudSyncManager.syncDataToCloud(activity)
+                }
+            }.start()
+
+            dialog.dismiss()
         }
-        root.addView(applyBtn)
 
         updateUI()
 
         dialog.setContentView(root)
-        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
-        dialog.window?.setLayout((activity.resources.displayMetrics.widthPixels * 0.90f).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
+        dialog.window?.apply {
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+            setGravity(Gravity.CENTER)
+            val width = (displayMetrics.widthPixels * 0.92f).toInt()
+            setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT)
+        }
         dialog.show()
     }
 

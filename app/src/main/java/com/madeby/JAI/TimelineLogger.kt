@@ -186,6 +186,122 @@ object TimelineLogger {
         }
     }
 
+    fun deductDurationForDay(
+        context: Context,
+        dateStr: String,
+        deductSecs: Long,
+        isBreak: Boolean
+    ) {
+        if (deductSecs <= 0L) return
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val parsed = runCatching { sdf.parse(dateStr) }.getOrNull() ?: Date()
+        val startCal = java.util.Calendar.getInstance().apply {
+            time = parsed
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        val dayStartMs = startCal.timeInMillis
+        val dayEndMs = dayStartMs + 24L * 3600_000L - 1000L
+
+        synchronized(this) {
+            val allEntries = load(context).toMutableList()
+            val parsedAll = parseDayBlocks(allEntries)
+            val allBlocks = if (isBreak) parsedAll.breaks else parsedAll.sessions
+            val dayBlocks = allBlocks.filter { it.startMs in dayStartMs..dayEndMs }
+
+            if (dayBlocks.isEmpty()) {
+                val prefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+                val key = if (isBreak) "${dateStr}_break_total" else "${dateStr}_focus_total"
+                val currentStored = prefs.getLong(key, 0L)
+                val remaining = (currentStored - deductSecs).coerceAtLeast(0L)
+                if (remaining > 0L) {
+                    val state = if (isBreak) "MANUAL_BREAK" else "MANUAL_FOCUS"
+                    appendBlockForDay(context, dateStr, remaining, state)
+                }
+                return
+            }
+
+            var remainingDeductSecs = deductSecs
+            var modifiedList = allEntries.toList()
+
+            for (block in dayBlocks.reversed()) {
+                if (remainingDeductSecs <= 0L) break
+                val blockSecs = block.secs
+                if (blockSecs <= remainingDeductSecs) {
+                    val list = modifiedList.toMutableList()
+                    list.removeAll { it.timestamp == block.startMs }
+                    val atEnd = list.firstOrNull { it.timestamp == block.endMs }
+                    if (atEnd != null && atEnd.state == "IDLE") {
+                        list.remove(atEnd)
+                    }
+                    modifiedList = list
+                    remainingDeductSecs -= blockSecs
+                } else {
+                    val newEndMs = block.endMs - (remainingDeductSecs * 1000L)
+                    val list = modifiedList.toMutableList()
+                    val oldEntry = list.firstOrNull { it.timestamp == block.startMs }
+                    list.removeAll { it.timestamp == block.startMs }
+                    val atOldEnd = list.firstOrNull { it.timestamp == block.endMs }
+                    if (atOldEnd != null && atOldEnd.state == "IDLE") {
+                        list.remove(atOldEnd)
+                    }
+                    list.removeAll { it.timestamp == newEndMs }
+                    val state = if (isBreak) "MANUAL_BREAK" else "MANUAL_FOCUS"
+                    val subId = block.subjectId ?: oldEntry?.subId
+                    val subName = block.subjectName ?: oldEntry?.subName
+                    val subColor = block.subjectColor ?: oldEntry?.subColor
+                    var updated = insertEntrySorted(list, TimelineEntry(block.startMs, state, subId = subId, subName = subName, subColor = subColor))
+                    updated = insertEntrySorted(updated, TimelineEntry(newEndMs, "IDLE"))
+                    modifiedList = updated
+                    remainingDeductSecs = 0L
+                }
+            }
+            persist(context, modifiedList)
+        }
+    }
+
+    fun setTotalDurationForDay(
+        context: Context,
+        dateStr: String,
+        targetSecs: Long,
+        isBreak: Boolean,
+        subId: String? = null,
+        subName: String? = null,
+        subColor: String? = null
+    ) {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val parsed = runCatching { sdf.parse(dateStr) }.getOrNull() ?: Date()
+        val startCal = java.util.Calendar.getInstance().apply {
+            time = parsed
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        val dayStartMs = startCal.timeInMillis
+        val dayEndMs = dayStartMs + 24L * 3600_000L - 1000L
+
+        synchronized(this) {
+            val entries = load(context)
+            val parsedAll = parseDayBlocks(entries)
+            val allBlocks = if (isBreak) parsedAll.breaks else parsedAll.sessions
+            val dayBlocks = allBlocks.filter { it.startMs in dayStartMs..dayEndMs }
+            val currentSum = dayBlocks.sumOf { it.secs }
+
+            if (targetSecs > currentSum) {
+                val delta = targetSecs - currentSum
+                val state = if (isBreak) "MANUAL_BREAK" else "MANUAL_FOCUS"
+                appendBlockForDay(context, dateStr, delta, state, subId = subId, subName = subName, subColor = subColor)
+            } else if (targetSecs < currentSum) {
+                val delta = currentSum - targetSecs
+                deductDurationForDay(context, dateStr, delta, isBreak)
+            }
+            Unit
+        }
+    }
+
     fun deleteEntry(context: Context, startMs: Long) {
         synchronized(this) {
             persist(context, removeEntryWithTs(load(context), startMs))

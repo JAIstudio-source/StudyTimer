@@ -12,8 +12,8 @@ class ThemeCoordinator(private val context: Context) {
     var bgColor = 0xFF000000.toInt()
     var boxColor = 0xFF121212.toInt()
     var textColor = 0xFFFFFFFF.toInt()
-    var primaryColor = Color.HSVToColor(floatArrayOf(234f, 0.65f, 0.95f))
-    var secondaryColor = Color.HSVToColor(floatArrayOf(1f, 0.65f, 0.95f))
+    var primaryColor = Color.parseColor("#A78BFA")
+    var secondaryColor = Color.parseColor("#38BDF8")
     var accentColor = Color.HSVToColor(floatArrayOf(36f, 0.80f, 0.95f))
 
     companion object {
@@ -54,10 +54,10 @@ class ThemeCoordinator(private val context: Context) {
             sharedPrefs.edit()
                 .putString("activeBgMode", "OLED")
                 .putString("ui_style", "BUBBLE")
-                .putInt("customHue", 234)
-                .putInt("customPrimary", Color.HSVToColor(floatArrayOf(234f, 0.65f, 0.95f)))
-                .putInt("customSecondaryHue", 1)
-                .putInt("customSecondary", Color.HSVToColor(floatArrayOf(1f, 0.65f, 0.95f)))
+                .putInt("customHue", 255)
+                .putInt("customPrimary", Color.parseColor("#A78BFA"))
+                .putInt("customSecondaryHue", 199)
+                .putInt("customSecondary", Color.parseColor("#38BDF8"))
                 .apply()
         }
 
@@ -89,8 +89,8 @@ class ThemeCoordinator(private val context: Context) {
             primaryColor = context.getColor(android.R.color.system_accent1_500)
             secondaryColor = context.getColor(android.R.color.system_accent2_500)
         } else {
-            primaryColor = sharedPrefs.safeInt("customPrimary", Color.HSVToColor(floatArrayOf(190f, 0.65f, 0.95f)))
-            secondaryColor = sharedPrefs.safeInt("customSecondary", Color.HSVToColor(floatArrayOf(120f, 0.65f, 0.95f)))
+            primaryColor = sharedPrefs.safeInt("customPrimary", Color.parseColor("#A78BFA"))
+            secondaryColor = sharedPrefs.safeInt("customSecondary", Color.parseColor("#38BDF8"))
         }
     }
 

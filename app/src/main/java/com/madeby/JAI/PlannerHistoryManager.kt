@@ -29,10 +29,88 @@ data class OverallPlannerInsights(
     val hasEnoughData: Boolean
 )
 
+data class GoalProgress(
+    val goalId: String,
+    val actualMinutes: Int,
+    val targetMinutes: Int,
+    val isAchieved: Boolean
+)
+
 object PlannerHistoryManager {
 
     private const val PREFS_NAME = "StudyTimerPrefs"
     private const val SNAPSHOT_KEY_SUFFIX = "_planner_snapshot"
+
+    fun calculateGoalProgress(
+        goals: List<PlannerGoal>,
+        totalFocusSecs: Long,
+        dailySubjectDurations: Map<String, Long>
+    ): Map<String, GoalProgress> {
+        val totalFocusMins = (totalFocusSecs / 60).toInt()
+        val result = mutableMapOf<String, GoalProgress>()
+
+        // 1. Separate subject-tagged goals and untagged goals
+        val subjectGoals = goals.filter { !it.subjectId.isNullOrBlank() && it.subjectId != "all" }
+        val untaggedGoals = goals.filter { it.subjectId.isNullOrBlank() || it.subjectId == "all" }
+
+        // 2. Process subject-tagged goals grouped by subjectId (isolated per subject)
+        val groupedSubjectGoals = subjectGoals.groupBy { it.subjectId!! }
+        for ((subId, subGoalsList) in groupedSubjectGoals) {
+            val availableSubjectMins = ((dailySubjectDurations[subId] ?: 0L) / 60).toInt()
+            var remainingSubjectMins = availableSubjectMins
+
+            val goalsWithTarget = subGoalsList.filter { it.targetMinutes > 0 }
+            val lastTargetGoalId = goalsWithTarget.lastOrNull()?.id
+
+            for (g in subGoalsList) {
+                if (g.targetMinutes <= 0) {
+                    val isAchieved = g.completed
+                    result[g.id] = GoalProgress(g.id, actualMinutes = availableSubjectMins, targetMinutes = 0, isAchieved = isAchieved)
+                } else {
+                    val allocated: Int
+                    if (g.id == lastTargetGoalId) {
+                        // Last goal with target gets all remaining time for this subject (e.g. 134/120)
+                        allocated = remainingSubjectMins
+                        remainingSubjectMins = (remainingSubjectMins - g.targetMinutes).coerceAtLeast(0)
+                    } else {
+                        allocated = minOf(remainingSubjectMins, g.targetMinutes)
+                        remainingSubjectMins = (remainingSubjectMins - g.targetMinutes).coerceAtLeast(0)
+                    }
+                    val isAchieved = allocated >= g.targetMinutes
+                    result[g.id] = GoalProgress(g.id, actualMinutes = allocated, targetMinutes = g.targetMinutes, isAchieved = isAchieved)
+                }
+            }
+        }
+
+        // 3. Compute untagged focus pool:
+        // Untagged focus = total focus minus all time spent on specific subjects
+        val totalSubjectTaggedMins = dailySubjectDurations.filterKeys { !it.isNullOrBlank() && it != "all" }.values.sumOf { (it / 60).toInt() }
+        var untaggedPoolMins = (totalFocusMins - totalSubjectTaggedMins).coerceAtLeast(0)
+
+        val untaggedGoalsWithTarget = untaggedGoals.filter { it.targetMinutes > 0 }
+        val lastUntaggedTargetGoalId = untaggedGoalsWithTarget.lastOrNull()?.id
+
+        for (g in untaggedGoals) {
+            if (g.targetMinutes <= 0) {
+                val isAchieved = g.completed
+                result[g.id] = GoalProgress(g.id, actualMinutes = 0, targetMinutes = 0, isAchieved = isAchieved)
+            } else {
+                val allocated: Int
+                if (g.id == lastUntaggedTargetGoalId) {
+                    // Last untagged goal gets all remaining untagged focus time (e.g. 134/120)
+                    allocated = untaggedPoolMins
+                    untaggedPoolMins = (untaggedPoolMins - g.targetMinutes).coerceAtLeast(0)
+                } else {
+                    allocated = minOf(untaggedPoolMins, g.targetMinutes)
+                    untaggedPoolMins = (untaggedPoolMins - g.targetMinutes).coerceAtLeast(0)
+                }
+                val isAchieved = allocated >= g.targetMinutes
+                result[g.id] = GoalProgress(g.id, actualMinutes = allocated, targetMinutes = g.targetMinutes, isAchieved = isAchieved)
+            }
+        }
+
+        return result
+    }
 
     fun snapshotToday(context: Context, goals: List<PlannerGoal>) {
         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
@@ -42,37 +120,23 @@ object PlannerHistoryManager {
     fun snapshotForDate(context: Context, dateStr: String, goals: List<PlannerGoal>) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val dayFocusSecs = prefs.getLong("${dateStr}_focus_total", 0L)
-        val totalFocusMins = (dayFocusSecs / 60).toInt()
         val dailySubjectDurations = SubjectTagManager.getSubjectDurationsForDate(context, dateStr)
 
-        val achievementMap = mutableMapOf<String, Boolean>()
-        for (g in goals) {
-            if (!g.completed) {
-                achievementMap[g.id] = false
-                continue
-            }
-            val target = g.targetMinutes
-            if (target > 0) {
-                val availableMins = if (!g.subjectId.isNullOrBlank() && g.subjectId != "all") {
-                    ((dailySubjectDurations[g.subjectId] ?: 0L) / 60).toInt()
-                } else {
-                    totalFocusMins
-                }
-                achievementMap[g.id] = availableMins >= target
-            } else {
-                achievementMap[g.id] = true
-            }
-        }
+        val progressMap = calculateGoalProgress(goals, dayFocusSecs, dailySubjectDurations)
 
         val array = JSONArray()
         for (g in goals) {
-            val isAchieved = achievementMap[g.id] ?: false
+            val prog = progressMap[g.id]
+            val autoCompleted = if (g.targetMinutes > 0) (prog?.isAchieved ?: false) else g.completed
+            val isCompleted = g.completed || autoCompleted
+            val isAchieved = if (g.targetMinutes > 0) (prog?.isAchieved ?: false) else isCompleted
+
             val obj = JSONObject().apply {
                 put("goalId", g.id)
                 put("title", g.title)
                 put("targetMinutes", g.targetMinutes)
-                put("completed", g.completed)
-                put("checkedAt", g.checkedAt)
+                put("completed", isCompleted)
+                put("checkedAt", if (isCompleted && g.checkedAt == 0L) System.currentTimeMillis() else g.checkedAt)
                 put("isAchieved", isAchieved)
                 if (g.subjectId != null) {
                     put("subjectId", g.subjectId)

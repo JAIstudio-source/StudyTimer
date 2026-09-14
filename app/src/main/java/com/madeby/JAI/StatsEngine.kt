@@ -47,7 +47,7 @@ class StatsEngine(private val context: Context) {
     }
 
     fun dayBlocks(dateStr: String): Pair<List<BlockInfo>, List<BlockInfo>> {
-        val entries = TimelineLogger.load(context)
+        val entries = TimelineLogger.load(context).sortedBy { it.timestamp }
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val parsedStart = runCatching { sdf.parse(dateStr)?.time }.getOrNull() ?: 0L
         val startCal = Calendar.getInstance().apply {
@@ -56,8 +56,84 @@ class StatsEngine(private val context: Context) {
         }
         val startMs = startCal.timeInMillis
         val endMs = (startCal.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, 1) }.timeInMillis
-        val dayEntries = entries.filter { it.timestamp in startMs until endMs }.sortedBy { it.timestamp }
-        return dayBlocks(dateStr, dayEntries)
+
+        val parsed = parseDayBlocks(entries)
+        val sessions = ArrayList<BlockInfo>()
+        val breaks = ArrayList<BlockInfo>()
+
+        for (s in parsed.sessions) {
+            if (s.startMs in startMs until endMs) {
+                sessions.add(s)
+            }
+        }
+        for (b in parsed.breaks) {
+            if (b.startMs in startMs until endMs) {
+                breaks.add(b)
+            }
+        }
+
+        val dateSdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val isToday = dateStr == dateSdf.format(Date())
+        val timerState = prefs.getString("timerState", "IDLE") ?: "IDLE"
+        val timerRunning = timerState == "STUDYING" || timerState == "BREAK"
+
+        if (parsed.openFocusStart != null) {
+            val fs = parsed.openFocusStart
+            if (fs in startMs until endMs) {
+                val endTs = if (isToday && timerRunning) System.currentTimeMillis() else (entries.lastOrNull()?.timestamp ?: fs)
+                val gapMs = (endTs - fs).coerceAtLeast(0L)
+                if (gapMs <= 24L * 3600_000) {
+                    sessions.add(
+                        BlockInfo(
+                            fs,
+                            endTs,
+                            gapMs / 1000L,
+                            isToday && timerRunning,
+                            parsed.openFocusManual,
+                            subjectId = parsed.openFocusSubId,
+                            subjectName = parsed.openFocusSubName,
+                            subjectColor = parsed.openFocusSubColor
+                        )
+                    )
+                }
+            }
+        }
+
+        if (parsed.openBreakStart != null) {
+            val bs = parsed.openBreakStart
+            if (bs in startMs until endMs) {
+                val endTs = if (isToday && timerRunning) System.currentTimeMillis() else (entries.lastOrNull()?.timestamp ?: bs)
+                val gapMs = (endTs - bs).coerceAtLeast(0L)
+                breaks.add(BlockInfo(bs, endTs, gapMs / 1000L, manual = parsed.openBreakManual))
+            }
+        }
+
+        val focusManual = prefs.getLong("${dateStr}_focus_manual", 0L)
+        val breakManual = prefs.getLong("${dateStr}_break_manual", 0L)
+        val hasRawManualFocus = entries.any { it.state == "MANUAL_FOCUS" && it.timestamp in startMs until endMs }
+        val hasRawManualBreak = entries.any { it.state == "MANUAL_BREAK" && it.timestamp in startMs until endMs }
+
+        if (focusManual != 0L && !hasRawManualFocus) {
+            if (sessions.isNotEmpty()) {
+                val last = sessions.last()
+                val adj = max(0L, last.secs + focusManual)
+                sessions[sessions.size - 1] = last.copy(secs = adj, endMs = last.startMs + adj * 1000L, manual = adj != last.secs)
+            } else if (focusManual > 0L) {
+                val lastEnd = entries.filter { it.timestamp in startMs until endMs }.lastOrNull()?.timestamp ?: startMs
+                sessions.add(BlockInfo(lastEnd, lastEnd + focusManual * 1000L, focusManual, manual = true))
+            }
+        }
+        if (breakManual != 0L && !hasRawManualBreak) {
+            if (breaks.isNotEmpty()) {
+                val last = breaks.last()
+                val adj = max(0L, last.secs + breakManual)
+                breaks[breaks.size - 1] = last.copy(secs = adj, endMs = last.startMs + adj * 1000L, manual = adj != last.secs)
+            } else if (breakManual > 0L) {
+                val lastEnd = entries.filter { it.timestamp in startMs until endMs }.lastOrNull()?.timestamp ?: startMs
+                breaks.add(BlockInfo(lastEnd, lastEnd + breakManual * 1000L, breakManual, manual = true))
+            }
+        }
+        return sessions to breaks
     }
 
     fun dayBlocks(dateStr: String, entries: List<TimelineEntry>): Pair<List<BlockInfo>, List<BlockInfo>> {

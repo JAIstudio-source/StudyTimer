@@ -190,7 +190,8 @@ object TimelineLogger {
         context: Context,
         dateStr: String,
         deductSecs: Long,
-        isBreak: Boolean
+        isBreak: Boolean,
+        adjustSubjects: Boolean = true
     ) {
         if (deductSecs <= 0L) return
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -237,6 +238,9 @@ object TimelineLogger {
                         list.remove(atEnd)
                     }
                     modifiedList = list
+                    if (!isBreak && adjustSubjects && block.subjectId != null) {
+                        SubjectTagManager.adjustSubjectStudyTime(context, block.subjectId, -blockSecs, dateStr)
+                    }
                     remainingDeductSecs -= blockSecs
                 } else {
                     val newEndMs = block.endMs - (remainingDeductSecs * 1000L)
@@ -255,6 +259,9 @@ object TimelineLogger {
                     var updated = insertEntrySorted(list, TimelineEntry(block.startMs, state, subId = subId, subName = subName, subColor = subColor))
                     updated = insertEntrySorted(updated, TimelineEntry(newEndMs, "IDLE"))
                     modifiedList = updated
+                    if (!isBreak && adjustSubjects && subId != null) {
+                        SubjectTagManager.adjustSubjectStudyTime(context, subId, -remainingDeductSecs, dateStr)
+                    }
                     remainingDeductSecs = 0L
                 }
             }

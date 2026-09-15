@@ -495,9 +495,9 @@ class StatsEngine(private val context: Context) {
             val oldSecs = block.secs
             val newSecs = (newEndMs - newStartMs) / 1000L
             val delta = newSecs - oldSecs
-            val selectedSubject = SubjectTagManager.getSelectedSubject(context)
+            val subId = block.subjectId ?: SubjectTagManager.getSelectedSubject(context).id
             if (delta != 0L) {
-                SubjectTagManager.recordSubjectStudyTime(context, selectedSubject.id, delta, dateStr)
+                SubjectTagManager.adjustSubjectStudyTime(context, subId, delta, dateStr)
             }
         }
 

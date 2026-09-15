@@ -1620,7 +1620,8 @@ object DeveloperToolsHelper {
                         context = activity,
                         dateStr = targetDateStr,
                         deductSecs = enteredSecs,
-                        isBreak = false
+                        isBreak = false,
+                        adjustSubjects = (selectedSubject == null)
                     )
                     else -> TimelineLogger.setTotalDurationForDay(
                         context = activity,

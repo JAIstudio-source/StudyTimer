@@ -263,6 +263,7 @@ class MainActivity : AppCompatActivity() {
     private var lastShowPauseState: Boolean? = null
     private var lastDayBucket: Long = -1L
     private var cachedTodayStr = ""
+    private var lastStatsMinuteTick: Long = -1L
 
     internal lateinit var themeCoordinator: ThemeCoordinator
     private lateinit var backupManager: BackupManager
@@ -1865,6 +1866,11 @@ class MainActivity : AppCompatActivity() {
             currentStatsTab = AppStatsTab.OVERVIEW
             hasPlayedStatsEntranceAnimation = false
         }
+        if (targetPanel == AppPanel.STATS || targetPanel == AppPanel.HEATMAP) {
+            statsDirty = true
+            statsSnapshotCache = null
+            tabPageCache.clear()
+        }
         statsInternalRefresh = (targetPanel == AppPanel.STATS && currentPanel == AppPanel.STATS)
 
         if (currentPanel == AppPanel.STATS && targetPanel != AppPanel.STATS && targetPanel != AppPanel.HEATMAP) {
@@ -1989,6 +1995,28 @@ class MainActivity : AppCompatActivity() {
 
     private fun buildHeatmapData(): Map<String, Long> = statsEngine.buildHeatmapData()
 
+    internal fun resolveSubjectGoalFor(subjectId: String, dateStr: String): Long {
+        // 1. Check historical snapshot for the specific date
+        val snapshots = PlannerHistoryManager.loadDaySnapshot(this, dateStr)
+        val snapshotSubGoals = snapshots.filter { it.subjectId == subjectId && it.targetMinutes > 0 }
+        if (snapshotSubGoals.isNotEmpty()) {
+            val totalMins = snapshotSubGoals.sumOf { it.targetMinutes }
+            if (totalMins > 0) return totalMins * 60L
+        }
+
+        // 2. Check active planner goals
+        val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val activeGoals = loadSessionGoalsFromJson(prefs.getString("session_goals_json", "[]") ?: "[]")
+        val activeSubGoals = activeGoals.filter { it.subjectId == subjectId && it.targetMinutes > 0 }
+        if (activeSubGoals.isNotEmpty()) {
+            val totalMins = activeSubGoals.sumOf { it.targetMinutes }
+            if (totalMins > 0) return totalMins * 60L
+        }
+
+        // 3. Baseline fallback if no subject goal is set in planner: 1 hour 30 minutes (90m = 5400s)
+        return 90L * 60L
+    }
+
     private fun buildHeatmapFullscreenPanel() {
         val heatmapData = statsSnapshotCache?.heatmapData ?: buildHeatmapData()
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -2092,7 +2120,7 @@ class MainActivity : AppCompatActivity() {
                         activeHeatmapSubjectId = sub.id
                         refreshHeatmapFilterChips()
                         val filteredData = SubjectTagManager.getSubjectHeatmapData(this@MainActivity, sub.id)
-                        heatmapView.setData(filteredData, subCol, themeCoordinator.textColor, { resolveGoalFor(it) })
+                        heatmapView.setData(filteredData, subCol, themeCoordinator.textColor, { resolveSubjectGoalFor(sub.id, it) })
                     }
                 }
                 subjectRow.addView(chip)
@@ -7672,11 +7700,11 @@ class MainActivity : AppCompatActivity() {
             TimelineLogger.deleteBlock(this, block.startMs, block.endMs)
             statsEngine.forceReconcileDayTotals(dateStr)
             if (!isBreak) {
-                val s = SubjectTagManager.getSelectedSubject(this)
+                val subId = block.subjectId ?: SubjectTagManager.getSelectedSubject(this).id
                 val curSubjMap = SubjectTagManager.getSubjectDurationsForDate(this, dateStr)
-                val curSubjSecs = curSubjMap[s.id] ?: 0L
+                val curSubjSecs = curSubjMap[subId] ?: 0L
                 val deduct = Math.min(curSubjSecs, block.secs)
-                if (deduct > 0) SubjectTagManager.recordSubjectStudyTime(this, s.id, -deduct, dateStr)
+                if (deduct > 0) SubjectTagManager.adjustSubjectStudyTime(this, subId, -deduct, dateStr)
             }
             statsDirty = true
             statsSnapshotCache = null
@@ -8531,6 +8559,20 @@ class MainActivity : AppCompatActivity() {
             if (timerStateChanged) {
                 lastTickTimerState = currentTimerState
                 statsDirty = true
+                statsSnapshotCache = null
+                tabPageCache.clear()
+            }
+
+            val currentMinuteBucket = accumulatedStudy / 60L
+            val isMinuteTick = currentMinuteBucket != lastStatsMinuteTick && (currentTimerState == TimerState.STUDYING || currentTimerState == TimerState.BREAK)
+            if (isMinuteTick) {
+                lastStatsMinuteTick = currentMinuteBucket
+                statsDirty = true
+                statsSnapshotCache = null
+                tabPageCache.clear()
+                if (currentPanel == AppPanel.STATS) {
+                    buildCurrentPanel()
+                }
             }
 
             maybeFireForegroundGoalPing(cachedTodayStr)

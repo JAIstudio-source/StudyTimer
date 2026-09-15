@@ -275,7 +275,7 @@ object SubjectTagManager {
     }
 
     fun recordSubjectStudyTime(context: Context, subjectId: String, durationSecs: Long, dateKey: String = getTodayKey()) {
-        if (durationSecs <= 0) return
+        if (durationSecs == 0L) return
         adjustSubjectStudyTime(context, subjectId, durationSecs, dateKey)
     }
 

@@ -1,7 +1,7 @@
 {
-  "versionCode": 22,
-  "versionName": "2.9.0",
+  "versionCode": 23,
+  "versionName": "2.9.1",
   "url": "https://get-studytimer.vercel.app/?download=true",
   "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-  "releaseNotes": "What's New in Version 2.9.0 🚀\n- Accidental Time Addition & Deduction: Add missed study time or deduct accidental timer sessions & break times with real-time sync across all insights, heatmaps, and charts.\n- Reworked Habit & Goal Planner: Completely reworked daily goals and habits checklist with seamless state management and zero screen flickering.\n- Improved Stability & Bug Fixes: Enhanced database consistency, improved developer suite, and major performance optimizations."
+  "releaseNotes": "What's New in Version 2.9.1 🚀\n- Real-Time Total Focus Updates: Total focus time now updates simultaneously every minute and on user actions across all insights without needing to end the session.\n- Subject Heatmap Planner Sync: Subject-wise heatmaps now automatically sync and scale to your Planner subject goals (defaulting to 1h 30m if no goal is set).\n- Subject Time Deduction & Logging Fixes: Enhanced subject time addition, deduction, and block deletions with 100% data consistency across timeline logs and daily stats."
 }

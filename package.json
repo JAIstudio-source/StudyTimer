@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "test": "node test/agent-readiness.test.js"
+    "test": "node test/agent-readiness.test.js",
+    "generate:feature": "node scripts/generate_feature_graphic.mjs",
+    "generate:showcase": "node scripts/generate_showcase.mjs",
+    "generate:screenshots": "node scripts/generate_plain_screenshots.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.48.1",

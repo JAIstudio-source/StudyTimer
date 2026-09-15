@@ -1,11 +1,12 @@
-# StudyTimer ASO Screenshot Pairings
+# StudyTimer ASO Screenshot Pairings (Updated)
 
-| # | Benefit | Raw Screenshot File | Screen Content | Rating | Breakout Element |
-|---|---|---|---|---|---|
-| 01 | **MASTER YOUR FOCUS**<br>`DISTRACTION-FREE AMOLED TIMER & MODES` | `screenshots/raw/screen_01_focus.png` | Focus dial with active timer & subject | **Great** | Floating glowing timer ring with subject chip |
-| 02 | **DEEP STUDY INSIGHTS**<br>`DAILY AVERAGES, STREAKS & HEATMAPS` | `screenshots/raw/screen_02_overview.png` | Today's Focus stats, streaks, 7-day chart & heatmap | **Great** | Today's Focus Card + Streak badge pop-out |
-| 03 | **LOG EVERY SESSION**<br>`INTERACTIVE CALENDAR & TIMELINE` | `screenshots/raw/screen_03_calendar.png` | History calendar with completion rings & goal metrics | **Great** | Monthly Calendar widget with completed rings |
-| 04 | **BUILD DAILY HABITS**<br>`GOAL PLANNER & CONSISTENCY MATRIX` | `screenshots/raw/screen_04_planner.png` | Daily Planner with subject targets & habit matrix | **Great** | Goal item cards & streak counter |
-| 05 | **TRACK BY SUBJECT**<br>`COLOR-CODED TAGS & SUBJECT INSIGHTS` | `screenshots/raw/screen_05_subjects.png` | Select Study Subject dialog with colorful subject tags | **Great** | Subject selector card with custom subject button |
-| 06 | **SHARE YOUR MILESTONES**<br>`BEAUTIFUL WEEKLY SUMMARY CARDS` | `screenshots/raw/screen_06_summary.png` | Weekly summary card with distribution bars & streak | **Great** | Weekly Summary Card with 100% Goal Badge |
-| 07 | **ZERO ADS, 100% OFFLINE**<br>`PURE PRIVACY WITH CLOUD BACKUPS` | `screenshots/raw/screen_07_settings.png` | Settings, guest offline mode & OLED theme controls | **Great** | Offline status badge & theme toggle card |
+| # | Headline | Subtitle | Raw Screenshot File | 3D Floating Pop-out Element |
+|---|---|---|---|---|
+| 01 | **Stay Motivated With Daily Goals** | Set subject targets and build consistent study habits | `screenshots/assets/screen_05_insight-goal-planner.jpg` | "4 of 4 completed (100%)" banner & "Solve Calculus Problems" task card |
+| 02 | **Stay Focused With Pomodoro** | Take structured breaks to keep your mind fresh and energized | `screenshots/assets/screen_09_pomodoro.jpg` | Glowing countdown circle (`04:34`) & "Break in Progress" chip |
+| 03 | **Beautiful Study Insights** | Visualize daily averages, streaks, and study heatmaps | `screenshots/assets/screen_02_insight.jpg` | "Today's Focus (3h 40m - 6d streak)" card with 488% badge |
+| 04 | **Track Time Across Subjects** | See exact breakdown for all your study subjects | `screenshots/assets/screen_04_insight-pie-chart.jpg` | Subject details multi-color pie chart |
+| 05 | **Organize Your Study Subjects** | Color-coded tags for lectures, homework, and custom topics | `screenshots/assets/screen_11_subjects.jpg` | "Select Study Subject" dialog modal with colored tags |
+| 06 | **Celebrate Your Milestones** | Export weekly summary report cards | `screenshots/assets/screen_06_summary.jpg` | Weekly summary progress card with 100% goal badge |
+| 07 | **Log Every Single Session** | Track your consistency with interactive calendar rings | `screenshots/assets/screen_03_insight-calendar.jpg` | September calendar card with green completed rings |
+| 08 | **Built for Pure Focus & Privacy** | AMOLED black themes, 100% offline with zero ads | `screenshots/assets/screen_08_setting-theme.jpg` | Theme & Surface styling options card |

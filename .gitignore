@@ -46,3 +46,6 @@ schema_analytics.sql
 mcp_config.json
 .agents/mcp_config.json
 skills-lock.json
+
+# Local backup & exports
+Previous_Versions/

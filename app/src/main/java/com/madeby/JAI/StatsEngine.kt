@@ -321,6 +321,19 @@ class StatsEngine(private val context: Context) {
         val dayNameSdf = SimpleDateFormat("EEEE", Locale.getDefault())
         val bestWeekdayName = dayNameSdf.format(Calendar.getInstance().apply { set(Calendar.DAY_OF_WEEK, bestWeekdayIdx + 1) }.time)
 
+        var bestDaySecs = 0L
+        var bestDayDateStr = ""
+        var bestDayLabel = ""
+        val displayDateSdf = SimpleDateFormat("EEE, d MMM", Locale.getDefault())
+        dayFocus.maxByOrNull { it.value }?.let { best ->
+            if (best.value > 0L) {
+                bestDaySecs = best.value
+                bestDayDateStr = best.key
+                val parsed = try { sdf.parse(best.key) } catch (_: Exception) { null }
+                bestDayLabel = if (parsed != null) displayDateSdf.format(parsed) else best.key
+            }
+        }
+
         val weekTotals = HashMap<String, Long>()
         for (k in allFocusKeys) {
             val dStr = k.removeSuffix("_focus_total")
@@ -404,7 +417,7 @@ class StatsEngine(private val context: Context) {
         return StatsSnapshot(
             todayFocus, todayBreak, streak, avg7, yesterdaySecs, heroGoalSecs,
             totalLifeFocus, totalLifeBreak, totalLife, longestStreak, activeDays,
-            bestWeekdayName, bestWeekdaySecs, bestWeekLabel, bestWeekSecs,
+            bestWeekdayName, bestWeekdaySecs, bestDayLabel, bestDaySecs, bestDayDateStr, bestWeekLabel, bestWeekSecs,
             thisWeek, prevWeek, goalHits, hasAnySessions,
             showHeatmap, showPattern, showPieChart, heatmapData, blockSecs7, maxBlock7, blockSecs30, maxBlock30,
             patternTotal7, patternTotal30,

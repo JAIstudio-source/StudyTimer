@@ -121,12 +121,12 @@ class TimerService : Service() {
             TimerState.STUDYING -> getString(R.string.notif_title_studying)
             TimerState.BREAK -> getString(R.string.notif_title_break)
             TimerState.PAUSED -> getString(R.string.notif_title_paused)
-            TimerState.LECTURE_ENDED -> "Lecture Completed"
-            TimerState.IDLE -> "Scheduled Lecture Standby"
+            TimerState.LECTURE_ENDED -> "Class Ended"
+            TimerState.IDLE -> "Class Schedule Ready"
         }
         val content = when (currentTimerState) {
-            TimerState.IDLE -> "Monitoring class schedule in the background..."
-            TimerState.LECTURE_ENDED -> "Tap to start break or extend lecture"
+            TimerState.IDLE -> "Waiting for next scheduled class..."
+            TimerState.LECTURE_ENDED -> "Tap to take a break or extend your session"
             else -> if (timerMode == "COUNTDOWN" && currentTimerState == TimerState.STUDYING) {
                 getString(R.string.notif_content_countdown, formatTime(focusRemainingSecs), formatTime(currentBreakSeconds))
             } else {
@@ -529,8 +529,8 @@ class TimerService : Service() {
         val soundUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
         val notification = NotificationCompat.Builder(this, COMPLETION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_small_app_logo)
-            .setContentTitle("🎓 Scheduled Class Starting")
-            .setContentText("Class '$lectureTitle' is in progress. Tap to switch timer.")
+            .setContentTitle("Class Starting")
+            .setContentText("Class '$lectureTitle' has started. Tap to switch timer.")
             .setAutoCancel(true)
             .setSound(soundUri)
             .setDefaults(NotificationCompat.DEFAULT_SOUND or NotificationCompat.DEFAULT_LIGHTS)
@@ -721,8 +721,8 @@ class TimerService : Service() {
             this, 4, openIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val isLecture = timerMode == "LECTURE" || lectureModeEnabled || currentTimerState == TimerState.LECTURE_ENDED
-        val titleText = if (isLecture) "🎓 Class Ended" else getString(R.string.notif_complete_title)
-        val contentText = if (isLecture) "Has the lecture ended? Tap to start break or extend." else getString(R.string.notif_complete_text)
+        val titleText = if (isLecture) "Class Ended" else getString(R.string.notif_complete_title)
+        val contentText = if (isLecture) "Your class has ended. Tap to take a break or extend." else getString(R.string.notif_complete_text)
 
         val soundUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
         val notification = NotificationCompat.Builder(this, COMPLETION_CHANNEL_ID)

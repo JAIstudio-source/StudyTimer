@@ -2,19 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
   
-  <title>Privacy Policy - StudyTimer Android App</title>
-  <meta name="title" content="Privacy Policy - StudyTimer Android App">
-  <meta name="description" content="Official Privacy Policy for StudyTimer Android Application. Google Play Data Safety compliance, offline database storage, and cloud sync security.">
+  <title>Privacy Policy - StudyTimer for Android</title>
+  <meta name="title" content="Privacy Policy - StudyTimer for Android">
+  <meta name="description" content="Official Privacy Policy for StudyTimer Android Application. 100% offline-first storage and transparent data safety.">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://get-studytimer.vercel.app/privacy.html">
 
   <link rel="icon" href="assets/logo.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=3.0.02.1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=3.3.0">
 
   <!-- Breadcrumbs JSON-LD -->
   <script type="application/ld+json">
@@ -42,11 +42,12 @@
   <div class="bg-ambient-layer"></div>
 
   <!-- Header -->
-  <header class="site-header">
-    <div class="container nav-container">
-      <a href="/" class="brand-link">
-        <img src="assets/logo.png" alt="StudyTimer Logo" width="38" height="38">
-        <span>StudyTimer</span>
+  <header class="header-nav">
+    <div class="nav-container">
+      <a href="/" class="logo">
+        <img src="assets/logo.png" alt="StudyTimer Logo" class="nav-logo-img">
+        <span class="logo-text">StudyTimer</span>
+        <span class="logo-badge">For Android</span>
       </a>
       <a href="/" class="btn-secondary-pill">&larr; Return to Home</a>
     </div>
@@ -56,85 +57,82 @@
     <div class="nav-breadcrumbs">
       <a href="/">Home</a>
       <span>/</span>
-      <span style="color: var(--text-main);">Privacy Policy</span>
+      <span style="color: var(--text-primary);">Privacy Policy</span>
     </div>
 
     <article class="legal-document-card">
       <div class="eyebrow-badge">
-        <span>🔒 Data Safety &amp; Transparency</span>
+        <span>🔒 Data Safety &amp; Student Privacy</span>
       </div>
 
       <h1>Privacy Policy for StudyTimer</h1>
-      <div class="legal-date-meta">Last updated: September 3, 2026 &bull; Effective Date: August 14, 2026</div>
+      <div class="legal-date-meta">Effective Date: September 2026 • Free Android Study Companion</div>
 
       <p>
-        At <strong>StudyTimer</strong> ("we", "our", or "us"), we are committed to respecting and safeguarding your privacy. This Privacy Policy outlines what information we collect when you use the StudyTimer Android application and our associated web services, how that information is used, stored, and the rights you hold regarding your personal study data.
+        At <strong>StudyTimer</strong>, we believe in minimal data collection and zero privacy invasion. We built StudyTimer to help students focus on their homework, exams, and habits without tracking their personal lives.
       </p>
 
       <h2>1. Information We Collect</h2>
-      <p>We believe in minimal data collection. We only process data necessary to provide and sync your study sessions:</p>
+      <p>We do not collect unnecessary personal data. We only process data required to keep your study sessions running smoothly:</p>
       <ul>
-        <li><strong>Account Identifiers:</strong> When you choose to sign in via Google Authentication, we receive your basic profile identifiers (display name, email address, and profile picture avatar) solely to create and authenticate your account.</li>
-        <li><strong>Study &amp; Focus Records:</strong> Timestamps of study sessions, Pomodoro intervals, custom subject names, color tags, daily streak numbers, and target study goals.</li>
-        <li><strong>Crash &amp; Diagnostic Telemetry:</strong> Anonymized installation IDs and system logs to identify app crashes and improve stability across Android OS versions.</li>
+        <li><strong>Study Logs &amp; Streaks:</strong> Timestamps of study sessions, Pomodoro intervals, custom subject names, color tags, daily streaks, and target study goals.</li>
+        <li><strong>Google Account (Optional):</strong> If you choose to enable cloud backups, we receive your basic email identifier solely to connect your private backup database.</li>
+        <li><strong>Crash Diagnostics:</strong> Anonymous system reports to fix bugs on different Android phone models.</li>
       </ul>
 
-      <h2>2. How We Store Your Data</h2>
-      <p>
-        StudyTimer utilizes an offline-first hybrid architecture:
-      </p>
+      <h2>2. Where Your Study Data Is Stored</h2>
+      <p>StudyTimer is built with an offline-first architecture:</p>
       <ul>
-        <li><strong>Local Device Storage:</strong> All timer sessions and subject targets are stored locally using an encrypted SQLite/Room database on your device. You can use 100% of the app completely offline.</li>
-        <li><strong>Cloud Backup (Optional):</strong> If you choose to enable cloud synchronization with your Google Account, your data is transmitted securely over HTTPS (TLS 1.3) and stored in our Supabase PostgreSQL database with strict Row Level Security (RLS) policies.</li>
+        <li><strong>On Your Android Phone:</strong> 100% of your study timers, subjects, and calendar streaks are stored locally on your device in a private offline database. The app works completely offline.</li>
+        <li><strong>Cloud Backup (Optional):</strong> If you turn on cloud sync, your data is sent securely using encrypted connections (HTTPS/TLS) to keep your study records safe if you switch devices.</li>
       </ul>
 
-      <h2>3. Third-Party Services &amp; Subprocessors</h2>
-      <p>We do not sell, rent, or trade your personal information to third parties. We use trusted infrastructure providers solely to support app functionality:</p>
-      <ul>
-        <li><strong>Supabase (Authentication &amp; Database):</strong> For secure user authentication and cloud database sync.</li>
-        <li><strong>Google Play Services:</strong> For app distribution, updates, and core Android lifecycle management.</li>
-        <li><strong>Vercel:</strong> For hosting web portals and anonymous aggregated web analytics.</li>
-      </ul>
+      <h2>3. Third-Party Services &amp; Advertising</h2>
+      <p>We do not sell, rent, or trade student data. There are <strong>zero third-party advertisements</strong> or tracking trackers inside the StudyTimer Android app.</p>
 
-      <h2>4. Data Retention &amp; Permanent Deletion</h2>
-      <p>
-        You maintain complete ownership of your data. You may request permanent deletion of your account and all associated cloud backups at any time:
-      </p>
-      <ul>
-        <li><strong>In-App Instant Deletion:</strong> Navigate to <em>Settings &gt; User Profile &gt; Delete Account &amp; Data</em>. This triggers an automated cascading wipe of all cloud and local records.</li>
-        <li><strong>Web Deletion Portal:</strong> If you no longer have the app installed, visit our dedicated <a href="delete-account.html">Account Deletion Portal</a> or email us directly at <a href="mailto:studytimer737@gmail.com">studytimer737@gmail.com</a>. Requests are fulfilled within 48 hours.</li>
-      </ul>
+      <h2>4. Deleting Your Data</h2>
+      <p>You have full ownership of your data. You can delete all local data at any time by clearing app data in Android Settings, or use our <a href="delete-account.html" style="color: var(--accent-emerald); text-decoration: underline;">Account &amp; Data Deletion Portal</a>.</p>
 
-      <h2>5. Children's Privacy</h2>
-      <p>
-        StudyTimer does not knowingly collect personally identifiable information from children under the age of 13. If you believe your child has provided us with personal information, please contact us immediately, and we will promptly purge such data.
-      </p>
-
-      <h2>6. Updates to This Policy</h2>
-      <p>
-        We may update our Privacy Policy from time to time. Any changes will be posted on this page with an updated "Last updated" date. We encourage you to review this policy periodically.
-      </p>
-
-      <h2>7. Contact Support Team</h2>
-      <p>If you have questions, concerns, or requests regarding this Privacy Policy, please reach out to our team at:</p>
-      <p style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: var(--radius-md); padding: 1.5rem;">
-        <strong>StudyTimer Support Team</strong><br>
-        Email: <a href="mailto:studytimer737@gmail.com">studytimer737@gmail.com</a><br>
-        Website: <a href="https://get-studytimer.vercel.app">https://get-studytimer.vercel.app</a>
-      </p>
+      <h2>5. Contact Us</h2>
+      <p>If you have any questions regarding your privacy, please email us directly at <a href="mailto:studytimer737@gmail.com" style="color: var(--accent-emerald); text-decoration: underline;">studytimer737@gmail.com</a>.</p>
     </article>
   </main>
 
+  <!-- Footer -->
   <footer class="site-footer">
-    <div class="container footer-legal-bar" style="border-top: none; padding-top: 0;">
-      <div>&copy; 2026 StudyTimer. All rights reserved.</div>
-      <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
-        <a href="/">Home</a>
-        <a href="about.html">About</a>
-        <a href="contact.html">Contact</a>
-        <a href="docs.html">Docs</a>
-        <a href="terms.html">Terms</a>
-        <a href="delete-account.html">Account Deletion</a>
+    <div class="container footer-container">
+      <div class="footer-brand-col">
+        <a href="/" class="logo">
+          <img src="assets/logo.png" alt="StudyTimer Logo" class="nav-logo-img">
+          <span class="logo-text">StudyTimer</span>
+        </a>
+        <p class="footer-tagline">The 100% free study timer for students on Android. Zero ads, pure focus.</p>
+        <div class="footer-copyright">
+          © 2026 StudyTimer. Native Android App. All rights reserved.
+        </div>
+      </div>
+      <div class="footer-nav-col">
+        <h4>Product</h4>
+        <ul>
+          <li><a href="StudyTimer-release.apk" download>Download APK</a></li>
+          <li><a href="/#features">Pomodoro Timer</a></li>
+          <li><a href="/#streaks">Study Streaks</a></li>
+        </ul>
+      </div>
+      <div class="footer-nav-col">
+        <h4>Legal</h4>
+        <ul>
+          <li><a href="privacy.html">Privacy Policy</a></li>
+          <li><a href="terms.html">Terms of Service</a></li>
+          <li><a href="delete-account.html">Account Deletion</a></li>
+        </ul>
+      </div>
+      <div class="footer-nav-col">
+        <h4>Support</h4>
+        <ul>
+          <li><a href="contact.html">Contact Us</a></li>
+          <li><a href="mailto:studytimer737@gmail.com">studytimer737@gmail.com</a></li>
+        </ul>
       </div>
     </div>
   </footer>

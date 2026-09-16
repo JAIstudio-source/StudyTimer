@@ -33,7 +33,7 @@
             android:id="@+id/splashFooterText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Made with ❤️ by Pushkar"
+            android:text="Made with ❤️ by Team JAI"
             android:textColor="#FFFFFF"
             android:textSize="15sp"
             android:fontFamily="sans-serif-medium"

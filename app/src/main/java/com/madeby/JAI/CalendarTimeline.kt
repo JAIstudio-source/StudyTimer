@@ -64,7 +64,7 @@ class CalendarTimeline(private val host: MainActivity) {
 
             // Card Section Header
             calendarCard.addView(TextView(this).apply {
-                text = "📅 HISTORY CALENDAR & FOCUS LOGS"
+                text = "MONTHLY STUDY HISTORY"
                 setTextColor(themeCoordinator.primaryColor)
                 textSize = 11f
                 letterSpacing = 0.18f
@@ -115,7 +115,7 @@ class CalendarTimeline(private val host: MainActivity) {
             }
 
             val todayBtn = TextView(this).apply {
-                text = "Today 🎯"
+                text = "Today"
                 gravity = Gravity.CENTER
                 setTextColor(Color.WHITE)
                 textSize = 11.5f
@@ -243,8 +243,9 @@ class CalendarTimeline(private val host: MainActivity) {
                 gravity = Gravity.CENTER_VERTICAL
             }
             if (monthFocus > 0L) {
+                val goalDaysLabel = if (goalDays == 1) "1 Goal Met" else "$goalDays Goals Met"
                 summaryRow.addView(TextView(this).apply {
-                    text = "🎯 ${goalDays} Goal Days"
+                    text = goalDaysLabel
                     setTextColor(0xFF43D36E.toInt())
                     textSize = 12f
                     typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
@@ -259,7 +260,7 @@ class CalendarTimeline(private val host: MainActivity) {
                 val hrs = monthFocus / 3600
                 val mins = (monthFocus % 3600) / 60
                 summaryRow.addView(TextView(this).apply {
-                    text = "⏱️ ${hrs}h ${mins}m Total Focus"
+                    text = "${hrs}h ${mins}m Total Study"
                     setTextColor(themeCoordinator.primaryColor)
                     textSize = 12f
                     typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
@@ -272,7 +273,7 @@ class CalendarTimeline(private val host: MainActivity) {
                 })
             } else {
                 summaryRow.addView(TextView(this).apply {
-                    text = "📖 No study activity recorded for this month"
+                    text = "No study sessions recorded for this month"
                     setTextColor(themeCoordinator.textColor)
                     alpha = 0.5f
                     textSize = 12.5f

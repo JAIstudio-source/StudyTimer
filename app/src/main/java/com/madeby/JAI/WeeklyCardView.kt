@@ -206,7 +206,7 @@ class WeeklyCardView @JvmOverloads constructor(
 
         // Hero Label
         val heroLabelPaint = textPaint(34f * s, white90, Typeface.create("sans-serif-medium", Typeface.BOLD), 0.14f)
-        canvas.drawText("TOTAL FOCUS TIME", p + 30f * s, y + 50f * s, heroLabelPaint)
+        canvas.drawText("TOTAL STUDY TIME", p + 30f * s, y + 50f * s, heroLabelPaint)
 
         // Hero Big Numbers (High-Impact Display Weight)
         val heroTimeStr = formatTimeDetailed(d.totalSecs)
@@ -221,7 +221,7 @@ class WeeklyCardView @JvmOverloads constructor(
         canvas.drawText(heroTimeStr, p + 30f * s, y + 146f * s, heroNumberPaint)
 
         // Subtitle / Streak Pill
-        val streakText = if (d.streak > 0) "🔥 ${d.streak} Day Streak" else "⚡ Consistency Built"
+        val streakText = if (d.streak > 0) "${d.streak} Day Streak" else "Building Consistency"
         val streakPaint = textPaint(24f * s, accentCyan, Typeface.create("sans-serif-medium", Typeface.BOLD))
         canvas.drawText(streakText, p + 30f * s, y + 210f * s, streakPaint)
 
@@ -248,7 +248,7 @@ class WeeklyCardView @JvmOverloads constructor(
         })
 
         val chartHeaderPaint = textPaint(34f * s, white90, Typeface.create("sans-serif-medium", Typeface.BOLD), 0.14f)
-        canvas.drawText("DAILY FOCUS DISTRIBUTION", p + 30f * s, y + 50f * s, chartHeaderPaint)
+        canvas.drawText("DAILY STUDY TIME", p + 30f * s, y + 50f * s, chartHeaderPaint)
 
         val chartLeft = p + 28f * s
         val chartRight = w - p - 28f * s
@@ -264,7 +264,7 @@ class WeeklyCardView @JvmOverloads constructor(
 
         // Prominent Goal Target Pill in Top-Right of Chart Header (Never gets hidden by bars)
         if (avgGoal > 0f) {
-            val goalBadgeText = "🎯 TARGET: ${formatTime(avgGoal.toLong())}/D"
+            val goalBadgeText = "TARGET: ${formatTime(avgGoal.toLong())} / day"
             val goalBadgePaint = textPaint(20f * s, accentGold, Typeface.create("sans-serif-medium", Typeface.BOLD), 0.08f)
             val gbw = goalBadgePaint.measureText(goalBadgeText) + 28f * s
             val gbh = 40f * s
@@ -500,7 +500,7 @@ class WeeklyCardView @JvmOverloads constructor(
 
     private fun drawFooter(canvas: Canvas, w: Float, h: Float, s: Float, textColor: Int) {
         val footerPaint = textPaint(26f * s, textColor, Typeface.create("sans-serif-medium", Typeface.BOLD), 0.14f)
-        val text = "STUDYTIMER • 100% OFFLINE FOCUS & HABIT TRACKER"
+        val text = "STUDYTIMER • 100% OFFLINE FOCUS TRACKER"
         canvas.drawText(text, (w - footerPaint.measureText(text)) / 2f, h - 22f * s, footerPaint)
     }
 

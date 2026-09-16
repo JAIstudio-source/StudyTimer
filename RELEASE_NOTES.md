@@ -1,14 +1,15 @@
 # StudyTimer 2.9.2 (versionCode 24)
 
 What's New in Version 2.9.2 🚀
-- **All-Time Best Day & Best Week Highlights**: Pinned highlights now feature all-time best study days and best weeks with streamlined milestone tracking.
-- **Dynamic Goal Reached Indicator**: Today's Focus goal reached badge dynamically illuminates in emerald green as soon as daily goals are completed.
-- **Stylized Vector Donut Toggle**: Replaced standard food emoji with a custom high-precision vector donut icon in chart display settings.
-- **Brand & UI Refinements**: Updated opening splash screen with "Made with love by Team JAI", fixed weekly trend row color contrast, and streamlined highlight card density.
+- **Enhanced UI**: Refined visual aesthetics with vibrant dynamic indicators (such as the emerald green "Goal Reached" badge), updated Team JAI branding, and perfected theme contrast.
+- **New Donut Chart**: Introduced modern donut visualization with custom vector controls and optimized slice legends for subject focus breakdown.
+- **Enhanced Highlights**: Redesigned highlights section featuring all-time Best Day and Best Week milestones, compact pinned card layouts, and detailed record inspection.
+- **Minor Bug Fixes**: Fixed weekly trend table row contrast, resolved duplicate streak displays, and improved real-time session stats consistency.
 
 ## Compatibility
 - Android 9 (API 28) through Android 16 (API 36)
 
 ## Installation
 Install `StudyTimer-release.apk` (v2.9.2). Updating preserves all your study logs, streaks, and settings.
+
 

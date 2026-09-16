@@ -1,7 +1,7 @@
 {
-  "versionCode": 23,
-  "versionName": "2.9.1",
+  "versionCode": 24,
+  "versionName": "2.9.2",
   "url": "https://get-studytimer.vercel.app/?download=true",
   "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-  "releaseNotes": "What's New in Version 2.9.1 🚀\n- Real-Time Total Focus Updates: Total focus time now updates simultaneously every minute and on user actions across all insights without needing to end the session.\n- Subject Heatmap Planner Sync: Subject-wise heatmaps now automatically sync and scale to your Planner subject goals (defaulting to 1h 30m if no goal is set).\n- Subject Time Deduction & Logging Fixes: Enhanced subject time addition, deduction, and block deletions with 100% data consistency across timeline logs and daily stats."
+  "releaseNotes": "What's New in Version 2.9.2 🚀\n- All-Time Best Day & Best Week Highlights: Track your highest focus hours across all time with clean pinned highlights and enhanced milestone stats.\n- Dynamic Goal Reached Indicator: Goal Reached status badge turns emerald green when your daily focus goal is accomplished.\n- Stylized Vector Donut Toggle: Modern crisp vector donut icon in settings replacing default emoji.\n- Brand & UI Refinements: Updated Team JAI splash branding, perfected weekly trend row colorings, and enhanced highlights layout."
 }

@@ -223,12 +223,14 @@ ul {
 .btn-primary, .study-form-submit {
   background-color: #ffffff;
   color: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.9);
 }
 
 .btn-primary:hover, .study-form-submit:hover {
-  background-color: #f0f0f0;
+  background-color: #f4f4f5;
+  color: #000000;
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 24px rgba(255, 255, 255, 0.18);
   opacity: 1;
 }
 
@@ -249,7 +251,7 @@ ul {
   width: 100%;
 }
 
-/* Store Badge Buttons */
+/* Store Badge Buttons (Premium High-End Theme) */
 .hero-cta-group {
   display: flex;
   flex-wrap: wrap;
@@ -265,46 +267,76 @@ ul {
 .store-badge-btn {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 24px;
+  gap: 14px;
+  padding: 14px 28px;
   border-radius: var(--radius-md);
-  background: #18181b;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #ffffff;
   transition: all var(--transition-smooth);
 }
 
-.store-badge-btn:hover {
-  background: #27272a;
-  border-color: rgba(255, 255, 255, 0.3);
-  transform: translateY(-3px);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
-  opacity: 1;
-}
-
+/* Pure White Luxury APK Download Button */
 .btn-apk-download {
-  border-color: rgba(16, 185, 129, 0.3);
-  background: linear-gradient(180deg, rgba(16, 185, 129, 0.08) 0%, #18181b 100%);
+  background-color: #ffffff;
+  color: #000000;
+  border: 1px solid #ffffff;
+  box-shadow: 0 10px 30px rgba(255, 255, 255, 0.12), 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 .btn-apk-download:hover {
-  border-color: var(--accent-emerald);
-  box-shadow: 0 12px 28px rgba(16, 185, 129, 0.2);
+  background-color: #f4f4f5;
+  color: #000000;
+  transform: translateY(-3px);
+  box-shadow: 0 16px 36px rgba(255, 255, 255, 0.22), 0 4px 12px rgba(0, 0, 0, 0.6);
+  opacity: 1;
 }
 
-.store-icon {
-  width: 28px;
-  height: 28px;
+.btn-apk-download .store-icon {
+  width: 26px;
+  height: 26px;
+  color: #000000;
   flex-shrink: 0;
 }
 
-.store-btn-text {
-  display: flex;
-  flex-direction: column;
-  text-align: left;
+.btn-apk-download .store-small {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #52525b;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.1;
 }
 
-.store-small {
+.btn-apk-download .store-large {
+  font-size: 16px;
+  font-weight: 800;
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: #000000;
+}
+
+/* GitHub Secondary Button */
+.btn-github {
+  background-color: #141417;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+
+.btn-github:hover {
+  background-color: #1f1f23;
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+  opacity: 1;
+}
+
+.btn-github .store-icon {
+  width: 26px;
+  height: 26px;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.btn-github .store-small {
   font-size: 10px;
   text-transform: uppercase;
   color: var(--text-secondary);
@@ -312,12 +344,13 @@ ul {
   line-height: 1.1;
 }
 
-.store-large {
+.btn-github .store-large {
   font-size: 16px;
   font-weight: 700;
   font-family: var(--font-heading);
   letter-spacing: -0.01em;
   line-height: 1.2;
+  color: #ffffff;
 }
 
 /* ==========================================================================
@@ -1565,8 +1598,21 @@ ul {
 }
 
 @media (max-width: 768px) {
-  .nav-links, .nav-actions .apk-download-nav {
+  .nav-links {
     display: none;
+  }
+
+  .nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .nav-actions .apk-download-nav {
+    display: inline-flex !important;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 700;
   }
 
   .mobile-menu-btn {

@@ -3,11 +3,44 @@
 // ==========================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
+  initThemeToggle();
   initFaqAccordion();
   initUseCaseTabs();
   initMobileMenu();
   initSmoothScroll();
 });
+
+/**
+ * Theme Toggle (Light / Dark Mode)
+ */
+function initThemeToggle() {
+  const toggleButtons = document.querySelectorAll('.theme-toggle-btn');
+  
+  // Read current theme from document attribute or localStorage (default light)
+  const savedTheme = localStorage.getItem('studytimer-theme');
+  const activeTheme = savedTheme || document.documentElement.getAttribute('data-theme') || 'light';
+  document.documentElement.setAttribute('data-theme', activeTheme);
+
+  toggleButtons.forEach(btn => {
+    btn.setAttribute('aria-label', `Switch to ${activeTheme === 'dark' ? 'light' : 'dark'} mode`);
+    
+    btn.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      const targetTheme = current === 'dark' ? 'light' : 'dark';
+      
+      document.documentElement.setAttribute('data-theme', targetTheme);
+      try {
+        localStorage.setItem('studytimer-theme', targetTheme);
+      } catch (e) {
+        // localStorage error handling
+      }
+      
+      toggleButtons.forEach(b => {
+        b.setAttribute('aria-label', `Switch to ${targetTheme === 'dark' ? 'light' : 'dark'} mode`);
+      });
+    });
+  });
+}
 
 /**
  * Accessible FAQ Accordion

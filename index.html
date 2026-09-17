@@ -39,6 +39,15 @@
   
   <!-- Stylesheet -->
   <link rel="stylesheet" href="style.css?v=3.3.0">
+
+  <!-- Anti-FOUC Theme Initializer -->
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('studytimer-theme');
+      const theme = savedTheme || 'light';
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
 </head>
 <body>
 
@@ -60,11 +69,27 @@
       </nav>
 
       <div class="nav-actions">
+        <button class="theme-toggle-btn desktop-theme-toggle" id="themeToggleBtn" aria-label="Toggle dark and light mode" title="Toggle theme">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
         <a href="StudyTimer-release.apk" class="btn btn-primary btn-sm apk-download-nav" download>
           <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2a1 1 0 0 1 1 1v10.586l3.293-3.293a1 1 0 1 1 1.414 1.414l-5 5a1 1 0 0 1-1.414 0l-5-5a1 1 0 1 1 1.414-1.414L11 13.586V3a1 1 0 0 1 1-1zm-7 16a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1z"/>
           </svg>
-          Download App
+          <span>Download App</span>
         </a>
         <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle Navigation Menu">
           <span></span>
@@ -77,6 +102,13 @@
   <!-- Mobile Navigation Drawer -->
   <div class="mobile-nav-drawer" id="mobileDrawer">
     <div class="mobile-nav-content">
+      <div class="mobile-theme-row">
+        <span>Dark Theme</span>
+        <button class="theme-toggle-btn" id="mobileThemeToggleBtn" aria-label="Toggle dark and light mode">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        </button>
+      </div>
       <a href="#features" class="mobile-nav-link">Features</a>
       <a href="#screenshots" class="mobile-nav-link">App Screens</a>
       <a href="#streaks" class="mobile-nav-link">Streaks</a>
@@ -424,13 +456,13 @@
               <span class="bento-tag">05 // Private &amp; Offline</span>
               <h3 class="bento-title">Works 100% Offline with Backup</h3>
               <p class="bento-desc">
-                Your study hours stay safely saved on your Android phone. No internet connection needed, with optional Google Drive backup when you want it.
+                Your study hours stay safely saved on your Android phone. No internet connection needed, with optional Google backup when you want it.
               </p>
             </div>
             <div class="bento-graphic monochrome-graphic">
               <div class="mono-toggle-demo">
                 <div class="mono-side color-side">Works 100% Offline</div>
-                <div class="mono-side bw-side">Google Drive Backup</div>
+                <div class="mono-side bw-side">Google Backup</div>
               </div>
             </div>
           </div>

@@ -279,7 +279,7 @@ object CloudSyncManager {
                 TimelineLogger.importRaw(context, timelineToJsonString(localTimeline))
             }
 
-            // 2. Merge Preferences (Keep max of totals, merge keys)
+            // 2. Merge Preferences (Keep max of totals, merge keys, merge planner goals & snapshots)
             val cloudPrefsStr = cloudRecord.optString("prefs_data")
             if (cloudPrefsStr.isNotEmpty()) {
                 val cloudPrefs = JSONObject(cloudPrefsStr)
@@ -296,6 +296,38 @@ object CloudSyncManager {
                         val localVal = sharedPrefs.getLong(k, 0L)
                         val cloudVal = cloudPrefs.optLong(k, 0L)
                         editor.putLong(k, maxOf(localVal, cloudVal))
+                    } else if (k == "session_goals_json") {
+                        val localGoals = sharedPrefs.getString("session_goals_json", "[]") ?: "[]"
+                        val cloudGoals = cloudPrefs.optString("session_goals_json", "[]")
+                        if ((localGoals == "[]" || localGoals.isBlank()) && cloudGoals != "[]" && cloudGoals.isNotBlank()) {
+                            editor.putString("session_goals_json", cloudGoals)
+                        } else if (localGoals != "[]" && cloudGoals != "[]" && cloudGoals.isNotBlank()) {
+                            try {
+                                val localArr = JSONArray(localGoals)
+                                val cloudArr = JSONArray(cloudGoals)
+                                val seenIds = HashSet<String>()
+                                val mergedArr = JSONArray()
+                                for (i in 0 until localArr.length()) {
+                                    val obj = localArr.getJSONObject(i)
+                                    val id = obj.optString("id", "")
+                                    if (id.isNotEmpty()) seenIds.add(id)
+                                    mergedArr.put(obj)
+                                }
+                                for (i in 0 until cloudArr.length()) {
+                                    val obj = cloudArr.getJSONObject(i)
+                                    val id = obj.optString("id", "")
+                                    if (id.isNotEmpty() && !seenIds.contains(id)) {
+                                        seenIds.add(id)
+                                        mergedArr.put(obj)
+                                    }
+                                }
+                                editor.putString("session_goals_json", mergedArr.toString())
+                            } catch (_: Exception) {}
+                        }
+                    } else if (k.endsWith("_planner_snapshot")) {
+                        if (!sharedPrefs.contains(k) || sharedPrefs.getString(k, "[]") == "[]") {
+                            editor.putString(k, cloudPrefs.optString(k, "[]"))
+                        }
                     } else if (!sharedPrefs.contains(k)) {
                         val v = cloudPrefs.get(k)
                         when (v) {
@@ -308,7 +340,105 @@ object CloudSyncManager {
                 editor.apply()
             }
 
-            // 3. Mark modified and push merged result to cloud
+            // 3. Merge Subject Tags
+            val subjectTagsStr = if (cloudRecord.has("subject_tags_data") && cloudRecord.optString("subject_tags_data").isNotEmpty()) {
+                cloudRecord.optString("subject_tags_data")
+            } else if (cloudPrefsStr.isNotEmpty()) {
+                try {
+                    val pObj = JSONObject(cloudPrefsStr)
+                    pObj.optString("__subject_tags_data__", "")
+                } catch (_: Exception) { "" }
+            } else ""
+
+            if (subjectTagsStr.isNotEmpty()) {
+                val subPrefs = context.getSharedPreferences("studytimer_subject_tags", Context.MODE_PRIVATE)
+                val subEditor = subPrefs.edit()
+                val cloudSubObj = JSONObject(subjectTagsStr)
+
+                // Merge custom subjects
+                if (cloudSubObj.has("custom_subjects_json")) {
+                    val localCustom = subPrefs.getString("custom_subjects_json", "[]") ?: "[]"
+                    val cloudCustom = cloudSubObj.optString("custom_subjects_json", "[]")
+                    if (localCustom == "[]" || localCustom.isBlank()) {
+                        subEditor.putString("custom_subjects_json", cloudCustom)
+                    } else if (cloudCustom != "[]" && cloudCustom.isNotBlank()) {
+                        try {
+                            val localArr = JSONArray(localCustom)
+                            val cloudArr = JSONArray(cloudCustom)
+                            val seenIds = HashSet<String>()
+                            val mergedArr = JSONArray()
+                            for (i in 0 until localArr.length()) {
+                                val obj = localArr.getJSONObject(i)
+                                val id = obj.optString("id", "")
+                                if (id.isNotEmpty()) seenIds.add(id)
+                                mergedArr.put(obj)
+                            }
+                            for (i in 0 until cloudArr.length()) {
+                                val obj = cloudArr.getJSONObject(i)
+                                val id = obj.optString("id", "")
+                                if (id.isNotEmpty() && !seenIds.contains(id)) {
+                                    seenIds.add(id)
+                                    mergedArr.put(obj)
+                                }
+                            }
+                            subEditor.putString("custom_subjects_json", mergedArr.toString())
+                        } catch (_: Exception) {}
+                    }
+                }
+
+                // Merge hidden subjects
+                if (cloudSubObj.has("hidden_subjects_set")) {
+                    val localHidden = subPrefs.getStringSet("hidden_subjects_set", emptySet()) ?: emptySet()
+                    val mergedHidden = HashSet(localHidden)
+                    val rawCloudHidden = cloudSubObj.get("hidden_subjects_set")
+                    when (rawCloudHidden) {
+                        is JSONArray -> {
+                            for (i in 0 until rawCloudHidden.length()) {
+                                mergedHidden.add(rawCloudHidden.getString(i))
+                            }
+                        }
+                        is String -> {
+                            val cleaned = rawCloudHidden.trim().removeSurrounding("[", "]")
+                            cleaned.split(",").map { it.trim().removeSurrounding("\"") }.filter { it.isNotEmpty() }.forEach { mergedHidden.add(it) }
+                        }
+                    }
+                    subEditor.putStringSet("hidden_subjects_set", mergedHidden)
+                }
+
+                // Merge durations maps
+                for (durKey in listOf("subject_durations_json", "daily_subject_durations_json", "daily_subject_break_durations_json")) {
+                    if (cloudSubObj.has(durKey)) {
+                        val localDurStr = subPrefs.getString(durKey, "{}") ?: "{}"
+                        val cloudDurStr = cloudSubObj.optString(durKey, "{}")
+                        try {
+                            val localJson = JSONObject(localDurStr)
+                            val cloudJson = JSONObject(cloudDurStr)
+                            val dKeys = cloudJson.keys()
+                            while (dKeys.hasNext()) {
+                                val k = dKeys.next()
+                                val cv = cloudJson.get(k)
+                                if (cv is JSONObject) {
+                                    val localNested = localJson.optJSONObject(k) ?: JSONObject()
+                                    val nestedKeys = cv.keys()
+                                    while (nestedKeys.hasNext()) {
+                                        val nk = nestedKeys.next()
+                                        val maxSecs = maxOf(localNested.optLong(nk, 0L), cv.optLong(nk, 0L))
+                                        localNested.put(nk, maxSecs)
+                                    }
+                                    localJson.put(k, localNested)
+                                } else if (cv is Number) {
+                                    val maxSecs = maxOf(localJson.optLong(k, 0L), cv.toLong())
+                                    localJson.put(k, maxSecs)
+                                }
+                            }
+                            subEditor.putString(durKey, localJson.toString())
+                        } catch (_: Exception) {}
+                    }
+                }
+                subEditor.apply()
+            }
+
+            // 4. Mark modified and push merged result to cloud
             BackupManager(context).markDataModified()
             syncDataToCloud(context, force = true)
             BackupManager(context).runSilentAutoBackup()

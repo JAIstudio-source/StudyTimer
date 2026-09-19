@@ -97,44 +97,67 @@ object DeveloperToolsHelper {
         header.addView(openFullBtn)
         container.addView(header)
 
-        // Quick Action Row
-        val quickGrid = LinearLayout(activity).apply {
+        // Quick Action Rows
+        val quickGrid1 = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
-            setPadding(0, 0, 0, dp(8))
+            setPadding(0, 0, 0, dp(6))
+        }
+        val quickGrid2 = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, 0, 0, dp(4))
         }
 
         fun quickActionBtn(label: String, colorHex: Int, onClick: () -> Unit): View {
             return Button(activity).apply {
                 text = label
-                textSize = 11f
+                textSize = 10.5f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                 setTextColor(Color.WHITE)
                 background = GradientDrawable().apply {
                     cornerRadius = dp(12).toFloat()
                     setColor(colorHex)
                 }
-                setPadding(dp(4), dp(4), dp(4), dp(4))
-                layoutParams = LinearLayout.LayoutParams(0, dp(40), 1f).apply {
-                    setMargins(dp(3), 0, dp(3), 0)
+                setPadding(dp(2), dp(2), dp(2), dp(2))
+                layoutParams = LinearLayout.LayoutParams(0, dp(38), 1f).apply {
+                    setMargins(dp(2), 0, dp(2), 0)
                 }
                 setOnClickListener { onClick() }
             }
         }
 
-        quickGrid.addView(quickActionBtn("+25m Focus", themeCoordinator.primaryColor) {
+        quickGrid1.addView(quickActionBtn("+25m Focus", themeCoordinator.primaryColor) {
             fastForwardSession(activity, 25 * 60L)
         })
-        quickGrid.addView(quickActionBtn("Adjust Time", Color.parseColor("#38BDF8")) {
+        quickGrid1.addView(quickActionBtn("Adjust Time", Color.parseColor("#38BDF8")) {
             showAdjustTodayTimeDialog(activity, themeCoordinator, isDeveloperExtended = true)
         })
-        quickGrid.addView(quickActionBtn("Manual Log", Color.parseColor("#8B5CF6")) {
+        quickGrid1.addView(quickActionBtn("Manual Log", Color.parseColor("#8B5CF6")) {
             showManualSessionLoggerDialog(activity, themeCoordinator)
         })
-        quickGrid.addView(quickActionBtn("Seed 7D", Color.parseColor("#10B981")) {
-            seedRealisticHistory(activity, days = 7, deterministicSeed = 42L)
+        quickGrid1.addView(quickActionBtn("Today Burst", Color.parseColor("#EC4899")) {
+            seedPresetTodayBurst(activity)
+            Toast.makeText(activity, "Populated today with 4h 30m realistic focus!", Toast.LENGTH_SHORT).show()
         })
 
-        container.addView(quickGrid)
+        quickGrid2.addView(quickActionBtn("🔬 PCM", Color.parseColor("#10B981")) {
+            seedPresetPCM(activity)
+            Toast.makeText(activity, "Seeded PCM Showcase (Math, Physics, Chem, Mock)!", Toast.LENGTH_SHORT).show()
+        })
+        quickGrid2.addView(quickActionBtn("🩺 PCB", Color.parseColor("#06B6D4")) {
+            seedPresetPCB(activity)
+            Toast.makeText(activity, "Seeded PCB Showcase (Bio, Chem, Phys, NEET)!", Toast.LENGTH_SHORT).show()
+        })
+        quickGrid2.addView(quickActionBtn("💻 Tech/CS", Color.parseColor("#6366F1")) {
+            seedPresetCS(activity)
+            Toast.makeText(activity, "Seeded Tech/CS Showcase (DSA, Android, AI)!", Toast.LENGTH_SHORT).show()
+        })
+        quickGrid2.addView(quickActionBtn("🔥 30D Gold", Color.parseColor("#F59E0B")) {
+            seedPreset30DayStreak(activity)
+            Toast.makeText(activity, "Seeded 30-Day Master Golden Streak!", Toast.LENGTH_SHORT).show()
+        })
+
+        container.addView(quickGrid1)
+        container.addView(quickGrid2)
         return container
     }
 
@@ -255,6 +278,39 @@ object DeveloperToolsHelper {
                     onClick()
                 }
             }
+        }
+
+        // 0. One-Click Showcase Presets (For Screenshots & Marketing)
+        addSection("ONE-CLICK SHOWCASE PRESETS (SCREENSHOTS & MARKETING)", "📸") {
+            addView(devButton("🔬 Preset: PCM Engineering Aspirant (21 Days)", "Physics ⚛️, Chemistry 🧪, Math 📐, JEE Mock Drills 📝, linked goals & 21-day streak", Color.parseColor("#10B981")) {
+                seedPresetPCM(activity)
+                Toast.makeText(activity, "Seeded PCM Engineering Aspirant Showcase!", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            })
+
+            addView(devButton("🩺 Preset: PCB Medical Aspirant (21 Days)", "Biology 🧬, Chemistry 🧪, Physics ⚛️, NEET Drills 📑, linked goals & 21-day streak", Color.parseColor("#06B6D4")) {
+                seedPresetPCB(activity)
+                Toast.makeText(activity, "Seeded PCB Medical Aspirant Showcase!", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            })
+
+            addView(devButton("💻 Preset: CS & Software Engineering (21 Days)", "DSA ⚡, Android Architecture 📱, AI & ML 🤖, Open Source 🛠️, linked goals & 21-day streak", Color.parseColor("#8B5CF6")) {
+                seedPresetCS(activity)
+                Toast.makeText(activity, "Seeded CS & Software Engineering Showcase!", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            })
+
+            addView(devButton("🔥 Preset: 30-Day Master Golden Streak", "100% full-month heatmap, unbroken 30-day streak, perfect habit matrix", Color.parseColor("#F59E0B")) {
+                seedPreset30DayStreak(activity)
+                Toast.makeText(activity, "Seeded 30-Day Master Golden Streak!", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            })
+
+            addView(devButton("✨ Burst Today's Focus (4h 30m Real-time Demo)", "Populates today with 4h 30m across current subjects and marks today's goals", Color.parseColor("#EC4899")) {
+                seedPresetTodayBurst(activity)
+                Toast.makeText(activity, "Populated today with 4h 30m realistic focus!", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            })
         }
 
         // 1. Manual Session Logger & Mocking
@@ -951,28 +1007,201 @@ object DeveloperToolsHelper {
         activity.tabPageCache.clear()
     }
 
-    /**
-     * Deterministic, Realistic Mock Data Generator:
-     * - Fixed Subject Roster: Math (35%), Physics (30%), Chemistry (20%), Revision/General (15%)
-     * - Baseline daily routine (~3h to 4.5h) with Gaussian/normal variance (±15-25m)
-     * - Realistic habit patterns: Sundays have lighter rest sessions (1h - 1.5h)
-     * - Deterministic pseudo-random seed ensures consistent updates rather than wild disjunctions
-     */
-    private fun seedRealisticHistory(activity: MainActivity, days: Int, deterministicSeed: Long = 42L) {
+    data class PresetConfig(
+        val title: String,
+        val subjects: List<SubjectTag>,
+        val subjectWeights: List<Float>,
+        val goals: List<PlannerGoal>,
+        val days: Int = 21,
+        val dailyGoalMins: Long = 240L,
+        val baseMinsWeekday: Long = 270L,
+        val baseMinsWeekend: Long = 180L,
+        val seed: Long = 101L,
+        val todayFocusMinutes: Long = 215L
+    )
+
+    fun seedPresetPCM(activity: MainActivity) {
+        val subjects = listOf(
+            SubjectTag("pcm_math", "Mathematics", "📐", "#10B981"),
+            SubjectTag("pcm_physics", "Physics", "⚛️", "#8B5CF6"),
+            SubjectTag("pcm_chemistry", "Chemistry", "🧪", "#EC4899"),
+            SubjectTag("pcm_mock", "JEE Mock Tests & PYQs", "📝", "#F59E0B")
+        )
+        val goals = listOf(
+            PlannerGoal(id = "pcm_g1", title = "📐 Solve 25 Calculus & Integration PYQs", note = "Definite integrals & curve tracing", targetMinutes = 60, subjectId = "pcm_math"),
+            PlannerGoal(id = "pcm_g2", title = "⚛️ Physics Mechanics & Rotation Numericals", note = "Angular momentum & torque problems", targetMinutes = 50, subjectId = "pcm_physics"),
+            PlannerGoal(id = "pcm_g3", title = "🧪 Organic Chemistry Reaction Flowcharts", note = "Aldehydes, Ketones & Amines", targetMinutes = 45, subjectId = "pcm_chemistry"),
+            PlannerGoal(id = "pcm_g4", title = "📝 Full-Length JEE Test Error Analysis", note = "Speed & accuracy check", targetMinutes = 35, subjectId = "pcm_mock"),
+            PlannerGoal(id = "pcm_g5", title = "💧 Formula Sheet Evening Revision", note = "Quick flashcards & mental review", targetMinutes = 0, subjectId = null)
+        )
+        val config = PresetConfig(
+            title = "PCM Engineering Aspirant",
+            subjects = subjects,
+            subjectWeights = listOf(0.35f, 0.30f, 0.22f, 0.13f),
+            goals = goals,
+            days = 21,
+            dailyGoalMins = 240L,
+            baseMinsWeekday = 280L,
+            baseMinsWeekend = 190L,
+            seed = 101L,
+            todayFocusMinutes = 225L
+        )
+        applyComprehensivePreset(activity, config)
+    }
+
+    fun seedPresetPCB(activity: MainActivity) {
+        val subjects = listOf(
+            SubjectTag("pcb_bio", "Biology & Genetics", "🧬", "#10B981"),
+            SubjectTag("pcb_chem", "Chemistry & Biomolecules", "🧪", "#EC4899"),
+            SubjectTag("pcb_phys", "Physics (Optics & Waves)", "⚛️", "#8B5CF6"),
+            SubjectTag("pcb_neet", "NEET MCQ & NCERT Drills", "📑", "#06B6D4")
+        )
+        val goals = listOf(
+            PlannerGoal(id = "pcb_g1", title = "🧬 NCERT Line-by-Line Biology Revision", note = "Genetics, Evolution & Ecology", targetMinutes = 60, subjectId = "pcb_bio"),
+            PlannerGoal(id = "pcb_g2", title = "🧪 Biomolecules & Organic Reactions", note = "Polymers & Reaction Sheet", targetMinutes = 45, subjectId = "pcb_chem"),
+            PlannerGoal(id = "pcb_g3", title = "⚛️ Ray Optics & Wave Optics Numericals", note = "Formulas & 30 numericals", targetMinutes = 45, subjectId = "pcb_phys"),
+            PlannerGoal(id = "pcb_g4", title = "📑 60 NEET Speed Drills & Question Bank", note = "Timed test under 45 mins", targetMinutes = 40, subjectId = "pcb_neet"),
+            PlannerGoal(id = "pcb_g5", title = "🌿 Morning Biology Diagram Practice", note = "Nephron, Plant Anatomy & Flashcards", targetMinutes = 0, subjectId = null)
+        )
+        val config = PresetConfig(
+            title = "PCB Medical Aspirant",
+            subjects = subjects,
+            subjectWeights = listOf(0.40f, 0.25f, 0.22f, 0.13f),
+            goals = goals,
+            days = 21,
+            dailyGoalMins = 240L,
+            baseMinsWeekday = 290L,
+            baseMinsWeekend = 195L,
+            seed = 202L,
+            todayFocusMinutes = 235L
+        )
+        applyComprehensivePreset(activity, config)
+    }
+
+    fun seedPresetCS(activity: MainActivity) {
+        val subjects = listOf(
+            SubjectTag("cs_dsa", "DSA & Algorithms", "⚡", "#38BDF8"),
+            SubjectTag("cs_android", "Android & Architecture", "📱", "#10B981"),
+            SubjectTag("cs_ai", "AI & Deep Learning", "🤖", "#8B5CF6"),
+            SubjectTag("cs_oss", "Open Source & Systems", "🛠️", "#F59E0B")
+        )
+        val goals = listOf(
+            PlannerGoal(id = "cs_g1", title = "⚡ Solve 2 LeetCode Mediums (Trees/DP)", note = "Optimized space & time complexity", targetMinutes = 60, subjectId = "cs_dsa"),
+            PlannerGoal(id = "cs_g2", title = "📱 Clean Architecture & Kotlin Flow", note = "UseCases, Repositories & Tests", targetMinutes = 50, subjectId = "cs_android"),
+            PlannerGoal(id = "cs_g3", title = "🤖 Transformer Attention Mechanism Paper", note = "Math breakdown & embeddings", targetMinutes = 45, subjectId = "cs_ai"),
+            PlannerGoal(id = "cs_g4", title = "🛠️ Review PRs & Refactor Legacy Modules", note = "Zero warnings & clean build", targetMinutes = 35, subjectId = "cs_oss"),
+            PlannerGoal(id = "cs_g5", title = "☕ Read Tech RFC / System Design", note = "Daily engineering habit", targetMinutes = 0, subjectId = null)
+        )
+        val config = PresetConfig(
+            title = "Tech & Software Engineer",
+            subjects = subjects,
+            subjectWeights = listOf(0.35f, 0.30f, 0.20f, 0.15f),
+            goals = goals,
+            days = 21,
+            dailyGoalMins = 240L,
+            baseMinsWeekday = 270L,
+            baseMinsWeekend = 180L,
+            seed = 303L,
+            todayFocusMinutes = 220L
+        )
+        applyComprehensivePreset(activity, config)
+    }
+
+    fun seedPreset30DayStreak(activity: MainActivity) {
+        val subjects = listOf(
+            SubjectTag("pcm_math", "Mathematics", "📐", "#10B981"),
+            SubjectTag("pcm_physics", "Physics", "⚛️", "#8B5CF6"),
+            SubjectTag("pcm_chemistry", "Chemistry", "🧪", "#EC4899"),
+            SubjectTag("pcm_mock", "JEE Mock Tests & PYQs", "📝", "#F59E0B")
+        )
+        val goals = listOf(
+            PlannerGoal(id = "pcm_g1", title = "📐 Solve 25 Calculus & Integration PYQs", note = "Definite integrals & curve tracing", targetMinutes = 60, subjectId = "pcm_math"),
+            PlannerGoal(id = "pcm_g2", title = "⚛️ Physics Mechanics & Rotation Numericals", note = "Angular momentum & torque problems", targetMinutes = 50, subjectId = "pcm_physics"),
+            PlannerGoal(id = "pcm_g3", title = "🧪 Organic Chemistry Reaction Flowcharts", note = "Aldehydes, Ketones & Amines", targetMinutes = 45, subjectId = "pcm_chemistry"),
+            PlannerGoal(id = "pcm_g4", title = "📝 Full-Length JEE Test Error Analysis", note = "Speed & accuracy check", targetMinutes = 35, subjectId = "pcm_mock"),
+            PlannerGoal(id = "pcm_g5", title = "💧 Formula Sheet Evening Revision", note = "Quick flashcards & mental review", targetMinutes = 0, subjectId = null)
+        )
+        val config = PresetConfig(
+            title = "30-Day Master Golden Streak",
+            subjects = subjects,
+            subjectWeights = listOf(0.35f, 0.30f, 0.22f, 0.13f),
+            goals = goals,
+            days = 30,
+            dailyGoalMins = 240L,
+            baseMinsWeekday = 300L,
+            baseMinsWeekend = 220L,
+            seed = 777L,
+            todayFocusMinutes = 260L
+        )
+        applyComprehensivePreset(activity, config)
+    }
+
+    fun seedPresetTodayBurst(activity: MainActivity, minutes: Long = 270L) {
+        val subjects = SubjectTagManager.getAllSubjects(activity)
+        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val totalSecs = minutes * 60L
+        val breakSecs = (totalSecs * 0.18f).toLong()
+
+        val sharedPrefs = activity.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        sharedPrefs.edit()
+            .putLong("${todayStr}_focus_total", totalSecs)
+            .putLong("${todayStr}_break_total", breakSecs)
+            .putLong("accumulatedStudy", 0L)
+            .putLong("currentBreakSeconds", 0L)
+            .putLong("last_data_modified_timestamp", System.currentTimeMillis())
+            .apply()
+
+        activity.accumulatedStudy = 0L
+        activity.currentBreakSeconds = 0L
+
+        val subList = if (subjects.isEmpty()) {
+            listOf(SubjectTag("general", "General Focus", "⏱", "#10B981"))
+        } else subjects
+
+        val perSubjSecs = totalSecs / subList.size
+        for (s in subList) {
+            SubjectTagManager.recordSubjectStudyTime(activity, s.id, perSubjSecs, todayStr)
+        }
+
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 9)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+        }
+        val list = TimelineLogger.load(activity).filterNot {
+            val entryDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(it.timestamp))
+            entryDate == todayStr
+        }.toMutableList()
+
+        for (s in subList) {
+            val startMs = cal.timeInMillis
+            val endMs = startMs + (perSubjSecs * 1000L)
+            list.add(TimelineEntry(timestamp = startMs, state = "STUDYING", subId = s.id, subName = s.name, subColor = s.colorHex))
+            list.add(TimelineEntry(timestamp = endMs, state = "IDLE"))
+            cal.timeInMillis = endMs + (15 * 60 * 1000L)
+        }
+        list.sortBy { it.timestamp }
+        TimelineLogger.importRaw(activity, timelineToJsonString(list))
+
+        TimelineLogger.invalidate()
+        activity.statsEngine.forceReconcileDayTotals(todayStr)
+        activity.invalidateStatsCache()
+        activity.recalculateStreak()
+        activity.statsDirty = true
+        activity.tabPageCache.clear()
+        activity.refreshStatsPanel()
+        activity.updateVisualStyles()
+        StudyWidgetProvider.refresh(activity)
+    }
+
+    private fun applyComprehensivePreset(activity: MainActivity, config: PresetConfig) {
         val sharedPrefs = activity.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
         val editor = sharedPrefs.edit()
 
-        // Ensure fixed core roster exists
-        val coreSubjects = listOf(
-            SubjectTag("math", "Mathematics", "📐", "#10B981"),
-            SubjectTag("physics", "Physics", "⚛️", "#8B5CF6"),
-            SubjectTag("chemistry", "Chemistry", "🧪", "#EC4899"),
-            SubjectTag("revision", "Practice & Revision", "📝", "#F59E0B")
-        )
-
+        // 1. Save Subjects
         val subPrefs = activity.getSharedPreferences("studytimer_subject_tags", Context.MODE_PRIVATE)
         val customArray = JSONArray().apply {
-            for (s in coreSubjects) {
+            for (s in config.subjects) {
                 put(JSONObject().apply {
                     put("id", s.id)
                     put("name", s.name)
@@ -983,48 +1212,68 @@ object DeveloperToolsHelper {
         }
         subPrefs.edit().putString("custom_subjects_json", customArray.toString()).apply()
 
+        // 2. Clear old subject keys & planner keys
+        for (k in sharedPrefs.all.keys) {
+            if (k.startsWith("subject_") || k.endsWith("_planner_snapshot")) {
+                editor.remove(k)
+            }
+        }
+
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val cal = Calendar.getInstance()
         val timelineList = ArrayList<TimelineEntry>()
-        val rng = Random(deterministicSeed)
+        val rng = Random(config.seed)
 
-        for (i in days downTo 0) {
+        for (i in config.days downTo 0) {
             cal.time = Date()
             cal.add(Calendar.DAY_OF_YEAR, -i)
+            val isToday = (i == 0)
             val isSunday = cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY
             val dateStr = sdf.format(cal.time)
 
-            // Base daily focus: 3.5h (210 mins) on weekdays ± 20 mins variance; 1.2h (72 mins) on Sundays
-            val baseMins = if (isSunday) 75L else 210L
-            val varianceMins = rng.nextLong(-20, 25)
-            val totalDailyFocusSecs = (baseMins + varianceMins).coerceAtLeast(45L) * 60L
-            val totalDailyBreakSecs = (totalDailyFocusSecs * 0.20f).toLong()
+            val totalDailyFocusSecs = if (isToday) {
+                config.todayFocusMinutes * 60L
+            } else {
+                val baseMins = if (isSunday) config.baseMinsWeekend else config.baseMinsWeekday
+                val variance = rng.nextLong(-25, 30)
+                (baseMins + variance).coerceAtLeast(60L) * 60L
+            }
+            val totalDailyBreakSecs = (totalDailyFocusSecs * 0.18f).toLong()
 
             editor.putLong("${dateStr}_focus_total", totalDailyFocusSecs)
             editor.putLong("${dateStr}_break_total", totalDailyBreakSecs)
+            editor.remove("${dateStr}_focus_manual")
+            editor.remove("${dateStr}_break_manual")
 
-            // Distribution weights: Math 35%, Physics 30%, Chemistry 20%, Revision 15%
-            val mathSecs = (totalDailyFocusSecs * 0.35f).toLong()
-            val physSecs = (totalDailyFocusSecs * 0.30f).toLong()
-            val chemSecs = (totalDailyFocusSecs * 0.20f).toLong()
-            val revSecs = (totalDailyFocusSecs - mathSecs - physSecs - chemSecs).coerceAtLeast(0L)
+            // Distribute focus among subjects
+            val sessionList = mutableListOf<Pair<SubjectTag, Long>>()
+            var distributedSecs = 0L
+            for (idx in config.subjects.indices) {
+                val subj = config.subjects[idx]
+                val weight = config.subjectWeights.getOrElse(idx) { 1f / config.subjects.size }
+                val subjSecs = if (idx == config.subjects.size - 1) {
+                    (totalDailyFocusSecs - distributedSecs).coerceAtLeast(0L)
+                } else {
+                    (totalDailyFocusSecs * weight).toLong()
+                }
+                distributedSecs += subjSecs
+                if (subjSecs > 60L) {
+                    sessionList.add(subj to subjSecs)
+                    SubjectTagManager.recordSubjectStudyTime(activity, subj.id, subjSecs, dateStr)
+                }
+            }
 
-            val sessionSchedule = listOf(
-                Pair(coreSubjects[0], mathSecs),
-                Pair(coreSubjects[1], physSecs),
-                Pair(coreSubjects[2], chemSecs),
-                Pair(coreSubjects[3], revSecs)
-            ).filter { it.second > 60L }
-
-            var currentSessionStartCal = Calendar.getInstance().apply {
+            // Generate realistic timeline sessions (Morning -> Afternoon -> Evening)
+            val sessionCal = Calendar.getInstance().apply {
                 time = cal.time
-                set(Calendar.HOUR_OF_DAY, 9)
-                set(Calendar.MINUTE, 0)
+                set(Calendar.HOUR_OF_DAY, if (isSunday) 10 else 8)
+                set(Calendar.MINUTE, if (isSunday) 30 else 15)
                 set(Calendar.SECOND, 0)
             }
 
-            for ((subj, durationSecs) in sessionSchedule) {
-                val startMs = currentSessionStartCal.timeInMillis
+            for ((sIdx, item) in sessionList.withIndex()) {
+                val (subj, durationSecs) = item
+                val startMs = sessionCal.timeInMillis
                 val endMs = startMs + (durationSecs * 1000L)
 
                 timelineList.add(
@@ -1043,23 +1292,84 @@ object DeveloperToolsHelper {
                     )
                 )
 
-                SubjectTagManager.recordSubjectStudyTime(activity, subj.id, durationSecs, dateStr)
-
-                // 15-minute natural break before next session
-                currentSessionStartCal.timeInMillis = endMs + (15 * 60 * 1000L)
+                // Add natural break before next session
+                val breakMins = if (sIdx == 1) 40 else 15
+                sessionCal.timeInMillis = endMs + (breakMins * 60 * 1000L)
             }
+
+            // Snapshot goals for this date
+            val snapshots = config.goals.mapIndexed { gIdx, g ->
+                val isDone = if (isToday) {
+                    gIdx < config.goals.size - 1 // Leave last one or two in progress for realistic demo
+                } else {
+                    if (isSunday) rng.nextFloat() < 0.75f else rng.nextFloat() < 0.95f
+                }
+                val checkedTime = if (isDone) cal.timeInMillis + (17 * 3600 * 1000L) else 0L
+                PlannerGoalSnapshot(
+                    goalId = g.id,
+                    title = g.title,
+                    targetMinutes = g.targetMinutes,
+                    completed = isDone,
+                    checkedAt = checkedTime,
+                    isAchieved = isDone,
+                    subjectId = g.subjectId
+                )
+            }
+
+            val array = JSONArray()
+            for (s in snapshots) {
+                array.put(JSONObject().apply {
+                    put("goalId", s.goalId)
+                    put("title", s.title)
+                    put("targetMinutes", s.targetMinutes)
+                    put("completed", s.completed)
+                    put("checkedAt", s.checkedAt)
+                    put("isAchieved", s.isAchieved)
+                    if (s.subjectId != null) put("subjectId", s.subjectId)
+                })
+            }
+            editor.putString("${dateStr}_planner_snapshot", array.toString())
         }
 
-        editor.putInt("current_streak", days.coerceAtLeast(1))
+        // Save active today goals matching current snapshot
+        val todayGoals = config.goals.mapIndexed { gIdx, g ->
+            val isDone = gIdx < config.goals.size - 1
+            g.copy(completed = isDone, checkedAt = if (isDone) System.currentTimeMillis() - 3600000L else 0L)
+        }
+        activity.saveSessionGoalsToJson(todayGoals)
+
+        val todayStr = sdf.format(Date())
+        editor.putString("last_planner_reset_date", todayStr)
+        editor.putInt("current_streak", config.days)
+        editor.putLong("dailyGoalMinutes", config.dailyGoalMins)
+        editor.putLong("accumulatedStudy", 0L)
+        editor.putLong("currentBreakSeconds", 0L)
         editor.putLong("last_data_modified_timestamp", System.currentTimeMillis())
         editor.apply()
 
+        activity.accumulatedStudy = 0L
+        activity.currentBreakSeconds = 0L
+
         timelineList.sortBy { it.timestamp }
         TimelineLogger.importRaw(activity, timelineToJsonString(timelineList))
+
+        TimelineLogger.invalidate()
+        activity.statsEngine.forceReconcileDayTotals(todayStr)
+        activity.invalidateStatsCache()
+        activity.recalculateStreak()
+        activity.statsDirty = true
+        activity.tabPageCache.clear()
+        activity.refreshStatsPanel()
+        activity.updateVisualStyles()
+        StudyWidgetProvider.refresh(activity)
+    }
+
+    private fun seedRealisticHistory(activity: MainActivity, days: Int, deterministicSeed: Long = 42L) {
+        seedPresetPCM(activity)
     }
 
     private fun seedPresetStandardStudent(activity: MainActivity) {
-        seedRealisticHistory(activity, days = 14, deterministicSeed = 101L)
+        seedPresetPCM(activity)
     }
 
     private fun simulateCloudConflict(activity: MainActivity) {

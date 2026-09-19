@@ -23,6 +23,8 @@ class FocusPanelBuilder(private val host: MainActivity) {
         val isLandscapeEnabled = sharedPrefs.getBoolean("is_landscape_mode_enabled", sharedPrefs.getBoolean("true_fullscreen_landscape", true))
         val isLandscape = (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) && isLandscapeEnabled
 
+        val isPomoWhite = isPomodoroPureWhiteActive()
+
         navHeader = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -34,9 +36,17 @@ class FocusPanelBuilder(private val host: MainActivity) {
 
         val settingsIconView = ImageView(this).apply {
             setImageResource(R.drawable.ic_settings) 
-            setColorFilter(themeCoordinator.primaryColor)
+            if (isPomoWhite) {
+                setColorFilter(0xFF0F172A.toInt())
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.OVAL
+                    setColor(0xFFF1F5F9.toInt())
+                }
+            } else {
+                setColorFilter(themeCoordinator.primaryColor)
+                background = if (themeCoordinator.isGlassStyle() || themeCoordinator.isBubbleStyle()) themeCoordinator.createGlassIconBackground(tintedColor(themeCoordinator.primaryColor, 70)) else null
+            }
             setPadding(dp(12), dp(12), dp(12), dp(12))
-            background = if (themeCoordinator.isGlassStyle() || themeCoordinator.isBubbleStyle()) themeCoordinator.createGlassIconBackground(tintedColor(themeCoordinator.primaryColor, 70)) else null
             contentDescription = getString(R.string.cd_open_settings)
             setOnClickListener { navigateToPanel(AppPanel.SETTINGS) }
         }
@@ -51,9 +61,17 @@ class FocusPanelBuilder(private val host: MainActivity) {
 
         val insightsHeaderIconView = ImageView(this).apply {
             setImageResource(R.drawable.ic_insights)
-            setColorFilter(themeCoordinator.primaryColor)
+            if (isPomoWhite) {
+                setColorFilter(0xFF0F172A.toInt())
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.OVAL
+                    setColor(0xFFF1F5F9.toInt())
+                }
+            } else {
+                setColorFilter(themeCoordinator.primaryColor)
+                background = if (themeCoordinator.isGlassStyle() || themeCoordinator.isBubbleStyle()) themeCoordinator.createGlassIconBackground(tintedColor(themeCoordinator.primaryColor, 70)) else null
+            }
             setPadding(dp(14), dp(14), dp(14), dp(14))
-            background = if (themeCoordinator.isGlassStyle() || themeCoordinator.isBubbleStyle()) themeCoordinator.createGlassIconBackground(tintedColor(themeCoordinator.primaryColor, 70)) else null
             contentDescription = getString(R.string.cd_open_insights)
             visibility = if (isLandscape) View.VISIBLE else View.GONE
             setOnClickListener { navigateToPanel(AppPanel.STATS) }
@@ -65,7 +83,7 @@ class FocusPanelBuilder(private val host: MainActivity) {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
         }
 
-        if (themeCoordinator.isGlassStyle() && !pureWhiteTimerEnabled()) {
+        if (themeCoordinator.isGlassStyle() && !pureWhiteTimerEnabled() && !isPomoWhite) {
             val glowAlpha = when {
                 themeCoordinator.activeBgMode == "OLED" -> 0.22f
                 themeCoordinator.activeBgMode == "LIGHT" -> 0.3f
@@ -131,7 +149,9 @@ class FocusPanelBuilder(private val host: MainActivity) {
             fontFeatureSettings = "tnum"
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, 5)
-            if (themeCoordinator.isGlassStyle() && !pureWhiteTimerEnabled()) setShadowLayer(14f, 0f, 0f, tintedColor(themeCoordinator.primaryColor, 90))
+            if (themeCoordinator.isGlassStyle() && !pureWhiteTimerEnabled() && !isPomoWhite) {
+                setShadowLayer(14f, 0f, 0f, tintedColor(themeCoordinator.primaryColor, 90))
+            }
             layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
         }
 
@@ -204,11 +224,20 @@ class FocusPanelBuilder(private val host: MainActivity) {
 
             val subjectTagBtn = TextView(this).apply {
                 text = if (isLectureRunning) "🔒 ${activeSubject.iconEmoji} ${activeSubject.name}" else "${activeSubject.iconEmoji} ${activeSubject.name}  ▾"
-                textSize = 12f
+                textSize = 12.5f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                setTextColor(themeCoordinator.textColor)
-                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 90), 12f)
-                setPadding(dp(12), dp(4), dp(12), dp(4))
+                if (isPomoWhite) {
+                    setTextColor(0xFF0F172A.toInt())
+                    background = android.graphics.drawable.GradientDrawable().apply {
+                        cornerRadius = dp(18).toFloat()
+                        setColor(0xFFF1F5F9.toInt())
+                        setStroke(dp(1), 0xFFCBD5E1.toInt())
+                    }
+                } else {
+                    setTextColor(themeCoordinator.textColor)
+                    background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, if (themeCoordinator.isDarkMode()) 90 else 180), 18f)
+                }
+                setPadding(dp(16), dp(7), dp(16), dp(7))
                 setSingleLine(true)
                 ellipsize = android.text.TextUtils.TruncateAt.END
                 gravity = Gravity.CENTER

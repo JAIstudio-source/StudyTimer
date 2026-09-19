@@ -26,7 +26,6 @@ class TimerRingView(context: Context) : View(context) {
                 padPx = if (value) 10f * density else 14f * density
                 ringPaint.strokeWidth = strokePx
                 trackPaint.strokeWidth = strokePx
-                innerHaloPaint.strokeWidth = strokePx * 2.2f
                 requestLayout()
                 invalidate()
             }
@@ -41,12 +40,6 @@ class TimerRingView(context: Context) : View(context) {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
         strokeWidth = strokePx
-    }
-    private val innerHaloPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeCap = Paint.Cap.ROUND
-        strokeWidth = strokePx * 2.2f
-        alpha = 26
     }
 
     private var color = 0xFF000000.toInt()
@@ -149,11 +142,6 @@ class TimerRingView(context: Context) : View(context) {
         if (sweepDeg > 0.01f) {
             val inset = strokePx / 2f + padPx
             ringBounds.set(inset, inset, w - inset, h - inset)
-
-            innerHaloPaint.color = color
-            innerHaloPaint.alpha = 24
-            canvas.drawArc(ringBounds, -90f, sweepDeg, false, innerHaloPaint)
-
             applyArcShader(cx, cy)
             canvas.drawArc(ringBounds, -90f, sweepDeg, false, ringPaint)
         }

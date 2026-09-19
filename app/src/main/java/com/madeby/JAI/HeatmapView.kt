@@ -42,8 +42,19 @@ class HeatmapView @JvmOverloads constructor(
 
     private var primary = Color.HSVToColor(floatArrayOf(190f, 0.65f, 0.95f))
     private var textColor = Color.WHITE
-    private val emptyColor = Color.argb(20, 255, 255, 255)
+    private var emptyColor = Color.argb(20, 255, 255, 255)
+    private var futureColor = Color.argb(8, 255, 255, 255)
+    private var headerTextColor = Color.argb(220, 255, 255, 255)
+    private var rowTextColor = Color.argb(200, 255, 255, 255)
     private var goalFor: ((String) -> Long)? = null
+
+    private fun isTextDark(color: Int): Boolean {
+        val r = Color.red(color)
+        val g = Color.green(color)
+        val b = Color.blue(color)
+        val luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0
+        return luminance < 0.5
+    }
 
     private val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
         override fun onSingleTapUp(e: MotionEvent): Boolean {
@@ -58,6 +69,10 @@ class HeatmapView @JvmOverloads constructor(
     })
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val strokeCellPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 1f * resources.displayMetrics.density
+    }
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.CENTER
         textSize = 9f * resources.displayMetrics.density
@@ -70,6 +85,13 @@ class HeatmapView @JvmOverloads constructor(
         primary = primaryColor
         textColor = text
         this.goalFor = goalFor
+
+        val isLightMode = isTextDark(text)
+        emptyColor = if (isLightMode) 0xFFF1F5F9.toInt() else Color.argb(25, 255, 255, 255)
+        futureColor = if (isLightMode) 0xFFF8FAFC.toInt() else Color.argb(10, 255, 255, 255)
+        headerTextColor = if (isLightMode) Color.argb(180, Color.red(text), Color.green(text), Color.blue(text)) else Color.argb(220, 255, 255, 255)
+        rowTextColor = if (isLightMode) Color.argb(160, Color.red(text), Color.green(text), Color.blue(text)) else Color.argb(200, 255, 255, 255)
+
         cells.clear()
         cells.putAll(data)
         todayStr = dateSdf.format(Date())
@@ -84,18 +106,32 @@ class HeatmapView @JvmOverloads constructor(
 
         numCols = 26
         dayDates.clear()
+        monthHeaders.clear()
+        var lastMonthStr: String? = null
         for (col in 0 until numCols) {
+            var colMonthStr: String? = null
             for (row in 0..6) {
                 val c = Calendar.getInstance().apply {
                     timeInMillis = start.timeInMillis + (col * 7L + row) * 86400000L
                 }
-                dayDates.add(dateSdf.format(c.time))
+                val dStr = dateSdf.format(c.time)
+                dayDates.add(dStr)
+                if (row == 0) {
+                    val mStr = monthSdf.format(c.time)
+                    if (col == 0 || mStr != lastMonthStr) {
+                        colMonthStr = mStr
+                        lastMonthStr = mStr
+                    }
+                }
             }
+            monthHeaders.add(colMonthStr)
         }
 
         requestLayout()
         invalidate()
     }
+
+    private val monthHeaders = ArrayList<String?>()
 
     fun getTodayScrollX(viewportWidth: Int): Int {
         val todayIdx = dayDates.indexOf(todayStr)
@@ -140,30 +176,39 @@ class HeatmapView @JvmOverloads constructor(
 
     private fun levelColor(level: Int): Int {
         if (level <= 0) return emptyColor
-        val alpha = when (level) {
-            1 -> 30
-            2 -> 60
-            3 -> 110
-            else -> 170
+        val isLight = isTextDark(textColor)
+        val alpha = if (isLight) {
+            when (level) {
+                1 -> 75
+                2 -> 135
+                3 -> 195
+                else -> 255
+            }
+        } else {
+            when (level) {
+                1 -> 35
+                2 -> 75
+                3 -> 135
+                else -> 200
+            }
         }
         return Color.argb(alpha, Color.red(primary), Color.green(primary), Color.blue(primary))
     }
 
     private val cellRect = RectF()
     private val cellRadius by lazy { 2.5f * resources.displayMetrics.density }
-    private var futureColor = Color.argb(8, 255, 255, 255)
-    private var headerTextColor = Color.argb(220, 255, 255, 255)
-    private var rowTextColor = Color.argb(200, 255, 255, 255)
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
+        val isLight = isTextDark(textColor)
+
         for (col in 0 until numCols) {
-            val x = labelW + col * (cellSize + gapPx)
-            val firstDate = dayDates.getOrNull(col * 7) ?: continue
-            if (col == 0 || monthSdf.format(parseSafe(firstDate)) != monthSdf.format(parseSafe(dayDates.getOrNull((col - 1) * 7) ?: firstDate))) {
+            val header = monthHeaders.getOrNull(col)
+            if (header != null) {
+                val x = labelW + col * (cellSize + gapPx)
                 textPaint.color = headerTextColor
-                canvas.drawText(monthSdf.format(parseSafe(firstDate)), x + cellSize / 2f, topPad + monthRowH - 3f * resources.displayMetrics.density, textPaint)
+                canvas.drawText(header, x + cellSize / 2f, topPad + monthRowH - 3f * resources.displayMetrics.density, textPaint)
             }
         }
 
@@ -178,10 +223,27 @@ class HeatmapView @JvmOverloads constructor(
                 val x = labelW + col * (cellSize + gapPx)
                 val y = topPad + monthRowH + row * rowH
                 val future = dateStr > todayStr
+                val lvl = levelFor(cells[dateStr] ?: 0L, dateStr)
                 cellRect.set(x, y, x + cellSize, y + cellSize)
-                paint.color = if (future) futureColor
-                else levelColor(levelFor(cells[dateStr] ?: 0L, dateStr))
-                canvas.drawRoundRect(cellRect, cellRadius, cellRadius, paint)
+
+                if (future) {
+                    paint.color = futureColor
+                    canvas.drawRoundRect(cellRect, cellRadius, cellRadius, paint)
+                    if (isLight) {
+                        strokeCellPaint.color = 0xFFE2E8F0.toInt()
+                        canvas.drawRoundRect(cellRect, cellRadius, cellRadius, strokeCellPaint)
+                    }
+                } else if (lvl <= 0) {
+                    paint.color = emptyColor
+                    canvas.drawRoundRect(cellRect, cellRadius, cellRadius, paint)
+                    if (isLight) {
+                        strokeCellPaint.color = 0xFFCBD5E1.toInt()
+                        canvas.drawRoundRect(cellRect, cellRadius, cellRadius, strokeCellPaint)
+                    }
+                } else {
+                    paint.color = levelColor(lvl)
+                    canvas.drawRoundRect(cellRect, cellRadius, cellRadius, paint)
+                }
             }
         }
     }

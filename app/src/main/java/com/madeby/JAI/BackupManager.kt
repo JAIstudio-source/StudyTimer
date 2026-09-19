@@ -2,6 +2,7 @@ package com.madeby.JAI
 
 import android.content.Context
 import android.net.Uri
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.*
 import java.text.SimpleDateFormat
@@ -17,8 +18,95 @@ class BackupManager(private val context: Context) {
     }
 
     private fun restoreTimeline(importedJsonObject: JSONObject) {
-        val raw = importedJsonObject.optString("focus_timeline", null)?.takeIf { it.isNotEmpty() }
+        val raw = if (importedJsonObject.has("focus_timeline")) importedJsonObject.optString("focus_timeline").takeIf { it.isNotEmpty() } else null
         TimelineLogger.importRaw(context, raw)
+    }
+
+    private fun putSubjectTags(json: JSONObject) {
+        try {
+            val subjectPrefs = context.getSharedPreferences("studytimer_subject_tags", Context.MODE_PRIVATE)
+            val subjectJson = JSONObject()
+            for ((key, value) in subjectPrefs.all) {
+                if (value != null) {
+                    when (value) {
+                        is Boolean -> subjectJson.put(key, value)
+                        is Int -> subjectJson.put(key, value)
+                        is Long -> subjectJson.put(key, value)
+                        is Float -> subjectJson.put(key, value.toDouble())
+                        is Double -> subjectJson.put(key, value)
+                        is Set<*> -> {
+                            val arr = JSONArray()
+                            for (item in value) {
+                                if (item != null) arr.put(item.toString())
+                            }
+                            subjectJson.put(key, arr)
+                        }
+                        else -> subjectJson.put(key, value.toString())
+                    }
+                }
+            }
+            json.put("subject_tags_data", subjectJson)
+            json.put("__subject_tags_data__", subjectJson.toString())
+        } catch (_: Exception) {}
+    }
+
+    private fun restoreSubjectTags(importedJsonObject: JSONObject) {
+        try {
+            val subjectJsonObj = importedJsonObject.optJSONObject("subject_tags_data")
+                ?: runCatching {
+                    val raw = importedJsonObject.optString("__subject_tags_data__", "")
+                    if (raw.isNotEmpty()) JSONObject(raw) else null
+                }.getOrNull()
+                ?: runCatching {
+                    val raw = importedJsonObject.optString("subject_tags_data", "")
+                    if (raw.isNotEmpty()) JSONObject(raw) else null
+                }.getOrNull()
+
+            if (subjectJsonObj != null) {
+                val subPrefs = context.getSharedPreferences("studytimer_subject_tags", Context.MODE_PRIVATE)
+                val subEditor = subPrefs.edit()
+                subEditor.clear()
+                val subKeys = subjectJsonObj.keys()
+                while (subKeys.hasNext()) {
+                    val k = subKeys.next()
+                    val v = subjectJsonObj.get(k)
+                    when (v) {
+                        is Boolean -> subEditor.putBoolean(k, v)
+                        is JSONArray -> {
+                            val set = HashSet<String>()
+                            for (i in 0 until v.length()) {
+                                set.add(v.getString(i))
+                            }
+                            subEditor.putStringSet(k, set)
+                        }
+                        is String -> {
+                            if (k == "hidden_subjects_set") {
+                                val set = HashSet<String>()
+                                try {
+                                    val trimmed = v.trim()
+                                    if (trimmed.startsWith("[")) {
+                                        val arr = JSONArray(trimmed)
+                                        for (i in 0 until arr.length()) {
+                                            set.add(arr.getString(i))
+                                        }
+                                    } else {
+                                        val cleaned = trimmed.removeSurrounding("[", "]")
+                                        cleaned.split(",").map { it.trim().removeSurrounding("\"") }.filter { it.isNotEmpty() }.forEach { set.add(it) }
+                                    }
+                                    subEditor.putStringSet(k, set)
+                                } catch (_: Exception) {
+                                    subEditor.putStringSet(k, emptySet())
+                                }
+                            } else {
+                                subEditor.putString(k, v)
+                            }
+                        }
+                        is Number -> subEditor.putLong(k, v.toLong())
+                    }
+                }
+                subEditor.commit()
+            }
+        } catch (_: Exception) {}
     }
 
     fun runSilentAutoBackup() {
@@ -29,6 +117,7 @@ class BackupManager(private val context: Context) {
                 json.put(key, value)
             }
             putTimeline(json)
+            putSubjectTags(json)
             getBackupFile().writeText(json.toString())
         } catch (_: Exception) {}
     }
@@ -47,6 +136,7 @@ class BackupManager(private val context: Context) {
             sanitizeAndBuildPreferences(importedJsonObject, editor)
             editor.apply()
             restoreTimeline(importedJsonObject)
+            restoreSubjectTags(importedJsonObject)
         } catch (_: Exception) {}
     }
 
@@ -54,7 +144,9 @@ class BackupManager(private val context: Context) {
         val schemaVersion: Int,
         val backupCreatedAt: Long,
         val lastModifiedTimestamp: Long,
-        val entryCount: Int
+        val entryCount: Int,
+        val subjectCount: Int = 0,
+        val goalCount: Int = 0
     )
 
     fun getLastModifiedTimestamp(): Long {
@@ -79,11 +171,23 @@ class BackupManager(private val context: Context) {
                 val lastMod = json.optLong("last_modified_timestamp", createdAt)
                 val timelineRaw = json.optString("focus_timeline", "")
                 val entryCount = if (timelineRaw.isNotEmpty()) parseTimelineJson(timelineRaw).size else 0
+
+                val goalsRaw = json.optString("session_goals_json", "[]")
+                val goalCount = runCatching { JSONArray(goalsRaw).length() }.getOrDefault(0)
+
+                val customSubjectsRaw = runCatching {
+                    val subObj = json.optJSONObject("subject_tags_data")
+                    subObj?.optString("custom_subjects_json", "[]") ?: "[]"
+                }.getOrDefault("[]")
+                val subjectCount = runCatching { JSONArray(customSubjectsRaw).length() }.getOrDefault(0)
+
                 BackupMetadata(
                     schemaVersion = schemaVer,
                     backupCreatedAt = if (createdAt > 0L) createdAt else System.currentTimeMillis(),
                     lastModifiedTimestamp = if (lastMod > 0L) lastMod else createdAt,
-                    entryCount = entryCount
+                    entryCount = entryCount,
+                    subjectCount = subjectCount,
+                    goalCount = goalCount
                 )
             }
         } catch (_: Exception) {
@@ -99,6 +203,7 @@ class BackupManager(private val context: Context) {
                 json.put(key, value)
             }
             putTimeline(json)
+            putSubjectTags(json)
             val now = System.currentTimeMillis()
             val lastMod = getLastModifiedTimestamp()
             json.put("schema_version", 2)
@@ -132,6 +237,7 @@ class BackupManager(private val context: Context) {
 
                 val committed = editor.commit() // Synchronous commit to ensure immediate UI update
                 restoreTimeline(importedJsonObject)
+                restoreSubjectTags(importedJsonObject)
                 runSilentAutoBackup()
 
                 if (allowCloudSync && AuthManager.isLoggedIn(context)) {
@@ -189,8 +295,8 @@ class BackupManager(private val context: Context) {
             val key = keys.next()
             when (key) {
                 "timerState" -> editor.putString(key, "IDLE")
-                "focus_timeline" -> {
-                    // Restored via file storage (TimelineLogger.importRaw), not prefs.
+                "focus_timeline", "subject_tags_data", "__subject_tags_data__" -> {
+                    // Restored via separate stores (TimelineLogger and SubjectTagManager), not StudyTimerPrefs.
                 }
                 "accumulatedStudy", "currentBreakSeconds", "lastTimestamp", "focus_remaining_secs", "pre_pause_state", "streak_last_calculated" -> {
                     // Never resurrect an in-flight session from a backup; streak is recomputed on next stats open.
@@ -205,6 +311,8 @@ class BackupManager(private val context: Context) {
                     }
                     is String -> editor.putString(key, value)
                     is Boolean -> editor.putBoolean(key, value)
+                    is JSONArray -> editor.putString(key, value.toString())
+                    is JSONObject -> editor.putString(key, value.toString())
                 }
             }
         }

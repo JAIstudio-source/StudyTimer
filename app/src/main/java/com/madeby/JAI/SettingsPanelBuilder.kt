@@ -1143,6 +1143,19 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     intervalCard.addView(makeIntervalStepper("Long Break", if (isFreedomMode) "Extended rest (bypassed in Freedom Mode)" else "Longer rest after completing multiple sessions", "long_break_minutes", 15L, 5L, 60L, 5L, "min"))
                     intervalCard.addView(createDivider())
                     intervalCard.addView(makeIntervalStepper("Sessions Until Long Break", if (isFreedomMode) "Cycle limit (uncapped in Freedom Mode)" else "Number of study sessions before a longer rest", "long_break_interval", 4L, 2L, 10L, 1L, "sessions"))
+                    intervalCard.addView(createDivider())
+                    val isPureWhitePomo = sharedPrefs.getBoolean("pomodoro_pure_white_theme", false)
+                    val pureWhiteSwitch = SwitchMaterial(this).apply {
+                        isChecked = isPureWhitePomo
+                        setOnCheckedChangeListener { _, isChecked ->
+                            sharedPrefs.edit().putBoolean("pomodoro_pure_white_theme", isChecked).apply()
+                            tabPageCache.clear()
+                            if (currentPanel == AppPanel.FOCUS) {
+                                updateVisualStyles()
+                            }
+                        }
+                    }
+                    intervalCard.addView(createSettingsRow("⚪", "Pure White Theme for Pomodoro", "Minimalist pure white background with black timer ring & numerals (Timer screen only)", pureWhiteSwitch))
                     layout.addView(intervalCard)
                 }
 

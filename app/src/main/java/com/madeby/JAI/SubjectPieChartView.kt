@@ -316,6 +316,8 @@ class SubjectPieChartView(context: Context) : View(context) {
             emptyPaint.color = Color.argb(45, Color.red(primaryColor), Color.green(primaryColor), Color.blue(primaryColor))
             glowPaint.color = Color.argb(18, Color.red(primaryColor), Color.green(primaryColor), Color.blue(primaryColor))
 
+            emptyTextPaint.color = Color.argb(190, Color.red(textColor), Color.green(textColor), Color.blue(textColor))
+            subTextPaint.color = Color.argb(130, Color.red(textColor), Color.green(textColor), Color.blue(textColor))
             emptyTextPaint.textSize = dp(13.5f)
             subTextPaint.textSize = dp(11f)
 

@@ -332,8 +332,10 @@ class CalendarTimeline(private val host: MainActivity) {
         ringViews: MutableList<MainActivity.SegmentRing>? = null
     ): View {
         return with(host) {
-            val green = 0xFF43D36E.toInt()
-            val red = 0xFFFF4D4D.toInt()
+            val isDark = themeCoordinator.isDarkMode()
+            val green = if (isDark) 0xFF43D36E.toInt() else 0xFF10B981.toInt()
+            val checkmarkColor = if (isDark) lightenColor(green, 0.7f) else 0xFF047857.toInt()
+            val red = if (isDark) 0xFFFF4D4D.toInt() else 0xFFEF4444.toInt()
             val goalReached = goalSecs > 0L && focusSecs >= goalSecs
             val pct = if (goalSecs > 0L) (focusSecs.toFloat() / goalSecs.toFloat()).coerceIn(0f, 1f) else 0f
             val ringSize = dp(26)
@@ -349,7 +351,7 @@ class CalendarTimeline(private val host: MainActivity) {
                 background = if (isToday) {
                     GradientDrawable().apply {
                         cornerRadius = dp(12).toFloat()
-                        val todayBg = if (themeCoordinator.isDarkMode()) {
+                        val todayBg = if (isDark) {
                             tintedColor(themeCoordinator.primaryColor, 35)
                         } else {
                             tintedColor(themeCoordinator.primaryColor, 25)
@@ -360,19 +362,19 @@ class CalendarTimeline(private val host: MainActivity) {
                 } else {
                     GradientDrawable().apply {
                         cornerRadius = dp(10).toFloat()
-                        val cellBg = if (themeCoordinator.isDarkMode()) {
+                        val cellBg = if (isDark) {
                             if (themeCoordinator.activeBgMode == "ECLIPSE") 0xFF1E293B.toInt() else 0xFF14151C.toInt()
                         } else {
-                            0xFFF1F5F9.toInt()
+                            0xFFF8FAFC.toInt()
                         }
-                        val strokeCol = if (themeCoordinator.isDarkMode()) 0xFF222430.toInt() else 0xFFE2E8F0.toInt()
+                        val strokeCol = if (isDark) 0xFF222430.toInt() else 0xFFCBD5E1.toInt()
                         setColor(cellBg)
                         setStroke(dp(1), strokeCol)
                     }
                 }
                 setPadding(0, dp(4), 0, dp(4))
                 if (isFuture) {
-                    alpha = if (themeCoordinator.isDarkMode()) 0.35f else 0.45f
+                    alpha = if (isDark) 0.35f else 0.45f
                 } else {
                     setOnClickListener { showDayDialog(dateStr, lbl) }
                     setOnLongClickListener {
@@ -388,9 +390,16 @@ class CalendarTimeline(private val host: MainActivity) {
                 text = day.toString()
                 gravity = Gravity.CENTER
                 textSize = 12f
-                setTextColor(if (isToday) themeCoordinator.primaryColor else themeCoordinator.textColor)
+                val dayColor = if (isToday) {
+                    themeCoordinator.primaryColor
+                } else if (goalReached) {
+                    if (isDark) 0xFF43D36E.toInt() else 0xFF047857.toInt()
+                } else {
+                    themeCoordinator.textColor
+                }
+                setTextColor(dayColor)
                 typeface = Typeface.create("sans-serif-medium", if (isToday || goalReached) Typeface.BOLD else Typeface.NORMAL)
-                if (!goalReached && focusSecs <= 0L && !isToday && !isFuture) alpha = 0.65f
+                if (!goalReached && focusSecs <= 0L && !isToday && !isFuture) alpha = if (isDark) 0.65f else 0.75f
             })
 
             val ringWrap = FrameLayout(this).apply {
@@ -399,13 +408,23 @@ class CalendarTimeline(private val host: MainActivity) {
             }
 
             if (goalReached) {
-                ringWrap.addView(View(this).apply {
-                    background = containedGlow(green, 20, 130)
-                    layoutParams = FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER)
-                })
+                if (isDark) {
+                    ringWrap.addView(View(this).apply {
+                        background = containedGlow(green, 20, 130)
+                        layoutParams = FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER)
+                    })
+                } else {
+                    ringWrap.addView(View(this).apply {
+                        background = GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL
+                            setColor(0x1F10B981.toInt())
+                        }
+                        layoutParams = FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER)
+                    })
+                }
                 val ring = SegmentRing(
                     listOf(1f to green),
-                    tintedColor(green, 45),
+                    if (isDark) tintedColor(green, 45) else 0x2E10B981.toInt(),
                     stroke,
                     null,
                     animate = false,
@@ -416,8 +435,8 @@ class CalendarTimeline(private val host: MainActivity) {
                 ringWrap.addView(TextView(this).apply {
                     text = "✓"
                     gravity = Gravity.CENTER
-                    setTextColor(lightenColor(green, 0.7f))
-                    textSize = 12f
+                    setTextColor(checkmarkColor)
+                    textSize = 12.5f
                     typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                     layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
                 })
@@ -425,13 +444,15 @@ class CalendarTimeline(private val host: MainActivity) {
             } else if (focusSecs > 0L) {
                 val ringColor = if (pct > 0f) red else themeCoordinator.primaryColor
                 val segments = if (pct > 0f) listOf(pct to red) else listOf(1f to themeCoordinator.primaryColor)
-                ringWrap.addView(View(this).apply {
-                    background = containedGlow(ringColor, 20, 110)
-                    layoutParams = FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER)
-                })
+                if (isDark) {
+                    ringWrap.addView(View(this).apply {
+                        background = containedGlow(ringColor, 20, 110)
+                        layoutParams = FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER)
+                    })
+                }
                 val ring = SegmentRing(
                     segments,
-                    tintedColor(themeCoordinator.textColor, 50),
+                    if (isDark) tintedColor(themeCoordinator.textColor, 50) else 0x24CBD5E1.toInt(),
                     stroke,
                     null,
                     animate = false,
@@ -445,10 +466,10 @@ class CalendarTimeline(private val host: MainActivity) {
                 val dotView = View(this).apply {
                     background = GradientDrawable().apply {
                         shape = GradientDrawable.OVAL
-                        setColor(tintedColor(themeCoordinator.textColor, 35))
+                        setColor(if (isDark) tintedColor(themeCoordinator.textColor, 35) else 0xFFCBD5E1.toInt())
                     }
                     layoutParams = FrameLayout.LayoutParams(dp(4), dp(4), Gravity.CENTER)
-                    alpha = if (isFuture) 0.2f else 0.4f
+                    alpha = if (isFuture) (if (isDark) 0.2f else 0.35f) else (if (isDark) 0.4f else 0.8f)
                 }
                 ringWrap.addView(dotView)
                 cell.addView(ringWrap)

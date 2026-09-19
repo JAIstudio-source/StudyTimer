@@ -70,6 +70,7 @@ class TimerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        loadSavedState()
         updateForegroundNotification()
         when (intent?.action) {
             ACTION_TOGGLE -> handleToggle()
@@ -249,15 +250,17 @@ class TimerService : Service() {
                 val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
                 val savedRemaining = prefs.getLong("focus_remaining_secs", 0L)
                 if (timerMode == "COUNTDOWN") {
-                    focusRemainingSecs = if (savedRemaining > 0L) savedRemaining else focusCountdownSecs
-                    prefs.edit().putLong("focus_remaining_secs", 0L).apply()
+                    val pomodoroConfiguredSecs = prefs.safeLong("study_interval_minutes", 25L) * 60L
+                    focusCountdownSecs = pomodoroConfiguredSecs
+                    focusRemainingSecs = if (savedRemaining > 0L) savedRemaining else if (focusRemainingSecs > 0L) focusRemainingSecs else pomodoroConfiguredSecs
+                    breakRemainingSecs = 0L
+                    breakCountdownSecs = 0L
                 } else if (timerMode == "LECTURE") {
                     if (lectureModeEnabled && focusRemainingSecs > 0L) {
                         // Resuming an ongoing lecture countdown
                     } else if (savedRemaining > 0L) {
                         focusRemainingSecs = savedRemaining
                         lectureModeEnabled = true
-                        prefs.edit().putLong("focus_remaining_secs", 0L).apply()
                     } else {
                         focusRemainingSecs = 0L
                         lectureModeEnabled = false
@@ -300,6 +303,7 @@ class TimerService : Service() {
         saveState()
         updateForegroundNotification()
         StudyWidgetProvider.refresh(this)
+        startBackgroundLoop()
     }
 
     private fun handlePause() {
@@ -632,7 +636,6 @@ class TimerService : Service() {
                                         updateForegroundNotification()
                                         postCountdownComplete()
                                         StudyWidgetProvider.refresh(this)
-                                        return@Runnable
                                     } else {
                                         // COUNTDOWN (Pomodoro) mode ended
                                         val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
@@ -652,7 +655,9 @@ class TimerService : Service() {
                                             if (autoBreak) {
                                                 currentTimerState = TimerState.BREAK
                                                 focusRemainingSecs = 0L
-                                                breakRemainingSecs = prefs.getLong("break_countdown_secs", 300L)
+                                                val configuredBreakSecs = prefs.safeLong("break_interval_minutes", 5L) * 60L
+                                                breakCountdownSecs = configuredBreakSecs
+                                                breakRemainingSecs = configuredBreakSecs
                                                 lastTimestamp = now
                                                 TimelineLogger.record(this, TimerState.BREAK)
                                             } else {
@@ -666,7 +671,6 @@ class TimerService : Service() {
                                             updateForegroundNotification()
                                             postCountdownComplete()
                                             StudyWidgetProvider.refresh(this)
-                                            return@Runnable
                                         }
                                     }
                                 }
@@ -694,8 +698,8 @@ class TimerService : Service() {
                                     TimelineLogger.record(this, TimerState.IDLE)
                                     saveState()
                                     updateForegroundNotification()
+                                    postCountdownComplete()
                                     StudyWidgetProvider.refresh(this)
-                                    return@Runnable
                                 }
                             }
                         }
@@ -847,9 +851,15 @@ class TimerService : Service() {
     }
 
     private fun saveState() {
-        getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit().apply {
+        val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val modeToSave = if (currentTimerState == TimerState.IDLE) {
+            prefs.getString("timer_mode", timerMode) ?: timerMode
+        } else {
+            timerMode
+        }
+        prefs.edit().apply {
             putString("timerState", currentTimerState.name)
-            putString("timer_mode", timerMode)
+            putString("timer_mode", modeToSave)
             putLong("lastTimestamp", lastTimestamp)
             putLong("accumulatedStudy", accumulatedStudy)
             putLong("currentBreakSeconds", currentBreakSeconds)

@@ -1,7 +1,7 @@
 {
-  "versionCode": 24,
-  "versionName": "2.9.2",
-  "url": "https://get-studytimer.vercel.app/?download=true",
-  "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-  "releaseNotes": "What's New in Version 2.9.2 🚀\n- Enhanced UI: Refined visual aesthetics with vibrant dynamic indicators (such as the emerald green Goal Reached badge) and perfected theme contrast.\n- New Pie Chart: Introduced modern pie chart visualization with custom vector controls and optimized slice legends for subject focus breakdown.\n- Enhanced Highlights: Redesigned highlights section featuring all-time Best Day and Best Week milestones, compact pinned card layouts, and detailed record inspection.\n- Minor Bug Fixes: Fixed weekly trend table row contrast, resolved duplicate streak displays, and improved real-time session stats consistency."
+    "apkUrl":  "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
+    "url":  "https://get-studytimer.vercel.app/?download=true",
+    "versionCode":  25,
+    "versionName":  "2.9.3",
+    "releaseNotes":  "What\u0027s New in Version 2.9.3 🚀\n1. Improved UI: Refined Light theme styling across the entire app with crisp borders, rich emerald goal badges, fully visible activity heatmap grid, and high-contrast segmented controls. Added dedicated pure White Background \u0026 Black Timer toggle for Pomodoro.\n2. Fixed Minor Bugs: Fixed calendar view checkmarks and goal completion indicators on white cards, Pomodoro focus/break button transitions, subject button contrast, and full-screen notification bar contrast.\n3. Added Stability: Improved background timer execution, alarm scheduling, local storage caching, and Google Cloud sync resilience."
 }

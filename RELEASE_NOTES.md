@@ -1,12 +1,14 @@
-# StudyTimer 2.9.1 (versionCode 23)
+# StudyTimer 2.9.2 (versionCode 24)
 
-What's New in Version 2.9.1 🚀
-- **Real-Time Total Focus Updates**: Total focus time now updates simultaneously every minute and on user actions across all insights without needing to end the session.
-- **Subject Heatmap Planner Sync**: Subject-wise heatmaps now automatically sync and scale directly to your Planner subject goals (defaulting to a 1 hour 30 minute baseline if no goal is configured).
-- **Subject Time Deduction & Logging Fixes**: Enhanced subject time addition, deduction, and block deletions with 100% data consistency across timeline logs and daily totals.
+What's New in Version 2.9.2 🚀
+- **Enhanced UI**: Refined visual aesthetics with vibrant dynamic indicators (such as the emerald green "Goal Reached" badge) and perfected theme contrast.
+- **New Pie Chart**: Introduced modern pie chart visualization with custom vector controls and optimized slice legends for subject focus breakdown.
+- **Enhanced Highlights**: Redesigned highlights section featuring all-time Best Day and Best Week milestones, compact pinned card layouts, and detailed record inspection.
+- **Minor Bug Fixes**: Fixed weekly trend table row contrast, resolved duplicate streak displays, and improved real-time session stats consistency.
 
 ## Compatibility
 - Android 9 (API 28) through Android 16 (API 36)
 
 ## Installation
-Install `StudyTimer-release.apk` (v2.9.1). Updating preserves all your study logs, streaks, and settings.
+Install `StudyTimer-release.apk` (v2.9.2). Updating preserves all your study logs, streaks, and settings.
+

@@ -685,19 +685,20 @@ function stopInterval() {
 }
 
 function finishSession() {
-  let studiedDurationSec = 0;
+  let currentElapsed = accumulatedElapsedSec;
+  if (timerStatus === 'RUNNING' && timerStartTimestamp) {
+    currentElapsed += Math.floor((Date.now() - timerStartTimestamp) / 1000);
+  }
 
+  if (currentElapsed < 10) {
+    showToast('Session too short to save (< 10s). Focus a bit longer!', 'info');
+    return;
+  }
+
+  let studiedDurationSec = currentElapsed;
   if (timerStatus === 'RUNNING' && timerStartTimestamp) {
     const elapsedSinceResume = Math.floor((Date.now() - timerStartTimestamp) / 1000);
     accumulatedElapsedSec += elapsedSinceResume;
-  }
-
-  studiedDurationSec = accumulatedElapsedSec;
-
-  if (studiedDurationSec < 10) {
-    resetTimer();
-    showToast('Session too short to record (< 10s).', 'info');
-    return;
   }
 
   const now = Date.now();

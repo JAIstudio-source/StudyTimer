@@ -901,28 +901,28 @@ html, body {
 }
 
 .btn-finish-session {
-  background: rgba(16, 185, 129, 0.1) !important;
-  color: var(--accent-emerald) !important;
-  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+  background: rgba(245, 158, 11, 0.12) !important;
+  color: #f59e0b !important;
+  border: 1px solid rgba(245, 158, 11, 0.45) !important;
   font-weight: 700 !important;
   transition: all var(--transition-fast);
 }
 
 .btn-finish-session:hover {
-  background: var(--accent-emerald) !important;
+  background: #f59e0b !important;
   color: #ffffff !important;
-  border-color: var(--accent-emerald) !important;
+  border-color: #f59e0b !important;
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
 }
 
-/* Saved Success State (Active for 1 minute) */
+/* Saved Success State (Active for 1 minute - vibrant green) */
 .btn-finish-session.saved-success,
 .btn-zen-save.saved-success {
-  background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%) !important;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
   color: #ffffff !important;
-  border-color: rgba(124, 58, 237, 0.6) !important;
-  box-shadow: 0 4px 18px rgba(124, 58, 237, 0.45) !important;
+  border-color: rgba(16, 185, 129, 0.7) !important;
+  box-shadow: 0 4px 18px rgba(16, 185, 129, 0.45) !important;
   animation: saved-pop 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -1827,16 +1827,18 @@ html, body {
 }
 
 .btn-zen-save {
-  color: var(--accent-emerald) !important;
-  border: 1px solid rgba(16, 185, 129, 0.35) !important;
-  background: rgba(16, 185, 129, 0.08) !important;
+  color: #f59e0b !important;
+  border: 1px solid rgba(245, 158, 11, 0.45) !important;
+  background: rgba(245, 158, 11, 0.12) !important;
+  font-weight: 700 !important;
 }
 
 .btn-zen-save:hover {
-  background: rgba(16, 185, 129, 0.18) !important;
-  border-color: var(--accent-emerald) !important;
-  color: var(--accent-emerald) !important;
+  background: #f59e0b !important;
+  border-color: #f59e0b !important;
+  color: #ffffff !important;
   transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
 }
 
 /* ==========================================================================

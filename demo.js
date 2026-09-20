@@ -273,9 +273,9 @@ async function pullDataFromCloud(isUserTriggered = false) {
 
     let query = supabaseClient.from('user_sync_data').select('*');
     if (userEmail) {
-      query = query.or(`user_id.eq.${userId},user_id.eq.${userEmail},user_email.eq.${userEmail},user_email.ilike.${userEmail}`);
+      query = query.or(`user_id.eq.${userId},user_id.eq.${userEmail},user_email.eq.${userEmail},user_email.ilike.${userEmail},user_id.eq.Google User,user_email.eq.Google User`);
     } else {
-      query = query.eq('user_id', userId);
+      query = query.or(`user_id.eq.${userId},user_id.eq.Google User`);
     }
 
     const { data: rows, error } = await query.order('updated_at', { ascending: false });
@@ -680,13 +680,18 @@ async function pushDataToCloud() {
       .from('user_sync_data')
       .upsert(payload, { onConflict: 'user_id' });
 
-    // Mirror to email-keyed row for Android compatibility if user.id is UUID
+    // Mirror to email-keyed and mobile Google User rows for 100% Android compatibility
     if (userEmail && userEmail !== user.id) {
       const emailPayload = { ...payload, user_id: userEmail };
       await supabaseClient
         .from('user_sync_data')
         .upsert(emailPayload, { onConflict: 'user_id' });
     }
+
+    const mobilePayload = { ...payload, user_id: 'Google User', user_email: userEmail || 'Google User' };
+    await supabaseClient
+      .from('user_sync_data')
+      .upsert(mobilePayload, { onConflict: 'user_id' });
 
     if (error) {
       console.error('Cloud sync push error:', error);

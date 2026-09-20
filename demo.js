@@ -745,9 +745,60 @@ function finishSession() {
   updateSubjectBreakdown();
   saveLocalState();
   pushDataToCloud();
+  triggerSaveSuccessFeedback();
 
   const minStr = Math.round(studiedDurationSec / 60);
-  showToast(`🎉 Focus session saved! +${minStr > 0 ? minStr : 1}m logged to ${subject.name}`, 'success');
+  showToast(`🎉 Focus session saved! +${minStr > 0 ? minStr : 1}m added to ${subject.name}`, 'success');
+}
+
+let saveFeedbackTimeout = null;
+function triggerSaveSuccessFeedback() {
+  const btnMainSave = document.getElementById('btnFinishSession');
+  const btnZenSave = document.getElementById('btnZenSave');
+
+  if (saveFeedbackTimeout) clearTimeout(saveFeedbackTimeout);
+
+  if (btnMainSave) {
+    btnMainSave.classList.add('saved-success');
+    btnMainSave.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      <span>✓ Saved!</span>
+    `;
+  }
+
+  if (btnZenSave) {
+    btnZenSave.classList.add('saved-success');
+    btnZenSave.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      <span>✓ Saved!</span>
+    `;
+  }
+
+  // Reset to original state after 1 minute (60,000ms)
+  saveFeedbackTimeout = setTimeout(() => {
+    resetSaveButtonState();
+  }, 60000);
+}
+
+function resetSaveButtonState() {
+  const btnMainSave = document.getElementById('btnFinishSession');
+  const btnZenSave = document.getElementById('btnZenSave');
+
+  if (btnMainSave) {
+    btnMainSave.classList.remove('saved-success');
+    btnMainSave.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      <span>Finish &amp; Save</span>
+    `;
+  }
+
+  if (btnZenSave) {
+    btnZenSave.classList.remove('saved-success');
+    btnZenSave.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      <span>Save Session</span>
+    `;
+  }
 }
 
 function checkAndUpdateStreak() {

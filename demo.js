@@ -1753,8 +1753,12 @@ function renderSubjectDonutChart() {
     svg.querySelectorAll('.donut-slice').forEach(s => {
       if (s.getAttribute('data-sub-id') === item.id) {
         s.classList.add('active');
+        s.style.opacity = '1';
+        s.style.strokeWidth = '26';
       } else {
         s.classList.remove('active');
+        s.style.opacity = '0.35';
+        s.style.strokeWidth = '22';
       }
     });
 
@@ -1773,7 +1777,11 @@ function renderSubjectDonutChart() {
     if (centerVal) centerVal.textContent = formattedTotal;
     if (centerPct) centerPct.classList.add('hidden');
 
-    svg.querySelectorAll('.donut-slice').forEach(s => s.classList.remove('active'));
+    svg.querySelectorAll('.donut-slice').forEach(s => {
+      s.classList.remove('active');
+      s.style.opacity = '1';
+      s.style.strokeWidth = '22';
+    });
     legendList.querySelectorAll('.donut-legend-item').forEach(l => l.classList.remove('active'));
   }
 
@@ -1789,7 +1797,7 @@ function renderSubjectDonutChart() {
       : (itemMin === 0 ? `${item.durationSec}s` : `${itemMin}m`);
 
     const sliceLength = (itemPct / 100) * circumference;
-    const offset = circumference - ((accumulatedPercent / 100) * circumference);
+    const offset = -((accumulatedPercent / 100) * circumference);
 
     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     circle.setAttribute('cx', '100');

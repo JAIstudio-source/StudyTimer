@@ -1331,7 +1331,9 @@ html, body {
 .donut-chart-svg {
   width: 100%;
   height: 100%;
+  display: block;
   transform: rotate(-90deg);
+  transform-origin: 50% 50%;
 }
 
 .donut-bg-track {

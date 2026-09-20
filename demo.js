@@ -471,8 +471,33 @@ function setupEventListeners() {
   document.getElementById('btnLogout')?.addEventListener('click', signOutUser);
   document.getElementById('btnManualSync')?.addEventListener('click', pullDataFromCloud);
 
+  // Subject Dropdown Menu Toggles
+  const btnSubjectTrigger = document.getElementById('btnSubjectMenuTrigger');
+  const timerSubjectDisplay = document.getElementById('timerSubjectDisplay');
+  const subjectDropdownMenu = document.getElementById('subjectDropdownMenu');
+
+  function toggleSubjectMenu(e) {
+    e.stopPropagation();
+    if (subjectDropdownMenu) {
+      subjectDropdownMenu.classList.toggle('hidden');
+    }
+  }
+
+  btnSubjectTrigger?.addEventListener('click', toggleSubjectMenu);
+  timerSubjectDisplay?.addEventListener('click', toggleSubjectMenu);
+
+  document.addEventListener('click', (e) => {
+    if (subjectDropdownMenu && !subjectDropdownMenu.contains(e.target) && !btnSubjectTrigger?.contains(e.target) && !timerSubjectDisplay?.contains(e.target)) {
+      subjectDropdownMenu.classList.add('hidden');
+    }
+  });
+
   // Subject Modal
-  document.getElementById('btnAddSubject')?.addEventListener('click', openSubjectModal);
+  document.getElementById('btnAddSubject')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    subjectDropdownMenu?.classList.add('hidden');
+    openSubjectModal();
+  });
   document.getElementById('btnCloseSubjectModal')?.addEventListener('click', closeSubjectModal);
   document.getElementById('subjectModalOverlay')?.addEventListener('click', (e) => {
     if (e.target.id === 'subjectModalOverlay') closeSubjectModal();
@@ -769,32 +794,45 @@ function updateTimerControlsUI() {
 }
 
 function renderSubjects() {
-  const container = document.getElementById('subjectPillsScroll');
+  const container = document.getElementById('subjectMenuItems');
   if (!container) return;
 
   container.innerHTML = '';
   appState.subjects.forEach(sub => {
-    const pill = document.createElement('button');
-    pill.className = `subject-pill ${sub.id === appState.selectedSubject.id ? 'active' : ''}`;
-    pill.innerHTML = `
-      <span class="subject-dot" style="background-color: ${sub.color};"></span>
-      <span>${sub.name}</span>
+    const isSelected = sub.id === appState.selectedSubject.id;
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = `subject-menu-item ${isSelected ? 'active' : ''}`;
+    item.innerHTML = `
+      <div class="subject-item-left">
+        <span class="subject-menu-dot" style="background-color: ${sub.color};"></span>
+        <span class="subject-item-title">${sub.name}</span>
+      </div>
+      ${isSelected ? '<svg class="subject-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}
     `;
-    pill.addEventListener('click', () => {
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
       appState.selectedSubject = sub;
+      saveLocalState();
       renderSubjects();
       updateSelectedSubjectUI();
+      document.getElementById('subjectDropdownMenu')?.classList.add('hidden');
+      showToast(`Selected Subject: ${sub.name}`, 'info');
     });
-    container.appendChild(pill);
+    container.appendChild(item);
   });
 
   updateSelectedSubjectUI();
 }
 
 function updateSelectedSubjectUI() {
+  const triggerDot = document.getElementById('triggerSubjectDot');
+  const triggerName = document.getElementById('triggerSubjectName');
   const currentSubjectDot = document.getElementById('currentSubjectDot');
   const currentSubjectName = document.getElementById('currentSubjectName');
 
+  if (triggerDot) triggerDot.style.backgroundColor = appState.selectedSubject.color;
+  if (triggerName) triggerName.textContent = appState.selectedSubject.name;
   if (currentSubjectDot) currentSubjectDot.style.backgroundColor = appState.selectedSubject.color;
   if (currentSubjectName) currentSubjectName.textContent = appState.selectedSubject.name;
 }

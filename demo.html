@@ -21,7 +21,7 @@
   
   <!-- Main & Demo Stylesheet -->
   <link rel="stylesheet" href="style.css?v=3.3.0">
-  <link rel="stylesheet" href="demo.css?v=2.2.0">
+  <link rel="stylesheet" href="demo.css?v=2.3.0">
 
   <!-- Anti-FOUC Theme Initializer -->
   <script>
@@ -172,16 +172,27 @@
             <button class="mode-btn" data-mode="break">☕ Break</button>
           </div>
 
-          <!-- Subject Tag Selector Bar -->
-          <div class="subject-tag-bar">
-            <span class="subject-bar-label">Current Subject:</span>
-            <div class="subject-pills-scroll" id="subjectPillsScroll">
-              <!-- Injected dynamically -->
-            </div>
-            <button class="add-subject-pill-btn" id="btnAddSubject" title="Create Custom Subject Tag">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-              <span>Add Subject</span>
+          <!-- Sleek Subject Dropdown Selector (Centered & Compact) -->
+          <div class="subject-dropdown-wrapper" id="subjectDropdownWrapper">
+            <button class="subject-menu-trigger-btn" id="btnSubjectMenuTrigger" aria-label="Choose Subject" title="Click to change subject">
+              <span class="subject-color-dot" id="triggerSubjectDot" style="background-color: #3b82f6;"></span>
+              <span class="subject-trigger-name" id="triggerSubjectName">Mathematics</span>
+              <svg class="dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </button>
+
+            <!-- Dropdown Menu Sheet -->
+            <div class="subject-dropdown-menu hidden" id="subjectDropdownMenu">
+              <div class="subject-menu-header">
+                <span class="subject-menu-title">Select Subject</span>
+                <button class="subject-menu-add-btn" id="btnAddSubject" title="Add New Subject">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  <span>New Subject</span>
+                </button>
+              </div>
+              <div class="subject-menu-items" id="subjectMenuItems">
+                <!-- Dynamically rendered list -->
+              </div>
+            </div>
           </div>
 
           <!-- Central Circular Timer Ring -->
@@ -204,10 +215,11 @@
             <div class="timer-center-content">
               <div class="timer-state-badge" id="timerStateBadge">READY TO FOCUS</div>
               <div class="timer-digital-display" id="timerDisplay">25:00</div>
-              <div class="timer-current-subject" id="timerSubjectDisplay">
+              <button class="timer-current-subject-btn" id="timerSubjectDisplay" title="Click to change subject">
                 <span class="subject-color-dot" id="currentSubjectDot" style="background-color: #3b82f6;"></span>
                 <span class="subject-name-label" id="currentSubjectName">Mathematics</span>
-              </div>
+                <svg class="subject-inline-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </button>
             </div>
           </div>
 
@@ -500,6 +512,6 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- SCRIPT -->
-  <script src="demo.js?v=2.0.0"></script>
+  <script src="demo.js?v=2.3.0"></script>
 </body>
 </html>

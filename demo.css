@@ -411,27 +411,35 @@ html, body {
 
 /* Studio Header Bar with locked center alignment */
 .studio-header {
-  display: grid;
-  grid-template-columns: 44px 1fr 44px;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   margin-bottom: 24px;
   gap: 8px;
   width: 100%;
 }
 
 .studio-header-left {
-  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-start;
 }
 
 .studio-header-center {
-  justify-self: center;
   display: flex;
   justify-content: center;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .studio-header-right {
-  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-end;
 }
 
 .timer-tool-btn {
@@ -1591,14 +1599,16 @@ html, body {
   height: 100dvh;
   background-color: var(--bg-canvas);
   color: var(--text-primary);
-  z-index: 99999;
+  z-index: 999999;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 24px;
   overflow: hidden;
-  animation: zen-fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  touch-action: none;
+  overscroll-behavior: none;
+  animation: zen-fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   box-sizing: border-box;
 }
 
@@ -1788,6 +1798,19 @@ html, body {
   height: 15px;
 }
 
+.btn-zen-save {
+  color: var(--accent-emerald) !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+  background: rgba(16, 185, 129, 0.08) !important;
+}
+
+.btn-zen-save:hover {
+  background: rgba(16, 185, 129, 0.18) !important;
+  border-color: var(--accent-emerald) !important;
+  color: var(--accent-emerald) !important;
+  transform: translateY(-1px);
+}
+
 /* ==========================================================================
    7. COMPREHENSIVE MOBILE & ANDROID WEB OPTIMIZATIONS
    ========================================================================== */
@@ -1827,27 +1850,35 @@ html, body {
   }
 
   .studio-header {
-    display: grid;
-    grid-template-columns: 36px 1fr 36px;
+    display: flex;
     align-items: center;
+    justify-content: space-between;
     margin-bottom: 16px;
     gap: 6px;
     width: 100%;
   }
 
   .studio-header-left {
-    justify-self: start;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    justify-content: flex-start;
   }
 
   .studio-header-center {
-    justify-self: center;
     display: flex;
     justify-content: center;
     text-align: center;
+    flex-shrink: 0;
   }
 
   .studio-header-right {
-    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    justify-content: flex-end;
   }
 
   .active-mode-badge {

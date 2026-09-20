@@ -21,7 +21,7 @@
   
   <!-- Main & Demo Stylesheet -->
   <link rel="stylesheet" href="style.css?v=3.3.0">
-  <link rel="stylesheet" href="demo.css?v=2.4.0">
+  <link rel="stylesheet" href="demo.css?v=2.5.0">
 
   <!-- Anti-FOUC Theme Initializer -->
   <script>
@@ -139,15 +139,19 @@
         
         <div class="studio-card">
           
-          <!-- Top Window Header with Settings & Mode Info -->
+          <!-- Top Window Header with Settings, Reset & Fullscreen -->
           <div class="studio-header">
             <div class="studio-header-left">
-              <button class="timer-tool-btn" id="btnOpenTimerSettings" title="Customize Timer &amp; Pomodoro Settings" aria-label="Timer Settings">
+              <button class="timer-tool-btn" id="btnOpenTimerSettings" title="Timer Settings" aria-label="Timer Settings">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="12" cy="12" r="3"></circle>
                   <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                 </svg>
-                <span class="tool-btn-label">Timer Settings</span>
+                <span class="tool-btn-label">Settings</span>
+              </button>
+              <button class="timer-tool-btn" id="btnQuickReset" title="Reset current timer" aria-label="Reset Timer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                <span class="tool-btn-label">Reset</span>
               </button>
             </div>
 
@@ -157,15 +161,11 @@
             </div>
 
             <div class="studio-header-right">
-              <button class="timer-tool-btn" id="btnZenTimer" title="Fullscreen Zen Timer" aria-label="Fullscreen Zen Focus">
+              <button class="timer-tool-btn btn-fullscreen-trigger" id="btnZenTimer" title="Open Full Screen Mode" aria-label="Full Screen Mode">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
                 </svg>
-                <span class="tool-btn-label">Zen</span>
-              </button>
-              <button class="timer-tool-btn" id="btnQuickReset" title="Reset current timer" aria-label="Reset Timer">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
-                <span class="tool-btn-label">Reset</span>
+                <span class="tool-btn-label">Full Screen</span>
               </button>
             </div>
           </div>
@@ -311,12 +311,12 @@
           </div>
         </div>
 
-        <!-- 3. Today's Session History Log -->
+        <!-- 3. Today's Study History -->
         <div class="hub-card session-log-card">
           <div class="hub-card-header">
             <div class="hub-card-title-group">
               <span class="hub-icon">📜</span>
-              <h3 class="hub-card-title">Today's Focus Log</h3>
+              <h3 class="hub-card-title">Today's Study History</h3>
             </div>
             <span class="sessions-count-badge" id="sessionsCountBadge">0 sessions</span>
           </div>
@@ -514,15 +514,15 @@
     </div>
   </div>
 
-  <!-- 5. DEDICATED FULLSCREEN ZEN FOCUS TIMER VIEW (No distractions, pure timer) -->
+  <!-- 5. DEDICATED FULL SCREEN FOCUS TIMER VIEW (No distractions, pure timer) -->
   <div class="zen-timer-overlay hidden" id="zenTimerOverlay" aria-modal="true" role="dialog">
-    <!-- Exit Zen Mode Button -->
-    <button class="zen-exit-btn" id="btnExitZen" title="Exit Fullscreen Zen Mode (Esc)" aria-label="Exit Zen Mode">
+    <!-- Exit Fullscreen Button -->
+    <button class="zen-exit-btn" id="btnExitZen" title="Exit Full Screen (Esc)" aria-label="Exit Full Screen">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-      <span class="zen-exit-label">Exit Fullscreen</span>
+      <span class="zen-exit-label">Exit Full Screen</span>
     </button>
 
-    <!-- Center Giant Minimal Zen Timer -->
+    <!-- Center Giant Minimal Full Screen Timer -->
     <div class="zen-timer-canvas" id="zenTimerCanvas">
       <!-- Minimal Glowing Circular Ring -->
       <div class="zen-ring-container">
@@ -544,16 +544,16 @@
         </div>
       </div>
 
-      <!-- Minimal Bottom Zen Controls -->
+      <!-- Minimal Bottom Controls: Focus Toggle & Save Session -->
       <div class="zen-controls-bar">
         <button class="btn-zen-ctrl" id="btnZenToggle" title="Play or Pause Focus">
           <svg class="zen-ctrl-icon" id="zenPlayIcon" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
           <svg class="zen-ctrl-icon hidden" id="zenPauseIcon" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
           <span id="zenToggleLabel">Start Focus</span>
         </button>
-        <button class="btn-zen-subtle" id="btnZenReset" title="Reset Timer">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
-          <span>Reset</span>
+        <button class="btn-zen-subtle btn-zen-save" id="btnZenSave" title="Save study session">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span>Save Session</span>
         </button>
       </div>
     </div>
@@ -563,6 +563,6 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- SCRIPT -->
-  <script src="demo.js?v=2.4.0"></script>
+  <script src="demo.js?v=2.5.0"></script>
 </body>
 </html>

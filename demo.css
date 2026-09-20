@@ -738,10 +738,58 @@ html, body {
   border: 1px solid rgba(59, 130, 246, 0.25);
 }
 
+.subject-menu-item.holding {
+  transform: scale(0.96);
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), background 0.5s ease;
+}
+
 .subject-item-left {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.subject-item-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.subject-item-delete-btn {
+  opacity: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.subject-menu-item:hover .subject-item-delete-btn,
+.subject-menu-item:focus-within .subject-item-delete-btn {
+  opacity: 1;
+}
+
+.subject-item-delete-btn:hover {
+  background: #ef4444;
+  color: #ffffff;
+  transform: scale(1.1);
+}
+
+.subject-dropdown-hint {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  padding: 8px 10px 4px;
+  border-top: 1px solid var(--border-color);
+  text-align: center;
+  font-style: italic;
 }
 
 .subject-menu-dot {

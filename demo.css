@@ -294,6 +294,15 @@ html, body {
   transition: var(--transition-fast);
 }
 
+.dropdown-item svg {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  max-width: 16px !important;
+  flex-shrink: 0 !important;
+  stroke-width: 2 !important;
+}
+
 .dropdown-item:hover {
   background: var(--bg-subtle);
   color: var(--text-primary);
@@ -308,49 +317,19 @@ html, body {
   color: var(--accent-red);
 }
 
-/* Nav Leaderboard Button */
-.nav-leaderboard-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  border-radius: var(--radius-pill);
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.08) 100%);
-  border: 1px solid rgba(245, 158, 11, 0.35);
-  color: var(--text-primary);
-  font-size: 0.82rem;
-  font-weight: 700;
-  cursor: pointer;
-  position: relative;
-  transition: all var(--transition-fast);
-}
-
-.nav-leaderboard-btn:hover {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(217, 119, 6, 0.18) 100%);
-  border-color: #f59e0b;
-  transform: translateY(-1px);
-  box-shadow: 0 3px 10px rgba(245, 158, 11, 0.2);
-}
-
-.nav-lb-icon {
-  font-size: 0.95rem;
-  line-height: 1;
-}
-
-@media (max-width: 560px) {
-  .nav-lb-label {
-    display: none;
-  }
-  .nav-leaderboard-btn {
-    padding: 5px 8px;
-  }
-}
-
 .dropdown-item-profile-cta {
   background: linear-gradient(135deg, rgba(139, 92, 246, 0.12) 0%, rgba(59, 130, 246, 0.06) 100%);
   color: #8b5cf6 !important;
   font-weight: 600 !important;
   border: 1px solid rgba(139, 92, 246, 0.2) !important;
+}
+
+.dropdown-item-profile-cta svg {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  max-width: 16px !important;
+  flex-shrink: 0 !important;
 }
 
 .dropdown-item-profile-cta:hover {
@@ -4203,6 +4182,21 @@ input:checked + .toggle-slider:before {
   height: 30px;
   font-size: 1.05rem;
   border: 1px solid var(--accent-blue);
+}
+
+.avatar-sticker.user-avatar {
+  width: 24px;
+  height: 24px;
+  font-size: 0.82rem;
+  border: 1px solid var(--border-subtle);
+}
+
+.nav-user-avatar-wrap,
+.user-bar-avatar-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 

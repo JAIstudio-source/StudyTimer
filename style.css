@@ -3,6 +3,10 @@
    Default: Clean White Canvas & High-Contrast Typography with Dark Mode Toggle
    ========================================================================== */
 
+.hidden {
+  display: none !important;
+}
+
 :root {
   /* Core Color Palette - Default Light Mode */
   --bg-canvas: #ffffff;
@@ -415,6 +419,83 @@ ul {
   height: 18px;
   color: var(--btn-secondary-text);
   flex-shrink: 0;
+}
+
+/* Demo Button in Hero CTA Group */
+.btn-demo-action {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-focus);
+  color: var(--text-primary);
+}
+
+.btn-demo-action:hover {
+  background-color: var(--bg-card-hover);
+  border-color: var(--accent-emerald);
+  color: var(--accent-emerald);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.12);
+  opacity: 1;
+}
+
+.btn-demo-action .store-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--accent-emerald);
+  flex-shrink: 0;
+}
+
+/* Hero Web Demo Compact Pill */
+.hero-web-demo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  margin-bottom: 20px;
+  transition: all var(--transition-fast);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.hero-web-demo-pill:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--accent-emerald);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.12);
+  color: var(--accent-emerald);
+}
+
+.demo-pill-tag {
+  background: var(--accent-emerald-subtle);
+  color: var(--accent-emerald);
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.demo-pill-text {
+  color: var(--text-secondary);
+}
+
+.hero-web-demo-pill svg {
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+  transition: transform var(--transition-fast);
+}
+
+.hero-web-demo-pill:hover svg {
+  transform: translateX(2px);
+  color: var(--accent-emerald);
 }
 
 /* ==========================================================================

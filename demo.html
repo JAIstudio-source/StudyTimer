@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  
+  <!-- Primary Meta Tags -->
+  <title>StudyTimer Web - Focus Timer &amp; Habit Tracker for Students</title>
+  <meta name="title" content="StudyTimer Web - Focus Timer &amp; Habit Tracker for Students">
+  <meta name="description" content="Free online study timer with Pomodoro, custom countdown timer, stopwatch, subject tracking, and automatic cloud sync with the StudyTimer Android App.">
+  <meta name="theme-color" content="#09090b">
+
+  <!-- Favicon & Touch Icons -->
+  <link rel="icon" href="assets/logo.png" type="image/png">
+  <link rel="apple-touch-icon" href="assets/logo.png">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Main & Demo Stylesheet -->
+  <link rel="stylesheet" href="style.css?v=3.3.0">
+  <link rel="stylesheet" href="demo.css?v=2.0.0">
+
+  <!-- Anti-FOUC Theme Initializer -->
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('studytimer-theme') || 'light';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
+
+  <!-- Supabase JS Client (v2) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="demo-page-body">
+
+  <!-- 1. CLEAN TOP WEB APP HEADER -->
+  <header class="header-nav demo-header" id="navbar">
+    <div class="nav-container demo-nav-container">
+      
+      <!-- Brand Logo -->
+      <div class="header-left-group">
+        <a href="index.html" class="logo" title="Back to StudyTimer Home">
+          <img src="assets/logo.png" alt="StudyTimer Logo" class="nav-logo-img">
+          <span class="logo-text">StudyTimer <span class="web-badge">Web</span></span>
+        </a>
+      </div>
+
+      <!-- Right Header Actions (Clean & Minimal) -->
+      <div class="nav-actions demo-nav-actions">
+        <!-- Cloud Sync Status Pill -->
+        <div class="sync-status-pill" id="syncStatusPill" title="Cloud Sync Status with Android App">
+          <span class="sync-dot"></span>
+          <span class="sync-label" id="syncStatusText">Local</span>
+        </div>
+
+        <!-- Auth Button / User Profile -->
+        <div class="auth-wrapper" id="authWrapper">
+          <button class="btn btn-secondary btn-sm auth-btn-compact" id="btnOpenAuth" aria-label="Sign In or Sync">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <span class="auth-btn-label">Sign In</span>
+          </button>
+          
+          <div class="user-dropdown-container hidden" id="userDropdownContainer">
+            <button class="user-profile-btn" id="userProfileBtn" aria-label="User Menu">
+              <img src="assets/logo.png" alt="User Avatar" class="user-avatar" id="userAvatarImg">
+              <span class="user-name" id="userDisplayName">Student</span>
+              <svg class="dropdown-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="user-menu-dropdown hidden" id="userMenuDropdown">
+              <div class="dropdown-header">
+                <p class="dropdown-user-name" id="dropdownUserName">Student</p>
+                <p class="dropdown-user-email" id="dropdownUserEmail">student@example.com</p>
+              </div>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item" id="btnManualSync">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                Sync with App
+              </button>
+              <button class="dropdown-item dropdown-item-danger" id="btnLogout">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fullscreen Browser Zen Mode Toggle -->
+        <button class="demo-icon-btn" id="btnBrowserFullscreen" aria-label="Toggle Fullscreen Focus" title="Full Screen Zen Focus">
+          <svg class="icon-expand-fs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+          </svg>
+          <svg class="icon-compress-fs hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>
+          </svg>
+        </button>
+
+        <!-- Theme Toggle -->
+        <button class="theme-toggle-btn demo-icon-btn" id="themeToggleBtn" aria-label="Toggle theme" title="Toggle theme">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        </button>
+
+        <!-- Exit / Back to Home Link -->
+        <a href="index.html" class="nav-exit-btn demo-icon-btn" title="Back to StudyTimer Home">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </a>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- GUEST SYNC NOTICE BANNER -->
+  <div class="guest-banner" id="guestBanner">
+    <div class="container guest-banner-container">
+      <div class="guest-banner-text">
+        <svg class="banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        <span><strong>Guest Session:</strong> Saved locally. Sign in with Google to sync all study hours directly with your <strong>StudyTimer Android App</strong>!</span>
+      </div>
+      <button class="btn btn-primary btn-xs" id="btnBannerSignIn">Sign In with Google</button>
+    </div>
+  </div>
+
+  <!-- 2. FULL-FLEDGED WEB BROWSER WORKSPACE -->
+  <main class="demo-workspace-main">
+    <div class="container demo-grid-layout">
+      
+      <!-- LEFT / CENTER: MAIN FOCUS TIMER STUDIO -->
+      <section class="focus-timer-studio" aria-label="Study Timer Canvas">
+        
+        <div class="studio-card">
+          
+          <!-- Top Window Header with Settings & Mode Info -->
+          <div class="studio-header">
+            <div class="studio-header-left">
+              <button class="timer-tool-btn" id="btnOpenTimerSettings" title="Customize Timer &amp; Pomodoro Settings" aria-label="Timer Settings">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                <span class="tool-btn-label">Timer Settings</span>
+              </button>
+            </div>
+
+            <!-- Studio Active Mode Pill -->
+            <div class="studio-header-center">
+              <span class="active-mode-badge" id="activeModeBadge">⏱️ Countdown Timer</span>
+            </div>
+
+            <div class="studio-header-right">
+              <button class="timer-tool-btn" id="btnQuickReset" title="Reset current timer" aria-label="Reset Timer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                <span class="tool-btn-label">Reset</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Mode Selector Tabs -->
+          <div class="timer-mode-selector">
+            <button class="mode-btn active" data-mode="timer">⏱️ Countdown</button>
+            <button class="mode-btn" data-mode="pomodoro">🍅 Pomodoro</button>
+            <button class="mode-btn" data-mode="stopwatch">⚡ Stopwatch</button>
+            <button class="mode-btn" data-mode="break">☕ Break</button>
+          </div>
+
+          <!-- Subject Tag Selector Bar -->
+          <div class="subject-tag-bar">
+            <span class="subject-bar-label">Current Subject:</span>
+            <div class="subject-pills-scroll" id="subjectPillsScroll">
+              <!-- Injected dynamically -->
+            </div>
+            <button class="add-subject-pill-btn" id="btnAddSubject" title="Create Custom Subject Tag">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              <span>Add Subject</span>
+            </button>
+          </div>
+
+          <!-- Central Circular Timer Ring -->
+          <div class="timer-ring-container">
+            <svg class="timer-svg" viewBox="0 0 320 320">
+              <!-- Glow Defs -->
+              <defs>
+                <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#3b82f6"/>
+                  <stop offset="100%" stop-color="#60a5fa"/>
+                </linearGradient>
+              </defs>
+              <!-- Background Track -->
+              <circle class="timer-track" cx="160" cy="160" r="138"></circle>
+              <!-- Animated Glowing Progress Ring -->
+              <circle class="timer-indicator" id="timerIndicator" cx="160" cy="160" r="138"></circle>
+            </svg>
+
+            <!-- Central Content Display -->
+            <div class="timer-center-content">
+              <div class="timer-state-badge" id="timerStateBadge">READY TO FOCUS</div>
+              <div class="timer-digital-display" id="timerDisplay">25:00</div>
+              <div class="timer-current-subject" id="timerSubjectDisplay">
+                <span class="subject-color-dot" id="currentSubjectDot" style="background-color: #3b82f6;"></span>
+                <span class="subject-name-label" id="currentSubjectName">Mathematics</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Timer Controls Action Center -->
+          <div class="timer-controls-area">
+            <button class="btn-timer-primary" id="btnToggleTimer">
+              <svg class="btn-ctrl-icon" id="playIcon" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+              <svg class="btn-ctrl-icon hidden" id="pauseIcon" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+              <span id="btnToggleLabel">Start Focus</span>
+            </button>
+
+            <div class="timer-secondary-actions">
+              <button class="btn-timer-subtle" id="btnResetTimer" title="Reset timer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                <span>Reset</span>
+              </button>
+              <button class="btn-timer-subtle btn-finish-session" id="btnFinishSession" title="Finish and log session">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Finish &amp; Save</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- RIGHT: PRODUCTIVITY HUB & LIVE ANALYTICS -->
+      <aside class="productivity-hub" aria-label="Study Analytics and History">
+        
+        <!-- 1. Daily Streak & Target Progress Card -->
+        <div class="hub-card target-progress-card">
+          <div class="hub-card-header">
+            <div class="hub-card-title-group">
+              <span class="hub-icon">🎯</span>
+              <h2 class="hub-card-title">Daily Study Insights</h2>
+            </div>
+            <div class="streak-badge-hub" id="hubStreakBadge" title="Current Daily Study Streak">
+              <span class="streak-fire">🔥</span>
+              <span class="streak-count" id="hubStreakCount">1 Day Streak</span>
+            </div>
+          </div>
+          
+          <div class="target-progress-body">
+            <div class="target-stat-numbers">
+              <div class="target-stat-item">
+                <span class="stat-label">Studied Today</span>
+                <strong class="stat-val" id="statStudiedToday">0m</strong>
+              </div>
+              <div class="target-stat-item">
+                <div class="stat-label-with-action">
+                  <span class="stat-label">Daily Goal</span>
+                  <button class="btn-link-action-mini" id="btnEditGoal" title="Change target">Edit</button>
+                </div>
+                <strong class="stat-val text-muted" id="statDailyGoal">120m</strong>
+              </div>
+              <div class="target-stat-item">
+                <span class="stat-label">Completed</span>
+                <strong class="stat-val text-accent" id="statGoalPercent">0%</strong>
+              </div>
+            </div>
+
+            <div class="progress-bar-large">
+              <div class="progress-bar-fill" id="largeGoalProgressBar" style="width: 0%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Today's Subject Breakdown -->
+        <div class="hub-card subject-breakdown-card">
+          <div class="hub-card-header">
+            <div class="hub-card-title-group">
+              <span class="hub-icon">📊</span>
+              <h3 class="hub-card-title">Today's Subject Distribution</h3>
+            </div>
+          </div>
+          
+          <div class="subject-bars-list" id="subjectBarsList">
+            <!-- Dynamically injected subject progress bars -->
+            <div class="empty-hub-state" id="subjectEmptyState">
+              <span>Start studying to see time breakdown per subject.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Today's Session History Log -->
+        <div class="hub-card session-log-card">
+          <div class="hub-card-header">
+            <div class="hub-card-title-group">
+              <span class="hub-icon">📜</span>
+              <h3 class="hub-card-title">Today's Focus Log</h3>
+            </div>
+            <span class="sessions-count-badge" id="sessionsCountBadge">0 sessions</span>
+          </div>
+
+          <div class="timeline-list-container" id="timelineList">
+            <div class="timeline-empty-state" id="timelineEmptyState">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <p>No study sessions recorded yet today.</p>
+              <span>Click <strong>Start Focus</strong> to record your first study block!</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Sync & Android App Banner Card -->
+        <div class="hub-card app-companion-card">
+          <div class="companion-flex">
+            <div class="companion-text-block">
+              <h4 class="companion-title">Take StudyTimer On The Go</h4>
+              <p class="companion-desc">
+                Everything you study here syncs to your Android phone via Supabase. Get lockscreen widgets, notifications, and heatmap charts!
+              </p>
+            </div>
+            <a href="StudyTimer-release.apk" class="btn btn-primary btn-sm companion-download-btn" download>
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2a1 1 0 0 1 1 1v10.586l3.293-3.293a1 1 0 1 1 1.414 1.414l-5 5a1 1 0 0 1-1.414 0l-5-5a1 1 0 1 1 1.414-1.414L11 13.586V3a1 1 0 0 1 1-1zm-7 16a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1z"/>
+              </svg>
+              <span>Download Free APK</span>
+            </a>
+          </div>
+        </div>
+
+      </aside>
+
+    </div>
+  </main>
+
+  <!-- 3. TIMER SETTINGS MODAL -->
+  <div class="modal-overlay hidden" id="timerSettingsModalOverlay">
+    <div class="modal-card" id="timerSettingsModalCard">
+      <button class="modal-close-btn" id="btnCloseTimerSettingsModal" aria-label="Close modal">&times;</button>
+      
+      <div class="modal-header">
+        <div class="modal-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </div>
+        <h3 class="modal-title">Timer Preferences</h3>
+        <p class="modal-subtitle">Customize countdown durations, Pomodoro cycles, and daily targets.</p>
+      </div>
+
+      <form class="modal-body" id="timerSettingsForm">
+        
+        <!-- Countdown Presets -->
+        <div class="settings-section">
+          <label class="settings-label">⏱️ Focus Countdown Duration</label>
+          <div class="presets-grid" id="settingsPresetsGrid">
+            <button type="button" class="settings-chip" data-min="15">15m</button>
+            <button type="button" class="settings-chip active" data-min="25">25m</button>
+            <button type="button" class="settings-chip" data-min="30">30m</button>
+            <button type="button" class="settings-chip" data-min="45">45m</button>
+            <button type="button" class="settings-chip" data-min="60">60m (1h)</button>
+            <button type="button" class="settings-chip" data-min="90">90m</button>
+            <button type="button" class="settings-chip" data-min="120">2 Hours</button>
+            <button type="button" class="settings-chip" data-min="180">3 Hours</button>
+          </div>
+          <div class="input-group" style="margin-top: 10px;">
+            <label for="customMinutesInput">Or Exact Custom Duration (Minutes)</label>
+            <input type="number" id="customMinutesInput" min="1" max="720" value="25">
+          </div>
+        </div>
+
+        <div class="dropdown-divider"></div>
+
+        <!-- Pomodoro Focus / Break -->
+        <div class="settings-section">
+          <label class="settings-label">🍅 Pomodoro Intervals</label>
+          <div class="settings-grid-row">
+            <div class="input-group">
+              <label for="pomoFocusInput">Focus Interval (min)</label>
+              <input type="number" id="pomoFocusInput" min="1" max="180" value="25">
+            </div>
+            <div class="input-group">
+              <label for="pomoBreakInput">Short Break (min)</label>
+              <input type="number" id="pomoBreakInput" min="1" max="60" value="5">
+            </div>
+          </div>
+        </div>
+
+        <div class="dropdown-divider"></div>
+
+        <!-- Daily Target -->
+        <div class="settings-section">
+          <div class="input-group">
+            <label for="dailyTargetGoalInput">🎯 Daily Study Target Goal (Minutes)</label>
+            <input type="number" id="dailyTargetGoalInput" min="15" max="1440" value="120">
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full" style="margin-top: 10px;">
+          <span>Apply Preferences</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 4. AUTH MODAL -->
+  <div class="modal-overlay hidden" id="authModalOverlay">
+    <div class="modal-card" id="authModalCard">
+      <button class="modal-close-btn" id="btnCloseAuthModal" aria-label="Close modal">&times;</button>
+      
+      <div class="modal-header">
+        <div class="modal-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path>
+          </svg>
+        </div>
+        <h3 class="modal-title">Cloud Account Sync</h3>
+        <p class="modal-subtitle">Sign in to sync your study history across Web and Android.</p>
+      </div>
+
+      <div class="modal-body">
+        <!-- Google OAuth Button -->
+        <button class="btn btn-google-auth" id="btnGoogleSignIn">
+          <svg class="google-svg-icon" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          <span>Continue with Google</span>
+        </button>
+
+        <div class="auth-divider">
+          <span>or sign in with email</span>
+        </div>
+
+        <!-- Email Magic Link Form -->
+        <form class="email-auth-form" id="emailAuthForm">
+          <div class="input-group">
+            <label for="authEmailInput">Email Address</label>
+            <input type="email" id="authEmailInput" placeholder="student@example.com" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-full" id="btnSubmitEmail">
+            <span>Send Magic Sign-In Link</span>
+          </button>
+        </form>
+
+        <div class="auth-status-message hidden" id="authStatusMessage"></div>
+      </div>
+
+      <div class="modal-footer">
+        <p class="legal-text">Zero ads. Your sessions sync securely under your personal account.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. ADD SUBJECT MODAL -->
+  <div class="modal-overlay hidden" id="subjectModalOverlay">
+    <div class="modal-card modal-card-sm" id="subjectModalCard">
+      <button class="modal-close-btn" id="btnCloseSubjectModal" aria-label="Close modal">&times;</button>
+      
+      <div class="modal-header">
+        <h3 class="modal-title">Add Study Subject</h3>
+        <p class="modal-subtitle">Create a custom subject tag for your focus blocks.</p>
+      </div>
+
+      <form class="modal-body" id="addSubjectForm">
+        <div class="input-group">
+          <label for="customSubjectName">Subject Name</label>
+          <input type="text" id="customSubjectName" placeholder="e.g. Organic Chemistry, History" maxlength="30" required>
+        </div>
+
+        <div class="input-group">
+          <label>Select Color Badge</label>
+          <div class="color-picker-palette" id="colorPickerPalette">
+            <button type="button" class="color-choice-btn active" data-color="#3b82f6" style="background-color: #3b82f6;"></button>
+            <button type="button" class="color-choice-btn" data-color="#10b981" style="background-color: #10b981;"></button>
+            <button type="button" class="color-choice-btn" data-color="#8b5cf6" style="background-color: #8b5cf6;"></button>
+            <button type="button" class="color-choice-btn" data-color="#f59e0b" style="background-color: #f59e0b;"></button>
+            <button type="button" class="color-choice-btn" data-color="#ef4444" style="background-color: #ef4444;"></button>
+            <button type="button" class="color-choice-btn" data-color="#ec4899" style="background-color: #ec4899;"></button>
+            <button type="button" class="color-choice-btn" data-color="#06b6d4" style="background-color: #06b6d4;"></button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full">
+          <span>Add Subject</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- SCRIPT -->
+  <script src="demo.js?v=2.0.0"></script>
+</body>
+</html>

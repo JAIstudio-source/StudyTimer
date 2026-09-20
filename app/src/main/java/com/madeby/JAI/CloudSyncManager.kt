@@ -38,7 +38,13 @@ object CloudSyncManager {
         }
 
         try {
-            val url = URL("$supabaseUrl/rest/v1/user_sync_data?user_id=eq.$userId&select=*")
+            val userEmail = AuthManager.getUserEmail(context) ?: ""
+            val queryParams = if (userEmail.isNotBlank()) {
+                "or=(user_id.eq.$userId,user_id.eq.$userEmail,user_email.eq.$userEmail)&order=updated_at.desc&select=*"
+            } else {
+                "user_id=eq.$userId&select=*"
+            }
+            val url = URL("$supabaseUrl/rest/v1/user_sync_data?$queryParams")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
             conn.setRequestProperty("apikey", anonKey)
@@ -459,7 +465,13 @@ object CloudSyncManager {
         }
 
         try {
-            var url = URL("$supabaseUrl/rest/v1/user_sync_data?user_id=eq.$userId&select=*")
+            val userEmail = AuthManager.getUserEmail(context) ?: ""
+            val queryParams = if (userEmail.isNotBlank()) {
+                "or=(user_id.eq.$userId,user_id.eq.$userEmail,user_email.eq.$userEmail)&order=updated_at.desc&select=*"
+            } else {
+                "user_id=eq.$userId&select=*"
+            }
+            var url = URL("$supabaseUrl/rest/v1/user_sync_data?$queryParams")
             var conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
             conn.setRequestProperty("apikey", anonKey)

@@ -253,6 +253,45 @@ object CloudSyncManager {
                     .apply()
                 BackupManager(context).markDataModified()
                 Log.i("CloudSyncManager", "Cloud sync successfully completed for user: $userId at $lastSyncTime")
+
+                // Auto-sync today's total study time to public.daily_leaderboard
+                try {
+                    val todayKeyFmt = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+                    val todayFocusTotalSec = sharedPrefs.getInt("${todayKeyFmt}_focus_total", sharedPrefs.getLong("${todayKeyFmt}_focus_total", 0L).toInt())
+                    val effectiveSecs = if (todayFocusTotalSec > 0) todayFocusTotalSec else sharedPrefs.getLong("accumulatedStudy", 0L).toInt()
+                    
+                    val lbPayload = JSONObject().apply {
+                        put("user_id", userId as String)
+                        put("user_name", if (userName.isNotBlank()) userName else "Student")
+                        put("avatar_url", if (profileImg.isNotBlank()) profileImg else "🐱")
+                        put("study_date", todayKeyFmt)
+                        put("total_seconds", effectiveSecs)
+                        put("is_studying", false)
+                        put("current_subject", "")
+                        put("subject_color", "#3b82f6")
+                        put("last_active_at", java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).format(java.util.Date()))
+                        put("updated_at", java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).format(java.util.Date()))
+                    }
+
+                    val lbUrl = URL("$supabaseUrl/rest/v1/daily_leaderboard?on_conflict=user_id,study_date")
+                    val lbConn = lbUrl.openConnection() as HttpURLConnection
+                    lbConn.requestMethod = "POST"
+                    lbConn.setRequestProperty("apikey", anonKey)
+                    lbConn.setRequestProperty("Authorization", "Bearer $anonKey")
+                    lbConn.setRequestProperty("Content-Type", "application/json")
+                    lbConn.setRequestProperty("Prefer", "resolution=merge-duplicates")
+                    lbConn.connectTimeout = 8000
+                    lbConn.readTimeout = 8000
+                    lbConn.doOutput = true
+                    lbConn.outputStream.use { os ->
+                        os.write(lbPayload.toString().toByteArray(Charsets.UTF_8))
+                    }
+                    val lbCode = lbConn.responseCode
+                    Log.d("CloudSyncManager", "Leaderboard auto-update HTTP status: $lbCode for user $userId ($effectiveSecs seconds)")
+                } catch (lbEx: Exception) {
+                    Log.w("CloudSyncManager", "Leaderboard auto-update non-fatal exception", lbEx)
+                }
+
                 SyncResult(isSuccess = true)
             } else {
                 Log.w("CloudSyncManager", "Cloud sync failed with HTTP $code. Response: $responseBody")

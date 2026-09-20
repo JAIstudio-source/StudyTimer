@@ -142,7 +142,7 @@
 
         <!-- Desktop & Tablet Direct Leaderboard Action -->
         <button class="nav-leaderboard-btn" id="btnDesktopLeaderboard" title="Live Global Leaderboard" aria-label="Open Global Leaderboard">
-          <span class="nav-lb-trophy">🏆</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-lb-trophy-svg"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path></svg>
           <span class="nav-lb-label">Leaderboard</span>
           <span class="live-pulse-dot"></span>
         </button>
@@ -214,7 +214,7 @@
 
             <!-- Studio Active Mode Pill -->
             <div class="studio-header-center">
-              <span class="active-mode-badge" id="activeModeBadge">⏱️ Countdown Timer</span>
+              <span class="active-mode-badge" id="activeModeBadge">Countdown Timer</span>
             </div>
 
             <div class="studio-header-right">
@@ -229,10 +229,22 @@
 
           <!-- Mode Selector Tabs -->
           <div class="timer-mode-selector">
-            <button class="mode-btn active" data-mode="timer">⏱️ Countdown</button>
-            <button class="mode-btn" data-mode="pomodoro">🍅 Pomodoro</button>
-            <button class="mode-btn" data-mode="stopwatch">⚡ Stopwatch</button>
-            <button class="mode-btn" data-mode="break">☕ Break</button>
+            <button class="mode-btn active" data-mode="timer">
+              <svg class="mode-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              <span>Countdown</span>
+            </button>
+            <button class="mode-btn" data-mode="pomodoro">
+              <svg class="mode-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 3v3m-3-1 2 2m4-2-2 2"></path></svg>
+              <span>Pomodoro</span>
+            </button>
+            <button class="mode-btn" data-mode="stopwatch">
+              <svg class="mode-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+              <span>Stopwatch</span>
+            </button>
+            <button class="mode-btn" data-mode="break">
+              <svg class="mode-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>
+              <span>Break</span>
+            </button>
           </div>
 
           <!-- Sleek Subject Dropdown Selector (Centered & Compact) -->
@@ -319,7 +331,12 @@
         <div class="drawer-mobile-header">
           <div class="drawer-drag-handle"></div>
           <div class="drawer-mobile-title-row">
-            <span class="drawer-mobile-title">📊 Study Insights &amp; Analytics</span>
+            <div class="drawer-title-flex">
+              <div class="hub-icon-badge hub-icon-target" style="width: 26px; height: 26px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+              </div>
+              <span class="drawer-mobile-title">Study Insights &amp; Analytics</span>
+            </div>
             <button class="drawer-close-btn" id="btnCloseMobileInsights" aria-label="Close Insights">✕</button>
           </div>
         </div>
@@ -349,11 +366,13 @@
           <div class="hub-card target-progress-card">
             <div class="hub-card-header">
               <div class="hub-card-title-group">
-                <span class="hub-icon">🎯</span>
+                <div class="hub-icon-badge hub-icon-target">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+                </div>
                 <h2 class="hub-card-title">Daily Study Target</h2>
               </div>
               <div class="streak-badge-hub" id="hubStreakBadge" title="Current Daily Study Streak">
-                <span class="streak-fire">🔥</span>
+                <svg class="streak-fire-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 17c1.38 0 2.5-1.12 2.5-2.5 0-.61-.23-1.17-.61-1.61L12 11.97l-.89.92c-.38.44-.61 1-.61 1.61zM12 2C6.5 2 2 6.5 2 12c0 3.2 1.5 6.05 3.82 7.89.28.22.68.17.9-.11.23-.28.17-.68-.11-.9A8.995 8.995 0 0 1 4 12c0-4.41 3.59-8 8-8s8 3.59 8 8c0 2.65-1.29 4.99-3.28 6.45-.28.21-.35.61-.14.89.21.28.61.35.89.14A9.99 9.99 0 0 0 22 12c0-5.5-4.5-10-10-10z"/></svg>
                 <span class="streak-count" id="hubStreakCount">1 Day Streak</span>
               </div>
             </div>
@@ -391,11 +410,16 @@
           <div class="hub-card subject-donut-card">
             <div class="hub-card-header">
               <div class="hub-card-title-group">
-                <span class="hub-icon">📊</span>
+                <div class="hub-icon-badge hub-icon-pie">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+                </div>
                 <h3 class="hub-card-title">Subject Distribution</h3>
               </div>
               <div class="donut-card-actions">
-                <button class="btn-link-action-mini" id="btnOpenDayPieHistoryModal" title="Browse past day subject pie charts like in the app">📅 Day History</button>
+                <button class="btn-link-action-mini" id="btnOpenDayPieHistoryModal" title="Browse past day subject pie charts like in the app">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 12px; height: 12px; vertical-align: -1px; margin-right: 3px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                  <span>Day History</span>
+                </button>
                 <span class="donut-total-badge" id="donutTotalBadge">0m total</span>
               </div>
             </div>
@@ -423,7 +447,9 @@
           <div class="hub-card activity-heatmap-card">
             <div class="hub-card-header">
               <div class="hub-card-title-group">
-                <span class="hub-icon">🟩</span>
+                <div class="hub-icon-badge hub-icon-grid">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                </div>
                 <h3 class="hub-card-title">Activity Heatmap</h3>
               </div>
               <span class="heatmap-year-label" id="heatmapYearLabel">Past 52 Weeks</span>
@@ -517,7 +543,9 @@
           <div class="hub-card calendar-day-pie-card" id="calDayPieCard">
             <div class="hub-card-header">
               <div class="hub-card-title-group">
-                <span class="hub-icon">📊</span>
+                <div class="hub-icon-badge hub-icon-pie">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+                </div>
                 <h3 class="hub-card-title" id="calDayPieTitle">Day Subject Breakdown</h3>
               </div>
               <span class="donut-total-badge" id="calDayPieTotalBadge">0m total</span>
@@ -545,7 +573,9 @@
           <div class="hub-card day-timeline-card">
             <div class="hub-card-header">
               <div class="hub-card-title-group">
-                <span class="hub-icon">📜</span>
+                <div class="hub-icon-badge hub-icon-history">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                </div>
                 <h3 class="hub-card-title" id="selectedDateTimelineTitle">Today's Sessions</h3>
               </div>
               <span class="sessions-count-badge" id="selectedDateSessionCount">0 sessions</span>
@@ -602,7 +632,7 @@
 
         <!-- 2. Leaderboard FAB (Directly Below Insights) -->
         <button class="btn-mobile-leaderboard-fab" id="btnMobileLeaderboard" aria-label="Open Global Leaderboard">
-          <span class="fab-icon">🏆</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="fab-icon-svg"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path></svg>
           <span>Leaderboard</span>
           <span class="live-pulse-dot" id="mobileLiveDot"></span>
         </button>
@@ -666,7 +696,9 @@
       <!-- Leaderboard Header Control Card -->
       <div class="leaderboard-modal-header">
         <div class="leaderboard-title-wrap">
-          <span class="hub-icon">🏆</span>
+          <div class="hub-icon-badge hub-icon-trophy">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path></svg>
+          </div>
           <div>
             <h3 class="leaderboard-title">Daily Leaderboard</h3>
             <div class="leaderboard-subtitle-row">
@@ -723,7 +755,7 @@
           <span id="userBarAvatarWrap" class="user-bar-avatar-wrap"><img src="assets/logo.png" alt="Avatar" class="user-bar-avatar" id="userBarAvatar"></span>
           <div class="user-bar-info">
             <span class="user-bar-name" id="userBarName">You</span>
-            <span class="user-bar-status" id="userBarStatus">⚪ Resting</span>
+            <span class="user-bar-status" id="userBarStatus"><span class="user-bar-status-resting"><span class="status-dot"></span>Resting</span></span>
           </div>
         </div>
         <div class="user-bar-right">
@@ -764,7 +796,7 @@
               <strong class="preview-name" id="previewDisplayName">Student</strong>
               <span class="preview-role-pill">Student</span>
             </div>
-            <p class="preview-motto" id="previewMottoText">🎯 Deep focus & daily consistency</p>
+            <p class="preview-motto" id="previewMottoText">🎯 Deep focus &amp; daily consistency</p>
           </div>
         </div>
 
@@ -802,7 +834,7 @@
         <!-- Study Motto / Bio -->
         <div class="input-group">
           <label for="inputProfileMotto">Study Motto / Bio</label>
-          <input type="text" id="inputProfileMotto" maxlength="60" placeholder="e.g. 🎯 Aiming for 6h daily | CS Major" autocomplete="off">
+          <input type="text" id="inputProfileMotto" maxlength="60" placeholder="e.g. Aiming for 6h daily | CS Major" autocomplete="off">
           <span class="input-hint-sub">Your personal study motivation (max 60 chars)</span>
         </div>
 
@@ -857,14 +889,15 @@
         <p class="modal-subtitle">Browse past days' subject distribution and session breakdown.</p>
       </div>
 
-      <!-- Date Navigator Row (◄ Prev Day | 📅 Date Display | Next Day ► | Today) -->
+      <!-- Date Navigator Row (◄ Prev Day | Date Display | Next Day ► | Today) -->
       <div class="day-history-nav-row">
         <button class="day-nav-arrow-btn" id="btnHistoryPrevDay" title="Previous Day">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
           <span>Prev</span>
         </button>
         <button class="day-history-date-display-btn" id="btnHistoryDateDisplay" title="Click to choose a date">
-          <span id="historyModalDateTitle">📅 Today (Sep 20, 2026)</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="day-date-cal-icon"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          <span id="historyModalDateTitle">Today (Sep 20, 2026)</span>
         </button>
         <input type="date" id="historyNativeDatePicker" style="display: none;" />
         <button class="day-nav-arrow-btn" id="btnHistoryNextDay" title="Next Day">
@@ -929,7 +962,7 @@
         
         <!-- Countdown Presets -->
         <div class="settings-section">
-          <label class="settings-label">⏱️ Focus Countdown Duration</label>
+          <label class="settings-label">Focus Countdown Duration</label>
           <div class="presets-grid" id="settingsPresetsGrid">
             <button type="button" class="settings-chip" data-min="15">15m</button>
             <button type="button" class="settings-chip active" data-min="25">25m</button>
@@ -950,7 +983,7 @@
 
         <!-- Pomodoro Focus / Break & Automation -->
         <div class="settings-section">
-          <label class="settings-label">🍅 Pomodoro Intervals &amp; Automation</label>
+          <label class="settings-label">Pomodoro Intervals &amp; Automation</label>
           <div class="settings-grid-row">
             <div class="input-group">
               <label for="pomoFocusInput">Focus (min)</label>
@@ -988,7 +1021,7 @@
         <!-- Daily Target -->
         <div class="settings-section">
           <div class="input-group">
-            <label for="dailyTargetGoalInput">🎯 Daily Study Target Goal (Minutes)</label>
+            <label for="dailyTargetGoalInput">Daily Study Target Goal (Minutes)</label>
             <input type="number" id="dailyTargetGoalInput" min="15" max="1440" value="120">
           </div>
         </div>
@@ -1211,7 +1244,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
         </div>
         <div>
-          <h3 class="modal-title" id="sessionCompleteTitle">Session Completed! 🎉</h3>
+          <h3 class="modal-title" id="sessionCompleteTitle">Session Completed!</h3>
           <p class="modal-subtitle" id="sessionCompleteSubtitle">+25m saved to your focus history</p>
         </div>
       </div>
@@ -1247,7 +1280,7 @@
       </div>
       <div class="modal-body">
         <div class="delete-warning-box">
-          <p><strong>⚠️ Warning:</strong> This will completely wipe all local study sessions, timeline records, streaks, and subject target goals from your browser storage.</p>
+          <p><strong>Warning:</strong> This will completely wipe all local study sessions, timeline records, streaks, and subject target goals from your browser storage.</p>
           <p style="margin-top: 8px; font-size: 0.85rem; color: var(--text-muted);">To request permanent cloud account and remote database erasure, visit the <a href="delete-account.html" style="color: var(--accent-red); text-decoration: underline;">Account Deletion Portal</a>.</p>
         </div>
         <div class="modal-actions-row" style="display: flex; gap: 10px; margin-top: 18px;">

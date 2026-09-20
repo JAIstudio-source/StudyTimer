@@ -250,9 +250,23 @@ async function pullDataFromCloud() {
   }
 }
 
+let lastCloudPushTime = 0;
+let cloudPushDebounceTimer = null;
+
 async function pushDataToCloud() {
   saveLocalState();
   if (!supabaseClient || !appState.currentUser) return;
+
+  // Rate Limiting & Cooldown Protection (Minimum 3 seconds between cloud API calls)
+  const now = Date.now();
+  if (now - lastCloudPushTime < 3000) {
+    if (cloudPushDebounceTimer) clearTimeout(cloudPushDebounceTimer);
+    cloudPushDebounceTimer = setTimeout(() => {
+      pushDataToCloud();
+    }, 3000);
+    return;
+  }
+  lastCloudPushTime = now;
 
   const syncStatusPill = document.getElementById('syncStatusPill');
   const syncStatusText = document.getElementById('syncStatusText');
@@ -263,21 +277,25 @@ async function pushDataToCloud() {
 
   try {
     const user = appState.currentUser;
-    const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Student';
-    const userEmail = user.email || '';
-    const profileImg = user.user_metadata?.avatar_url || '';
+    const userName = (user.user_metadata?.full_name || user.email?.split('@')[0] || 'Student').slice(0, 100);
+    const userEmail = (user.email || '').slice(0, 150);
+    const profileImg = (user.user_metadata?.avatar_url || '').slice(0, 500);
+
+    // Payload sanitization & safety caps (prevent bot memory overflow)
+    const sanitizedSubjects = Array.isArray(appState.subjects) ? appState.subjects.slice(0, 50) : [];
+    const sanitizedTimeline = Array.isArray(appState.timelineEntries) ? appState.timelineEntries.slice(-500) : [];
 
     const subjectTagsObj = {
-      custom_subjects: JSON.stringify(appState.subjects)
+      custom_subjects: JSON.stringify(sanitizedSubjects)
     };
 
     const prefsObj = {
-      daily_goal_minutes: timerConfig.dailyGoalMinutes,
-      custom_timer_minutes: timerConfig.customTimerMinutes,
-      pomo_focus_minutes: timerConfig.pomoFocusMinutes,
-      pomo_break_minutes: timerConfig.pomoBreakMinutes,
-      streak_count: appState.streakCount,
-      last_study_date: appState.lastStudyDate,
+      daily_goal_minutes: Math.min(1440, Math.max(1, Number(timerConfig.dailyGoalMinutes) || 120)),
+      custom_timer_minutes: Math.min(720, Math.max(1, Number(timerConfig.customTimerMinutes) || 45)),
+      pomo_focus_minutes: Math.min(120, Math.max(1, Number(timerConfig.pomoFocusMinutes) || 25)),
+      pomo_break_minutes: Math.min(60, Math.max(1, Number(timerConfig.pomoBreakMinutes) || 5)),
+      streak_count: Math.max(0, Number(appState.streakCount) || 0),
+      last_study_date: appState.lastStudyDate || '',
       __subject_tags_data__: JSON.stringify(subjectTagsObj)
     };
 
@@ -287,7 +305,7 @@ async function pushDataToCloud() {
       user_email: userEmail,
       profile_image_uri: profileImg,
       prefs_data: JSON.stringify(prefsObj),
-      timeline_data: JSON.stringify(appState.timelineEntries),
+      timeline_data: JSON.stringify(sanitizedTimeline),
       updated_at: Date.now()
     };
 
@@ -745,11 +763,20 @@ function finishSession() {
   updateProgressAndStreak();
   updateSubjectBreakdown();
   saveLocalState();
-  pushDataToCloud();
+
+  // Only push to cloud database if session is at least 1 minute (>= 60s)
+  if (studiedDurationSec >= 60) {
+    pushDataToCloud();
+  }
+
   triggerSaveSuccessFeedback();
 
   const minStr = Math.round(studiedDurationSec / 60);
-  showToast(`🎉 Focus session saved! +${minStr > 0 ? minStr : 1}m added to ${subject.name}`, 'success');
+  if (studiedDurationSec >= 60) {
+    showToast(`🎉 Focus session saved! +${minStr}m added to ${subject.name}`, 'success');
+  } else {
+    showToast(`✓ Session saved locally (+${studiedDurationSec}s). Cloud sync activates after 1 min.`, 'info');
+  }
 }
 
 let saveFeedbackTimeout = null;

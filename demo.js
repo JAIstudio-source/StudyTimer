@@ -2623,18 +2623,13 @@ function renderUserProfileUI() {
 
   const userDisplayName = document.getElementById('userDisplayName');
   const dropdownUserName = document.getElementById('dropdownUserName');
-  const userAvatarImg = document.getElementById('userAvatarImg');
+  const navUserAvatarWrap = document.getElementById('navUserAvatarWrap');
 
   if (userDisplayName) userDisplayName.textContent = name;
   if (dropdownUserName) dropdownUserName.textContent = name;
   
-  if (userAvatarImg) {
-    const isUrl = /^(http|https|data:|assets\/|\/)/i.test(avatar.trim());
-    if (isUrl) {
-      userAvatarImg.src = avatar;
-    } else {
-      userAvatarImg.src = `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${avatar}</text></svg>`;
-    }
+  if (navUserAvatarWrap) {
+    navUserAvatarWrap.innerHTML = getAvatarElementHtml(avatar, name, 'user-avatar');
   }
 }
 
@@ -2840,15 +2835,6 @@ function renderLeaderboard(rankings) {
   if (headerLiveDot) headerLiveDot.style.display = isAnyActive ? 'inline-block' : 'none';
   if (mobileLiveDot) mobileLiveDot.style.display = isAnyActive ? 'inline-block' : 'none';
 
-  if (!rankings || rankings.length === 0) {
-    podiumContainer.innerHTML = '';
-    listContainer.innerHTML = '';
-    if (emptyState) listContainer.appendChild(emptyState);
-    updatePersonalUserBar(null, 0);
-    return;
-  }
-
-  // 2. Render Top 3 Podium
   const top1 = rankings.find(r => Number(r.rank) === 1);
   const top2 = rankings.find(r => Number(r.rank) === 2);
   const top3 = rankings.find(r => Number(r.rank) === 3);
@@ -2903,11 +2889,27 @@ function renderLeaderboard(rankings) {
     `;
   };
 
+  // Always show podium top 3 showcase
   podiumContainer.innerHTML = `
     ${renderPodiumCard(top2, 2)}
     ${renderPodiumCard(top1, 1)}
     ${renderPodiumCard(top3, 3)}
   `;
+
+  if (!rankings || rankings.length === 0) {
+    listContainer.innerHTML = `
+      <div class="leaderboard-empty-state" style="padding: 24px 16px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="8" r="6"></circle>
+          <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path>
+        </svg>
+        <p>No study sessions recorded today yet.</p>
+        <span>Start a timer session to claim the #1 spot on the leaderboard!</span>
+      </div>
+    `;
+    updatePersonalUserBar(null, 0);
+    return;
+  }
 
   // 3. Render Ranks 4 to 25 List
   const remainingRanks = rankings.filter(r => Number(r.rank) > 3);
@@ -2953,7 +2955,7 @@ function renderLeaderboard(rankings) {
 
 function updatePersonalUserBar(myEntry, localTotalSec) {
   const userBarRank = document.getElementById('userBarRank');
-  const userBarAvatar = document.getElementById('userBarAvatar');
+  const userBarAvatarWrap = document.getElementById('userBarAvatarWrap');
   const userBarName = document.getElementById('userBarName');
   const userBarStatus = document.getElementById('userBarStatus');
   const userBarTime = document.getElementById('userBarTime');
@@ -2968,13 +2970,8 @@ function updatePersonalUserBar(myEntry, localTotalSec) {
     userBarName.textContent = currentName;
   }
 
-  if (userBarAvatar) {
-    const isUrl = /^(http|https|data:|assets\/|\/)/i.test(avatar.trim());
-    if (isUrl) {
-      userBarAvatar.src = avatar;
-    } else {
-      userBarAvatar.src = `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${avatar}</text></svg>`;
-    }
+  if (userBarAvatarWrap) {
+    userBarAvatarWrap.innerHTML = getAvatarElementHtml(avatar, currentName, 'user-bar-avatar');
   }
 
   if (userBarStatus) {

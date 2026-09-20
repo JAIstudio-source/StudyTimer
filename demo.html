@@ -67,7 +67,7 @@
           </button>
           
           <div class="user-dropdown-container hidden" id="userDropdownContainer">
-            <button class="user-profile-btn" id="userProfileBtn" aria-label="User Menu">
+            <button class="user-profile-btn" id="userProfileBtn" aria-label="User Menu" title="Click to customize profile or view account">
               <img src="assets/logo.png" alt="User Avatar" class="user-avatar" id="userAvatarImg">
               <span class="user-name" id="userDisplayName">Student</span>
               <svg class="dropdown-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -78,13 +78,22 @@
                 <p class="dropdown-user-email" id="dropdownUserEmail">student@example.com</p>
               </div>
               <div class="dropdown-divider"></div>
+              <button class="dropdown-item dropdown-item-profile-cta" id="btnOpenProfileModal">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                <span>Customize Profile &amp; Avatar</span>
+                <span class="dropdown-badge-pill">Edit</span>
+              </button>
+              <button class="dropdown-item" id="btnMenuLeaderboard">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path></svg>
+                <span>Global Leaderboard</span>
+              </button>
               <button class="dropdown-item" id="btnManualSync">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-                Sync with App
+                <span>Sync with App</span>
               </button>
               <button class="dropdown-item dropdown-item-danger" id="btnLogout">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                Log Out
+                <span>Log Out</span>
               </button>
             </div>
           </div>
@@ -504,11 +513,21 @@
 
       </aside>
 
-      <!-- Floating Action Button for Mobile Insights (Android FAB) -->
-      <button class="btn-mobile-insights-fab" id="btnMobileInsights" aria-label="Open Study Insights">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-        <span>Insights</span>
-      </button>
+      <!-- Floating Action Group (Insights on top, Leaderboard below) -->
+      <div class="mobile-fabs-group" id="mobileFabsGroup">
+        <!-- 1. Insights FAB -->
+        <button class="btn-mobile-insights-fab" id="btnMobileInsights" aria-label="Open Study Insights">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          <span>Insights</span>
+        </button>
+
+        <!-- 2. Leaderboard FAB (Directly Below Insights) -->
+        <button class="btn-mobile-leaderboard-fab" id="btnMobileLeaderboard" aria-label="Open Global Leaderboard">
+          <span class="fab-icon">🏆</span>
+          <span>Leaderboard</span>
+          <span class="live-pulse-dot" id="mobileLiveDot"></span>
+        </button>
+      </div>
 
     </div>
   </main>
@@ -557,6 +576,186 @@
       </div>
     </div>
   </footer>
+
+  <!-- ========================================================
+       DEDICATED LIVE GLOBAL LEADERBOARD MODAL
+       ======================================================== -->
+  <div class="modal-overlay hidden" id="leaderboardModalOverlay">
+    <div class="modal-card modal-card-leaderboard" id="leaderboardModalCard">
+      <button class="modal-close-btn" id="btnCloseLeaderboardModal" aria-label="Close Leaderboard">&times;</button>
+      
+      <!-- Leaderboard Header Control Card -->
+      <div class="leaderboard-modal-header">
+        <div class="leaderboard-title-wrap">
+          <span class="hub-icon">🏆</span>
+          <div>
+            <h3 class="leaderboard-title">Global Study Leaderboard</h3>
+            <div class="leaderboard-subtitle-row">
+              <span class="live-active-counter" id="leaderboardActiveCounter">
+                <span class="live-pulse-dot"></span>
+                <span id="leaderboardActiveStudyingText">Live Focus Hub</span>
+              </span>
+              <span class="reset-countdown" id="leaderboardResetCountdown" title="Resets daily at 00:00">Resets in --:--</span>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-icon-subtle" id="btnRefreshLeaderboard" title="Refresh Rankings" aria-label="Refresh Leaderboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Top 3 Podium Showcase -->
+      <div class="leaderboard-podium-container" id="leaderboardPodium">
+        <div class="podium-skeleton">
+          <div class="podium-slot rank-2"></div>
+          <div class="podium-slot rank-1"></div>
+          <div class="podium-slot rank-3"></div>
+        </div>
+      </div>
+
+      <!-- Ranks 4 to 25 Ranking List -->
+      <div class="leaderboard-list-card">
+        <div class="leaderboard-list-header">
+          <span class="col-rank">#</span>
+          <span class="col-student">Student</span>
+          <span class="col-status">Status</span>
+          <span class="col-time">Time</span>
+        </div>
+        
+        <div class="leaderboard-list-items" id="leaderboardListItems">
+          <div class="leaderboard-empty-state" id="leaderboardEmptyState">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="8" r="6"></circle>
+              <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path>
+            </svg>
+            <p>No study sessions recorded today yet.</p>
+            <span>Start a timer session to claim the #1 spot on the leaderboard!</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sticky Personal Rank Bar -->
+      <div class="leaderboard-user-bar" id="leaderboardUserBar">
+        <div class="user-bar-left">
+          <span class="user-bar-rank" id="userBarRank">#--</span>
+          <img src="assets/logo.png" alt="Avatar" class="user-bar-avatar" id="userBarAvatar">
+          <div class="user-bar-info">
+            <span class="user-bar-name" id="userBarName">You</span>
+            <span class="user-bar-status" id="userBarStatus">⚪ Resting</span>
+          </div>
+        </div>
+        <div class="user-bar-right">
+          <span class="user-bar-time" id="userBarTime">0m</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================
+       PROFILE CUSTOMIZATION & AVATAR MODAL
+       ======================================================== -->
+  <div class="modal-overlay hidden" id="profileModalOverlay">
+    <div class="modal-card modal-card-profile" id="profileModalCard">
+      <button class="modal-close-btn" id="btnCloseProfileModal" aria-label="Close Profile Settings">&times;</button>
+      
+      <div class="modal-header">
+        <div class="modal-icon-wrap" style="background: rgba(139, 92, 246, 0.12); color: #8b5cf6;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </div>
+        <h3 class="modal-title">Customize Profile</h3>
+        <p class="modal-subtitle">Personalize your student identity, avatar sticker, and study motto.</p>
+      </div>
+
+      <form class="modal-body profile-modal-body" id="profileCustomizationForm">
+        
+        <!-- Live Profile Card Preview -->
+        <div class="profile-preview-card">
+          <div class="preview-avatar-wrap">
+            <div class="preview-avatar-badge" id="previewAvatarIcon">🐱</div>
+          </div>
+          <div class="preview-info-wrap">
+            <div class="preview-name-row">
+              <strong class="preview-name" id="previewDisplayName">Student</strong>
+              <span class="preview-role-pill">Student</span>
+            </div>
+            <p class="preview-motto" id="previewMottoText">🎯 Deep focus & daily consistency</p>
+          </div>
+        </div>
+
+        <!-- Avatar Sticker Picker (100% Safe Preset Stickers) -->
+        <div class="settings-section">
+          <label class="settings-label">Choose Avatar Sticker</label>
+          <div class="avatar-presets-grid" id="avatarPresetsGrid">
+            <!-- 16 Curated Aesthetic Avatar Stickers -->
+            <button type="button" class="avatar-preset-btn active" data-avatar="🐱" data-label="Lofi Cat" title="Lofi Cat">🐱</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🚀" data-label="Astro" title="Astronaut">🚀</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="☕" data-label="Coffee" title="Cozy Coffee">☕</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🦉" data-label="Owl" title="Study Owl">🦉</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🧠" data-label="Brainiac" title="Deep Mind">🧠</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="💻" data-label="Coder" title="Code Master">💻</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🩺" data-label="Med" title="Medical Student">🩺</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="📚" data-label="Scholar" title="Bookworm">📚</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="⚡" data-label="Lightning" title="Fast Learner">⚡</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🌸" data-label="Lotus" title="Zen Lotus">🌸</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🎯" data-label="Target" title="Goal Crusher">🎯</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🏆" data-label="Champion" title="Leaderboard Champ">🏆</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🔥" data-label="Flame" title="Streak Master">🔥</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="💎" data-label="Diamond" title="Diamond Focus">💎</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🎨" data-label="Artist" title="Creative Mind">🎨</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🌲" data-label="Forest" title="Nature Focus">🌲</button>
+          </div>
+        </div>
+
+        <!-- Custom Display Name -->
+        <div class="input-group">
+          <label for="inputProfileDisplayName">Display Name / Handle</label>
+          <input type="text" id="inputProfileDisplayName" maxlength="24" placeholder="e.g. Alex StudyMaster" required autocomplete="off">
+          <span class="input-hint-sub">Visible to classmates on the global leaderboard</span>
+        </div>
+
+        <!-- Study Motto / Bio -->
+        <div class="input-group">
+          <label for="inputProfileMotto">Study Motto / Bio</label>
+          <input type="text" id="inputProfileMotto" maxlength="60" placeholder="e.g. 🎯 Aiming for 6h daily | CS Major" autocomplete="off">
+          <span class="input-hint-sub">Your personal study motivation (max 60 chars)</span>
+        </div>
+
+        <!-- Primary Subject -->
+        <div class="input-group">
+          <label for="selectProfilePrimarySubject">Primary Focus Subject</label>
+          <select id="selectProfilePrimarySubject" class="form-select">
+            <!-- Dynamically populated in JS -->
+          </select>
+        </div>
+
+        <!-- Leaderboard Visibility Toggle -->
+        <div class="privacy-toggle-row">
+          <div class="privacy-toggle-info">
+            <strong>Public Leaderboard Ranking</strong>
+            <p>Show your study time and active focus on the global leaderboard</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="checkLeaderboardPublic" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="modal-actions-row">
+          <button type="button" class="btn btn-secondary flex-1" id="btnCancelProfileModal">Cancel</button>
+          <button type="submit" class="btn btn-primary flex-1" id="btnSaveProfile">Save Profile</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
 
   <!-- 3. TIMER SETTINGS MODAL -->
   <div class="modal-overlay hidden" id="timerSettingsModalOverlay">

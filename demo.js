@@ -62,6 +62,13 @@ let appState = {
   currentUser: null,
   streakCount: 1,
   lastStudyDate: '',
+  userProfile: {
+    displayName: 'Student',
+    avatarPreset: '🐱',
+    motto: '🎯 Deep focus & daily consistency',
+    primarySubjectId: 'math',
+    isPublicLeaderboard: true
+  },
   subjects: [...DEFAULT_SUBJECTS],
   selectedSubject: DEFAULT_SUBJECTS[0],
   plannerGoals: [
@@ -164,12 +171,29 @@ function handleUserSignedIn(user) {
     syncStatusText.textContent = 'Synced';
   }
 
+  // Refresh presence & leaderboard on login
+  if (timerStatus === 'RUNNING' && currentMode !== 'break') {
+    startPresenceHeartbeat();
+  }
+  leaderboardCache.timestamp = 0;
+  const lbModal = document.getElementById('leaderboardModalOverlay');
+  if (lbModal && !lbModal.classList.contains('hidden')) {
+    fetchLeaderboard(true);
+  }
+
   pullDataFromCloud();
   showToast('Signed in! Cloud Sync active.', 'success');
 }
 
 function handleUserSignedOut() {
+  stopPresenceHeartbeat();
   appState.currentUser = null;
+  leaderboardCache.timestamp = 0;
+  const lbModal = document.getElementById('leaderboardModalOverlay');
+  if (lbModal && !lbModal.classList.contains('hidden')) {
+    fetchLeaderboard(true);
+  }
+
   const btnOpenAuth = document.getElementById('btnOpenAuth');
   const userDropdownContainer = document.getElementById('userDropdownContainer');
   const guestBanner = document.getElementById('guestBanner');
@@ -250,6 +274,19 @@ async function pullDataFromCloud() {
               console.error('Failed to parse remote planner_goals', e);
             }
           }
+
+          if (prefs.__user_profile__) {
+            try {
+              const loadedProfile = typeof prefs.__user_profile__ === 'string'
+                ? JSON.parse(prefs.__user_profile__)
+                : prefs.__user_profile__;
+              if (loadedProfile && typeof loadedProfile === 'object') {
+                appState.userProfile = { ...appState.userProfile, ...loadedProfile };
+              }
+            } catch (e) {
+              console.error('Failed to parse remote user_profile', e);
+            }
+          }
         } catch (e) {
           console.error('Failed to parse remote prefs_data', e);
         }
@@ -268,6 +305,7 @@ async function pullDataFromCloud() {
       }
 
       renderSubjects();
+      renderUserProfileUI();
       updateProgressAndStreak();
       renderSubjectDonutChart();
       renderActivityHeatmap();
@@ -316,7 +354,7 @@ async function pushDataToCloud() {
 
   try {
     const user = appState.currentUser;
-    const userName = (user.user_metadata?.full_name || user.email?.split('@')[0] || 'Student').slice(0, 100);
+    const userName = (appState.userProfile?.displayName || user.user_metadata?.full_name || user.email?.split('@')[0] || 'Student').slice(0, 100);
     const userEmail = (user.email || '').slice(0, 150);
     const profileImg = (user.user_metadata?.avatar_url || '').slice(0, 500);
 
@@ -341,7 +379,8 @@ async function pushDataToCloud() {
       streak_count: Math.max(0, Number(appState.streakCount) || 0),
       last_study_date: appState.lastStudyDate || '',
       __subject_tags_data__: JSON.stringify(subjectTagsObj),
-      __planner_goals_data__: JSON.stringify(sanitizedGoals)
+      __planner_goals_data__: JSON.stringify(sanitizedGoals),
+      __user_profile__: JSON.stringify(appState.userProfile)
     };
 
     const payload = {
@@ -501,6 +540,9 @@ function loadLocalState() {
         appState.subjects = parsed.subjects;
         appState.selectedSubject = appState.subjects[0];
       }
+      if (parsed.userProfile) {
+        appState.userProfile = { ...appState.userProfile, ...parsed.userProfile };
+      }
       if (Array.isArray(parsed.plannerGoals)) {
         appState.plannerGoals = parsed.plannerGoals;
       }
@@ -536,6 +578,7 @@ function saveLocalState() {
       timerConfig,
       streakCount: appState.streakCount,
       lastStudyDate: appState.lastStudyDate,
+      userProfile: appState.userProfile,
       subjects: appState.subjects,
       plannerGoals: appState.plannerGoals || [],
       timelineEntries: appState.timelineEntries || [],
@@ -597,6 +640,44 @@ function setupEventListeners() {
   document.getElementById('tabBtnOverview')?.addEventListener('click', () => switchInsightsTab('overview'));
   document.getElementById('tabBtnCalendar')?.addEventListener('click', () => switchInsightsTab('calendar'));
   document.getElementById('tabBtnPlanner')?.addEventListener('click', () => switchInsightsTab('planner'));
+
+  // Dedicated Floating Leaderboard Modal Trigger
+  document.getElementById('btnMobileLeaderboard')?.addEventListener('click', openLeaderboardModal);
+  document.getElementById('btnMenuLeaderboard')?.addEventListener('click', () => {
+    document.getElementById('userMenuDropdown')?.classList.add('hidden');
+    openLeaderboardModal();
+  });
+  document.getElementById('btnCloseLeaderboardModal')?.addEventListener('click', closeLeaderboardModal);
+  document.getElementById('leaderboardModalOverlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'leaderboardModalOverlay') closeLeaderboardModal();
+  });
+  document.getElementById('btnRefreshLeaderboard')?.addEventListener('click', () => fetchLeaderboard(true));
+
+  // Profile Customization Modal Trigger (Available upon user login in dropdown)
+  document.getElementById('btnOpenProfileModal')?.addEventListener('click', () => {
+    document.getElementById('userMenuDropdown')?.classList.add('hidden');
+    openProfileModal();
+  });
+  document.getElementById('btnCloseProfileModal')?.addEventListener('click', closeProfileModal);
+  document.getElementById('btnCancelProfileModal')?.addEventListener('click', closeProfileModal);
+  document.getElementById('profileModalOverlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'profileModalOverlay') closeProfileModal();
+  });
+
+  // Avatar Presets Picker
+  document.querySelectorAll('.avatar-preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.avatar-preset-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedAvatarPreset = btn.dataset.avatar || '🐱';
+      updateProfileLivePreview();
+    });
+  });
+
+  // Live Input Preview
+  document.getElementById('inputProfileDisplayName')?.addEventListener('input', updateProfileLivePreview);
+  document.getElementById('inputProfileMotto')?.addEventListener('input', updateProfileLivePreview);
+  document.getElementById('profileCustomizationForm')?.addEventListener('submit', handleSaveProfile);
 
   // Mobile Insights Bottom Sheet Drawer & Backdrop
   document.getElementById('btnMobileInsights')?.addEventListener('click', openInsightsDrawer);
@@ -778,6 +859,14 @@ function setupEventListeners() {
       const zenOverlay = document.getElementById('zenTimerOverlay');
       if (zenOverlay && !zenOverlay.classList.contains('hidden')) {
         closeZenMode();
+      }
+      const lbModal = document.getElementById('leaderboardModalOverlay');
+      if (lbModal && !lbModal.classList.contains('hidden')) {
+        closeLeaderboardModal();
+      }
+      const profileModal = document.getElementById('profileModalOverlay');
+      if (profileModal && !profileModal.classList.contains('hidden')) {
+        closeProfileModal();
       }
     }
     // Spacebar to toggle timer when not in input
@@ -1001,6 +1090,10 @@ function startTimer() {
   updateTimerControlsUI();
   requestWakeLock();
 
+  if (currentMode !== 'break') {
+    startPresenceHeartbeat();
+  }
+
   if (timerWorker) {
     timerWorker.postMessage('start');
   }
@@ -1016,6 +1109,7 @@ function pauseTimer() {
   }
   timerStatus = 'PAUSED';
   timerStartTimestamp = null;
+  stopPresenceHeartbeat();
   stopInterval();
   updateTimerControlsUI();
   updateTimerDisplay();
@@ -1038,6 +1132,7 @@ async function handleUserResetTimer() {
 }
 
 function resetTimer() {
+  stopPresenceHeartbeat();
   stopInterval();
   timerStatus = 'IDLE';
   timerStartTimestamp = null;
@@ -1128,6 +1223,11 @@ function finishSession(isAutoFinished = false) {
   renderMonthlyCalendar();
   renderPlannerGoals();
   saveLocalState();
+
+  // Log to Supabase Cloud Leaderboard & sync
+  if (stateKey !== 'BREAK' && studiedDurationSec >= 10) {
+    logSessionToLeaderboard(studiedDurationSec, subject);
+  }
 
   // Only push to cloud database if session is at least 1 minute (>= 60s) and not a break
   if (stateKey !== 'BREAK' && studiedDurationSec >= 60) {
@@ -2365,6 +2465,573 @@ function handleAddGoal(e) {
   pushDataToCloud();
   showToast('🎯 Subject target goal set!', 'success');
 }
+
+// ----------------------------------------------------------------------------
+// TAB 4: LIVE LEADERBOARD & PROFILE CUSTOMIZATION
+// ----------------------------------------------------------------------------
+
+let presenceHeartbeatInterval = null;
+let leaderboardCache = { data: null, timestamp: 0 };
+const LEADERBOARD_CACHE_TTL_MS = 30000; // 30-second client cache
+let resetCountdownInterval = null;
+let selectedAvatarPreset = '🐱';
+
+function formatLeaderboardTime(totalSec) {
+  if (!totalSec || totalSec <= 0) return '0m';
+  const totalMin = Math.round(totalSec / 60);
+  if (totalMin >= 60) {
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return `${h}h ${m > 0 ? m + 'm' : ''}`;
+  } else if (totalMin === 0 && totalSec > 0) {
+    return `${totalSec}s`;
+  }
+  return `${totalMin}m`;
+}
+
+function getAvatarElementHtml(avatarVal, userName, className = 'row-avatar-img') {
+  if (!avatarVal || avatarVal.trim() === '') {
+    avatarVal = '🐱';
+  }
+  const isUrl = /^(http|https|data:|assets\/|\/)/i.test(avatarVal.trim());
+  if (isUrl) {
+    return `<img src="${avatarVal}" alt="${userName || 'Student'}" class="${className}" onerror="this.outerHTML='<span class=\\'avatar-sticker ${className}\\'>🐱</span>'">`;
+  } else {
+    return `<span class="avatar-sticker ${className}">${avatarVal}</span>`;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// PROFILE CUSTOMIZATION SYSTEM
+// ----------------------------------------------------------------------------
+
+function openProfileModal() {
+  const modal = document.getElementById('profileModalOverlay');
+  if (!modal) return;
+
+  const profile = appState.userProfile || {
+    displayName: 'Student',
+    avatarPreset: '🐱',
+    motto: '🎯 Deep focus & daily consistency',
+    primarySubjectId: 'math',
+    isPublicLeaderboard: true
+  };
+
+  selectedAvatarPreset = profile.avatarPreset || '🐱';
+
+  const nameInput = document.getElementById('inputProfileDisplayName');
+  const mottoInput = document.getElementById('inputProfileMotto');
+  const subjectSelect = document.getElementById('selectProfilePrimarySubject');
+  const publicToggle = document.getElementById('checkLeaderboardPublic');
+
+  if (nameInput) {
+    nameInput.value = profile.displayName || (appState.currentUser?.user_metadata?.full_name || 'Student');
+  }
+  if (mottoInput) {
+    mottoInput.value = profile.motto || '';
+  }
+  if (subjectSelect) {
+    subjectSelect.innerHTML = appState.subjects.map(s => 
+      `<option value="${s.id}" ${s.id === profile.primarySubjectId ? 'selected' : ''}>${s.name}</option>`
+    ).join('');
+  }
+  if (publicToggle) {
+    publicToggle.checked = profile.isPublicLeaderboard !== false;
+  }
+
+  // Highlight active preset button
+  document.querySelectorAll('.avatar-preset-btn').forEach(btn => {
+    if (btn.dataset.avatar === selectedAvatarPreset) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  updateProfileLivePreview();
+  modal.classList.remove('hidden');
+}
+
+function closeProfileModal() {
+  document.getElementById('profileModalOverlay')?.classList.add('hidden');
+}
+
+function updateProfileLivePreview() {
+  const nameInput = document.getElementById('inputProfileDisplayName');
+  const mottoInput = document.getElementById('inputProfileMotto');
+  const previewAvatarIcon = document.getElementById('previewAvatarIcon');
+  const previewDisplayName = document.getElementById('previewDisplayName');
+  const previewMottoText = document.getElementById('previewMottoText');
+
+  const nameVal = (nameInput?.value.trim() || 'Student').slice(0, 24);
+  const mottoVal = (mottoInput?.value.trim() || '🎯 Deep focus & daily consistency').slice(0, 60);
+
+  if (previewAvatarIcon) previewAvatarIcon.textContent = selectedAvatarPreset;
+  if (previewDisplayName) previewDisplayName.textContent = nameVal;
+  if (previewMottoText) previewMottoText.textContent = mottoVal;
+}
+
+function handleSaveProfile(e) {
+  e.preventDefault();
+  const nameInput = document.getElementById('inputProfileDisplayName');
+  const mottoInput = document.getElementById('inputProfileMotto');
+  const subjectSelect = document.getElementById('selectProfilePrimarySubject');
+  const publicToggle = document.getElementById('checkLeaderboardPublic');
+
+  const displayName = (nameInput?.value.trim() || 'Student').slice(0, 24);
+  const motto = (mottoInput?.value.trim() || '').slice(0, 60);
+  const primarySubjectId = subjectSelect?.value || (appState.subjects[0]?.id || 'math');
+  const isPublicLeaderboard = publicToggle ? publicToggle.checked : true;
+
+  appState.userProfile = {
+    displayName,
+    avatarPreset: selectedAvatarPreset,
+    motto,
+    primarySubjectId,
+    isPublicLeaderboard
+  };
+
+  saveLocalState();
+  renderUserProfileUI();
+  pushDataToCloud();
+  closeProfileModal();
+
+  if (timerStatus === 'RUNNING' && currentMode !== 'break') {
+    updateStudyPresence(true);
+  }
+
+  leaderboardCache.timestamp = 0;
+  const lbModal = document.getElementById('leaderboardModalOverlay');
+  if (lbModal && !lbModal.classList.contains('hidden')) {
+    fetchLeaderboard(true);
+  }
+
+  showToast('Profile customizations saved! ✨', 'success');
+}
+
+function renderUserProfileUI() {
+  const profile = appState.userProfile || {
+    displayName: 'Student',
+    avatarPreset: '🐱',
+    motto: '🎯 Deep focus & daily consistency',
+    primarySubjectId: 'math',
+    isPublicLeaderboard: true
+  };
+
+  const name = profile.displayName || (appState.currentUser?.user_metadata?.full_name || 'Student');
+  const avatar = profile.avatarPreset || '🐱';
+
+  const userDisplayName = document.getElementById('userDisplayName');
+  const dropdownUserName = document.getElementById('dropdownUserName');
+  const userAvatarImg = document.getElementById('userAvatarImg');
+
+  if (userDisplayName) userDisplayName.textContent = name;
+  if (dropdownUserName) dropdownUserName.textContent = name;
+  
+  if (userAvatarImg) {
+    const isUrl = /^(http|https|data:|assets\/|\/)/i.test(avatar.trim());
+    if (isUrl) {
+      userAvatarImg.src = avatar;
+    } else {
+      userAvatarImg.src = `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${avatar}</text></svg>`;
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// REAL-TIME STUDY PRESENCE & LEADERBOARD DATA SYNC
+// ----------------------------------------------------------------------------
+
+async function updateStudyPresence(isStudying) {
+  if (!supabaseClient || !appState.currentUser) return;
+
+  const profile = appState.userProfile || {};
+  if (profile.isPublicLeaderboard === false) {
+    // If user opts out of public leaderboard, don't broadcast live presence
+    return;
+  }
+
+  const currentSub = appState.selectedSubject || { name: 'Focus Study', color: '#3b82f6' };
+  const userName = profile.displayName || 
+                   appState.currentUser.user_metadata?.full_name || 
+                   appState.currentUser.user_metadata?.name || 
+                   appState.currentUser.email?.split('@')[0] || 
+                   'Student';
+  const avatarUrl = profile.avatarPreset || 
+                    appState.currentUser.user_metadata?.avatar_url || 
+                    appState.currentUser.user_metadata?.picture || 
+                    '🐱';
+
+  const shouldBeStudying = isStudying && currentMode !== 'break' && timerStatus === 'RUNNING';
+
+  try {
+    await supabaseClient.rpc('update_study_presence', {
+      p_user_id: appState.currentUser.id,
+      p_user_name: userName,
+      p_avatar_url: avatarUrl,
+      p_is_studying: shouldBeStudying,
+      p_current_subject: shouldBeStudying ? (currentSub.name || 'Focus Study') : '',
+      p_subject_color: shouldBeStudying ? (currentSub.color || '#3b82f6') : '#3b82f6'
+    });
+  } catch (err) {
+    console.warn('Presence update error:', err);
+  }
+}
+
+function startPresenceHeartbeat() {
+  if (presenceHeartbeatInterval) {
+    clearInterval(presenceHeartbeatInterval);
+  }
+  updateStudyPresence(true);
+  // Send active heartbeat every 60 seconds while timer is actively running
+  presenceHeartbeatInterval = setInterval(() => {
+    if (timerStatus === 'RUNNING' && currentMode !== 'break') {
+      updateStudyPresence(true);
+    }
+  }, 60000);
+}
+
+function stopPresenceHeartbeat() {
+  if (presenceHeartbeatInterval) {
+    clearInterval(presenceHeartbeatInterval);
+    presenceHeartbeatInterval = null;
+  }
+  updateStudyPresence(false);
+}
+
+async function logSessionToLeaderboard(durationSec, subject) {
+  if (!supabaseClient || !appState.currentUser || durationSec < 10) return;
+
+  const profile = appState.userProfile || {};
+  if (profile.isPublicLeaderboard === false) {
+    return;
+  }
+
+  const userName = profile.displayName || 
+                   appState.currentUser.user_metadata?.full_name || 
+                   appState.currentUser.user_metadata?.name || 
+                   appState.currentUser.email?.split('@')[0] || 
+                   'Student';
+  const avatarUrl = profile.avatarPreset || 
+                    appState.currentUser.user_metadata?.avatar_url || 
+                    appState.currentUser.user_metadata?.picture || 
+                    '🐱';
+
+  try {
+    await supabaseClient.rpc('record_study_session_leaderboard', {
+      p_user_id: appState.currentUser.id,
+      p_user_name: userName,
+      p_avatar_url: avatarUrl,
+      p_duration_seconds: durationSec,
+      p_subject: subject?.name || 'Focus Study',
+      p_subject_color: subject?.color || '#3b82f6'
+    });
+    // Invalidate local leaderboard cache so fresh scores render immediately
+    leaderboardCache.timestamp = 0;
+    const modal = document.getElementById('leaderboardModalOverlay');
+    if (modal && !modal.classList.contains('hidden')) {
+      fetchLeaderboard(true);
+    }
+  } catch (err) {
+    console.warn('Leaderboard session log error:', err);
+  }
+}
+
+function openLeaderboardModal() {
+  const modal = document.getElementById('leaderboardModalOverlay');
+  if (modal) {
+    modal.classList.remove('hidden');
+    fetchLeaderboard(true);
+  }
+}
+
+function closeLeaderboardModal() {
+  document.getElementById('leaderboardModalOverlay')?.classList.add('hidden');
+}
+
+async function fetchLeaderboard(forceRefresh = false) {
+  const now = Date.now();
+  startResetCountdownTimer();
+
+  if (!forceRefresh && leaderboardCache.data && (now - leaderboardCache.timestamp < LEADERBOARD_CACHE_TTL_MS)) {
+    renderLeaderboard(leaderboardCache.data);
+    return;
+  }
+
+  const refreshBtn = document.getElementById('btnRefreshLeaderboard');
+  refreshBtn?.classList.add('spinning');
+
+  try {
+    if (supabaseClient) {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const { data, error } = await supabaseClient.rpc('get_daily_leaderboard', {
+        p_date: todayStr,
+        p_limit: 25
+      });
+
+      if (error) {
+        console.warn('Supabase get_daily_leaderboard error:', error);
+        fallbackLocalLeaderboard();
+      } else if (data) {
+        leaderboardCache = { data, timestamp: now };
+        renderLeaderboard(data);
+      }
+    } else {
+      fallbackLocalLeaderboard();
+    }
+  } catch (err) {
+    console.warn('Leaderboard fetch exception:', err);
+    fallbackLocalLeaderboard();
+  } finally {
+    setTimeout(() => refreshBtn?.classList.remove('spinning'), 500);
+  }
+}
+
+function fallbackLocalLeaderboard() {
+  let totalSecToday = 0;
+  (appState.todaySessions || []).forEach(s => {
+    if (s && typeof s.durationSec === 'number') totalSecToday += s.durationSec;
+  });
+
+  const isUserStudying = timerStatus === 'RUNNING' && currentMode !== 'break';
+  const dummyRanks = [];
+
+  const profile = appState.userProfile || {};
+  const userName = profile.displayName || appState.currentUser?.user_metadata?.full_name || 'You';
+  const avatar = profile.avatarPreset || appState.currentUser?.user_metadata?.avatar_url || '🐱';
+
+  if (totalSecToday > 0 || isUserStudying) {
+    dummyRanks.push({
+      rank: 1,
+      user_id: appState.currentUser ? appState.currentUser.id : 'guest',
+      user_name: userName,
+      avatar_url: avatar,
+      total_seconds: totalSecToday,
+      is_studying: isUserStudying,
+      current_subject: isUserStudying ? (appState.selectedSubject?.name || 'Mathematics') : '',
+      subject_color: appState.selectedSubject?.color || '#3b82f6'
+    });
+  }
+
+  renderLeaderboard(dummyRanks);
+}
+
+function renderLeaderboard(rankings) {
+  const podiumContainer = document.getElementById('leaderboardPodium');
+  const listContainer = document.getElementById('leaderboardListItems');
+  const emptyState = document.getElementById('leaderboardEmptyState');
+  const activeStudyingText = document.getElementById('leaderboardActiveStudyingText');
+
+  if (!podiumContainer || !listContainer) return;
+
+  const currentUserId = appState.currentUser?.id;
+
+  // 1. Calculate Active Studiers Count
+  const activeStudyingCount = rankings.filter(r => r.is_studying).length;
+  if (activeStudyingText) {
+    activeStudyingText.textContent = activeStudyingCount > 0 
+      ? `${activeStudyingCount} Studying Now` 
+      : 'Live Focus Hub';
+  }
+
+  const headerLiveDot = document.getElementById('headerLiveDot');
+  const mobileLiveDot = document.getElementById('mobileLiveDot');
+  const isAnyActive = activeStudyingCount > 0 || (timerStatus === 'RUNNING' && currentMode !== 'break');
+  if (headerLiveDot) headerLiveDot.style.display = isAnyActive ? 'inline-block' : 'none';
+  if (mobileLiveDot) mobileLiveDot.style.display = isAnyActive ? 'inline-block' : 'none';
+
+  if (!rankings || rankings.length === 0) {
+    podiumContainer.innerHTML = '';
+    listContainer.innerHTML = '';
+    if (emptyState) listContainer.appendChild(emptyState);
+    updatePersonalUserBar(null, 0);
+    return;
+  }
+
+  // 2. Render Top 3 Podium
+  const top1 = rankings.find(r => Number(r.rank) === 1);
+  const top2 = rankings.find(r => Number(r.rank) === 2);
+  const top3 = rankings.find(r => Number(r.rank) === 3);
+
+  const renderPodiumCard = (entry, rankNum) => {
+    if (!entry) {
+      return `
+        <div class="podium-card rank-${rankNum} empty-podium">
+          <div class="podium-avatar-wrap">
+            <div class="podium-avatar-img empty-avatar"></div>
+            <span class="podium-rank-pill">${rankNum}</span>
+          </div>
+          <span class="podium-name text-muted">Open Spot</span>
+          <span class="podium-time text-muted">--</span>
+        </div>
+      `;
+    }
+
+    const isCurrent = currentUserId && entry.user_id === currentUserId;
+    const crown = rankNum === 1 ? '<span class="podium-crown-badge">👑</span>' : '';
+    const timeFormatted = formatLeaderboardTime(entry.total_seconds);
+    const avatarHtml = getAvatarElementHtml(entry.avatar_url, entry.user_name, 'podium-avatar-img');
+
+    let statusChip = '';
+    if (entry.is_studying) {
+      statusChip = `
+        <span class="live-status-chip studying" title="Actively studying now">
+          <span class="status-dot"></span>
+          <span>${entry.current_subject ? entry.current_subject : 'Studying'}</span>
+        </span>
+      `;
+    } else {
+      statusChip = `
+        <span class="live-status-chip resting" title="Resting">
+          <span class="status-dot"></span>
+          <span>Resting</span>
+        </span>
+      `;
+    }
+
+    return `
+      <div class="podium-card rank-${rankNum} ${isCurrent ? 'is-current-user' : ''}">
+        ${crown}
+        <div class="podium-avatar-wrap">
+          ${avatarHtml}
+          <span class="podium-rank-pill">${rankNum}</span>
+        </div>
+        <span class="podium-name" title="${entry.user_name}">${isCurrent ? 'You' : entry.user_name}</span>
+        <span class="podium-time">${timeFormatted}</span>
+        ${statusChip}
+      </div>
+    `;
+  };
+
+  podiumContainer.innerHTML = `
+    ${renderPodiumCard(top2, 2)}
+    ${renderPodiumCard(top1, 1)}
+    ${renderPodiumCard(top3, 3)}
+  `;
+
+  // 3. Render Ranks 4 to 25 List
+  const remainingRanks = rankings.filter(r => Number(r.rank) > 3);
+  if (remainingRanks.length === 0) {
+    listContainer.innerHTML = `
+      <div class="leaderboard-empty-state" style="padding: 24px 16px;">
+        <p style="font-size: 0.85rem;">Only ${rankings.length} on the board today!</p>
+        <span>Complete a session to join the top rankings.</span>
+      </div>
+    `;
+  } else {
+    listContainer.innerHTML = remainingRanks.map(r => {
+      const isCurrent = currentUserId && r.user_id === currentUserId;
+      const timeFormatted = formatLeaderboardTime(r.total_seconds);
+      const avatarHtml = getAvatarElementHtml(r.avatar_url, r.user_name, 'row-avatar-img');
+
+      const statusHtml = r.is_studying
+        ? `<span class="live-status-chip studying"><span class="status-dot"></span><span>${r.current_subject || 'Studying'}</span></span>`
+        : `<span class="live-status-chip resting"><span class="status-dot"></span><span>Resting</span></span>`;
+
+      return `
+        <div class="leaderboard-row ${isCurrent ? 'is-current-user' : ''}">
+          <span class="row-rank-num">#${r.rank}</span>
+          <div class="row-user-col">
+            ${avatarHtml}
+            <span class="row-user-name" title="${r.user_name}">${isCurrent ? 'You' : r.user_name}</span>
+          </div>
+          <div>${statusHtml}</div>
+          <span class="row-time">${timeFormatted}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // 4. Update Personal User Bar
+  const myEntry = rankings.find(r => currentUserId && r.user_id === currentUserId);
+  let localTotalSec = 0;
+  (appState.todaySessions || []).forEach(s => {
+    if (s && typeof s.durationSec === 'number') localTotalSec += s.durationSec;
+  });
+  updatePersonalUserBar(myEntry, localTotalSec);
+}
+
+function updatePersonalUserBar(myEntry, localTotalSec) {
+  const userBarRank = document.getElementById('userBarRank');
+  const userBarAvatar = document.getElementById('userBarAvatar');
+  const userBarName = document.getElementById('userBarName');
+  const userBarStatus = document.getElementById('userBarStatus');
+  const userBarTime = document.getElementById('userBarTime');
+
+  const isStudyingNow = timerStatus === 'RUNNING' && currentMode !== 'break';
+  const subName = appState.selectedSubject?.name || 'Focus';
+  const profile = appState.userProfile || {};
+  const currentName = profile.displayName || (appState.currentUser ? (appState.currentUser.user_metadata?.full_name || 'You') : 'You (Guest)');
+  const avatar = profile.avatarPreset || appState.currentUser?.user_metadata?.avatar_url || '🐱';
+
+  if (userBarName) {
+    userBarName.textContent = currentName;
+  }
+
+  if (userBarAvatar) {
+    const isUrl = /^(http|https|data:|assets\/|\/)/i.test(avatar.trim());
+    if (isUrl) {
+      userBarAvatar.src = avatar;
+    } else {
+      userBarAvatar.src = `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${avatar}</text></svg>`;
+    }
+  }
+
+  if (userBarStatus) {
+    userBarStatus.innerHTML = isStudyingNow 
+      ? `<span style="color: #10b981; font-weight: 600;">🟢 Studying ${subName}</span>` 
+      : `<span>⚪ Resting</span>`;
+  }
+
+  if (myEntry) {
+    if (userBarRank) userBarRank.textContent = `#${myEntry.rank}`;
+    if (userBarTime) userBarTime.textContent = formatLeaderboardTime(myEntry.total_seconds);
+  } else {
+    if (userBarRank) userBarRank.textContent = '#--';
+    if (userBarTime) userBarTime.textContent = formatLeaderboardTime(localTotalSec);
+  }
+}
+
+function startResetCountdownTimer() {
+  if (resetCountdownInterval) return;
+
+  const updateCountdown = () => {
+    const countdownEl = document.getElementById('leaderboardResetCountdown');
+    if (!countdownEl) return;
+
+    const now = new Date();
+    const midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0);
+
+    const diffMs = midnight - now;
+    if (diffMs <= 0) {
+      countdownEl.textContent = 'Resets at 00:00';
+      return;
+    }
+
+    const hours = Math.floor(diffMs / 3600000);
+    const mins = Math.floor((diffMs % 3600000) / 60000);
+    const secs = Math.floor((diffMs % 60000) / 1000);
+
+    countdownEl.textContent = `Resets in ${hours}h ${mins}m`;
+  };
+
+  updateCountdown();
+  resetCountdownInterval = setInterval(updateCountdown, 60000);
+}
+
+// Window Unload Presence Cleanup
+window.addEventListener('beforeunload', () => {
+  if (timerStatus === 'RUNNING') {
+    stopPresenceHeartbeat();
+  }
+});
+
+window.addEventListener('pagehide', () => {
+  if (timerStatus === 'RUNNING') {
+    stopPresenceHeartbeat();
+  }
+});
 
 // ============================================================================
 // 8. TIMER SETTINGS MODAL

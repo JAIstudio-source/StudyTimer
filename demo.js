@@ -251,7 +251,10 @@ function handleUserSignedOut() {
 // 4. TWO-WAY CLOUD SYNC LOGIC (100% Android App Compatible)
 // ============================================================================
 async function pullDataFromCloud(isUserTriggered = false) {
-  if (!supabaseClient || !appState.currentUser) return;
+  if (!supabaseClient || !appState.currentUser) {
+    if (isUserTriggered) showToast('Please sign in with Google to sync with mobile app', 'info');
+    return;
+  }
 
   const syncStatusPill = document.getElementById('syncStatusPill');
   const syncStatusText = document.getElementById('syncStatusText');
@@ -261,17 +264,37 @@ async function pullDataFromCloud(isUserTriggered = false) {
   }
 
   try {
-    const { data, error } = await supabaseClient
-      .from('user_sync_data')
-      .select('*')
-      .eq('user_id', appState.currentUser.id)
-      .single();
+    const user = appState.currentUser;
+    const userId = user.id;
+    const userEmail = (user.email || user.user_metadata?.email || '').trim();
 
-    if (error && error.code !== 'PGRST116') {
+    let query = supabaseClient.from('user_sync_data').select('*');
+    if (userEmail) {
+      query = query.or(`user_id.eq.${userId},user_id.eq.${userEmail},user_email.eq.${userEmail},user_email.ilike.${userEmail}`);
+    } else {
+      query = query.eq('user_id', userId);
+    }
+
+    const { data: rows, error } = await query.order('updated_at', { ascending: false });
+
+    if (error) {
       console.warn('Error fetching cloud record:', error);
     }
 
+    let data = null;
+    if (Array.isArray(rows) && rows.length > 0) {
+      // Find record with actual timeline/subject data or the most recent one
+      data = rows.find(r => {
+        const hasTimeline = r.timeline_data && r.timeline_data !== '[]' && r.timeline_data.length > 10;
+        const hasPrefs = r.prefs_data && r.prefs_data.length > 10;
+        return hasTimeline || hasPrefs;
+      }) || rows[0];
+    }
+
     if (data) {
+      let restoredSubjectCount = 0;
+      let restoredTimelineCount = 0;
+
       if (data.prefs_data) {
         try {
           const prefs = typeof data.prefs_data === 'string' ? JSON.parse(data.prefs_data) : data.prefs_data;
@@ -353,6 +376,7 @@ async function pullDataFromCloud(isUserTriggered = false) {
 
               if (mergedSubjects.length > 0) {
                 appState.subjects = mergedSubjects;
+                restoredSubjectCount = mergedSubjects.length;
                 const selId = subjectPrefs.selected_subject_id || prefs.selected_subject_id;
                 const foundSel = appState.subjects.find(s => s.id === selId);
                 appState.selectedSubject = foundSel || appState.subjects[0];
@@ -410,12 +434,13 @@ async function pullDataFromCloud(isUserTriggered = false) {
         }
       }
 
-      // 5. Timeline History
+      // 5. Timeline History Restoration
       if (data.timeline_data) {
         try {
           const remoteTimeline = typeof data.timeline_data === 'string' ? JSON.parse(data.timeline_data) : data.timeline_data;
-          if (Array.isArray(remoteTimeline)) {
+          if (Array.isArray(remoteTimeline) && remoteTimeline.length > 0) {
             appState.timelineEntries = remoteTimeline;
+            restoredTimelineCount = remoteTimeline.length;
             reconstructTodaySessionsFromTimeline();
           }
         } catch (e) {
@@ -443,9 +468,19 @@ async function pullDataFromCloud(isUserTriggered = false) {
       if (timerStatus === 'IDLE') {
         resetTimer();
       }
+
+      if (isUserTriggered) {
+        showToast(`Sync complete! Loaded ${restoredTimelineCount} timeline logs & ${appState.subjects.length} subjects. ☁️`, 'success');
+      }
+    } else {
+      if (isUserTriggered) {
+        showToast('No existing cloud backup found. Uploaded current session to cloud.', 'info');
+        pushDataToCloud();
+      }
     }
   } catch (err) {
     console.error('Cloud pull exception:', err);
+    if (isUserTriggered) showToast('Sync failed: Network error', 'error');
   } finally {
     if (syncStatusPill) {
       syncStatusPill.classList.remove('syncing');
@@ -483,7 +518,7 @@ async function pushDataToCloud() {
   try {
     const user = appState.currentUser;
     const userName = (appState.userProfile?.displayName || user.user_metadata?.full_name || user.email?.split('@')[0] || 'Student').slice(0, 100);
-    const userEmail = (user.email || '').slice(0, 150);
+    const userEmail = (user.email || user.user_metadata?.email || '').trim().slice(0, 150);
     const profileImg = (user.user_metadata?.avatar_url || '').slice(0, 500);
 
     // Payload sanitization & safety caps
@@ -573,6 +608,14 @@ async function pushDataToCloud() {
       .from('user_sync_data')
       .upsert(payload, { onConflict: 'user_id' });
 
+    // Mirror to email-keyed row for Android compatibility if user.id is UUID
+    if (userEmail && userEmail !== user.id) {
+      const emailPayload = { ...payload, user_id: userEmail };
+      await supabaseClient
+        .from('user_sync_data')
+        .upsert(emailPayload, { onConflict: 'user_id' });
+    }
+
     if (error) {
       console.error('Cloud sync push error:', error);
       showToast('Cloud sync failed to update.', 'error');
@@ -590,134 +633,121 @@ async function pushDataToCloud() {
   }
 }
 
+// Universal timeline session parser (Handles Android TimelineLogger & Web formats)
+function parseAllTimelineSessions(rawEntries) {
+  if (!Array.isArray(rawEntries) || rawEntries.length === 0) return [];
+
+  // Filter valid entries & sort ascending by timestamp
+  const entries = rawEntries
+    .filter(e => e && typeof e.t === 'number')
+    .sort((a, b) => a.t - b.t);
+
+  const studyStates = new Set(['STUDYING', 'POMODORO', 'COUNT_UP', 'COUNTDOWN', 'MANUAL_FOCUS', 'FOCUS']);
+  const nonStudyStates = new Set(['IDLE', 'PAUSED', 'STOPPED', 'BREAK', 'MANUAL_BREAK']);
+
+  const parsedSessions = [];
+  let openSession = null;
+
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+
+    if (studyStates.has(entry.s)) {
+      if (openSession) {
+        const gapSec = Math.round((entry.t - openSession.t) / 1000);
+        if (gapSec > 0 && gapSec <= 86400) {
+          parsedSessions.push(buildSessionFromEntry(openSession, entry.t, gapSec));
+        }
+      }
+      if (typeof entry.durationSec === 'number' && entry.durationSec > 0) {
+        parsedSessions.push(buildSessionFromEntry(entry, entry.endT || (entry.t + entry.durationSec * 1000), entry.durationSec));
+        openSession = null;
+      } else {
+        openSession = entry;
+      }
+    } else if (nonStudyStates.has(entry.s)) {
+      if (openSession) {
+        const gapSec = Math.round((entry.t - openSession.t) / 1000);
+        if (gapSec > 0 && gapSec <= 86400) {
+          parsedSessions.push(buildSessionFromEntry(openSession, entry.t, gapSec));
+        }
+        openSession = null;
+      }
+    }
+  }
+
+  // Handle open session if it had explicit duration
+  if (openSession && typeof openSession.durationSec === 'number' && openSession.durationSec > 0) {
+    parsedSessions.push(buildSessionFromEntry(openSession, openSession.endT || (openSession.t + openSession.durationSec * 1000), openSession.durationSec));
+  }
+
+  return parsedSessions;
+}
+
+function buildSessionFromEntry(entry, endMs, durationSec) {
+  let modeLabel = 'Focus Study';
+  if (entry.s === 'POMODORO' || entry.s === 'COUNTDOWN') modeLabel = 'Pomodoro';
+  else if (entry.s === 'COUNT_UP') modeLabel = 'Stopwatch';
+  else if (entry.s === 'MANUAL_FOCUS') modeLabel = 'Manual Focus';
+
+  const subId = entry.subId || 'general';
+  const matchingSub = (appState.subjects || []).find(s => s.id === subId) || {
+    id: subId,
+    name: entry.subName || 'General',
+    color: entry.subColor || '#6366f1'
+  };
+
+  return {
+    id: 'sess_' + entry.t,
+    subject: {
+      id: matchingSub.id,
+      name: entry.subName || matchingSub.name,
+      color: entry.subColor || matchingSub.color || matchingSub.colorHex || '#6366f1'
+    },
+    durationSec: Math.max(1, durationSec),
+    startTime: entry.t,
+    endTime: endMs || (entry.t + durationSec * 1000),
+    timestamp: entry.t,
+    mode: modeLabel
+  };
+}
+
 function reconstructTodaySessionsFromTimeline() {
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
   const startOfDayMs = startOfDay.getTime();
   const endOfDayMs = startOfDayMs + 86400000;
 
-  const sessions = [];
-  const entries = (appState.timelineEntries || []).filter(e => e && e.t >= startOfDayMs && e.t < endOfDayMs);
-  const studyStates = new Set(['STUDYING', 'POMODORO', 'COUNT_UP', 'COUNTDOWN', 'MANUAL_FOCUS', 'FOCUS']);
-
-  for (let i = 0; i < entries.length; i++) {
-    const curr = entries[i];
-    if (curr && studyStates.has(curr.s)) {
-      let durationSec = curr.durationSec;
-      let sessionEnd = curr.endT;
-
-      if (typeof durationSec !== 'number' || durationSec <= 0) {
-        const next = entries[i + 1];
-        if (next && next.t > curr.t) {
-          const diff = Math.round((next.t - curr.t) / 1000);
-          durationSec = (diff > 0 && diff <= 86400) ? diff : 60;
-          sessionEnd = next.t;
-        } else {
-          durationSec = 60;
-          sessionEnd = curr.t + 60000;
-        }
-      }
-
-      let modeLabel = 'Focus Study';
-      if (curr.s === 'POMODORO' || curr.s === 'COUNTDOWN') modeLabel = 'Pomodoro';
-      else if (curr.s === 'COUNT_UP') modeLabel = 'Stopwatch';
-      else if (curr.s === 'MANUAL_FOCUS') modeLabel = 'Manual Focus';
-
-      const subId = curr.subId || 'general';
-      const matchingSub = (appState.subjects || []).find(s => s.id === subId) || {
-        id: subId,
-        name: curr.subName || 'Focus Study',
-        color: curr.subColor || '#3b82f6'
-      };
-
-      sessions.push({
-        id: 'sess_' + curr.t,
-        subject: {
-          id: matchingSub.id,
-          name: curr.subName || matchingSub.name,
-          color: curr.subColor || matchingSub.color
-        },
-        durationSec,
-        startTime: curr.t,
-        endTime: sessionEnd || (curr.t + durationSec * 1000),
-        timestamp: curr.t,
-        mode: modeLabel
-      });
-    }
-  }
-
-  appState.todaySessions = sessions.reverse();
+  const allParsed = parseAllTimelineSessions(appState.timelineEntries || []);
+  appState.todaySessions = allParsed
+    .filter(s => s.timestamp >= startOfDayMs && s.timestamp < endOfDayMs)
+    .sort((a, b) => b.timestamp - a.timestamp);
 }
 
 // Universal extractor for all completed sessions with zero duplicate or hardcoded inflations
 function getAllValidatedSessions() {
-  const sessions = [];
+  const allParsed = parseAllTimelineSessions(appState.timelineEntries || []);
   const seenKeys = new Set();
+  const result = [];
 
-  // 1. Add verified sessions from today's real-time state first
-  (appState.todaySessions || []).forEach(s => {
-    if (s && typeof s.durationSec === 'number' && s.durationSec > 0) {
-      sessions.push(s);
-      const key = `${Math.floor(s.timestamp / 1000)}_${s.durationSec}`;
+  allParsed.forEach(s => {
+    const key = `${Math.floor(s.timestamp / 1000)}_${s.durationSec}`;
+    if (!seenKeys.has(key)) {
       seenKeys.add(key);
+      result.push(s);
     }
   });
 
-  // 2. Parse historical timeline entries
-  const entries = appState.timelineEntries || [];
-  const studyStates = new Set(['STUDYING', 'POMODORO', 'COUNT_UP', 'COUNTDOWN', 'MANUAL_FOCUS', 'FOCUS']);
-
-  for (let i = 0; i < entries.length; i++) {
-    const curr = entries[i];
-    if (curr && studyStates.has(curr.s)) {
-      let durationSec = curr.durationSec;
-      let sessionEnd = curr.endT;
-
-      if (typeof durationSec !== 'number' || durationSec <= 0) {
-        const next = entries[i + 1];
-        if (next && next.t > curr.t) {
-          const diff = Math.round((next.t - curr.t) / 1000);
-          durationSec = (diff > 0 && diff <= 86400) ? diff : 60;
-          sessionEnd = next.t;
-        } else {
-          durationSec = 60;
-          sessionEnd = curr.t + 60000;
-        }
-      }
-
-      const key = `${Math.floor(curr.t / 1000)}_${durationSec}`;
+  (appState.todaySessions || []).forEach(s => {
+    if (s && typeof s.durationSec === 'number' && s.durationSec > 0) {
+      const key = `${Math.floor(s.timestamp / 1000)}_${s.durationSec}`;
       if (!seenKeys.has(key)) {
         seenKeys.add(key);
-        let modeLabel = 'Focus Study';
-        if (curr.s === 'POMODORO' || curr.s === 'COUNTDOWN') modeLabel = 'Pomodoro';
-        else if (curr.s === 'COUNT_UP') modeLabel = 'Stopwatch';
-        else if (curr.s === 'MANUAL_FOCUS') modeLabel = 'Manual Focus';
-
-        const subId = curr.subId || 'general';
-        const matchingSub = (appState.subjects || []).find(s => s.id === subId) || {
-          id: subId,
-          name: curr.subName || 'Focus Study',
-          color: curr.subColor || '#3b82f6'
-        };
-
-        sessions.push({
-          id: 'sess_' + curr.t,
-          subject: {
-            id: matchingSub.id,
-            name: curr.subName || matchingSub.name,
-            color: curr.subColor || matchingSub.color
-          },
-          durationSec,
-          startTime: curr.t,
-          endTime: sessionEnd || (curr.t + durationSec * 1000),
-          timestamp: curr.t,
-          mode: modeLabel
-        });
+        result.push(s);
       }
     }
-  }
+  });
 
-  return sessions.sort((a, b) => b.timestamp - a.timestamp);
+  return result.sort((a, b) => b.timestamp - a.timestamp);
 }
 
 // ============================================================================
@@ -1762,26 +1792,149 @@ function updateTimerControlsUI() {
   updateSelectedSubjectUI();
 }
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+async function triggerDeleteSubject(sub) {
+  if (timerStatus === 'RUNNING' || currentMode === 'break') {
+    showToast('Cannot delete subjects while timer is running', 'warning');
+    return;
+  }
+  if (!sub || sub.id === 'general') {
+    showToast('General subject cannot be deleted', 'info');
+    return;
+  }
+
+  // Close open dropdown menus
+  document.getElementById('subjectDropdownMenu')?.classList.add('hidden');
+  document.getElementById('zenSubjectDropdownMenu')?.classList.add('hidden');
+
+  const confirmed = await showCustomConfirmDialog({
+    title: `Delete '${sub.name}' Subject?`,
+    subtitle: 'Subject deletion',
+    message: `Are you sure you want to remove ${sub.iconEmoji || '📚'} ${sub.name}? Existing recorded stats for this subject will remain saved.`,
+    confirmText: 'Delete Subject',
+    cancelText: 'Cancel',
+    isDanger: true
+  });
+
+  if (!confirmed) return;
+
+  // 1. Remove subject from state
+  appState.subjects = (appState.subjects || []).filter(s => s.id !== sub.id);
+  if (appState.subjects.length === 0) {
+    appState.subjects = [...DEFAULT_SUBJECTS];
+  }
+
+  // 2. If the deleted subject was currently selected, reset to General or first available
+  if (appState.selectedSubject?.id === sub.id) {
+    appState.selectedSubject = appState.subjects[0];
+  }
+
+  // 3. Save locally and sync to cloud
+  saveLocalState();
+  renderSubjects();
+  updateSelectedSubjectUI();
+  renderSubjectDonutChart();
+  pushDataToCloud();
+
+  showToast(`Subject "${sub.name}" deleted.`, 'success');
+}
+
 function renderSubjects() {
   const mainContainer = document.getElementById('subjectMenuItems');
   const zenContainer = document.getElementById('zenSubjectMenuItems');
 
+  if (!appState.selectedSubject && appState.subjects.length > 0) {
+    appState.selectedSubject = appState.subjects[0];
+  }
+
   function populateList(container) {
     if (!container) return;
     container.innerHTML = '';
+
     appState.subjects.forEach(sub => {
-      const isSelected = sub.id === appState.selectedSubject.id;
+      const isSelected = appState.selectedSubject && sub.id === appState.selectedSubject.id;
+      const isDefaultGeneral = sub.id === 'general';
       const item = document.createElement('button');
       item.type = 'button';
       item.className = `subject-menu-item ${isSelected ? 'active' : ''}`;
+      item.dataset.subjectId = sub.id;
       item.innerHTML = `
         <div class="subject-item-left">
-          <span class="subject-menu-dot" style="background-color: ${sub.color};"></span>
-          <span class="subject-item-title">${sub.name}</span>
+          <span class="subject-menu-dot" style="background-color: ${sub.color || sub.colorHex || '#6366f1'};"></span>
+          <span class="subject-item-title">${escapeHtml(sub.name)}</span>
         </div>
-        ${isSelected ? '<svg class="subject-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}
+        <div class="subject-item-right">
+          ${!isDefaultGeneral ? `
+            <span class="subject-item-delete-btn" title="Delete Subject" data-action="delete" aria-label="Delete subject">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </span>
+          ` : ''}
+          ${isSelected ? '<svg class="subject-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}
+        </div>
       `;
+
+      // Hold to delete state machine (mobile long-press + desktop hold)
+      let holdTimer = null;
+      let isHoldTriggered = false;
+
+      const startHold = (e) => {
+        if (e.target.closest('.subject-item-delete-btn')) return;
+        isHoldTriggered = false;
+        item.classList.add('holding');
+        holdTimer = setTimeout(() => {
+          isHoldTriggered = true;
+          item.classList.remove('holding');
+          triggerDeleteSubject(sub);
+        }, 550);
+      };
+
+      const cancelHold = () => {
+        if (holdTimer) {
+          clearTimeout(holdTimer);
+          holdTimer = null;
+        }
+        item.classList.remove('holding');
+      };
+
+      item.addEventListener('pointerdown', startHold);
+      item.addEventListener('pointerup', cancelHold);
+      item.addEventListener('pointerleave', cancelHold);
+      item.addEventListener('pointercancel', cancelHold);
+
+      // Desktop right-click contextmenu support
+      item.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        cancelHold();
+        triggerDeleteSubject(sub);
+      });
+
+      // Click handler
       item.addEventListener('click', (e) => {
+        const deleteBtn = e.target.closest('.subject-item-delete-btn');
+        if (deleteBtn) {
+          e.stopPropagation();
+          cancelHold();
+          triggerDeleteSubject(sub);
+          return;
+        }
+
+        if (isHoldTriggered) {
+          isHoldTriggered = false;
+          return;
+        }
+
         if (timerStatus === 'RUNNING' || currentMode === 'break') return;
         e.stopPropagation();
         appState.selectedSubject = sub;
@@ -1792,8 +1945,15 @@ function renderSubjects() {
         document.getElementById('zenSubjectDropdownMenu')?.classList.add('hidden');
         showToast(`Selected Subject: ${sub.name}`, 'info');
       });
+
       container.appendChild(item);
     });
+
+    // Helper footer hint
+    const hint = document.createElement('div');
+    hint.className = 'subject-dropdown-hint';
+    hint.textContent = '💡 Press & hold or right-click any subject to delete';
+    container.appendChild(hint);
   }
 
   populateList(mainContainer);

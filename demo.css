@@ -2190,6 +2190,11 @@ html, body {
 /* ==========================================================================
    5. MODALS (Timer Settings, Auth, Add Subject)
    ========================================================================== */
+body.modal-open {
+  overflow: hidden !important;
+  touch-action: none;
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -2204,6 +2209,9 @@ html, body {
   opacity: 1;
   visibility: visible;
   transition: var(--transition-fast);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal-overlay.hidden {
@@ -3416,9 +3424,13 @@ html, body {
 .modal-card-leaderboard {
   max-width: 540px;
   width: 92%;
-  max-height: 88vh;
+  max-height: 85vh;
+  max-height: 85dvh;
   overflow-y: auto;
-  padding: 24px 22px 20px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding: 22px 20px 18px;
   scrollbar-width: thin;
   scrollbar-color: var(--border-subtle) transparent;
 }
@@ -3428,8 +3440,8 @@ html, body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 16px;
-  padding-right: 28px;
+  margin-bottom: 14px;
+  padding-right: 32px;
 }
 
 /* Mobile Floating Actions Group */
@@ -3484,7 +3496,13 @@ html, body {
 .leaderboard-title-wrap {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+}
+
+.hub-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .leaderboard-title {
@@ -3498,49 +3516,51 @@ html, body {
 .leaderboard-subtitle-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   margin-top: 3px;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
 }
 
 .live-active-counter {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(16, 185, 129, 0.12);
+  gap: 5px;
+  background: rgba(16, 185, 129, 0.08);
   color: #10b981;
-  padding: 2px 8px;
+  padding: 1.5px 7px;
   border-radius: var(--radius-pill);
+  font-size: 0.72rem;
   font-weight: 600;
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  border: 1px solid rgba(16, 185, 129, 0.18);
 }
 
 .live-pulse-dot {
-  width: 7px;
-  height: 7px;
+  width: 5px;
+  height: 5px;
   background-color: #10b981;
   border-radius: 50%;
-  box-shadow: 0 0 8px #10b981;
+  box-shadow: 0 0 5px #10b981;
   animation: livePulseAnim 1.8s infinite ease-in-out;
+  flex-shrink: 0;
 }
 
 @keyframes livePulseAnim {
   0%, 100% {
     transform: scale(0.9);
     opacity: 0.7;
-    box-shadow: 0 0 4px #10b981;
+    box-shadow: 0 0 3px #10b981;
   }
   50% {
     transform: scale(1.3);
     opacity: 1;
-    box-shadow: 0 0 12px #10b981;
+    box-shadow: 0 0 8px #10b981;
   }
 }
 
 .reset-countdown {
   color: var(--text-muted);
   font-family: var(--font-mono, monospace);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
 }
 
 .btn-icon-subtle {

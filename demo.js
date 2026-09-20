@@ -118,9 +118,44 @@ function initTheme() {
   }
 }
 
+// Modal Scroll Lock Helpers (Prevents background page scrolling while modal is active)
+function lockBodyScroll() {
+  document.body.classList.add('modal-open');
+  document.body.style.overflow = 'hidden';
+}
+
+function unlockBodyScroll() {
+  const openModals = document.querySelectorAll('.modal-overlay:not(.hidden)');
+  if (openModals.length === 0) {
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+  }
+}
+
+// Supabase Realtime Leaderboard Listener
+let leaderboardRealtimeChannel = null;
+function initLeaderboardRealtime() {
+  if (!supabaseClient || leaderboardRealtimeChannel) return;
+  try {
+    leaderboardRealtimeChannel = supabaseClient
+      .channel('realtime_daily_leaderboard')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_leaderboard' }, () => {
+        leaderboardCache.timestamp = 0;
+        const modal = document.getElementById('leaderboardModalOverlay');
+        if (modal && !modal.classList.contains('hidden')) {
+          fetchLeaderboard(true);
+        }
+      })
+      .subscribe();
+  } catch (err) {
+    console.warn('Leaderboard realtime subscription error:', err);
+  }
+}
+
 // Supabase Authentication
 async function initAuth() {
   try {
+    initLeaderboardRealtime();
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session && session.user) {
       handleUserSignedIn(session.user);
@@ -304,6 +339,15 @@ async function pullDataFromCloud() {
         }
       }
 
+      // Auto-sync presence & leaderboard for mobile logged in user
+      let totalSecToday = 0;
+      (appState.todaySessions || []).forEach(s => {
+        if (s && typeof s.durationSec === 'number') totalSecToday += s.durationSec;
+      });
+      if (totalSecToday > 0) {
+        updateStudyPresence(timerStatus === 'RUNNING' && currentMode !== 'break');
+      }
+
       renderSubjects();
       renderUserProfileUI();
       updateProgressAndStreak();
@@ -383,6 +427,7 @@ async function pushDataToCloud() {
       __user_profile__: JSON.stringify(appState.userProfile)
     };
 
+    const nowMs = Date.now();
     const payload = {
       user_id: user.id,
       user_name: userName,
@@ -390,7 +435,8 @@ async function pushDataToCloud() {
       profile_image_uri: profileImg,
       prefs_data: JSON.stringify(prefsObj),
       timeline_data: JSON.stringify(sanitizedTimeline),
-      updated_at: Date.now()
+      updated_at: nowMs,
+      last_modified_timestamp: nowMs
     };
 
     const { error } = await supabaseClient
@@ -1229,8 +1275,8 @@ function finishSession(isAutoFinished = false) {
     logSessionToLeaderboard(studiedDurationSec, subject);
   }
 
-  // Only push to cloud database if session is at least 1 minute (>= 60s) and not a break
-  if (stateKey !== 'BREAK' && studiedDurationSec >= 60) {
+  // Push to cloud database whenever session is at least 10s and not a break
+  if (stateKey !== 'BREAK' && studiedDurationSec >= 10) {
     pushDataToCloud();
   }
 
@@ -1253,7 +1299,7 @@ function finishSession(isAutoFinished = false) {
     if (studiedDurationSec >= 60) {
       showToast(`🎉 Focus session saved! +${minStr}m added to ${subject.name}`, 'success');
     } else {
-      showToast(`✓ Session saved locally (+${studiedDurationSec}s). Cloud sync activates after 1 min.`, 'info');
+      showToast(`🎉 Focus session saved! +${studiedDurationSec}s added to ${subject.name}`, 'success');
     }
 
     // Give option to change subject after session ended
@@ -2402,12 +2448,14 @@ function openDeleteGoalModal(goalId) {
   if (subtitle) {
     subtitle.textContent = `Are you sure you want to remove the daily target for "${subject ? subject.name : 'this subject'}"?`;
   }
+  lockBodyScroll();
   document.getElementById('deleteGoalModalOverlay')?.classList.remove('hidden');
 }
 
 function closeDeleteGoalModal() {
   pendingGoalIdToDelete = null;
   document.getElementById('deleteGoalModalOverlay')?.classList.add('hidden');
+  unlockBodyScroll();
 }
 
 function confirmDeletePlannerGoal() {
@@ -2428,12 +2476,16 @@ function openAddGoalModal() {
       `<option value="${s.id}">${s.name}</option>`
     ).join('');
   }
-  if (modal) modal.classList.remove('hidden');
+  if (modal) {
+    lockBodyScroll();
+    modal.classList.remove('hidden');
+  }
 }
 
 function closeAddGoalModal() {
   const modal = document.getElementById('plannerGoalModalOverlay');
   if (modal) modal.classList.add('hidden');
+  unlockBodyScroll();
 }
 
 function handleAddGoal(e) {
@@ -2549,11 +2601,13 @@ function openProfileModal() {
   });
 
   updateProfileLivePreview();
+  lockBodyScroll();
   modal.classList.remove('hidden');
 }
 
 function closeProfileModal() {
   document.getElementById('profileModalOverlay')?.classList.add('hidden');
+  unlockBodyScroll();
 }
 
 function updateProfileLivePreview() {
@@ -2735,6 +2789,7 @@ async function logSessionToLeaderboard(durationSec, subject) {
 function openLeaderboardModal() {
   const modal = document.getElementById('leaderboardModalOverlay');
   if (modal) {
+    lockBodyScroll();
     modal.classList.remove('hidden');
     fetchLeaderboard(true);
   }
@@ -2742,6 +2797,7 @@ function openLeaderboardModal() {
 
 function closeLeaderboardModal() {
   document.getElementById('leaderboardModalOverlay')?.classList.add('hidden');
+  unlockBodyScroll();
 }
 
 async function fetchLeaderboard(forceRefresh = false) {
@@ -2826,7 +2882,7 @@ function renderLeaderboard(rankings) {
   if (activeStudyingText) {
     activeStudyingText.textContent = activeStudyingCount > 0 
       ? `${activeStudyingCount} Studying Now` 
-      : 'Live Focus Hub';
+      : 'Live Leaderboard';
   }
 
   const headerLiveDot = document.getElementById('headerLiveDot');
@@ -3065,12 +3121,14 @@ function openTimerSettingsModal() {
     }
   });
 
+  lockBodyScroll();
   modal.classList.remove('hidden');
 }
 
 function closeTimerSettingsModal() {
   const modal = document.getElementById('timerSettingsModalOverlay');
   if (modal) modal.classList.add('hidden');
+  unlockBodyScroll();
 }
 
 async function handleSaveTimerSettings(e) {
@@ -3127,11 +3185,13 @@ function openSessionCompleteModal(subject, mins) {
     `<option value="${s.id}" ${s.id === subject.id ? 'selected' : ''}>${s.name}</option>`
   ).join('');
 
+  lockBodyScroll();
   modal.classList.remove('hidden');
 }
 
 function closeSessionCompleteModal() {
   document.getElementById('sessionCompleteModalOverlay')?.classList.add('hidden');
+  unlockBodyScroll();
 }
 
 function applyNextSessionSubject() {
@@ -3151,11 +3211,13 @@ function applyNextSessionSubject() {
 
 // Delete All Local Data Modal Handlers
 function openDeleteAllDataModal() {
+  lockBodyScroll();
   document.getElementById('deleteAllDataModalOverlay')?.classList.remove('hidden');
 }
 
 function closeDeleteAllDataModal() {
   document.getElementById('deleteAllDataModalOverlay')?.classList.add('hidden');
+  unlockBodyScroll();
 }
 
 function confirmDeleteAllData() {
@@ -3244,6 +3306,7 @@ function showCustomConfirmDialog(options = {}) {
     }
   }
 
+  lockBodyScroll();
   modal.classList.remove('hidden');
 
   return new Promise((resolve) => {
@@ -3254,6 +3317,7 @@ function showCustomConfirmDialog(options = {}) {
 function closeCustomConfirmDialog(result = false) {
   const modal = document.getElementById('customConfirmModalOverlay');
   if (modal) modal.classList.add('hidden');
+  unlockBodyScroll();
   if (customConfirmResolve) {
     const resolve = customConfirmResolve;
     customConfirmResolve = null;
@@ -3266,12 +3330,16 @@ function closeCustomConfirmDialog(result = false) {
 // ============================================================================
 function openAuthModal() {
   const modal = document.getElementById('authModalOverlay');
-  if (modal) modal.classList.remove('hidden');
+  if (modal) {
+    lockBodyScroll();
+    modal.classList.remove('hidden');
+  }
 }
 
 function closeAuthModal() {
   const modal = document.getElementById('authModalOverlay');
   if (modal) modal.classList.add('hidden');
+  unlockBodyScroll();
 }
 
 async function signInWithGoogle() {
@@ -3341,12 +3409,16 @@ function openSubjectModal() {
   const modal = document.getElementById('subjectModalOverlay');
   const input = document.getElementById('customSubjectName');
   if (input) input.value = '';
-  if (modal) modal.classList.remove('hidden');
+  if (modal) {
+    lockBodyScroll();
+    modal.classList.remove('hidden');
+  }
 }
 
 function closeSubjectModal() {
   const modal = document.getElementById('subjectModalOverlay');
   if (modal) modal.classList.add('hidden');
+  unlockBodyScroll();
 }
 
 function handleAddCustomSubject(e) {

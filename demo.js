@@ -1078,19 +1078,6 @@ function setupEventListeners() {
   });
   document.getElementById('btnRefreshLeaderboard')?.addEventListener('click', () => fetchLeaderboard(true));
 
-  // Subject Pie / Donut Historical Time Filter Pills
-  document.querySelectorAll('#pieFilterPills .pie-filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const period = btn.dataset.period || 'today';
-      renderSubjectDonutChart(period);
-    });
-  });
-
-  // Pie Chart Mode Toggle (Donut Mode vs Solid Pie Mode)
-  document.getElementById('btnTogglePieChartType')?.addEventListener('click', () => {
-    isPieDonutMode = !isPieDonutMode;
-    renderSubjectDonutChart(currentPiePeriod);
-  });
 
   // Manual "Sync with App" Dropdown Trigger
   document.getElementById('btnManualSync')?.addEventListener('click', async () => {
@@ -2340,188 +2327,12 @@ function updateProgressAndStreak() {
 }
 
 // Interactive Subject Distribution Donut / Pie Chart (SubjectPieChartView.kt)
+// ========================================================
+// 1. OVERVIEW TODAY SUBJECT DONUT CHART (Clean Original Design)
+// ========================================================
 let activeHighlightedSubjectId = null;
-let currentPiePeriod = 'today'; // 'today', '7d', '30d', 'all'
-let isPieDonutMode = true; // true = donut with center hole/HUD, false = solid pie
 
-function getSubjectDistributionForPeriod(period = 'today') {
-  const subjectTotals = {};
-  let periodLabel = 'Today';
-  const todayStr = new Date().toISOString().split('T')[0];
-  const allSessions = getAllValidatedSessions();
-
-  if (period === 'today') {
-    periodLabel = 'Today';
-    // 1. Unified today sessions
-    (appState.todaySessions || []).forEach(s => {
-      if (s && s.durationSec > 0) {
-        const subId = s.subject?.id || s.subject?.name || 'general';
-        if (!subjectTotals[subId]) {
-          const matching = (appState.subjects || []).find(sub => sub.id === subId) || {
-            id: subId,
-            name: s.subject?.name || 'Focus Study',
-            color: s.subject?.color || '#3b82f6'
-          };
-          subjectTotals[subId] = {
-            id: subId,
-            name: matching.name,
-            color: matching.color || matching.colorHex || '#3b82f6',
-            durationSec: 0
-          };
-        }
-        subjectTotals[subId].durationSec += s.durationSec;
-      }
-    });
-
-    // 2. Fallback to dailySubjectDurations for today if needed
-    if (Object.keys(subjectTotals).length === 0 && appState.dailySubjectDurations && appState.dailySubjectDurations[todayStr]) {
-      const todayBreakdown = appState.dailySubjectDurations[todayStr];
-      if (todayBreakdown && typeof todayBreakdown === 'object') {
-        Object.keys(todayBreakdown).forEach(subId => {
-          const sec = Number(todayBreakdown[subId]) || 0;
-          if (sec > 0) {
-            const matching = (appState.subjects || []).find(sub => sub.id === subId) || {
-              id: subId,
-              name: subId.startsWith('custom_') ? 'Subject' : subId.charAt(0).toUpperCase() + subId.slice(1),
-              color: '#3b82f6'
-            };
-            subjectTotals[subId] = {
-              id: subId,
-              name: matching.name,
-              color: matching.color || matching.colorHex || '#3b82f6',
-              durationSec: sec
-            };
-          }
-        });
-      }
-    }
-  } else if (period === '7d' || period === '30d') {
-    const daysCount = period === '7d' ? 7 : 30;
-    periodLabel = period === '7d' ? 'Past 7 Days' : 'Past 30 Days';
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - (daysCount - 1));
-    cutoffDate.setHours(0, 0, 0, 0);
-    const cutoffMs = cutoffDate.getTime();
-
-    // 1. Sessions within time window
-    allSessions.forEach(s => {
-      if (s && s.timestamp >= cutoffMs && s.durationSec > 0) {
-        const subId = s.subject?.id || s.subject?.name || 'general';
-        if (!subjectTotals[subId]) {
-          const matching = (appState.subjects || []).find(sub => sub.id === subId) || {
-            id: subId,
-            name: s.subject?.name || 'Focus Study',
-            color: s.subject?.color || '#3b82f6'
-          };
-          subjectTotals[subId] = {
-            id: subId,
-            name: matching.name,
-            color: matching.color || matching.colorHex || '#3b82f6',
-            durationSec: 0
-          };
-        }
-        subjectTotals[subId].durationSec += s.durationSec;
-      }
-    });
-
-    // 2. Also check dailySubjectDurations for any dates in this window not already covered
-    if (appState.dailySubjectDurations && typeof appState.dailySubjectDurations === 'object') {
-      const seenDates = new Set(allSessions.map(s => new Date(s.timestamp).toISOString().split('T')[0]));
-      Object.keys(appState.dailySubjectDurations).forEach(dStr => {
-        const dObj = new Date(dStr + 'T12:00:00Z');
-        if (!isNaN(dObj.getTime()) && dObj.getTime() >= cutoffMs) {
-          if (!seenDates.has(dStr)) {
-            const breakdown = appState.dailySubjectDurations[dStr];
-            if (breakdown && typeof breakdown === 'object') {
-              Object.keys(breakdown).forEach(subId => {
-                const sec = Number(breakdown[subId]) || 0;
-                if (sec > 0) {
-                  if (!subjectTotals[subId]) {
-                    const matching = (appState.subjects || []).find(sub => sub.id === subId) || {
-                      id: subId,
-                      name: subId.startsWith('custom_') ? 'Subject' : subId.charAt(0).toUpperCase() + subId.slice(1),
-                      color: '#3b82f6'
-                    };
-                    subjectTotals[subId] = {
-                      id: subId,
-                      name: matching.name,
-                      color: matching.color || matching.colorHex || '#3b82f6',
-                      durationSec: 0
-                    };
-                  }
-                  subjectTotals[subId].durationSec += sec;
-                }
-              });
-            }
-          }
-        }
-      });
-    }
-  } else if (period === 'all') {
-    periodLabel = 'All Time';
-    // 1. Lifetime subjectDurations from Android Cloud sync
-    if (appState.subjectDurations && typeof appState.subjectDurations === 'object') {
-      Object.keys(appState.subjectDurations).forEach(subId => {
-        const sec = Number(appState.subjectDurations[subId]) || 0;
-        if (sec > 0) {
-          const matching = (appState.subjects || []).find(sub => sub.id === subId) || {
-            id: subId,
-            name: subId.startsWith('custom_') ? 'Subject' : subId.charAt(0).toUpperCase() + subId.slice(1),
-            color: '#3b82f6'
-          };
-          subjectTotals[subId] = {
-            id: subId,
-            name: matching.name,
-            color: matching.color || matching.colorHex || '#3b82f6',
-            durationSec: sec
-          };
-        }
-      });
-    }
-
-    // 2. Merge validated sessions
-    const sessionSums = {};
-    allSessions.forEach(s => {
-      if (s && s.durationSec > 0) {
-        const subId = s.subject?.id || s.subject?.name || 'general';
-        sessionSums[subId] = (sessionSums[subId] || 0) + s.durationSec;
-      }
-    });
-
-    Object.keys(sessionSums).forEach(subId => {
-      const sSec = sessionSums[subId];
-      if (!subjectTotals[subId]) {
-        const matching = (appState.subjects || []).find(sub => sub.id === subId) || {
-          id: subId,
-          name: subId.startsWith('custom_') ? 'Subject' : subId.charAt(0).toUpperCase() + subId.slice(1),
-          color: '#3b82f6'
-        };
-        subjectTotals[subId] = {
-          id: subId,
-          name: matching.name,
-          color: matching.color || matching.colorHex || '#3b82f6',
-          durationSec: sSec
-        };
-      } else {
-        subjectTotals[subId].durationSec = Math.max(subjectTotals[subId].durationSec, sSec);
-      }
-    });
-  }
-
-  // Harmonize names & colors with active user registered subjects
-  Object.values(subjectTotals).forEach(item => {
-    const matching = (appState.subjects || []).find(sub => sub.id === item.id || sub.name?.toLowerCase() === item.name?.toLowerCase());
-    if (matching) {
-      item.name = matching.name;
-      item.color = matching.color || matching.colorHex || item.color;
-    }
-  });
-
-  return { subjectTotals, periodLabel };
-}
-
-function renderSubjectDonutChart(period = currentPiePeriod) {
-  currentPiePeriod = period;
+function renderSubjectDonutChart() {
   const svg = document.getElementById('subjectDonutSvg');
   const svgWrap = document.getElementById('donutSvgWrap');
   const totalBadge = document.getElementById('donutTotalBadge');
@@ -2529,24 +2340,10 @@ function renderSubjectDonutChart(period = currentPiePeriod) {
   const centerVal = document.getElementById('donutCenterVal');
   const centerPct = document.getElementById('donutCenterPct');
   const legendList = document.getElementById('donutLegendList');
-  const pieTypeIcon = document.getElementById('pieTypeIcon');
   if (!svg || !legendList) return;
 
-  // Update active pill button state
-  document.querySelectorAll('#pieFilterPills .pie-filter-btn').forEach(btn => {
-    if (btn.dataset.period === currentPiePeriod) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
-    }
-  });
-
-  if (pieTypeIcon) {
-    pieTypeIcon.textContent = isPieDonutMode ? '🍩' : '🥧';
-    pieTypeIcon.setAttribute('title', isPieDonutMode ? 'Switch to Solid Pie Chart' : 'Switch to Donut Chart');
-  }
-
-  const { subjectTotals, periodLabel } = getSubjectDistributionForPeriod(currentPiePeriod);
+  const todayStr = new Date().toISOString().split('T')[0];
+  const subjectTotals = getSubjectDistributionForDate(todayStr);
 
   let totalSec = 0;
   Object.values(subjectTotals).forEach(item => {
@@ -2570,7 +2367,7 @@ function renderSubjectDonutChart(period = currentPiePeriod) {
   }
 
   if (totalBadge) totalBadge.textContent = `${formattedTotal} total`;
-  if (centerSub) centerSub.textContent = periodLabel;
+  if (centerSub) centerSub.textContent = 'Today';
   if (centerVal) centerVal.textContent = formattedTotal;
   if (centerPct) centerPct.classList.add('hidden');
 
@@ -2592,15 +2389,15 @@ function renderSubjectDonutChart(period = currentPiePeriod) {
 
     legendList.innerHTML = `
       <div class="empty-hub-state">
-        <span>No study sessions recorded for ${periodLabel.toLowerCase()}.</span>
+        <span>No study sessions recorded today yet.</span>
       </div>
     `;
     return;
   }
 
-  // Chart Geometry
-  const radius = isPieDonutMode ? 70 : 35;
-  const strokeW = isPieDonutMode ? 22 : 70;
+  // Chart Geometry (Clean Donut Ring)
+  const radius = 70;
+  const strokeW = 22;
   const circumference = 2 * Math.PI * radius;
   let accumulatedPercent = 0;
 
@@ -2634,7 +2431,7 @@ function renderSubjectDonutChart(period = currentPiePeriod) {
       if (s.getAttribute('data-sub-id') === item.id) {
         s.classList.add('active');
         s.style.opacity = '1';
-        s.style.strokeWidth = (strokeW + (isPieDonutMode ? 5 : 4)).toString();
+        s.style.strokeWidth = (strokeW + 5).toString();
       } else {
         s.classList.remove('active');
         s.style.opacity = '0.35';
@@ -2653,7 +2450,7 @@ function renderSubjectDonutChart(period = currentPiePeriod) {
 
   function resetHighlight() {
     activeHighlightedSubjectId = null;
-    if (centerSub) centerSub.textContent = periodLabel;
+    if (centerSub) centerSub.textContent = 'Today';
     if (centerVal) centerVal.textContent = formattedTotal;
     if (centerPct) centerPct.classList.add('hidden');
 
@@ -2719,6 +2516,289 @@ function renderSubjectDonutChart(period = currentPiePeriod) {
     legendItem.addEventListener('click', (e) => {
       e.stopPropagation();
       highlightSubject(item);
+    });
+
+    legendList.appendChild(legendItem);
+  });
+}
+
+// ========================================================
+// 2. HISTORICAL PAST DAY SUBJECT DISTRIBUTION & PIE CHART
+// (Matches Android CalendarTimeline.kt & Day Details Modal)
+// ========================================================
+function getSubjectDistributionForDate(dateStr) {
+  const subjectTotals = {};
+  const todayStr = new Date().toISOString().split('T')[0];
+  const allSessions = getAllValidatedSessions();
+
+  // 1. Sessions for this specific date
+  allSessions.forEach(s => {
+    if (!s || !s.durationSec || s.durationSec <= 0) return;
+    const dStr = new Date(s.timestamp || s.startTime).toISOString().split('T')[0];
+    if (dStr === dateStr) {
+      const subId = s.subject?.id || s.subject?.name || 'general';
+      if (!subjectTotals[subId]) {
+        const matching = (appState.subjects || []).find(sub => sub.id === subId) || {
+          id: subId,
+          name: s.subject?.name || 'Focus Study',
+          color: s.subject?.color || '#3b82f6'
+        };
+        subjectTotals[subId] = {
+          id: subId,
+          name: matching.name,
+          color: matching.color || matching.colorHex || '#3b82f6',
+          durationSec: 0
+        };
+      }
+      subjectTotals[subId].durationSec += s.durationSec;
+    }
+  });
+
+  // 2. If it is today and todaySessions has data, merge
+  if (dateStr === todayStr && appState.todaySessions && appState.todaySessions.length > 0) {
+    appState.todaySessions.forEach(s => {
+      if (s && s.durationSec > 0) {
+        const subId = s.subject?.id || s.subject?.name || 'general';
+        if (!subjectTotals[subId]) {
+          const matching = (appState.subjects || []).find(sub => sub.id === subId) || {
+            id: subId,
+            name: s.subject?.name || 'Focus Study',
+            color: s.subject?.color || '#3b82f6'
+          };
+          subjectTotals[subId] = {
+            id: subId,
+            name: matching.name,
+            color: matching.color || matching.colorHex || '#3b82f6',
+            durationSec: 0
+          };
+        }
+        if (!allSessions.some(as => as.id === s.id)) {
+          subjectTotals[subId].durationSec += s.durationSec;
+        }
+      }
+    });
+  }
+
+  // 3. Check dailySubjectDurations for this date from Android Cloud sync
+  if (appState.dailySubjectDurations && appState.dailySubjectDurations[dateStr]) {
+    const dayBreakdown = appState.dailySubjectDurations[dateStr];
+    if (dayBreakdown && typeof dayBreakdown === 'object') {
+      Object.keys(dayBreakdown).forEach(subId => {
+        const sec = Number(dayBreakdown[subId]) || 0;
+        if (sec > 0) {
+          if (!subjectTotals[subId]) {
+            const matching = (appState.subjects || []).find(sub => sub.id === subId) || {
+              id: subId,
+              name: subId.startsWith('custom_') ? 'Subject' : subId.charAt(0).toUpperCase() + subId.slice(1),
+              color: '#3b82f6'
+            };
+            subjectTotals[subId] = {
+              id: subId,
+              name: matching.name,
+              color: matching.color || matching.colorHex || '#3b82f6',
+              durationSec: 0
+            };
+          }
+          subjectTotals[subId].durationSec = Math.max(subjectTotals[subId].durationSec, sec);
+        }
+      });
+    }
+  }
+
+  // Harmonize names & colors with active user registered subjects
+  Object.values(subjectTotals).forEach(item => {
+    const matching = (appState.subjects || []).find(sub => sub.id === item.id || sub.name?.toLowerCase() === item.name?.toLowerCase());
+    if (matching) {
+      item.name = matching.name;
+      item.color = matching.color || matching.colorHex || item.color;
+    }
+  });
+
+  return subjectTotals;
+}
+
+function renderCalendarDayPieChart(dateStr) {
+  const svg = document.getElementById('calDaySubjectDonutSvg');
+  const svgWrap = document.getElementById('calDayDonutSvgWrap');
+  const totalBadge = document.getElementById('calDayPieTotalBadge');
+  const title = document.getElementById('calDayPieTitle');
+  const centerSub = document.getElementById('calDayDonutCenterSub');
+  const centerVal = document.getElementById('calDayDonutCenterVal');
+  const centerPct = document.getElementById('calDayDonutCenterPct');
+  const legendList = document.getElementById('calDayDonutLegendList');
+  if (!svg || !legendList) return;
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const isToday = dateStr === todayStr;
+  const formattedDate = new Date(dateStr + 'T00:00:00').toLocaleDateString([], {
+    month: 'short', day: 'numeric', year: 'numeric'
+  });
+
+  if (title) {
+    title.textContent = isToday ? "Today's Subject Breakdown" : `Subject Breakdown (${formattedDate})`;
+  }
+
+  const subjectTotals = getSubjectDistributionForDate(dateStr);
+  let totalSec = 0;
+  Object.values(subjectTotals).forEach(item => {
+    if (item && item.durationSec > 0) totalSec += item.durationSec;
+  });
+
+  const totalMin = Math.round(totalSec / 60);
+  let formattedTotal = '0m';
+  if (totalSec > 0) {
+    if (totalMin >= 60) {
+      const h = Math.floor(totalMin / 60);
+      const m = totalMin % 60;
+      formattedTotal = `${h}h ${m > 0 ? m + 'm' : ''}`;
+    } else if (totalMin === 0) {
+      formattedTotal = `${totalSec}s`;
+    } else {
+      formattedTotal = `${totalMin}m`;
+    }
+  }
+
+  if (totalBadge) totalBadge.textContent = `${formattedTotal} total`;
+  if (centerSub) centerSub.textContent = 'Studied';
+  if (centerVal) centerVal.textContent = formattedTotal;
+  if (centerPct) centerPct.classList.add('hidden');
+
+  svg.innerHTML = '';
+  legendList.innerHTML = '';
+
+  const entries = Object.values(subjectTotals).filter(item => item.durationSec > 0);
+
+  if (entries.length === 0 || totalSec === 0) {
+    const track = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    track.setAttribute('cx', '100');
+    track.setAttribute('cy', '100');
+    track.setAttribute('r', '70');
+    track.setAttribute('class', 'donut-bg-track');
+    svg.appendChild(track);
+
+    legendList.innerHTML = `
+      <div class="empty-hub-state">
+        <span>No study sessions recorded on ${formattedDate}.</span>
+      </div>
+    `;
+    return;
+  }
+
+  const radius = 70;
+  const strokeW = 22;
+  const circumference = 2 * Math.PI * radius;
+  let accumulatedPercent = 0;
+
+  const bgTrack = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  bgTrack.setAttribute('cx', '100');
+  bgTrack.setAttribute('cy', '100');
+  bgTrack.setAttribute('r', radius.toString());
+  bgTrack.setAttribute('class', 'donut-bg-track');
+  bgTrack.setAttribute('stroke-width', strokeW.toString());
+  svg.appendChild(bgTrack);
+
+  entries.sort((a, b) => b.durationSec - a.durationSec);
+
+  function highlightDaySubject(item) {
+    const itemPct = Math.round((item.durationSec / totalSec) * 100);
+    const itemMin = Math.round(item.durationSec / 60);
+    const itemTimeStr = itemMin >= 60 
+      ? `${Math.floor(itemMin / 60)}h ${itemMin % 60 > 0 ? (itemMin % 60) + 'm' : ''}` 
+      : (itemMin === 0 ? `${item.durationSec}s` : `${itemMin}m`);
+
+    if (centerSub) centerSub.textContent = item.name;
+    if (centerVal) centerVal.textContent = itemTimeStr;
+    if (centerPct) {
+      centerPct.textContent = `${itemPct}% of day`;
+      centerPct.classList.remove('hidden');
+    }
+
+    svg.querySelectorAll('.donut-slice').forEach(s => {
+      if (s.getAttribute('data-sub-id') === item.id) {
+        s.classList.add('active');
+        s.style.opacity = '1';
+        s.style.strokeWidth = (strokeW + 5).toString();
+      } else {
+        s.classList.remove('active');
+        s.style.opacity = '0.35';
+        s.style.strokeWidth = strokeW.toString();
+      }
+    });
+
+    legendList.querySelectorAll('.donut-legend-item').forEach(l => {
+      if (l.getAttribute('data-sub-id') === item.id) {
+        l.classList.add('active');
+      } else {
+        l.classList.remove('active');
+      }
+    });
+  }
+
+  function resetDayHighlight() {
+    if (centerSub) centerSub.textContent = 'Studied';
+    if (centerVal) centerVal.textContent = formattedTotal;
+    if (centerPct) centerPct.classList.add('hidden');
+
+    svg.querySelectorAll('.donut-slice').forEach(s => {
+      s.classList.remove('active');
+      s.style.opacity = '1';
+      s.style.strokeWidth = strokeW.toString();
+    });
+    legendList.querySelectorAll('.donut-legend-item').forEach(l => l.classList.remove('active'));
+  }
+
+  svgWrap?.addEventListener('mouseleave', resetDayHighlight);
+
+  entries.forEach(item => {
+    const itemPct = (item.durationSec / totalSec) * 100;
+    const itemMin = Math.round(item.durationSec / 60);
+    const itemTimeStr = itemMin >= 60 
+      ? `${Math.floor(itemMin / 60)}h ${itemMin % 60 > 0 ? (itemMin % 60) + 'm' : ''}` 
+      : (itemMin === 0 ? `${item.durationSec}s` : `${itemMin}m`);
+
+    const sliceLength = (itemPct / 100) * circumference;
+    const offset = -((accumulatedPercent / 100) * circumference);
+
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', '100');
+    circle.setAttribute('cy', '100');
+    circle.setAttribute('r', radius.toString());
+    circle.setAttribute('class', 'donut-slice');
+    circle.setAttribute('data-sub-id', item.id);
+    circle.setAttribute('stroke', item.color);
+    circle.setAttribute('stroke-width', strokeW.toString());
+    circle.setAttribute('stroke-dasharray', `${sliceLength} ${circumference}`);
+    circle.setAttribute('stroke-dashoffset', offset.toString());
+    circle.innerHTML = `<title>${item.name}: ${Math.round(itemPct)}% (${itemTimeStr})</title>`;
+
+    circle.addEventListener('mouseenter', () => highlightDaySubject(item));
+    circle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      highlightDaySubject(item);
+    });
+
+    svg.appendChild(circle);
+    accumulatedPercent += itemPct;
+
+    const legendItem = document.createElement('div');
+    legendItem.className = 'donut-legend-item';
+    legendItem.setAttribute('data-sub-id', item.id);
+    legendItem.innerHTML = `
+      <div class="donut-legend-left">
+        <span class="donut-legend-dot" style="background-color: ${item.color};"></span>
+        <span class="donut-legend-name">${item.name}</span>
+      </div>
+      <div class="donut-legend-right">
+        <span class="donut-legend-pct">${Math.round(itemPct)}%</span>
+        <span class="donut-legend-time">${itemTimeStr}</span>
+      </div>
+    `;
+
+    legendItem.addEventListener('mouseenter', () => highlightDaySubject(item));
+    legendItem.addEventListener('mouseleave', resetDayHighlight);
+    legendItem.addEventListener('click', (e) => {
+      e.stopPropagation();
+      highlightDaySubject(item);
     });
 
     legendList.appendChild(legendItem);
@@ -2972,6 +3052,7 @@ function renderMonthlyCalendar() {
     `;
   }
 
+  renderCalendarDayPieChart(selectedCalendarDateStr);
   renderSelectedDateTimeline(selectedCalendarDateStr);
 }
 
@@ -3490,10 +3571,10 @@ async function syncLeaderboardScore() {
                     appState.currentUser.user_metadata?.picture || 
                     '🐱';
 
-  const userIds = [appState.currentUser.id, 'Google User'];
-  if (appState.currentUser.email) userIds.push(appState.currentUser.email);
+  const canonicalUserId = appState.currentUser.id || 'cc0a1395-071f-4252-9b04-305f71798725';
 
   const payload = {
+    user_id: canonicalUserId,
     user_name: userName,
     avatar_url: avatarUrl,
     study_date: todayKey,
@@ -3505,15 +3586,10 @@ async function syncLeaderboardScore() {
     updated_at: new Date().toISOString()
   };
 
-  for (const uid of userIds) {
-    try {
-      await supabaseClient.from('daily_leaderboard').upsert({
-        ...payload,
-        user_id: uid
-      }, { onConflict: 'user_id,study_date' });
-    } catch (e) {
-      console.warn('Leaderboard score sync error for', uid, e);
-    }
+  try {
+    await supabaseClient.from('daily_leaderboard').upsert(payload, { onConflict: 'user_id,study_date' });
+  } catch (e) {
+    console.warn('Leaderboard score sync error:', e);
   }
 
   leaderboardCache.timestamp = 0;
@@ -3691,8 +3767,25 @@ function renderLeaderboard(rankings) {
 
   if (!podiumContainer || !listContainer) return;
 
+  // Deduplicate rankings by canonical key (user_name or user_id)
+  const seenUsers = new Set();
+  const uniqueRankings = [];
+  (rankings || []).forEach(r => {
+    if (!r) return;
+    const key = (r.user_name || '').trim().toLowerCase() || r.user_id;
+    if (!seenUsers.has(key)) {
+      seenUsers.add(key);
+      uniqueRankings.push({ ...r });
+    }
+  });
+
+  // Re-index ranks 1..N
+  uniqueRankings.forEach((r, idx) => {
+    r.rank = idx + 1;
+  });
+
   // 1. Calculate Active Studiers Count
-  const activeStudyingCount = (rankings || []).filter(r => r.is_studying).length;
+  const activeStudyingCount = uniqueRankings.filter(r => r.is_studying).length;
   if (activeStudyingText) {
     activeStudyingText.textContent = activeStudyingCount > 0 
       ? `${activeStudyingCount} Studying Now` 
@@ -3705,9 +3798,9 @@ function renderLeaderboard(rankings) {
   if (headerLiveDot) headerLiveDot.style.display = isAnyActive ? 'inline-block' : 'none';
   if (mobileLiveDot) mobileLiveDot.style.display = isAnyActive ? 'inline-block' : 'none';
 
-  const top1 = (rankings || []).find(r => Number(r.rank) === 1);
-  const top2 = (rankings || []).find(r => Number(r.rank) === 2);
-  const top3 = (rankings || []).find(r => Number(r.rank) === 3);
+  const top1 = uniqueRankings.find(r => Number(r.rank) === 1);
+  const top2 = uniqueRankings.find(r => Number(r.rank) === 2);
+  const top3 = uniqueRankings.find(r => Number(r.rank) === 3);
 
   const renderPodiumCard = (entry, rankNum) => {
     if (!entry) {
@@ -3766,7 +3859,7 @@ function renderLeaderboard(rankings) {
     ${renderPodiumCard(top3, 3)}
   `;
 
-  if (!rankings || rankings.length === 0) {
+  if (uniqueRankings.length === 0) {
     listContainer.innerHTML = `
       <div class="leaderboard-empty-state" style="padding: 24px 16px;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -3782,11 +3875,11 @@ function renderLeaderboard(rankings) {
   }
 
   // 3. Render Ranks 4 to 25 List
-  const remainingRanks = rankings.filter(r => Number(r.rank) > 3);
+  const remainingRanks = uniqueRankings.filter(r => Number(r.rank) > 3);
   if (remainingRanks.length === 0) {
     listContainer.innerHTML = `
       <div class="leaderboard-empty-state" style="padding: 24px 16px;">
-        <p style="font-size: 0.85rem;">Only ${rankings.length} on the board today!</p>
+        <p style="font-size: 0.85rem;">Only ${uniqueRankings.length} on the board today!</p>
         <span>Complete a session to join the top rankings.</span>
       </div>
     `;
@@ -3824,7 +3917,7 @@ function renderLeaderboard(rankings) {
     localTotalSec = Math.max(localTotalSec, Number(appState.dailyFocusTotals[todayKey]) || 0);
   }
 
-  const myEntry = (rankings || []).find(r => isCurrentUserEntry(r));
+  const myEntry = uniqueRankings.find(r => isCurrentUserEntry(r));
   updatePersonalUserBar(myEntry, localTotalSec);
 }
 

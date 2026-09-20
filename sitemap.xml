@@ -7,6 +7,12 @@
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>https://get-studytimer.vercel.app/demo.html</loc>
+    <lastmod>2026-09-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+  <url>
     <loc>https://get-studytimer.vercel.app/about.html</loc>
     <lastmod>2026-09-04</lastmod>
     <changefreq>monthly</changefreq>

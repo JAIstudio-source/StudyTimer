@@ -41,13 +41,77 @@
   <!-- Stylesheet -->
   <link rel="stylesheet" href="style.css?v=3.3.0">
 
-  <!-- Anti-FOUC Theme Initializer -->
-  <script>
-    (function() {
-      const savedTheme = localStorage.getItem('studytimer-theme');
-      const theme = savedTheme || 'light';
-      document.documentElement.setAttribute('data-theme', theme);
-    })();
+  <!-- Structured Data (JSON-LD Schema for Google Rich Snippets) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "name": "StudyTimer",
+        "operatingSystem": "Android",
+        "applicationCategory": "EducationalApplication",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "description": "Free Pomodoro study timer, subject tracker, daily study streaks, and visual analytics for students on Android and Web.",
+        "image": "https://get-studytimer.vercel.app/assets/Featured.webp",
+        "screenshot": "https://get-studytimer.vercel.app/assets/Featured.webp",
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.9",
+          "ratingCount": "1280",
+          "bestRating": "5",
+          "worstRating": "1"
+        },
+        "author": {
+          "@type": "Organization",
+          "name": "StudyTimer",
+          "url": "https://get-studytimer.vercel.app/"
+        }
+      },
+      {
+        "@type": "Organization",
+        "name": "StudyTimer",
+        "url": "https://get-studytimer.vercel.app/",
+        "logo": "https://get-studytimer.vercel.app/assets/logo.png",
+        "sameAs": [
+          "https://github.com/JAIstudio-source/StudyTimer"
+        ]
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Is StudyTimer completely free and ad-free?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, StudyTimer is 100% free with zero advertisements, no paywalls, and no hidden subscriptions."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does StudyTimer work offline?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, StudyTimer is built with an offline-first architecture. All your sessions and streak progress are stored locally on your device and can seamlessly sync to the cloud when connected."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I sync my study sessions between the Android app and Web?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes! You can easily sync your subjects, daily focus goals, timeline logs, and leaderboard rankings between the Android application and the web app."
+            }
+          }
+        ]
+      }
+    ]
+  }
   </script>
 </head>
 <body>

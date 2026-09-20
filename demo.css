@@ -519,96 +519,201 @@ html, body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-/* Subject Tag Bar */
-.subject-tag-bar {
-  display: flex;
+/* ==========================================================================
+   SUBJECT SELECTOR DROPDOWN (PREMIUM & COMPACT)
+   ========================================================================== */
+.subject-dropdown-wrapper {
+  position: relative;
+  display: inline-flex;
+  justify-content: center;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 28px;
-  width: 100%;
-  flex-wrap: wrap;
+  margin: 0 auto 18px;
+  z-index: 50;
 }
 
-.subject-bar-label {
+.subject-menu-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px 6px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all var(--transition-fast);
+}
+
+.subject-menu-trigger-btn:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-focus);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.subject-menu-trigger-btn .dropdown-chevron {
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+  transition: transform var(--transition-fast);
+}
+
+.subject-menu-trigger-btn:hover .dropdown-chevron {
+  color: var(--text-primary);
+  transform: translateY(1px);
+}
+
+/* Floating Dropdown Menu Panel */
+.subject-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 250px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-focus);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.25);
+  padding: 8px;
+  z-index: 100;
+  animation: dropdown-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dropdown-pop {
+  from { opacity: 0; transform: translateX(-50%) translateY(-6px) scale(0.96); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+.subject-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 6px;
+}
+
+.subject-menu-title {
   font-size: 0.76rem;
   font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  flex-shrink: 0;
+  letter-spacing: 0.05em;
 }
 
-.subject-pills-scroll {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  overflow-x: auto;
-  padding: 2px 0;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-  flex: 1;
-}
-
-.subject-pills-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.subject-pill {
+.subject-menu-add-btn {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 6px 14px;
-  border-radius: var(--radius-pill);
-  font-size: 0.82rem;
-  font-weight: 600;
+  gap: 4px;
   background: var(--bg-subtle);
-  color: var(--text-secondary);
   border: 1px solid var(--border-subtle);
+  color: var(--accent-blue);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
   transition: var(--transition-fast);
 }
 
-.subject-pill.active {
-  background: var(--bg-card);
-  color: var(--text-primary);
-  border-color: var(--text-primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+.subject-menu-add-btn:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: var(--accent-blue);
 }
 
-.subject-dot {
-  width: 8px;
-  height: 8px;
+.subject-menu-add-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.subject-menu-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.subject-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  text-align: left;
+}
+
+.subject-menu-item:hover {
+  background: var(--bg-subtle);
+}
+
+.subject-menu-item.active {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.subject-item-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.subject-menu-dot {
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-.add-subject-pill-btn {
+.subject-item-title {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.subject-check-icon {
+  width: 15px;
+  height: 15px;
+  color: var(--accent-blue);
+}
+
+/* Inner Timer Current Subject Button */
+.timer-current-subject-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 7px;
+  font-size: clamp(0.78rem, 2vw, 0.86rem);
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-subtle);
   padding: 5px 12px;
   border-radius: var(--radius-pill);
-  border: 1px dashed var(--border-focus);
-  background: var(--bg-subtle);
-  color: var(--text-secondary);
-  font-size: 0.78rem;
-  font-weight: 600;
+  border: 1px solid var(--border-subtle);
   cursor: pointer;
-  flex-shrink: 0;
-  transition: var(--transition-fast);
+  pointer-events: auto;
+  transition: all var(--transition-fast);
+  max-width: 180px;
 }
 
-.add-subject-pill-btn svg {
-  width: 14px;
-  height: 14px;
-}
-
-.add-subject-pill-btn:hover {
+.timer-current-subject-btn:hover {
   background: var(--bg-card-hover);
+  border-color: var(--border-focus);
   color: var(--text-primary);
-  border-style: solid;
+  transform: translateY(-1px);
+}
+
+.subject-inline-chevron {
+  width: 12px;
+  height: 12px;
+  color: var(--text-muted);
 }
 
 /* Central Circular Timer Ring */
@@ -1561,44 +1666,28 @@ html, body {
     letter-spacing: -0.01em;
   }
 
-  /* Subject Bar 2-Row Fluid Layout on Mobile */
-  .subject-tag-bar {
+  /* Subject Dropdown Centered */
+  .subject-dropdown-wrapper {
+    margin: 0 auto 16px;
+    width: auto;
     display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 20px;
-    width: 100%;
+    justify-content: center;
   }
 
-  .subject-bar-label {
-    font-size: 0.72rem;
+  .subject-menu-trigger-btn {
+    padding: 6px 14px 6px 10px;
+    font-size: 0.8rem;
   }
 
-  .subject-pills-scroll {
-    order: 3;
-    width: 100%;
-    flex: none;
-    padding: 4px 0 6px;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .subject-pill {
-    padding: 5px 12px;
-    font-size: 0.78rem;
-  }
-
-  .add-subject-pill-btn {
-    padding: 4px 10px;
-    font-size: 0.74rem;
+  .subject-dropdown-menu {
+    width: 230px;
   }
 
   /* Timer Ring Sizing on Mobile */
   .timer-ring-container {
     width: clamp(210px, 64vw, 280px);
     height: clamp(210px, 64vw, 280px);
-    margin: 8px auto 22px;
+    margin: 6px auto 20px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1629,8 +1718,8 @@ html, body {
     text-align: center;
   }
 
-  .timer-current-subject {
-    font-size: 0.76rem;
+  .timer-current-subject-btn {
+    font-size: 0.75rem;
     padding: 4px 10px;
     max-width: 160px;
     white-space: nowrap;

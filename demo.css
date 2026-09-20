@@ -532,9 +532,10 @@ html, body {
    ========================================================================== */
 .subject-dropdown-wrapper {
   position: relative;
-  display: inline-flex;
+  display: flex;
   justify-content: center;
   align-items: center;
+  width: 100%;
   margin: 0 auto 18px;
   z-index: 50;
 }
@@ -572,6 +573,21 @@ html, body {
 .subject-menu-trigger-btn:hover .dropdown-chevron {
   color: var(--text-primary);
   transform: translateY(1px);
+}
+
+/* Locked Subject State during Active Session (Cannot change mid-session) */
+.subject-dropdown-wrapper.session-running .dropdown-chevron,
+.timer-subject-locked .subject-inline-chevron {
+  display: none !important;
+}
+
+.subject-dropdown-wrapper.session-running .subject-menu-trigger-btn,
+.timer-subject-locked {
+  pointer-events: none !important;
+  cursor: default !important;
+  box-shadow: none !important;
+  transform: none !important;
+  opacity: 0.85;
 }
 
 /* Floating Dropdown Menu Panel */
@@ -1753,6 +1769,16 @@ html, body {
   letter-spacing: -0.03em;
   margin-bottom: 12px;
   font-variant-numeric: tabular-nums;
+}
+
+.zen-subject-wrapper {
+  position: relative;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  margin: 4px auto 14px;
+  pointer-events: auto;
+  z-index: 50;
 }
 
 .zen-hint-text {

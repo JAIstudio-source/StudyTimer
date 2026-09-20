@@ -109,8 +109,10 @@ async function initAuth() {
 
     supabaseClient.auth.onAuthStateChange(async (event, session) => {
       if (session && session.user) {
-        handleUserSignedIn(session.user);
-      } else {
+        if (!appState.currentUser || appState.currentUser.id !== session.user.id) {
+          handleUserSignedIn(session.user);
+        }
+      } else if (!session) {
         handleUserSignedOut();
       }
     });
@@ -239,7 +241,9 @@ async function pullDataFromCloud() {
       updateProgressAndStreak();
       updateSubjectBreakdown();
       saveLocalState();
-      resetTimer();
+      if (timerStatus === 'IDLE') {
+        resetTimer();
+      }
     }
   } catch (err) {
     console.error('Cloud pull exception:', err);
@@ -491,31 +495,52 @@ function setupEventListeners() {
   document.getElementById('btnLogout')?.addEventListener('click', signOutUser);
   document.getElementById('btnManualSync')?.addEventListener('click', pullDataFromCloud);
 
-  // Subject Dropdown Menu Toggles
+  // Subject Dropdown Menu Toggles (Main & Full Screen)
   const btnSubjectTrigger = document.getElementById('btnSubjectMenuTrigger');
   const timerSubjectDisplay = document.getElementById('timerSubjectDisplay');
   const subjectDropdownMenu = document.getElementById('subjectDropdownMenu');
 
-  function toggleSubjectMenu(e) {
+  const zenSubjectDisplay = document.getElementById('zenSubjectDisplay');
+  const zenSubjectDropdownMenu = document.getElementById('zenSubjectDropdownMenu');
+
+  function toggleMainSubjectMenu(e) {
+    if (timerStatus === 'RUNNING') return;
     e.stopPropagation();
     if (subjectDropdownMenu) {
       subjectDropdownMenu.classList.toggle('hidden');
     }
   }
 
-  btnSubjectTrigger?.addEventListener('click', toggleSubjectMenu);
-  timerSubjectDisplay?.addEventListener('click', toggleSubjectMenu);
+  function toggleZenSubjectMenu(e) {
+    if (timerStatus === 'RUNNING') return;
+    e.stopPropagation();
+    if (zenSubjectDropdownMenu) {
+      zenSubjectDropdownMenu.classList.toggle('hidden');
+    }
+  }
+
+  btnSubjectTrigger?.addEventListener('click', toggleMainSubjectMenu);
+  timerSubjectDisplay?.addEventListener('click', toggleMainSubjectMenu);
+  zenSubjectDisplay?.addEventListener('click', toggleZenSubjectMenu);
 
   document.addEventListener('click', (e) => {
     if (subjectDropdownMenu && !subjectDropdownMenu.contains(e.target) && !btnSubjectTrigger?.contains(e.target) && !timerSubjectDisplay?.contains(e.target)) {
       subjectDropdownMenu.classList.add('hidden');
     }
+    if (zenSubjectDropdownMenu && !zenSubjectDropdownMenu.contains(e.target) && !zenSubjectDisplay?.contains(e.target)) {
+      zenSubjectDropdownMenu.classList.add('hidden');
+    }
   });
 
-  // Subject Modal
+  // Subject Modal Triggers
   document.getElementById('btnAddSubject')?.addEventListener('click', (e) => {
     e.stopPropagation();
     subjectDropdownMenu?.classList.add('hidden');
+    openSubjectModal();
+  });
+  document.getElementById('btnZenAddSubject')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    zenSubjectDropdownMenu?.classList.add('hidden');
     openSubjectModal();
   });
   document.getElementById('btnCloseSubjectModal')?.addEventListener('click', closeSubjectModal);
@@ -531,6 +556,7 @@ function setupEventListeners() {
       btn.classList.add('active');
     });
   });
+
   // Full Screen Focus Mode
   document.getElementById('btnZenTimer')?.addEventListener('click', openZenMode);
   document.getElementById('btnExitZen')?.addEventListener('click', closeZenMode);
@@ -539,9 +565,9 @@ function setupEventListeners() {
     finishSession();
   });
 
-  // Tap on full screen canvas (outside buttons) to toggle play/pause
+  // Tap on full screen canvas (outside buttons & subject menu) to toggle play/pause
   document.getElementById('zenTimerCanvas')?.addEventListener('click', (e) => {
-    if (!e.target.closest('.zen-controls-bar') && !e.target.closest('.zen-exit-btn')) {
+    if (!e.target.closest('.zen-controls-bar') && !e.target.closest('.zen-exit-btn') && !e.target.closest('#zenSubjectWrapper')) {
       toggleTimer();
     }
   });
@@ -1045,6 +1071,12 @@ function updateTimerControlsUI() {
   const zenPlayIcon = document.getElementById('zenPlayIcon');
   const zenPauseIcon = document.getElementById('zenPauseIcon');
 
+  const subjectDropdownWrapper = document.getElementById('subjectDropdownWrapper');
+  const timerSubjectDisplay = document.getElementById('timerSubjectDisplay');
+  const zenSubjectDisplay = document.getElementById('zenSubjectDisplay');
+  const subjectDropdownMenu = document.getElementById('subjectDropdownMenu');
+  const zenSubjectDropdownMenu = document.getElementById('zenSubjectDropdownMenu');
+
   if (timerStatus === 'RUNNING') {
     btnToggle?.classList.add('running');
     if (btnToggleLabel) btnToggleLabel.textContent = 'Pause Focus';
@@ -1055,6 +1087,13 @@ function updateTimerControlsUI() {
     if (zenToggleLabel) zenToggleLabel.textContent = 'Pause Focus';
     zenPlayIcon?.classList.add('hidden');
     zenPauseIcon?.classList.remove('hidden');
+
+    // Lock subject changing mid-session
+    subjectDropdownWrapper?.classList.add('session-running');
+    timerSubjectDisplay?.classList.add('timer-subject-locked');
+    zenSubjectDisplay?.classList.add('timer-subject-locked');
+    subjectDropdownMenu?.classList.add('hidden');
+    zenSubjectDropdownMenu?.classList.add('hidden');
   } else if (timerStatus === 'PAUSED') {
     btnToggle?.classList.remove('running');
     if (btnToggleLabel) btnToggleLabel.textContent = 'Resume Focus';
@@ -1065,6 +1104,10 @@ function updateTimerControlsUI() {
     if (zenToggleLabel) zenToggleLabel.textContent = 'Resume Focus';
     zenPlayIcon?.classList.remove('hidden');
     zenPauseIcon?.classList.add('hidden');
+
+    subjectDropdownWrapper?.classList.remove('session-running');
+    timerSubjectDisplay?.classList.remove('timer-subject-locked');
+    zenSubjectDisplay?.classList.remove('timer-subject-locked');
   } else {
     btnToggle?.classList.remove('running');
     if (btnToggleLabel) btnToggleLabel.textContent = 'Start Focus';
@@ -1075,37 +1118,49 @@ function updateTimerControlsUI() {
     if (zenToggleLabel) zenToggleLabel.textContent = 'Start Focus';
     zenPlayIcon?.classList.remove('hidden');
     zenPauseIcon?.classList.add('hidden');
+
+    subjectDropdownWrapper?.classList.remove('session-running');
+    timerSubjectDisplay?.classList.remove('timer-subject-locked');
+    zenSubjectDisplay?.classList.remove('timer-subject-locked');
   }
 }
 
 function renderSubjects() {
-  const container = document.getElementById('subjectMenuItems');
-  if (!container) return;
+  const mainContainer = document.getElementById('subjectMenuItems');
+  const zenContainer = document.getElementById('zenSubjectMenuItems');
 
-  container.innerHTML = '';
-  appState.subjects.forEach(sub => {
-    const isSelected = sub.id === appState.selectedSubject.id;
-    const item = document.createElement('button');
-    item.type = 'button';
-    item.className = `subject-menu-item ${isSelected ? 'active' : ''}`;
-    item.innerHTML = `
-      <div class="subject-item-left">
-        <span class="subject-menu-dot" style="background-color: ${sub.color};"></span>
-        <span class="subject-item-title">${sub.name}</span>
-      </div>
-      ${isSelected ? '<svg class="subject-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}
-    `;
-    item.addEventListener('click', (e) => {
-      e.stopPropagation();
-      appState.selectedSubject = sub;
-      saveLocalState();
-      renderSubjects();
-      updateSelectedSubjectUI();
-      document.getElementById('subjectDropdownMenu')?.classList.add('hidden');
-      showToast(`Selected Subject: ${sub.name}`, 'info');
+  function populateList(container) {
+    if (!container) return;
+    container.innerHTML = '';
+    appState.subjects.forEach(sub => {
+      const isSelected = sub.id === appState.selectedSubject.id;
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = `subject-menu-item ${isSelected ? 'active' : ''}`;
+      item.innerHTML = `
+        <div class="subject-item-left">
+          <span class="subject-menu-dot" style="background-color: ${sub.color};"></span>
+          <span class="subject-item-title">${sub.name}</span>
+        </div>
+        ${isSelected ? '<svg class="subject-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}
+      `;
+      item.addEventListener('click', (e) => {
+        if (timerStatus === 'RUNNING') return;
+        e.stopPropagation();
+        appState.selectedSubject = sub;
+        saveLocalState();
+        renderSubjects();
+        updateSelectedSubjectUI();
+        document.getElementById('subjectDropdownMenu')?.classList.add('hidden');
+        document.getElementById('zenSubjectDropdownMenu')?.classList.add('hidden');
+        showToast(`Selected Subject: ${sub.name}`, 'info');
+      });
+      container.appendChild(item);
     });
-    container.appendChild(item);
-  });
+  }
+
+  populateList(mainContainer);
+  populateList(zenContainer);
 
   updateSelectedSubjectUI();
 }
@@ -1115,11 +1170,15 @@ function updateSelectedSubjectUI() {
   const triggerName = document.getElementById('triggerSubjectName');
   const currentSubjectDot = document.getElementById('currentSubjectDot');
   const currentSubjectName = document.getElementById('currentSubjectName');
+  const zenSubjectDot = document.getElementById('zenSubjectDot');
+  const zenSubjectName = document.getElementById('zenSubjectName');
 
   if (triggerDot) triggerDot.style.backgroundColor = appState.selectedSubject.color;
   if (triggerName) triggerName.textContent = appState.selectedSubject.name;
   if (currentSubjectDot) currentSubjectDot.style.backgroundColor = appState.selectedSubject.color;
   if (currentSubjectName) currentSubjectName.textContent = appState.selectedSubject.name;
+  if (zenSubjectDot) zenSubjectDot.style.backgroundColor = appState.selectedSubject.color;
+  if (zenSubjectName) zenSubjectName.textContent = appState.selectedSubject.name;
 }
 
 function renderTimelineList() {

@@ -253,6 +253,35 @@ function handleUserSignedOut() {
 // ============================================================================
 // 4. TWO-WAY CLOUD SYNC LOGIC (100% Android App Compatible)
 // ============================================================================
+
+function parseSafeStringSet(val) {
+  const set = new Set();
+  if (!val) return set;
+  if (Array.isArray(val)) {
+    val.forEach(item => { if (item) set.add(String(item).trim()); });
+    return set;
+  }
+  if (typeof val === 'object' && val !== null) {
+    Object.keys(val).forEach(k => set.add(k));
+    return set;
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(item => { if (item) set.add(String(item).trim()); });
+          return set;
+        }
+      } catch (_) {}
+    }
+    const cleaned = trimmed.replace(/^\[|\]$/g, '');
+    cleaned.split(',').map(s => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean).forEach(s => set.add(s));
+  }
+  return set;
+}
+
 async function pullDataFromCloud(isUserTriggered = false) {
   if (!supabaseClient || !appState.currentUser) {
     if (isUserTriggered) showToast('Please sign in with Google to sync with mobile app', 'info');
@@ -365,68 +394,104 @@ async function pullDataFromCloud(isUserTriggered = false) {
 
           // 3. Full Subjects Restoration (Android studytimer_subject_tags & Web custom_subjects)
           const rawTags = prefs.__subject_tags_data__ || data.subject_tags_data || prefs.custom_subjects_json;
+          let subjectPrefs = null;
           if (rawTags) {
             try {
-              const subjectPrefs = typeof rawTags === 'string' ? JSON.parse(rawTags) : rawTags;
-              let customList = [];
-              if (subjectPrefs.custom_subjects_json) {
+              subjectPrefs = typeof rawTags === 'string' ? JSON.parse(rawTags) : rawTags;
+            } catch (_) {}
+          }
+
+          let customList = [];
+          let hiddenSet = new Set();
+          let selectedSubId = prefs.selected_subject_id || 'general';
+
+          if (subjectPrefs) {
+            if (subjectPrefs.custom_subjects_json) {
+              try {
                 customList = typeof subjectPrefs.custom_subjects_json === 'string'
                   ? JSON.parse(subjectPrefs.custom_subjects_json)
                   : subjectPrefs.custom_subjects_json;
-              } else if (subjectPrefs.custom_subjects) {
+              } catch (_) {}
+            } else if (subjectPrefs.custom_subjects) {
+              try {
                 customList = typeof subjectPrefs.custom_subjects === 'string'
                   ? JSON.parse(subjectPrefs.custom_subjects)
                   : subjectPrefs.custom_subjects;
-              } else if (Array.isArray(subjectPrefs)) {
-                customList = subjectPrefs;
-              }
+              } catch (_) {}
+            } else if (Array.isArray(subjectPrefs)) {
+              customList = subjectPrefs;
+            }
 
-              const hiddenSet = new Set();
-              if (subjectPrefs.hidden_subjects_set) {
-                const hiddenArr = Array.isArray(subjectPrefs.hidden_subjects_set)
-                  ? subjectPrefs.hidden_subjects_set
-                  : (typeof subjectPrefs.hidden_subjects_set === 'string' ? JSON.parse(subjectPrefs.hidden_subjects_set) : []);
-                hiddenArr.forEach(h => hiddenSet.add(h));
-              }
+            if (subjectPrefs.hidden_subjects_set) {
+              hiddenSet = parseSafeStringSet(subjectPrefs.hidden_subjects_set);
+            }
+            if (subjectPrefs.selected_subject_id) {
+              selectedSubId = subjectPrefs.selected_subject_id;
+            }
+          }
 
-              const mergedSubjects = [];
-              DEFAULT_SUBJECTS.forEach(d => {
-                if (!hiddenSet.has(d.id)) {
-                  mergedSubjects.push({ ...d });
+          if ((!customList || customList.length === 0) && prefs.custom_subjects_json) {
+            try {
+              customList = typeof prefs.custom_subjects_json === 'string'
+                ? JSON.parse(prefs.custom_subjects_json)
+                : prefs.custom_subjects_json;
+            } catch (_) {}
+          }
+
+          const mergedSubjects = [];
+          DEFAULT_SUBJECTS.forEach(d => {
+            if (!hiddenSet.has(d.id)) {
+              mergedSubjects.push({ ...d });
+            }
+          });
+
+          if (Array.isArray(customList)) {
+            customList.forEach(c => {
+              if (c && c.id && !hiddenSet.has(c.id)) {
+                const existingIdx = mergedSubjects.findIndex(s => s.id === c.id);
+                const formatted = {
+                  id: c.id,
+                  name: c.name || 'Subject',
+                  color: c.colorHex || c.color || '#3b82f6',
+                  colorHex: c.colorHex || c.color || '#3b82f6',
+                  iconEmoji: c.iconEmoji || '📚',
+                  isCustom: true
+                };
+                if (existingIdx >= 0) {
+                  mergedSubjects[existingIdx] = formatted;
+                } else {
+                  mergedSubjects.push(formatted);
                 }
-              });
+              }
+            });
+          }
 
-              if (Array.isArray(customList)) {
-                customList.forEach(c => {
-                  if (c && c.id && !hiddenSet.has(c.id)) {
-                    const existingIdx = mergedSubjects.findIndex(s => s.id === c.id);
-                    const formatted = {
-                      id: c.id,
-                      name: c.name || 'Subject',
-                      color: c.colorHex || c.color || '#3b82f6',
-                      colorHex: c.colorHex || c.color || '#3b82f6',
-                      iconEmoji: c.iconEmoji || '📚',
+          // Also check timeline_data for subjects that might have been studied in Android
+          if (data.timeline_data) {
+            try {
+              const tl = typeof data.timeline_data === 'string' ? JSON.parse(data.timeline_data) : data.timeline_data;
+              if (Array.isArray(tl)) {
+                tl.forEach(e => {
+                  if (e && e.subId && !hiddenSet.has(e.subId) && !mergedSubjects.some(s => s.id === e.subId)) {
+                    mergedSubjects.push({
+                      id: e.subId,
+                      name: e.subName || e.subId,
+                      color: e.subColor || '#3b82f6',
+                      colorHex: e.subColor || '#3b82f6',
+                      iconEmoji: '📚',
                       isCustom: true
-                    };
-                    if (existingIdx >= 0) {
-                      mergedSubjects[existingIdx] = formatted;
-                    } else {
-                      mergedSubjects.push(formatted);
-                    }
+                    });
                   }
                 });
               }
+            } catch (_) {}
+          }
 
-              if (mergedSubjects.length > 0) {
-                appState.subjects = mergedSubjects;
-                restoredSubjectCount = mergedSubjects.length;
-                const selId = subjectPrefs.selected_subject_id || prefs.selected_subject_id;
-                const foundSel = appState.subjects.find(s => s.id === selId);
-                appState.selectedSubject = foundSel || appState.subjects[0];
-              }
-            } catch (e) {
-              console.error('Failed to parse remote __subject_tags_data__', e);
-            }
+          if (mergedSubjects.length > 0) {
+            appState.subjects = mergedSubjects;
+            restoredSubjectCount = mergedSubjects.length;
+            const foundSel = appState.subjects.find(s => s.id === selectedSubId);
+            appState.selectedSubject = foundSel || appState.subjects[0];
           }
 
           // 4. Planner Goals Restoration (Android session_goals_json & Web __planner_goals_data__)
@@ -448,9 +513,9 @@ async function pullDataFromCloud(isUserTriggered = false) {
           if (Array.isArray(loadedGoals) && loadedGoals.length > 0) {
             appState.plannerGoals = loadedGoals.map(g => ({
               id: g.id || ('goal_' + Date.now()),
-              subjectId: g.subjectId || 'general',
-              dailyMinutes: g.targetMinutes || g.dailyMinutes || 60,
-              targetMinutes: g.targetMinutes || g.dailyMinutes || 60,
+              subjectId: g.subjectId || null,
+              dailyMinutes: Math.max(0, Number(g.targetMinutes ?? g.dailyMinutes) || 0),
+              targetMinutes: Math.max(0, Number(g.targetMinutes ?? g.dailyMinutes) || 0),
               title: g.title || '',
               note: g.note || '',
               completed: !!g.completed,
@@ -522,7 +587,7 @@ async function pullDataFromCloud(isUserTriggered = false) {
       if (isUserTriggered) {
         const validatedSessions = getAllValidatedSessions();
         const activeDaysCount = Object.keys(appState.dailyFocusTotals || {}).length || validatedSessions.length;
-        showToast(`Sync complete! Loaded ${activeDaysCount} active study days & ${appState.subjects.length} subjects. ☁️`, 'success');
+        showToast(`Sync complete! Loaded ${appState.subjects.length} subjects & ${appState.plannerGoals.length} goals. ☁️`, 'success');
       }
     } else {
       if (isUserTriggered) {
@@ -580,6 +645,9 @@ async function pushDataToCloud(silent = false) {
 
     // Format subjects specifically for Android's studytimer_subject_tags SharedPreferences
     const defaultIds = DEFAULT_SUBJECTS.map(d => d.id);
+    const currentSubjectIds = new Set(sanitizedSubjects.map(s => s.id));
+    const hiddenDefaultIds = defaultIds.filter(id => !currentSubjectIds.has(id));
+
     const customSubjectsForAndroid = sanitizedSubjects
       .filter(s => !defaultIds.includes(s.id))
       .map(s => ({
@@ -602,20 +670,20 @@ async function pushDataToCloud(silent = false) {
       custom_subjects_json: JSON.stringify(customSubjectsForAndroid),
       custom_subjects: JSON.stringify(allSubjectsForWeb),
       selected_subject_id: appState.selectedSubject?.id || 'general',
-      hidden_subjects_set: []
+      hidden_subjects_set: hiddenDefaultIds
     };
 
-    // Format planner goals for Android's session_goals_json
+    // Format planner goals for Android's session_goals_json (100% matches SessionGoal Kotlin class)
     const androidPlannerGoals = sanitizedGoals.map(g => {
       const matchingSub = sanitizedSubjects.find(s => s.id === g.subjectId);
       return {
         id: g.id || ('goal_' + Date.now()),
-        title: g.title || (matchingSub ? `${matchingSub.name} Daily Target` : 'Daily Study Goal'),
+        title: g.title || (matchingSub ? `${matchingSub.name} Goal` : 'Daily Study Goal'),
         note: g.note || '',
-        targetMinutes: Math.min(1440, Math.max(1, Number(g.dailyMinutes || g.targetMinutes) || 60)),
-        subjectId: g.subjectId || null,
+        targetMinutes: Math.min(1440, Math.max(0, Number(g.targetMinutes ?? g.dailyMinutes) || 0)),
+        subjectId: (g.subjectId && g.subjectId !== 'all') ? g.subjectId : null,
         completed: !!g.completed,
-        checkedAt: g.checkedAt || null,
+        checkedAt: g.checkedAt || (g.completed ? Date.now() : 0),
         createdAt: g.createdAt || Date.now()
       };
     });
@@ -648,6 +716,7 @@ async function pushDataToCloud(silent = false) {
       [`${todayKey}_focus_total`]: totalSecToday,
       session_goals_json: JSON.stringify(androidPlannerGoals),
       __subject_tags_data__: JSON.stringify(subjectTagsObj),
+      custom_subjects_json: JSON.stringify(customSubjectsForAndroid),
       __planner_goals_data__: JSON.stringify(androidPlannerGoals),
       __user_profile__: JSON.stringify(appState.userProfile)
     };
@@ -667,6 +736,7 @@ async function pushDataToCloud(silent = false) {
     if (appState.dailySubjectDurations) {
       prefsObj.daily_subject_durations_json = JSON.stringify(appState.dailySubjectDurations);
     }
+
 
     const nowMs = Date.now();
     const payload = {
@@ -1156,17 +1226,45 @@ function setupEventListeners() {
   document.getElementById('btnCloseMobileInsights')?.addEventListener('click', closeInsightsDrawer);
   document.getElementById('insightsBackdrop')?.addEventListener('click', closeInsightsDrawer);
 
-  // Calendar Month Navigation
-  document.getElementById('btnPrevMonth')?.addEventListener('click', () => changeCalendarMonth(-1));
-  document.getElementById('btnNextMonth')?.addEventListener('click', () => changeCalendarMonth(1));
-
-  // Planner Goals Modal Triggers
+  // Planner Goals Modal Triggers (Add / Edit / Checkbox)
   document.getElementById('btnOpenAddGoalModal')?.addEventListener('click', openAddGoalModal);
   document.getElementById('btnCloseGoalModal')?.addEventListener('click', closeAddGoalModal);
+  document.getElementById('btnCancelGoalModal')?.addEventListener('click', closeAddGoalModal);
   document.getElementById('plannerGoalModalOverlay')?.addEventListener('click', (e) => {
     if (e.target.id === 'plannerGoalModalOverlay') closeAddGoalModal();
   });
-  document.getElementById('addGoalForm')?.addEventListener('submit', handleAddGoal);
+  document.getElementById('addGoalForm')?.addEventListener('submit', handleSaveGoal);
+
+  // Duration Presets for Add/Edit Goal Modal
+  document.querySelectorAll('#goalDurationPresetsRow .preset-chip-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#goalDurationPresetsRow .preset-chip-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const mins = btn.dataset.mins;
+      const input = document.getElementById('goalMinutesInput');
+      if (input && mins !== undefined) input.value = mins;
+    });
+  });
+
+  // Edit Overall Daily Focus Target Modal Triggers (Overview Tab)
+  document.getElementById('btnEditGoal')?.addEventListener('click', openEditDailyGoalModal);
+  document.getElementById('btnCloseDailyGoalModal')?.addEventListener('click', closeDailyGoalModal);
+  document.getElementById('btnCancelDailyGoalModal')?.addEventListener('click', closeDailyGoalModal);
+  document.getElementById('dailyGoalModalOverlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'dailyGoalModalOverlay') closeDailyGoalModal();
+  });
+  document.getElementById('dailyGoalEditForm')?.addEventListener('submit', handleSaveDailyGoal);
+
+  // Daily Target Presets in Edit Target Modal
+  document.querySelectorAll('#dailyTargetPresetsRow .preset-chip-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#dailyTargetPresetsRow .preset-chip-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const mins = btn.dataset.mins;
+      const input = document.getElementById('inputDailyGoalMinutes');
+      if (input && mins !== undefined) input.value = mins;
+    });
+  });
 
   // Goal Delete Confirmation Modal
   document.getElementById('btnConfirmDeleteGoal')?.addEventListener('click', confirmDeletePlannerGoal);
@@ -3182,16 +3280,31 @@ function renderSelectedDateTimeline(dateStr) {
 
 function renderPlannerGoals() {
   const container = document.getElementById('plannerGoalsContainer');
-  const subjectSelect = document.getElementById('goalSubjectSelect');
   if (!container) return;
 
-  if (subjectSelect) {
-    subjectSelect.innerHTML = appState.subjects.map(s => 
-      `<option value="${s.id}">${s.name}</option>`
-    ).join('');
+  const goals = appState.plannerGoals || [];
+
+  // Update Planner Quick Stats Bar
+  const totalGoalsEl = document.getElementById('plannerTotalGoalsCount');
+  const completedGoalsEl = document.getElementById('plannerCompletedGoalsCount');
+  const totalPlannedTimeEl = document.getElementById('plannerTotalPlannedTime');
+
+  let totalPlannedMins = 0;
+  let completedCount = 0;
+
+  goals.forEach(g => {
+    totalPlannedMins += (g.targetMinutes || g.dailyMinutes || 0);
+    if (g.completed) completedCount++;
+  });
+
+  if (totalGoalsEl) totalGoalsEl.textContent = String(goals.length);
+  if (completedGoalsEl) completedGoalsEl.textContent = String(completedCount);
+  if (totalPlannedTimeEl) {
+    const h = Math.floor(totalPlannedMins / 60);
+    const m = totalPlannedMins % 60;
+    totalPlannedTimeEl.textContent = h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ''}` : `${m}m`;
   }
 
-  const goals = appState.plannerGoals || [];
   if (goals.length === 0) {
     container.innerHTML = `
       <div class="planner-empty-state">
@@ -3199,13 +3312,14 @@ function renderPlannerGoals() {
           <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
           <polyline points="22 4 12 14.01 9 11.01"></polyline>
         </svg>
-        <p>No dedicated subject targets set yet.</p>
-        <span>Click <strong>+ New Target</strong> above to track daily goals per subject!</span>
+        <p>No study goals set for today yet.</p>
+        <span>Click <strong>+ New Goal</strong> above to set tasks, time targets &amp; daily habits!</span>
       </div>
     `;
     return;
   }
 
+  // Calculate today's studied seconds per subject
   const studiedSecMap = {};
   (appState.todaySessions || []).forEach(s => {
     if (s && s.subject && typeof s.durationSec === 'number' && s.durationSec > 0) {
@@ -3216,67 +3330,92 @@ function renderPlannerGoals() {
 
   container.innerHTML = '';
   goals.forEach(goal => {
-    const subject = appState.subjects.find(s => s.id === goal.subjectId) || {
-      name: goal.subjectId,
-      color: '#3b82f6'
+    const subId = goal.subjectId;
+    const subject = (appState.subjects || []).find(s => s.id === subId) || {
+      id: 'all',
+      name: 'All Subjects',
+      color: '#3b82f6',
+      iconEmoji: '📚'
     };
 
-    const studiedSec = studiedSecMap[goal.subjectId] || 0;
-    const studiedMin = Math.round(studiedSec / 60);
-    const targetMin = Math.max(1, goal.dailyMinutes || 60);
+    const targetMin = Math.max(0, Number(goal.targetMinutes ?? goal.dailyMinutes) || 0);
     const targetSec = targetMin * 60;
-    const percent = Math.min(100, Math.round((studiedSec / targetSec) * 100));
-    const isCompleted = studiedSec >= targetSec;
-    const leftSec = Math.max(0, targetSec - studiedSec);
-    const leftMin = Math.ceil(leftSec / 60);
+    const studiedSec = subId ? (studiedSecMap[subId] || 0) : 0;
+    const studiedMin = Math.round(studiedSec / 60);
 
-    let studiedFormatted = '0m';
-    if (studiedSec > 0) {
-      if (studiedMin >= 60) {
-        studiedFormatted = `${Math.floor(studiedMin / 60)}h ${studiedMin % 60 > 0 ? (studiedMin % 60) + 'm' : ''}`;
-      } else if (studiedMin === 0) {
-        studiedFormatted = `${studiedSec}s`;
-      } else {
-        studiedFormatted = `${studiedMin}m`;
-      }
+    const isTimeGoal = targetMin > 0;
+    const percent = isTimeGoal ? Math.min(100, Math.round((studiedSec / targetSec) * 100)) : (goal.completed ? 100 : 0);
+    const isCompleted = goal.completed || (isTimeGoal && studiedSec >= targetSec);
+
+    let progressChipText = '';
+    if (isTimeGoal) {
+      progressChipText = `${studiedMin}m / ${targetMin}m`;
+    } else {
+      progressChipText = 'Daily Habit';
     }
 
-    const targetFormatted = targetMin >= 60 
-      ? `${Math.floor(targetMin / 60)}h ${targetMin % 60 > 0 ? (targetMin % 60) + 'm' : ''}` 
-      : `${targetMin}m`;
-
-    const remainingFormatted = isCompleted
-      ? '✓ Target reached'
-      : (leftMin >= 60 ? `${Math.floor(leftMin / 60)}h ${leftMin % 60 > 0 ? (leftMin % 60) + 'm' : ''} left` : `${leftMin}m left`);
-
     const card = document.createElement('div');
-    card.className = 'planner-goal-card';
+    card.className = `planner-goal-card ${goal.completed ? 'is-completed' : ''}`;
+    card.setAttribute('data-goal-id', goal.id);
+
     card.innerHTML = `
-      <div class="goal-card-header">
-        <div class="goal-subject-meta">
-          <span class="goal-dot" style="background-color: ${subject.color};"></span>
-          <span class="goal-title">${subject.name}</span>
+      <div class="goal-card-main-row">
+        <!-- Animated Circle Checkbox -->
+        <button class="goal-checkbox-btn ${goal.completed ? 'checked' : ''}" data-action="toggle-check" title="${goal.completed ? 'Mark as incomplete' : 'Mark as complete'}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </button>
+
+        <!-- Goal Content Column -->
+        <div class="goal-content-col">
+          <div class="goal-title-wrap">
+            <h4 class="goal-title ${goal.completed ? 'is-completed' : ''}">${escapeHtml(goal.title || (subject ? `${subject.name} Goal` : 'Study Goal'))}</h4>
+          </div>
+          ${goal.note ? `<p class="goal-note">${escapeHtml(goal.note)}</p>` : ''}
+          <div class="goal-badges-row">
+            <span class="goal-subject-chip" style="background-color: rgba(59, 130, 246, 0.08); color: ${subject.color || '#3b82f6'}; border-color: ${subject.color ? subject.color + '40' : 'rgba(59, 130, 246, 0.2)'};">
+              <span class="subject-color-dot" style="background-color: ${subject.color || '#3b82f6'}; width: 7px; height: 7px;"></span>
+              <span>${escapeHtml(subject.name)}</span>
+            </span>
+            <span class="goal-progress-chip ${isCompleted ? 'completed' : ''}">${isCompleted ? '✓ Done' : progressChipText}</span>
+          </div>
         </div>
-        <div class="goal-actions">
-          <span class="goal-pct-badge ${isCompleted ? 'completed' : ''}">${isCompleted ? '✓ Completed' : percent + '%'}</span>
-          <button class="goal-btn-delete" data-goal-id="${goal.id}" title="Remove Target">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+
+        <!-- Action Buttons (Edit & Delete) -->
+        <div class="goal-card-actions">
+          <button class="goal-btn-action btn-edit" data-action="edit-goal" title="Edit Goal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+          </button>
+          <button class="goal-btn-action btn-delete" data-action="delete-goal" title="Remove Goal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
           </button>
         </div>
       </div>
-      <div class="goal-stat-row">
-        <div class="goal-numbers-wrap">
-          <span class="goal-current-val">${studiedFormatted}</span>
-          <span class="goal-target-val">/ ${targetFormatted}</span>
+
+      ${isTimeGoal ? `
+        <div class="goal-progress-track">
+          <div class="goal-progress-bar" style="width: ${percent}%; background: linear-gradient(90deg, ${subject.color || '#3b82f6'}, #10b981);"></div>
         </div>
-        <span class="goal-remaining-val ${isCompleted ? 'completed' : ''}">${remainingFormatted}</span>
-      </div>
-      <div class="goal-progress-track">
-        <div class="goal-progress-bar" style="width: ${percent}%; background: linear-gradient(90deg, ${subject.color}, #10b981);"></div>
-      </div>
+      ` : ''}
     `;
 
-    card.querySelector('.goal-btn-delete')?.addEventListener('click', (e) => {
+    // Event Handlers for the card
+    card.querySelector('[data-action="toggle-check"]')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleGoalCompleted(goal.id);
+    });
+
+    card.querySelector('[data-action="edit-goal"]')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openEditGoalModal(goal.id);
+    });
+
+    card.querySelector('[data-action="delete-goal"]')?.addEventListener('click', (e) => {
       e.stopPropagation();
       openDeleteGoalModal(goal.id);
     });
@@ -3285,13 +3424,154 @@ function renderPlannerGoals() {
   });
 }
 
+function toggleGoalCompleted(goalId) {
+  const goal = (appState.plannerGoals || []).find(g => g.id === goalId);
+  if (!goal) return;
+
+  goal.completed = !goal.completed;
+  goal.checkedAt = goal.completed ? Date.now() : 0;
+
+  renderPlannerGoals();
+  saveLocalState();
+  pushDataToCloud();
+  showToast(goal.completed ? `Completed: "${goal.title}"` : `Marked incomplete: "${goal.title}"`, 'info');
+}
+
+function openAddGoalModal() {
+  const modal = document.getElementById('plannerGoalModalOverlay');
+  const titleEl = document.getElementById('plannerGoalModalTitle');
+  const idInput = document.getElementById('editingGoalId');
+  const titleInput = document.getElementById('inputGoalTitle');
+  const noteInput = document.getElementById('inputGoalNote');
+  const minutesInput = document.getElementById('goalMinutesInput');
+  const subjectSelect = document.getElementById('goalSubjectSelect');
+  const btnSave = document.getElementById('btnSaveGoalModal');
+
+  if (titleEl) titleEl.textContent = 'Add Study Goal';
+  if (btnSave) btnSave.querySelector('span').textContent = 'Save Goal';
+  if (idInput) idInput.value = '';
+  if (titleInput) titleInput.value = '';
+  if (noteInput) noteInput.value = '';
+  if (minutesInput) minutesInput.value = '60';
+
+  if (subjectSelect) {
+    subjectSelect.innerHTML = `
+      <option value="all">All Subjects / General</option>
+      ${(appState.subjects || []).map(s => `<option value="${s.id}" ${s.id === appState.selectedSubject?.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+    `;
+  }
+
+  // Set 60m active in presets
+  document.querySelectorAll('#goalDurationPresetsRow .preset-chip-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mins === '60');
+  });
+
+  if (modal) {
+    lockBodyScroll();
+    modal.classList.remove('hidden');
+    setTimeout(() => titleInput?.focus(), 50);
+  }
+}
+
+function openEditGoalModal(goalId) {
+  const goal = (appState.plannerGoals || []).find(g => g.id === goalId);
+  if (!goal) return;
+
+  const modal = document.getElementById('plannerGoalModalOverlay');
+  const titleEl = document.getElementById('plannerGoalModalTitle');
+  const idInput = document.getElementById('editingGoalId');
+  const titleInput = document.getElementById('inputGoalTitle');
+  const noteInput = document.getElementById('inputGoalNote');
+  const minutesInput = document.getElementById('goalMinutesInput');
+  const subjectSelect = document.getElementById('goalSubjectSelect');
+  const btnSave = document.getElementById('btnSaveGoalModal');
+
+  if (titleEl) titleEl.textContent = 'Edit Study Goal';
+  if (btnSave) btnSave.querySelector('span').textContent = 'Update Goal';
+  if (idInput) idInput.value = goal.id;
+  if (titleInput) titleInput.value = goal.title || '';
+  if (noteInput) noteInput.value = goal.note || '';
+  
+  const targetMins = Number(goal.targetMinutes ?? goal.dailyMinutes) || 0;
+  if (minutesInput) minutesInput.value = String(targetMins);
+
+  if (subjectSelect) {
+    subjectSelect.innerHTML = `
+      <option value="all" ${!goal.subjectId || goal.subjectId === 'all' ? 'selected' : ''}>All Subjects / General</option>
+      ${(appState.subjects || []).map(s => `<option value="${s.id}" ${s.id === goal.subjectId ? 'selected' : ''}>${s.name}</option>`).join('')}
+    `;
+  }
+
+  // Highlight matching preset if any
+  document.querySelectorAll('#goalDurationPresetsRow .preset-chip-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mins === String(targetMins));
+  });
+
+  if (modal) {
+    lockBodyScroll();
+    modal.classList.remove('hidden');
+    setTimeout(() => titleInput?.focus(), 50);
+  }
+}
+
+function closeAddGoalModal() {
+  const modal = document.getElementById('plannerGoalModalOverlay');
+  if (modal) modal.classList.add('hidden');
+  unlockBodyScroll();
+}
+
+function handleSaveGoal(e) {
+  e.preventDefault();
+  const idInput = document.getElementById('editingGoalId');
+  const titleInput = document.getElementById('inputGoalTitle');
+  const noteInput = document.getElementById('inputGoalNote');
+  const subjectSelect = document.getElementById('goalSubjectSelect');
+  const minutesInput = document.getElementById('goalMinutesInput');
+
+  const editingId = idInput?.value?.trim();
+  const title = titleInput?.value?.trim() || 'Daily Goal';
+  const note = noteInput?.value?.trim() || '';
+  const subjectId = (subjectSelect?.value && subjectSelect.value !== 'all') ? subjectSelect.value : null;
+  const targetMinutes = Math.min(1440, Math.max(0, parseInt(minutesInput?.value, 10) || 0));
+
+  if (!appState.plannerGoals) appState.plannerGoals = [];
+
+  if (editingId) {
+    const existing = appState.plannerGoals.find(g => g.id === editingId);
+    if (existing) {
+      existing.title = title;
+      existing.note = note;
+      existing.subjectId = subjectId;
+      existing.targetMinutes = targetMinutes;
+      existing.dailyMinutes = targetMinutes;
+    }
+  } else {
+    appState.plannerGoals.push({
+      id: 'goal_' + Date.now(),
+      title,
+      note,
+      subjectId,
+      targetMinutes,
+      dailyMinutes: targetMinutes,
+      completed: false,
+      checkedAt: 0,
+      createdAt: Date.now()
+    });
+  }
+
+  closeAddGoalModal();
+  renderPlannerGoals();
+  saveLocalState();
+  pushDataToCloud();
+  showToast(editingId ? 'Goal updated & synced with app!' : 'New study goal created & synced!', 'success');
+}
+
 function openDeleteGoalModal(goalId) {
   pendingGoalIdToDelete = goalId;
   const goal = appState.plannerGoals?.find(g => g.id === goalId);
-  const subject = appState.subjects.find(s => s.id === goal?.subjectId);
   const subtitle = document.getElementById('deleteGoalModalSubtitle');
   if (subtitle) {
-    subtitle.textContent = `Are you sure you want to remove the daily target for "${subject ? subject.name : 'this subject'}"?`;
+    subtitle.textContent = `Are you sure you want to remove "${goal ? (goal.title || 'this goal') : 'this goal'}"?`;
   }
   lockBodyScroll();
   document.getElementById('deleteGoalModalOverlay')?.classList.remove('hidden');
@@ -3310,58 +3590,49 @@ function confirmDeletePlannerGoal() {
   renderPlannerGoals();
   saveLocalState();
   pushDataToCloud();
-  showToast('Subject target goal removed.', 'info');
+  showToast('Study goal removed and synced.', 'info');
 }
 
-function openAddGoalModal() {
-  const modal = document.getElementById('plannerGoalModalOverlay');
-  const subjectSelect = document.getElementById('goalSubjectSelect');
-  if (subjectSelect) {
-    subjectSelect.innerHTML = appState.subjects.map(s => 
-      `<option value="${s.id}">${s.name}</option>`
-    ).join('');
-  }
+// ----------------------------------------------------------------------------
+// EDIT OVERALL DAILY FOCUS GOAL MODAL
+// ----------------------------------------------------------------------------
+
+function openEditDailyGoalModal() {
+  const modal = document.getElementById('dailyGoalModalOverlay');
+  const input = document.getElementById('inputDailyGoalMinutes');
+  const currentMins = timerConfig.dailyGoalMinutes || 120;
+
+  if (input) input.value = String(currentMins);
+
+  document.querySelectorAll('#dailyTargetPresetsRow .preset-chip-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mins === String(currentMins));
+  });
+
   if (modal) {
     lockBodyScroll();
     modal.classList.remove('hidden');
   }
 }
 
-function closeAddGoalModal() {
-  const modal = document.getElementById('plannerGoalModalOverlay');
+function closeDailyGoalModal() {
+  const modal = document.getElementById('dailyGoalModalOverlay');
   if (modal) modal.classList.add('hidden');
   unlockBodyScroll();
 }
 
-function handleAddGoal(e) {
+function handleSaveDailyGoal(e) {
   e.preventDefault();
-  const subjectSelect = document.getElementById('goalSubjectSelect');
-  const minutesInput = document.getElementById('goalMinutesInput');
+  const input = document.getElementById('inputDailyGoalMinutes');
+  const mins = Math.min(1440, Math.max(15, parseInt(input?.value, 10) || 120));
 
-  const subjectId = subjectSelect?.value;
-  const dailyMinutes = parseInt(minutesInput?.value, 10) || 60;
-
-  if (!subjectId) return;
-
-  if (!appState.plannerGoals) appState.plannerGoals = [];
-
-  const existing = appState.plannerGoals.find(g => g.subjectId === subjectId);
-  if (existing) {
-    existing.dailyMinutes = dailyMinutes;
-  } else {
-    appState.plannerGoals.push({
-      id: 'goal_' + Date.now(),
-      subjectId,
-      dailyMinutes
-    });
-  }
-
-  closeAddGoalModal();
-  renderPlannerGoals();
+  timerConfig.dailyGoalMinutes = mins;
+  closeDailyGoalModal();
+  updateProgressAndStreak();
   saveLocalState();
   pushDataToCloud();
-  showToast('Subject target goal set!', 'success');
+  showToast(`Daily study target updated to ${mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60 > 0 ? (mins % 60) + 'm' : ''}` : `${mins}m`}!`, 'success');
 }
+
 
 // ----------------------------------------------------------------------------
 // TAB 4: LIVE LEADERBOARD & PROFILE CUSTOMIZATION

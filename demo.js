@@ -511,13 +511,15 @@ function setupEventListeners() {
       btn.classList.add('active');
     });
   });
-  // Zen Fullscreen Focus Mode
+  // Full Screen Focus Mode
   document.getElementById('btnZenTimer')?.addEventListener('click', openZenMode);
   document.getElementById('btnExitZen')?.addEventListener('click', closeZenMode);
   document.getElementById('btnZenToggle')?.addEventListener('click', toggleTimer);
-  document.getElementById('btnZenReset')?.addEventListener('click', resetTimer);
+  document.getElementById('btnZenSave')?.addEventListener('click', () => {
+    finishSession();
+  });
 
-  // Tap on zen canvas (outside buttons) to toggle play/pause
+  // Tap on full screen canvas (outside buttons) to toggle play/pause
   document.getElementById('zenTimerCanvas')?.addEventListener('click', (e) => {
     if (!e.target.closest('.zen-controls-bar') && !e.target.closest('.zen-exit-btn')) {
       toggleTimer();
@@ -545,6 +547,9 @@ function openZenMode() {
   if (!zenOverlay) return;
 
   zenOverlay.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  document.documentElement.style.overflow = 'hidden';
+
   updateTimerDisplay();
   updateTimerControlsUI();
 
@@ -552,12 +557,15 @@ function openZenMode() {
   if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
     document.documentElement.requestFullscreen().catch(() => {});
   }
-  showToast('Entered Zen Focus Timer ⛶', 'info');
+  showToast('Entered Full Screen Mode ⛶', 'info');
 }
 
 function closeZenMode() {
   const zenOverlay = document.getElementById('zenTimerOverlay');
   if (zenOverlay) zenOverlay.classList.add('hidden');
+
+  document.body.style.overflow = '';
+  document.documentElement.style.overflow = '';
 
   if (document.fullscreenElement && document.exitFullscreen) {
     document.exitFullscreen().catch(() => {});

@@ -890,18 +890,22 @@ function finishSession() {
   updateSubjectBreakdown();
   saveLocalState();
 
-  // Only push to cloud database if session is at least 1 minute (>= 60s)
-  if (studiedDurationSec >= 60) {
+  // Only push to cloud database if session is at least 1 minute (>= 60s) and not a break
+  if (stateKey !== 'BREAK' && studiedDurationSec >= 60) {
     pushDataToCloud();
   }
 
   triggerSaveSuccessFeedback();
 
-  const minStr = Math.round(studiedDurationSec / 60);
-  if (studiedDurationSec >= 60) {
-    showToast(`🎉 Focus session saved! +${minStr}m added to ${subject.name}`, 'success');
+  if (stateKey === 'BREAK') {
+    showToast('☕ Break finished! Ready to focus.', 'info');
   } else {
-    showToast(`✓ Session saved locally (+${studiedDurationSec}s). Cloud sync activates after 1 min.`, 'info');
+    const minStr = Math.round(studiedDurationSec / 60);
+    if (studiedDurationSec >= 60) {
+      showToast(`🎉 Focus session saved! +${minStr}m added to ${subject.name}`, 'success');
+    } else {
+      showToast(`✓ Session saved locally (+${studiedDurationSec}s). Cloud sync activates after 1 min.`, 'info');
+    }
   }
 }
 
@@ -935,6 +939,10 @@ function triggerSaveSuccessFeedback() {
 }
 
 function resetSaveButtonState() {
+  const isBreak = currentMode === 'break';
+  const finishLabel = isBreak ? 'Finish Break' : 'Finish &amp; Save';
+  const zenFinishLabel = isBreak ? 'End Break' : 'Save Session';
+
   const btnMainSave = document.getElementById('btnFinishSession');
   const btnZenSave = document.getElementById('btnZenSave');
 
@@ -942,7 +950,7 @@ function resetSaveButtonState() {
     btnMainSave.classList.remove('saved-success');
     btnMainSave.innerHTML = `
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-      <span>Finish &amp; Save</span>
+      <span>${finishLabel}</span>
     `;
   }
 
@@ -950,7 +958,7 @@ function resetSaveButtonState() {
     btnZenSave.classList.remove('saved-success');
     btnZenSave.innerHTML = `
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-      <span>Save Session</span>
+      <span>${zenFinishLabel}</span>
     `;
   }
 }
@@ -999,9 +1007,10 @@ function updateTimerDisplay() {
 
   // Title tag update
   if (timerStatus === 'RUNNING') {
-    document.title = `(${timeFormatted}) StudyTimer Focus`;
+    const actionLabel = currentMode === 'break' ? 'Break' : 'Focus';
+    document.title = `(${timeFormatted}) StudyTimer ${actionLabel}`;
   } else {
-    document.title = `StudyTimer Web - Focus Timer & Habit Tracker for Students`;
+    document.title = `StudyTimer Web - Focus Timer &amp; Habit Tracker for Students`;
   }
 
   // Update Main Indicator Ring
@@ -1036,18 +1045,34 @@ function updateTimerDisplay() {
     }
   }
 
-  // State Badge
+  // State Badge Text and Colors
   const stateBadge = document.getElementById('timerStateBadge');
   const zenStateBadge = document.getElementById('zenStateBadge');
   let stateText = 'READY TO FOCUS';
   let stateColor = 'var(--text-muted)';
 
-  if (timerStatus === 'RUNNING') {
-    stateText = currentMode === 'break' ? '☕ TAKING A BREAK' : '🔥 FOCUSING';
-    stateColor = currentMode === 'break' ? 'var(--accent-emerald)' : 'var(--accent-blue)';
-  } else if (timerStatus === 'PAUSED') {
-    stateText = '⏸️ PAUSED';
-    stateColor = '#f59e0b';
+  if (currentMode === 'break') {
+    if (timerStatus === 'RUNNING') {
+      stateText = '☕ TAKING A BREAK';
+      stateColor = 'var(--accent-emerald)';
+    } else if (timerStatus === 'PAUSED') {
+      stateText = '⏸️ BREAK PAUSED';
+      stateColor = '#f59e0b';
+    } else {
+      stateText = '☕ READY FOR BREAK';
+      stateColor = 'var(--accent-emerald)';
+    }
+  } else {
+    if (timerStatus === 'RUNNING') {
+      stateText = currentMode === 'pomodoro' ? '🔥 POMODORO FOCUS' : '🔥 FOCUSING';
+      stateColor = currentMode === 'pomodoro' ? 'var(--accent-red)' : 'var(--accent-blue)';
+    } else if (timerStatus === 'PAUSED') {
+      stateText = '⏸️ PAUSED';
+      stateColor = '#f59e0b';
+    } else {
+      stateText = 'READY TO FOCUS';
+      stateColor = 'var(--text-muted)';
+    }
   }
 
   if (stateBadge) {
@@ -1061,6 +1086,7 @@ function updateTimerDisplay() {
 }
 
 function updateTimerControlsUI() {
+  const isBreak = currentMode === 'break';
   const btnToggle = document.getElementById('btnToggleTimer');
   const btnToggleLabel = document.getElementById('btnToggleLabel');
   const playIcon = document.getElementById('playIcon');
@@ -1071,20 +1097,43 @@ function updateTimerControlsUI() {
   const zenPlayIcon = document.getElementById('zenPlayIcon');
   const zenPauseIcon = document.getElementById('zenPauseIcon');
 
+  const btnFinishSession = document.getElementById('btnFinishSession');
+  const btnZenSave = document.getElementById('btnZenSave');
+
   const subjectDropdownWrapper = document.getElementById('subjectDropdownWrapper');
   const timerSubjectDisplay = document.getElementById('timerSubjectDisplay');
   const zenSubjectDisplay = document.getElementById('zenSubjectDisplay');
   const subjectDropdownMenu = document.getElementById('subjectDropdownMenu');
   const zenSubjectDropdownMenu = document.getElementById('zenSubjectDropdownMenu');
 
+  const startLabel = isBreak ? 'Start Break' : 'Start Focus';
+  const pauseLabel = isBreak ? 'Pause Break' : 'Pause Focus';
+  const resumeLabel = isBreak ? 'Resume Break' : 'Resume Focus';
+  const finishLabel = isBreak ? 'Finish Break' : 'Finish &amp; Save';
+  const zenFinishLabel = isBreak ? 'End Break' : 'Save Session';
+
+  if (btnFinishSession && !btnFinishSession.classList.contains('saved-success')) {
+    btnFinishSession.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      <span>${finishLabel}</span>
+    `;
+  }
+
+  if (btnZenSave && !btnZenSave.classList.contains('saved-success')) {
+    btnZenSave.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      <span>${zenFinishLabel}</span>
+    `;
+  }
+
   if (timerStatus === 'RUNNING') {
     btnToggle?.classList.add('running');
-    if (btnToggleLabel) btnToggleLabel.textContent = 'Pause Focus';
+    if (btnToggleLabel) btnToggleLabel.textContent = pauseLabel;
     playIcon?.classList.add('hidden');
     pauseIcon?.classList.remove('hidden');
 
     btnZenToggle?.classList.add('running');
-    if (zenToggleLabel) zenToggleLabel.textContent = 'Pause Focus';
+    if (zenToggleLabel) zenToggleLabel.textContent = pauseLabel;
     zenPlayIcon?.classList.add('hidden');
     zenPauseIcon?.classList.remove('hidden');
 
@@ -1096,12 +1145,12 @@ function updateTimerControlsUI() {
     zenSubjectDropdownMenu?.classList.add('hidden');
   } else if (timerStatus === 'PAUSED') {
     btnToggle?.classList.remove('running');
-    if (btnToggleLabel) btnToggleLabel.textContent = 'Resume Focus';
+    if (btnToggleLabel) btnToggleLabel.textContent = resumeLabel;
     playIcon?.classList.remove('hidden');
     pauseIcon?.classList.add('hidden');
 
     btnZenToggle?.classList.remove('running');
-    if (zenToggleLabel) zenToggleLabel.textContent = 'Resume Focus';
+    if (zenToggleLabel) zenToggleLabel.textContent = resumeLabel;
     zenPlayIcon?.classList.remove('hidden');
     zenPauseIcon?.classList.add('hidden');
 
@@ -1110,12 +1159,12 @@ function updateTimerControlsUI() {
     zenSubjectDisplay?.classList.remove('timer-subject-locked');
   } else {
     btnToggle?.classList.remove('running');
-    if (btnToggleLabel) btnToggleLabel.textContent = 'Start Focus';
+    if (btnToggleLabel) btnToggleLabel.textContent = startLabel;
     playIcon?.classList.remove('hidden');
     pauseIcon?.classList.add('hidden');
 
     btnZenToggle?.classList.remove('running');
-    if (zenToggleLabel) zenToggleLabel.textContent = 'Start Focus';
+    if (zenToggleLabel) zenToggleLabel.textContent = startLabel;
     zenPlayIcon?.classList.remove('hidden');
     zenPauseIcon?.classList.add('hidden');
 
@@ -1123,6 +1172,8 @@ function updateTimerControlsUI() {
     timerSubjectDisplay?.classList.remove('timer-subject-locked');
     zenSubjectDisplay?.classList.remove('timer-subject-locked');
   }
+
+  updateSelectedSubjectUI();
 }
 
 function renderSubjects() {
@@ -1145,7 +1196,7 @@ function renderSubjects() {
         ${isSelected ? '<svg class="subject-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}
       `;
       item.addEventListener('click', (e) => {
-        if (timerStatus === 'RUNNING') return;
+        if (timerStatus === 'RUNNING' || currentMode === 'break') return;
         e.stopPropagation();
         appState.selectedSubject = sub;
         saveLocalState();
@@ -1166,6 +1217,7 @@ function renderSubjects() {
 }
 
 function updateSelectedSubjectUI() {
+  const isBreak = currentMode === 'break';
   const triggerDot = document.getElementById('triggerSubjectDot');
   const triggerName = document.getElementById('triggerSubjectName');
   const currentSubjectDot = document.getElementById('currentSubjectDot');
@@ -1173,12 +1225,29 @@ function updateSelectedSubjectUI() {
   const zenSubjectDot = document.getElementById('zenSubjectDot');
   const zenSubjectName = document.getElementById('zenSubjectName');
 
-  if (triggerDot) triggerDot.style.backgroundColor = appState.selectedSubject.color;
-  if (triggerName) triggerName.textContent = appState.selectedSubject.name;
-  if (currentSubjectDot) currentSubjectDot.style.backgroundColor = appState.selectedSubject.color;
-  if (currentSubjectName) currentSubjectName.textContent = appState.selectedSubject.name;
-  if (zenSubjectDot) zenSubjectDot.style.backgroundColor = appState.selectedSubject.color;
-  if (zenSubjectName) zenSubjectName.textContent = appState.selectedSubject.name;
+  const subjectDropdownWrapper = document.getElementById('subjectDropdownWrapper');
+  const timerSubjectDisplay = document.getElementById('timerSubjectDisplay');
+  const zenSubjectDisplay = document.getElementById('zenSubjectDisplay');
+
+  if (isBreak) {
+    subjectDropdownWrapper?.classList.add('is-break-mode');
+    timerSubjectDisplay?.classList.add('is-break-mode');
+    zenSubjectDisplay?.classList.add('is-break-mode');
+
+    if (currentSubjectName) currentSubjectName.textContent = '☕ Rest & Recharge';
+    if (zenSubjectName) zenSubjectName.textContent = '☕ Rest & Recharge';
+  } else {
+    subjectDropdownWrapper?.classList.remove('is-break-mode');
+    timerSubjectDisplay?.classList.remove('is-break-mode');
+    zenSubjectDisplay?.classList.remove('is-break-mode');
+
+    if (triggerDot) triggerDot.style.backgroundColor = appState.selectedSubject.color;
+    if (triggerName) triggerName.textContent = appState.selectedSubject.name;
+    if (currentSubjectDot) currentSubjectDot.style.backgroundColor = appState.selectedSubject.color;
+    if (currentSubjectName) currentSubjectName.textContent = appState.selectedSubject.name;
+    if (zenSubjectDot) zenSubjectDot.style.backgroundColor = appState.selectedSubject.color;
+    if (zenSubjectName) zenSubjectName.textContent = appState.selectedSubject.name;
+  }
 }
 
 function renderTimelineList() {

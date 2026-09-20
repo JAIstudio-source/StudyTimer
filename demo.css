@@ -709,6 +709,27 @@ html, body {
   color: var(--accent-blue);
 }
 
+/* Break Mode Subject Separation */
+.subject-dropdown-wrapper.is-break-mode {
+  display: none !important;
+}
+
+.timer-current-subject-btn.is-break-mode {
+  pointer-events: none !important;
+  cursor: default !important;
+  background: rgba(16, 185, 129, 0.12) !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+  color: var(--accent-emerald) !important;
+  font-weight: 700 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.timer-current-subject-btn.is-break-mode .subject-color-dot,
+.timer-current-subject-btn.is-break-mode .subject-inline-chevron {
+  display: none !important;
+}
+
 /* Inner Timer Current Subject Button */
 .timer-current-subject-btn {
   display: inline-flex;

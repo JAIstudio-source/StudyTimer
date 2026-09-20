@@ -603,19 +603,41 @@
           <!-- Planner Header & Add Goal Button -->
           <div class="hub-card planner-intro-card">
             <div class="planner-header-flex">
-              <div>
-                <h3 class="planner-title">Daily Subject Targets</h3>
-                <p class="planner-subtitle">Track dedicated study goals per subject</p>
+              <div class="planner-title-group">
+                <div class="hub-icon-badge hub-icon-target" style="background: rgba(16, 185, 129, 0.12); color: #10b981; border-color: rgba(16, 185, 129, 0.25);">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                </div>
+                <div>
+                  <h3 class="planner-title">Daily Goals &amp; Study Plan</h3>
+                  <p class="planner-subtitle">Track, check off, and manage targets across app and web</p>
+                </div>
               </div>
-              <button class="btn btn-primary btn-sm" id="btnOpenAddGoalModal">
-                <span>+ New Target</span>
+              <button class="btn btn-primary btn-sm" id="btnOpenAddGoalModal" title="Create a new study goal">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px; margin-right: 4px;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>New Goal</span>
               </button>
+            </div>
+
+            <!-- Planner Quick Stats Bar -->
+            <div class="planner-stats-bar" id="plannerStatsBar">
+              <div class="planner-stat-chip">
+                <span class="p-stat-label">Total Goals</span>
+                <strong class="p-stat-val" id="plannerTotalGoalsCount">0</strong>
+              </div>
+              <div class="planner-stat-chip">
+                <span class="p-stat-label">Completed</span>
+                <strong class="p-stat-val text-accent" id="plannerCompletedGoalsCount">0</strong>
+              </div>
+              <div class="planner-stat-chip">
+                <span class="p-stat-label">Planned Time</span>
+                <strong class="p-stat-val" id="plannerTotalPlannedTime">0h</strong>
+              </div>
             </div>
           </div>
 
-          <!-- Active Goals List -->
+          <!-- Active Goals Checklist & Table -->
           <div class="planner-goals-container" id="plannerGoalsContainer">
-            <!-- Dynamically injected goal cards with progress bars -->
+            <!-- Dynamically injected rich goal cards with checkboxes, edit/delete actions, and progress bars -->
           </div>
 
         </div>
@@ -1120,30 +1142,99 @@
     </div>
   </div>
 
-  <!-- 6. ADD PLANNER GOAL MODAL -->
+  <!-- 6. ADD & EDIT PLANNER GOAL MODAL -->
   <div class="modal-overlay hidden" id="plannerGoalModalOverlay">
     <div class="modal-card modal-card-sm" id="plannerGoalModalCard">
       <button class="modal-close-btn" id="btnCloseGoalModal" aria-label="Close modal">&times;</button>
       
       <div class="modal-header">
-        <h3 class="modal-title">Set Subject Target Goal</h3>
-        <p class="modal-subtitle">Define a dedicated daily study goal for any subject.</p>
+        <div class="modal-icon-wrap" style="background: rgba(16, 185, 129, 0.12); color: #10b981;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        </div>
+        <h3 class="modal-title" id="plannerGoalModalTitle">Add Study Goal</h3>
+        <p class="modal-subtitle" id="plannerGoalModalSubtitle">Set custom daily targets &amp; habits synced with your Android app.</p>
       </div>
 
       <form class="modal-body" id="addGoalForm">
+        <input type="hidden" id="editingGoalId" value="">
+
         <div class="input-group">
-          <label for="goalSubjectSelect">Select Subject</label>
-          <select id="goalSubjectSelect" class="form-select-styled" required></select>
+          <label for="inputGoalTitle">Goal Name / Task</label>
+          <input type="text" id="inputGoalTitle" placeholder="e.g. Solve 25 Calculus PYQs, Chemistry Practice" maxlength="60" required>
+        </div>
+
+        <div class="input-group">
+          <label for="inputGoalNote">Notes &amp; Details <span class="input-optional">(optional)</span></label>
+          <input type="text" id="inputGoalNote" placeholder="e.g. Chapter 4 &amp; 5, formula review" maxlength="120">
+        </div>
+
+        <div class="input-group">
+          <label for="goalSubjectSelect">Subject</label>
+          <select id="goalSubjectSelect" class="form-select-styled" required>
+            <!-- Dynamically populated in JS -->
+          </select>
         </div>
 
         <div class="input-group">
           <label for="goalMinutesInput">Daily Target (Minutes)</label>
-          <input type="number" id="goalMinutesInput" min="5" max="720" value="60" required>
+          <input type="number" id="goalMinutesInput" min="0" max="1440" value="60" required>
+          
+          <!-- 1-Tap Quick Presets Row -->
+          <div class="quick-presets-row" id="goalDurationPresetsRow">
+            <button type="button" class="preset-chip-btn" data-mins="15">15m</button>
+            <button type="button" class="preset-chip-btn" data-mins="25">25m</button>
+            <button type="button" class="preset-chip-btn" data-mins="45">45m</button>
+            <button type="button" class="preset-chip-btn active" data-mins="60">60m</button>
+            <button type="button" class="preset-chip-btn" data-mins="90">90m</button>
+            <button type="button" class="preset-chip-btn" data-mins="120">120m</button>
+            <button type="button" class="preset-chip-btn" data-mins="0">Habit (0m)</button>
+          </div>
         </div>
 
-        <button type="submit" class="btn btn-primary btn-full">
-          <span>Save Subject Target</span>
-        </button>
+        <div class="modal-actions-row" style="display: flex; gap: 10px; margin-top: 18px;">
+          <button type="button" class="btn btn-secondary flex-1" id="btnCancelGoalModal">Cancel</button>
+          <button type="submit" class="btn btn-primary flex-1" id="btnSaveGoalModal">
+            <span>Save Goal</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 6B. EDIT OVERALL DAILY FOCUS TARGET MODAL -->
+  <div class="modal-overlay hidden" id="dailyGoalModalOverlay">
+    <div class="modal-card modal-card-sm" id="dailyGoalModalCard">
+      <button class="modal-close-btn" id="btnCloseDailyGoalModal" aria-label="Close modal">&times;</button>
+      
+      <div class="modal-header">
+        <div class="modal-icon-wrap" style="background: rgba(59, 130, 246, 0.12); color: #3b82f6;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+        </div>
+        <h3 class="modal-title">Edit Daily Study Target</h3>
+        <p class="modal-subtitle">Set your overall daily focus time goal across all subjects.</p>
+      </div>
+
+      <form class="modal-body" id="dailyGoalEditForm">
+        <div class="input-group">
+          <label for="inputDailyGoalMinutes">Daily Target (Minutes)</label>
+          <input type="number" id="inputDailyGoalMinutes" min="15" max="1440" value="120" required>
+          
+          <div class="quick-presets-row" id="dailyTargetPresetsRow">
+            <button type="button" class="preset-chip-btn" data-mins="60">1 Hour</button>
+            <button type="button" class="preset-chip-btn active" data-mins="120">2 Hours</button>
+            <button type="button" class="preset-chip-btn" data-mins="180">3 Hours</button>
+            <button type="button" class="preset-chip-btn" data-mins="240">4 Hours</button>
+            <button type="button" class="preset-chip-btn" data-mins="360">6 Hours</button>
+            <button type="button" class="preset-chip-btn" data-mins="480">8 Hours</button>
+          </div>
+        </div>
+
+        <div class="modal-actions-row" style="display: flex; gap: 10px; margin-top: 18px;">
+          <button type="button" class="btn btn-secondary flex-1" id="btnCancelDailyGoalModal">Cancel</button>
+          <button type="submit" class="btn btn-primary flex-1">
+            <span>Update Daily Target</span>
+          </button>
+        </div>
       </form>
     </div>
   </div>

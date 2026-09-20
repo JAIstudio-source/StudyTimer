@@ -700,7 +700,7 @@ async function pushDataToCloud(silent = false) {
       console.warn('Cloud sync push warning:', error);
       if (!silent) showToast('Cloud sync failed to update.', 'error');
     } else {
-      if (!silent) showToast('Session synced with Android app! ☁️', 'success');
+      if (!silent) showToast('Session synced with Android app!', 'success');
     }
   } catch (err) {
     console.warn('pushDataToCloud exception:', err);
@@ -1076,7 +1076,6 @@ function setupEventListeners() {
   });
   document.getElementById('btnRefreshLeaderboard')?.addEventListener('click', () => fetchLeaderboard(true));
 
-
   // Manual "Sync with App" Dropdown Trigger
   document.getElementById('btnManualSync')?.addEventListener('click', async () => {
     document.getElementById('userMenuDropdown')?.classList.add('hidden');
@@ -1084,9 +1083,9 @@ function setupEventListeners() {
       openAuthModal();
       return;
     }
-    showToast('☁️ Pulling latest data from Android app...', 'info');
+    showToast('Pulling latest data from Android app...', 'info');
     await pullDataFromCloud(true);
-    showToast('✨ All study sessions, subjects & goals synced with Android app!', 'success');
+    showToast('All study sessions, subjects & goals synced with Android app!', 'success');
   });
 
   // Day-by-Day Subject Pie Chart & Timeline History Modal (Matches Android showPieChartDetailsModal)
@@ -1365,7 +1364,7 @@ function openZenMode() {
   if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
     document.documentElement.requestFullscreen().catch(() => {});
   }
-  showToast('Entered Full Screen Mode ⛶', 'info');
+  showToast('Entered Full Screen Focus Mode', 'info');
 }
 
 function closeZenMode() {
@@ -1388,7 +1387,7 @@ function toggleBrowserFullscreen() {
     document.documentElement.requestFullscreen().then(() => {
       if (expandIcon) expandIcon.classList.add('hidden');
       if (compressIcon) compressIcon.classList.remove('hidden');
-      showToast('Entered Fullscreen Focus Mode ⛶', 'info');
+      showToast('Entered Fullscreen Focus Mode', 'info');
     }).catch(err => {
       console.warn('Fullscreen error:', err);
     });
@@ -1419,15 +1418,15 @@ function switchMode(modeKey) {
   const modeBadge = document.getElementById('activeModeBadge');
   if (modeBadge) {
     if (modeKey === 'timer') {
-      modeBadge.textContent = '⏱️ Countdown Timer';
+      modeBadge.textContent = 'Countdown Timer';
     } else if (modeKey === 'pomodoro') {
       const total = timerConfig.pomoTotalCycles || 4;
-      modeBadge.textContent = `🍅 Pomodoro Focus (Cycle ${pomoCurrentCycle}/${total})`;
+      modeBadge.textContent = `Pomodoro Focus (${pomoCurrentCycle}/${total})`;
     } else if (modeKey === 'stopwatch') {
-      modeBadge.textContent = '⚡ Stopwatch';
+      modeBadge.textContent = 'Stopwatch';
     } else if (modeKey === 'break') {
       const dur = isLongBreakActive ? (timerConfig.pomoLongBreakMinutes || 15) : (timerConfig.pomoBreakMinutes || 5);
-      modeBadge.textContent = `☕ ${isLongBreakActive ? 'Long Break' : 'Short Break'} (${dur}m)`;
+      modeBadge.textContent = `${isLongBreakActive ? 'Long Break' : 'Short Break'} (${dur}m)`;
     }
   }
 
@@ -1710,7 +1709,7 @@ function finishSession(isAutoFinished = false) {
   triggerSaveSuccessFeedback();
 
   if (stateKey === 'BREAK') {
-    showToast('☕ Break finished! Ready to focus.', 'info');
+    showToast('Break finished! Ready to focus.', 'info');
 
     // Automation: Auto-switch back to Pomodoro Focus after break
     if (timerConfig.pomoAutoSwitchFocus !== false) {
@@ -1718,15 +1717,15 @@ function finishSession(isAutoFinished = false) {
       setTimeout(() => {
         switchMode('pomodoro');
         const totalCycles = timerConfig.pomoTotalCycles || 4;
-        showToast(`🍅 Ready for Pomodoro Focus (Cycle ${pomoCurrentCycle}/${totalCycles})`, 'info');
+        showToast(`Ready for Pomodoro Focus (Cycle ${pomoCurrentCycle}/${totalCycles})`, 'info');
       }, 500);
     }
   } else {
     const minStr = Math.max(1, Math.round(studiedDurationSec / 60));
     if (studiedDurationSec >= 60) {
-      showToast(`🎉 Focus session saved! +${minStr}m added to ${subject.name}`, 'success');
+      showToast(`Focus session saved! +${minStr}m added to ${subject.name}`, 'success');
     } else {
-      showToast(`🎉 Focus session saved! +${studiedDurationSec}s added to ${subject.name}`, 'success');
+      showToast(`Focus session saved! +${studiedDurationSec}s added to ${subject.name}`, 'success');
     }
 
     // Give option to change subject after session ended
@@ -3361,7 +3360,7 @@ function handleAddGoal(e) {
   renderPlannerGoals();
   saveLocalState();
   pushDataToCloud();
-  showToast('🎯 Subject target goal set!', 'success');
+  showToast('Subject target goal set!', 'success');
 }
 
 // ----------------------------------------------------------------------------
@@ -3464,7 +3463,7 @@ function updateProfileLivePreview() {
   const previewMottoText = document.getElementById('previewMottoText');
 
   const nameVal = (nameInput?.value.trim() || 'Student').slice(0, 24);
-  const mottoVal = (mottoInput?.value.trim() || '🎯 Deep focus & daily consistency').slice(0, 60);
+  const mottoVal = (mottoInput?.value.trim() || 'Deep focus & daily consistency').slice(0, 60);
 
   if (previewAvatarIcon) previewAvatarIcon.textContent = selectedAvatarPreset;
   if (previewDisplayName) previewDisplayName.textContent = nameVal;
@@ -3495,7 +3494,7 @@ async function handleSaveProfile(e) {
   renderUserProfileUI();
   closeProfileModal();
 
-  showToast('Profile customizations saved! ✨', 'success');
+  showToast('Profile customizations saved!', 'success');
 
   // Immediately sync to Leaderboard and Cloud
   await syncLeaderboardScore();
@@ -3574,7 +3573,7 @@ function renderDayPieHistoryModal(dateStr) {
   });
 
   if (title) {
-    title.textContent = isToday ? `📅 Today (${formattedDisplayDate})` : `📅 ${formattedDisplayDate}`;
+    title.textContent = isToday ? `Today (${formattedDisplayDate})` : `${formattedDisplayDate}`;
   }
 
   if (nextBtn) {
@@ -4266,8 +4265,8 @@ function updatePersonalUserBar(myEntry, localTotalSec) {
 
   if (userBarStatus) {
     userBarStatus.innerHTML = isStudyingNow 
-      ? `<span style="color: #10b981; font-weight: 600;">🟢 Studying ${subName}</span>` 
-      : `<span>⚪ Resting</span>`;
+      ? `<span class="user-bar-status-studying"><span class="status-dot"></span>Studying ${subName}</span>` 
+      : `<span class="user-bar-status-resting"><span class="status-dot"></span>Resting</span>`;
   }
 
   if (myEntry) {
@@ -4401,7 +4400,7 @@ async function handleSaveTimerSettings(e) {
   resetTimer();
   updateProgressAndStreak();
   pushDataToCloud();
-  showToast('Timer preferences applied! ⚙️', 'success');
+  showToast('Timer preferences applied!', 'success');
 }
 
 // Post-Session Subject Switch Modal
@@ -4412,7 +4411,7 @@ function openSessionCompleteModal(subject, mins) {
   const select = document.getElementById('nextSessionSubjectSelect');
   if (!modal || !select) return;
 
-  if (title) title.textContent = 'Session Completed! 🎉';
+  if (title) title.textContent = 'Session Completed!';
   if (subtitle) subtitle.textContent = `+${mins || 1}m added to ${subject.name}`;
 
   select.innerHTML = appState.subjects.map(s => 
@@ -4493,7 +4492,7 @@ function confirmDeleteAllData() {
   renderMonthlyCalendar();
   renderPlannerGoals();
 
-  showToast('✨ All local study records and custom data erased.', 'info');
+  showToast('All local study records and custom data erased.', 'info');
 }
 
 // Custom Reusable Confirmation Dialog System
@@ -4617,7 +4616,7 @@ async function signInWithEmail(e) {
 
     if (error) throw error;
 
-    statusMsg.textContent = '✨ Magic sign-in link sent! Please check your email inbox.';
+    statusMsg.textContent = 'Magic sign-in link sent! Please check your email inbox.';
     statusMsg.style.borderColor = 'var(--accent-emerald)';
     statusMsg.style.color = 'var(--accent-emerald)';
   } catch (err) {

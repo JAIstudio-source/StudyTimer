@@ -193,9 +193,11 @@ html, body {
   box-shadow: 0 4px 14px rgba(234, 179, 8, 0.35);
 }
 
-.nav-leaderboard-btn .nav-lb-trophy {
-  font-size: 0.95rem;
-  line-height: 1;
+.nav-leaderboard-btn .nav-lb-trophy-svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2.2;
+  flex-shrink: 0;
 }
 
 .nav-leaderboard-btn .live-pulse-dot {
@@ -595,24 +597,39 @@ html, body {
 }
 
 .mode-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   background: transparent;
   border: none;
-  padding: 10px 6px;
-  font-size: clamp(0.76rem, 1.8vw, 0.86rem);
+  padding: 9px 8px;
+  font-size: clamp(0.75rem, 1.8vw, 0.85rem);
   font-weight: 600;
   color: var(--text-secondary);
   border-radius: calc(var(--radius-md) - 3px);
   cursor: pointer;
-  transition: var(--transition-fast);
+  transition: all var(--transition-fast);
   white-space: nowrap;
   text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.mode-btn .mode-svg-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  stroke-width: 2;
+}
+
+.mode-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .mode-btn.active {
   background: var(--bg-card);
-  color: var(--text-primary);
+  color: var(--accent-blue);
+  font-weight: 700;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
@@ -1139,11 +1156,53 @@ html, body {
 .hub-card-title-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
-.hub-icon {
-  font-size: 1.1rem;
+.hub-icon-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
+}
+
+.hub-icon-badge svg {
+  width: 17px;
+  height: 17px;
+}
+
+.hub-icon-target {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.22);
+}
+
+.hub-icon-pie {
+  background: rgba(139, 92, 246, 0.12);
+  color: #8b5cf6;
+  border: 1px solid rgba(139, 92, 246, 0.22);
+}
+
+.hub-icon-grid {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.22);
+}
+
+.hub-icon-history {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.22);
+}
+
+.hub-icon-trophy {
+  background: rgba(234, 179, 8, 0.15);
+  color: #eab308;
+  border: 1px solid rgba(234, 179, 8, 0.3);
 }
 
 .hub-card-title {
@@ -1164,6 +1223,13 @@ html, body {
   font-size: 0.82rem;
   font-weight: 700;
   color: #d97706;
+}
+
+.streak-fire-svg {
+  width: 15px;
+  height: 15px;
+  color: #f59e0b;
+  flex-shrink: 0;
 }
 
 [data-theme="dark"] .streak-badge-hub {
@@ -4481,3 +4547,65 @@ input:checked + .toggle-slider:before {
   color: var(--text-primary);
   margin: 0;
 }
+
+/* Calendar & Drawer Helper Styles */
+.drawer-title-flex {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.day-date-cal-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--accent-blue);
+  flex-shrink: 0;
+}
+
+/* Personal User Bar Status Chips in Leaderboard Modal */
+.user-bar-status-studying {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #10b981;
+  font-weight: 600;
+  font-size: 0.74rem;
+}
+
+.user-bar-status-studying .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
+  animation: pulse-dot 1.5s infinite ease-in-out;
+}
+
+.user-bar-status-resting {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.74rem;
+}
+
+.user-bar-status-resting .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  opacity: 0.6;
+}
+
+@keyframes pulse-dot {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 0.6;
+  }
+}
+

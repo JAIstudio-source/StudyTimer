@@ -497,9 +497,8 @@ async function pullDataFromCloud(isUserTriggered = false) {
       (appState.todaySessions || []).forEach(s => {
         if (s && typeof s.durationSec === 'number') totalSecToday += s.durationSec;
       });
-      if (totalSecToday > 0) {
-        updateStudyPresence(timerStatus === 'RUNNING' && currentMode !== 'break');
-      }
+      // Sync live score to global leaderboard table
+      await syncLeaderboardScore();
 
       renderSubjects();
       renderUserProfileUI();
@@ -512,6 +511,12 @@ async function pullDataFromCloud(isUserTriggered = false) {
       saveLocalState();
       if (timerStatus === 'IDLE') {
         resetTimer();
+      }
+
+      // Update leaderboard UI if open
+      const lbModal = document.getElementById('leaderboardModalOverlay');
+      if (lbModal && !lbModal.classList.contains('hidden')) {
+        fetchLeaderboard(true);
       }
 
       if (isUserTriggered) {
@@ -3421,12 +3426,11 @@ function renderUserProfileUI() {
 // REAL-TIME STUDY PRESENCE & LEADERBOARD DATA SYNC
 // ----------------------------------------------------------------------------
 
-async function updateStudyPresence(isStudying) {
+async function updateStudyPresence(isStudying = false) {
   if (!supabaseClient || !appState.currentUser) return;
 
   const profile = appState.userProfile || {};
   if (profile.isPublicLeaderboard === false) {
-    // If user opts out of public leaderboard, don't broadcast live presence
     return;
   }
 
@@ -3457,15 +3461,75 @@ async function updateStudyPresence(isStudying) {
   }
 }
 
+async function syncLeaderboardScore() {
+  if (!supabaseClient || !appState.currentUser) return;
+  const profile = appState.userProfile || {};
+  if (profile.isPublicLeaderboard === false) return;
+
+  const todayKey = new Date().toISOString().split('T')[0];
+  let totalSecToday = 0;
+  (appState.todaySessions || []).forEach(s => {
+    if (s && typeof s.durationSec === 'number' && s.durationSec > 0) {
+      totalSecToday += s.durationSec;
+    }
+  });
+
+  if (appState.dailyFocusTotals && appState.dailyFocusTotals[todayKey]) {
+    totalSecToday = Math.max(totalSecToday, Number(appState.dailyFocusTotals[todayKey]) || 0);
+  }
+
+  const isStudyingNow = timerStatus === 'RUNNING' && currentMode !== 'break';
+  const currentSub = appState.selectedSubject || { name: 'Focus Study', color: '#3b82f6' };
+  const userName = (profile.displayName || 
+                    appState.currentUser.user_metadata?.full_name || 
+                    appState.currentUser.user_metadata?.name || 
+                    appState.currentUser.email?.split('@')[0] || 
+                    'Student').slice(0, 100);
+  const avatarUrl = profile.avatarPreset || 
+                    appState.currentUser.user_metadata?.avatar_url || 
+                    appState.currentUser.user_metadata?.picture || 
+                    '🐱';
+
+  const userIds = [appState.currentUser.id, 'Google User'];
+  if (appState.currentUser.email) userIds.push(appState.currentUser.email);
+
+  const payload = {
+    user_name: userName,
+    avatar_url: avatarUrl,
+    study_date: todayKey,
+    total_seconds: totalSecToday,
+    is_studying: isStudyingNow,
+    current_subject: isStudyingNow ? (currentSub.name || 'Focus Study') : '',
+    subject_color: isStudyingNow ? (currentSub.color || '#3b82f6') : '#3b82f6',
+    last_active_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
+  for (const uid of userIds) {
+    try {
+      await supabaseClient.from('daily_leaderboard').upsert({
+        ...payload,
+        user_id: uid
+      }, { onConflict: 'user_id,study_date' });
+    } catch (e) {
+      console.warn('Leaderboard score sync error for', uid, e);
+    }
+  }
+
+  leaderboardCache.timestamp = 0;
+}
+
 function startPresenceHeartbeat() {
   if (presenceHeartbeatInterval) {
     clearInterval(presenceHeartbeatInterval);
   }
   updateStudyPresence(true);
+  syncLeaderboardScore();
   // Send active heartbeat every 60 seconds while timer is actively running
   presenceHeartbeatInterval = setInterval(() => {
     if (timerStatus === 'RUNNING' && currentMode !== 'break') {
       updateStudyPresence(true);
+      syncLeaderboardScore();
     }
   }, 60000);
 }
@@ -3476,6 +3540,7 @@ function stopPresenceHeartbeat() {
     presenceHeartbeatInterval = null;
   }
   updateStudyPresence(false);
+  syncLeaderboardScore();
 }
 
 async function logSessionToLeaderboard(durationSec, subject) {
@@ -3505,8 +3570,7 @@ async function logSessionToLeaderboard(durationSec, subject) {
       p_subject: subject?.name || 'Focus Study',
       p_subject_color: subject?.color || '#3b82f6'
     });
-    // Invalidate local leaderboard cache so fresh scores render immediately
-    leaderboardCache.timestamp = 0;
+    await syncLeaderboardScore();
     const modal = document.getElementById('leaderboardModalOverlay');
     if (modal && !modal.classList.contains('hidden')) {
       fetchLeaderboard(true);
@@ -3516,11 +3580,12 @@ async function logSessionToLeaderboard(durationSec, subject) {
   }
 }
 
-function openLeaderboardModal() {
+async function openLeaderboardModal() {
   const modal = document.getElementById('leaderboardModalOverlay');
   if (modal) {
     lockBodyScroll();
     modal.classList.remove('hidden');
+    await syncLeaderboardScore();
     fetchLeaderboard(true);
   }
 }
@@ -3533,6 +3598,10 @@ function closeLeaderboardModal() {
 async function fetchLeaderboard(forceRefresh = false) {
   const now = Date.now();
   startResetCountdownTimer();
+
+  if (forceRefresh) {
+    await syncLeaderboardScore();
+  }
 
   if (!forceRefresh && leaderboardCache.data && (now - leaderboardCache.timestamp < LEADERBOARD_CACHE_TTL_MS)) {
     renderLeaderboard(leaderboardCache.data);
@@ -3568,11 +3637,29 @@ async function fetchLeaderboard(forceRefresh = false) {
   }
 }
 
+function isCurrentUserEntry(entry) {
+  if (!entry) return false;
+  const currentUserId = appState.currentUser?.id;
+  const currentUserEmail = appState.currentUser?.email;
+  const profileName = (appState.userProfile?.displayName || '').trim().toLowerCase();
+  const entryName = (entry.user_name || '').trim().toLowerCase();
+
+  if (currentUserId && entry.user_id === currentUserId) return true;
+  if (entry.user_id === 'Google User') return true;
+  if (currentUserEmail && (entry.user_id === currentUserEmail || entry.user_id === currentUserEmail.split('@')[0])) return true;
+  if (profileName && profileName !== 'student' && profileName !== 'you' && entryName === profileName) return true;
+  return false;
+}
+
 function fallbackLocalLeaderboard() {
+  const todayKey = new Date().toISOString().split('T')[0];
   let totalSecToday = 0;
   (appState.todaySessions || []).forEach(s => {
     if (s && typeof s.durationSec === 'number') totalSecToday += s.durationSec;
   });
+  if (appState.dailyFocusTotals && appState.dailyFocusTotals[todayKey]) {
+    totalSecToday = Math.max(totalSecToday, Number(appState.dailyFocusTotals[todayKey]) || 0);
+  }
 
   const isUserStudying = timerStatus === 'RUNNING' && currentMode !== 'break';
   const dummyRanks = [];
@@ -3600,15 +3687,12 @@ function fallbackLocalLeaderboard() {
 function renderLeaderboard(rankings) {
   const podiumContainer = document.getElementById('leaderboardPodium');
   const listContainer = document.getElementById('leaderboardListItems');
-  const emptyState = document.getElementById('leaderboardEmptyState');
   const activeStudyingText = document.getElementById('leaderboardActiveStudyingText');
 
   if (!podiumContainer || !listContainer) return;
 
-  const currentUserId = appState.currentUser?.id;
-
   // 1. Calculate Active Studiers Count
-  const activeStudyingCount = rankings.filter(r => r.is_studying).length;
+  const activeStudyingCount = (rankings || []).filter(r => r.is_studying).length;
   if (activeStudyingText) {
     activeStudyingText.textContent = activeStudyingCount > 0 
       ? `${activeStudyingCount} Studying Now` 
@@ -3621,9 +3705,9 @@ function renderLeaderboard(rankings) {
   if (headerLiveDot) headerLiveDot.style.display = isAnyActive ? 'inline-block' : 'none';
   if (mobileLiveDot) mobileLiveDot.style.display = isAnyActive ? 'inline-block' : 'none';
 
-  const top1 = rankings.find(r => Number(r.rank) === 1);
-  const top2 = rankings.find(r => Number(r.rank) === 2);
-  const top3 = rankings.find(r => Number(r.rank) === 3);
+  const top1 = (rankings || []).find(r => Number(r.rank) === 1);
+  const top2 = (rankings || []).find(r => Number(r.rank) === 2);
+  const top3 = (rankings || []).find(r => Number(r.rank) === 3);
 
   const renderPodiumCard = (entry, rankNum) => {
     if (!entry) {
@@ -3639,7 +3723,7 @@ function renderLeaderboard(rankings) {
       `;
     }
 
-    const isCurrent = currentUserId && entry.user_id === currentUserId;
+    const isCurrent = isCurrentUserEntry(entry);
     const crown = rankNum === 1 ? '<span class="podium-crown-badge">👑</span>' : '';
     const timeFormatted = formatLeaderboardTime(entry.total_seconds);
     const avatarHtml = getAvatarElementHtml(entry.avatar_url, entry.user_name, 'podium-avatar-img');
@@ -3708,7 +3792,7 @@ function renderLeaderboard(rankings) {
     `;
   } else {
     listContainer.innerHTML = remainingRanks.map(r => {
-      const isCurrent = currentUserId && r.user_id === currentUserId;
+      const isCurrent = isCurrentUserEntry(r);
       const timeFormatted = formatLeaderboardTime(r.total_seconds);
       const avatarHtml = getAvatarElementHtml(r.avatar_url, r.user_name, 'row-avatar-img');
 
@@ -3731,11 +3815,16 @@ function renderLeaderboard(rankings) {
   }
 
   // 4. Update Personal User Bar
-  const myEntry = rankings.find(r => currentUserId && r.user_id === currentUserId);
+  const todayKey = new Date().toISOString().split('T')[0];
   let localTotalSec = 0;
   (appState.todaySessions || []).forEach(s => {
     if (s && typeof s.durationSec === 'number') localTotalSec += s.durationSec;
   });
+  if (appState.dailyFocusTotals && appState.dailyFocusTotals[todayKey]) {
+    localTotalSec = Math.max(localTotalSec, Number(appState.dailyFocusTotals[todayKey]) || 0);
+  }
+
+  const myEntry = (rankings || []).find(r => isCurrentUserEntry(r));
   updatePersonalUserBar(myEntry, localTotalSec);
 }
 

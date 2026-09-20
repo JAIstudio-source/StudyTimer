@@ -511,6 +511,57 @@ function setupEventListeners() {
       btn.classList.add('active');
     });
   });
+  // Zen Fullscreen Focus Mode
+  document.getElementById('btnZenTimer')?.addEventListener('click', openZenMode);
+  document.getElementById('btnExitZen')?.addEventListener('click', closeZenMode);
+  document.getElementById('btnZenToggle')?.addEventListener('click', toggleTimer);
+  document.getElementById('btnZenReset')?.addEventListener('click', resetTimer);
+
+  // Tap on zen canvas (outside buttons) to toggle play/pause
+  document.getElementById('zenTimerCanvas')?.addEventListener('click', (e) => {
+    if (!e.target.closest('.zen-controls-bar') && !e.target.closest('.zen-exit-btn')) {
+      toggleTimer();
+    }
+  });
+
+  // Global keybindings
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const zenOverlay = document.getElementById('zenTimerOverlay');
+      if (zenOverlay && !zenOverlay.classList.contains('hidden')) {
+        closeZenMode();
+      }
+    }
+    // Spacebar to toggle timer when not in input
+    if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      toggleTimer();
+    }
+  });
+}
+
+function openZenMode() {
+  const zenOverlay = document.getElementById('zenTimerOverlay');
+  if (!zenOverlay) return;
+
+  zenOverlay.classList.remove('hidden');
+  updateTimerDisplay();
+  updateTimerControlsUI();
+
+  // Try native fullscreen if available
+  if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  }
+  showToast('Entered Zen Focus Timer ⛶', 'info');
+}
+
+function closeZenMode() {
+  const zenOverlay = document.getElementById('zenTimerOverlay');
+  if (zenOverlay) zenOverlay.classList.add('hidden');
+
+  if (document.fullscreenElement && document.exitFullscreen) {
+    document.exitFullscreen().catch(() => {});
+  }
 }
 
 function toggleBrowserFullscreen() {
@@ -730,6 +781,9 @@ function updateTimerDisplay() {
   const timerDisplay = document.getElementById('timerDisplay');
   if (timerDisplay) timerDisplay.textContent = timeFormatted;
 
+  const zenTimerDisplay = document.getElementById('zenTimerDisplay');
+  if (zenTimerDisplay) zenTimerDisplay.textContent = timeFormatted;
+
   // Title tag update
   if (timerStatus === 'RUNNING') {
     document.title = `(${timeFormatted}) StudyTimer Focus`;
@@ -737,7 +791,7 @@ function updateTimerDisplay() {
     document.title = `StudyTimer Web - Focus Timer & Habit Tracker for Students`;
   }
 
-  // Update Indicator Ring
+  // Update Main Indicator Ring
   const ring = document.getElementById('timerIndicator');
   if (ring) {
     const circumference = 867.08; // 2 * PI * 138
@@ -753,19 +807,43 @@ function updateTimerDisplay() {
     }
   }
 
+  // Update Zen Indicator Ring
+  const zenRing = document.getElementById('zenTimerIndicator');
+  if (zenRing) {
+    const zenCircumference = 1130.97; // 2 * PI * 180
+    const zenOffset = zenCircumference * (1 - progressRatio);
+    zenRing.style.strokeDashoffset = zenOffset;
+
+    if (currentMode === 'break') {
+      zenRing.style.stroke = 'var(--accent-emerald)';
+    } else if (currentMode === 'pomodoro') {
+      zenRing.style.stroke = 'var(--accent-red)';
+    } else {
+      zenRing.style.stroke = 'var(--accent-blue)';
+    }
+  }
+
   // State Badge
   const stateBadge = document.getElementById('timerStateBadge');
+  const zenStateBadge = document.getElementById('zenStateBadge');
+  let stateText = 'READY TO FOCUS';
+  let stateColor = 'var(--text-muted)';
+
+  if (timerStatus === 'RUNNING') {
+    stateText = currentMode === 'break' ? '☕ TAKING A BREAK' : '🔥 FOCUSING';
+    stateColor = currentMode === 'break' ? 'var(--accent-emerald)' : 'var(--accent-blue)';
+  } else if (timerStatus === 'PAUSED') {
+    stateText = '⏸️ PAUSED';
+    stateColor = '#f59e0b';
+  }
+
   if (stateBadge) {
-    if (timerStatus === 'RUNNING') {
-      stateBadge.textContent = currentMode === 'break' ? '☕ TAKING A BREAK' : '🔥 FOCUSING';
-      stateBadge.style.color = currentMode === 'break' ? 'var(--accent-emerald)' : 'var(--accent-blue)';
-    } else if (timerStatus === 'PAUSED') {
-      stateBadge.textContent = '⏸️ PAUSED';
-      stateBadge.style.color = '#f59e0b';
-    } else {
-      stateBadge.textContent = 'READY TO FOCUS';
-      stateBadge.style.color = 'var(--text-muted)';
-    }
+    stateBadge.textContent = stateText;
+    stateBadge.style.color = stateColor;
+  }
+  if (zenStateBadge) {
+    zenStateBadge.textContent = stateText;
+    zenStateBadge.style.color = stateColor;
   }
 }
 
@@ -775,21 +853,41 @@ function updateTimerControlsUI() {
   const playIcon = document.getElementById('playIcon');
   const pauseIcon = document.getElementById('pauseIcon');
 
+  const btnZenToggle = document.getElementById('btnZenToggle');
+  const zenToggleLabel = document.getElementById('zenToggleLabel');
+  const zenPlayIcon = document.getElementById('zenPlayIcon');
+  const zenPauseIcon = document.getElementById('zenPauseIcon');
+
   if (timerStatus === 'RUNNING') {
-    btnToggle.classList.add('running');
-    btnToggleLabel.textContent = 'Pause Focus';
-    playIcon.classList.add('hidden');
-    pauseIcon.classList.remove('hidden');
+    btnToggle?.classList.add('running');
+    if (btnToggleLabel) btnToggleLabel.textContent = 'Pause Focus';
+    playIcon?.classList.add('hidden');
+    pauseIcon?.classList.remove('hidden');
+
+    btnZenToggle?.classList.add('running');
+    if (zenToggleLabel) zenToggleLabel.textContent = 'Pause Focus';
+    zenPlayIcon?.classList.add('hidden');
+    zenPauseIcon?.classList.remove('hidden');
   } else if (timerStatus === 'PAUSED') {
-    btnToggle.classList.remove('running');
-    btnToggleLabel.textContent = 'Resume Focus';
-    playIcon.classList.remove('hidden');
-    pauseIcon.classList.add('hidden');
+    btnToggle?.classList.remove('running');
+    if (btnToggleLabel) btnToggleLabel.textContent = 'Resume Focus';
+    playIcon?.classList.remove('hidden');
+    pauseIcon?.classList.add('hidden');
+
+    btnZenToggle?.classList.remove('running');
+    if (zenToggleLabel) zenToggleLabel.textContent = 'Resume Focus';
+    zenPlayIcon?.classList.remove('hidden');
+    zenPauseIcon?.classList.add('hidden');
   } else {
-    btnToggle.classList.remove('running');
-    btnToggleLabel.textContent = 'Start Focus';
-    playIcon.classList.remove('hidden');
-    pauseIcon.classList.add('hidden');
+    btnToggle?.classList.remove('running');
+    if (btnToggleLabel) btnToggleLabel.textContent = 'Start Focus';
+    playIcon?.classList.remove('hidden');
+    pauseIcon?.classList.add('hidden');
+
+    btnZenToggle?.classList.remove('running');
+    if (zenToggleLabel) zenToggleLabel.textContent = 'Start Focus';
+    zenPlayIcon?.classList.remove('hidden');
+    zenPauseIcon?.classList.add('hidden');
   }
 }
 
@@ -1054,10 +1152,11 @@ function closeAuthModal() {
 async function signInWithGoogle() {
   if (!supabaseClient) return;
   try {
+    const redirectUrl = window.location.origin + window.location.pathname;
     const { error } = await supabaseClient.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.href
+        redirectTo: redirectUrl
       }
     });
     if (error) throw error;
@@ -1081,10 +1180,11 @@ async function signInWithEmail(e) {
     statusMsg.textContent = 'Sending sign-in link...';
     statusMsg.classList.remove('hidden');
 
+    const redirectUrl = window.location.origin + window.location.pathname;
     const { error } = await supabaseClient.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: window.location.href
+        emailRedirectTo: redirectUrl
       }
     });
 

@@ -1581,6 +1581,214 @@ html, body {
 }
 
 /* ==========================================================================
+   ZEN FULLSCREEN FOCUS TIMER VIEW
+   ========================================================================== */
+.zen-timer-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow: hidden;
+  animation: zen-fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+@keyframes zen-fade-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.zen-exit-btn {
+  position: absolute;
+  top: clamp(16px, 4vh, 32px);
+  right: clamp(16px, 4vw, 32px);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 10;
+  transition: var(--transition-fast);
+}
+
+.zen-exit-btn:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-focus);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.zen-exit-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.zen-timer-canvas {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 600px;
+  margin: auto;
+}
+
+.zen-ring-container {
+  position: relative;
+  width: clamp(260px, 68vw, 400px);
+  height: clamp(260px, 68vw, 400px);
+  margin: 0 auto clamp(20px, 4vh, 36px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.zen-timer-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.zen-timer-track {
+  fill: none;
+  stroke: var(--bg-subtle);
+  stroke-width: 10;
+}
+
+[data-theme="dark"] .zen-timer-track {
+  stroke: rgba(255, 255, 255, 0.05);
+}
+
+.zen-timer-indicator {
+  fill: none;
+  stroke: var(--accent-blue);
+  stroke-width: 10;
+  stroke-linecap: round;
+  stroke-dasharray: 1130.97; /* 2 * PI * 180 */
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 0.3s ease, stroke 0.3s ease;
+  filter: drop-shadow(0 0 14px rgba(59, 130, 246, 0.45));
+}
+
+.zen-timer-content {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+}
+
+.zen-state-badge {
+  font-size: clamp(0.76rem, 2vw, 0.9rem);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.zen-digital-display {
+  font-family: var(--font-mono);
+  font-size: clamp(3.6rem, 13vw, 6.5rem);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-primary);
+  letter-spacing: -0.03em;
+  margin-bottom: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.zen-hint-text {
+  font-size: clamp(0.72rem, 1.8vw, 0.8rem);
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.zen-controls-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+  width: 100%;
+}
+
+.btn-zen-ctrl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 13px 28px;
+  background: linear-gradient(135deg, var(--accent-blue) 0%, #2563eb 100%);
+  color: #ffffff;
+  border-radius: var(--radius-pill);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+  transition: var(--transition-smooth);
+}
+
+.btn-zen-ctrl:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 26px rgba(59, 130, 246, 0.5);
+}
+
+.btn-zen-ctrl.running {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
+}
+
+.btn-zen-ctrl .zen-ctrl-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.btn-zen-subtle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 11px 18px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-zen-subtle:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+  border-color: var(--border-focus);
+}
+
+.btn-zen-subtle svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ==========================================================================
    7. COMPREHENSIVE MOBILE & ANDROID WEB OPTIMIZATIONS
    ========================================================================== */
 @media (max-width: 768px) {

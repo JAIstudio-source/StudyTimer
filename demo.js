@@ -25,10 +25,12 @@ if (typeof supabase !== 'undefined' && supabase.createClient) {
 // 2. STATE MANAGEMENT & PREFERENCES
 // ============================================================================
 const DEFAULT_SUBJECTS = [
-  { id: 'math', name: 'Mathematics', color: '#3b82f6' },
-  { id: 'physics', name: 'Physics', color: '#10b981' },
-  { id: 'coding', name: 'Coding', color: '#8b5cf6' },
-  { id: 'english', name: 'English', color: '#f59e0b' }
+  { id: 'general', name: 'General', iconEmoji: '📖', color: '#6366f1' },
+  { id: 'math', name: 'Math', iconEmoji: '📐', color: '#10b981' },
+  { id: 'coding', name: 'Coding', iconEmoji: '💻', color: '#3b82f6' },
+  { id: 'physics', name: 'Physics', iconEmoji: '⚛️', color: '#8b5cf6' },
+  { id: 'history', name: 'History', iconEmoji: '📜', color: '#f59e0b' },
+  { id: 'science', name: 'Science', iconEmoji: '🧪', color: '#ec4899' }
 ];
 
 // Timer Configuration Settings (Persisted)
@@ -246,9 +248,9 @@ function handleUserSignedOut() {
 }
 
 // ============================================================================
-// 4. TWO-WAY CLOUD SYNC LOGIC
+// 4. TWO-WAY CLOUD SYNC LOGIC (100% Android App Compatible)
 // ============================================================================
-async function pullDataFromCloud() {
+async function pullDataFromCloud(isUserTriggered = false) {
   if (!supabaseClient || !appState.currentUser) return;
 
   const syncStatusPill = document.getElementById('syncStatusPill');
@@ -272,44 +274,125 @@ async function pullDataFromCloud() {
     if (data) {
       if (data.prefs_data) {
         try {
-          const prefs = JSON.parse(data.prefs_data);
-          if (prefs.daily_goal_minutes) timerConfig.dailyGoalMinutes = prefs.daily_goal_minutes;
-          if (prefs.streak_count) appState.streakCount = prefs.streak_count;
+          const prefs = typeof data.prefs_data === 'string' ? JSON.parse(data.prefs_data) : data.prefs_data;
+          
+          // 1. Daily Goal & Timer Durations (Android & Web interop)
+          const goalMins = prefs.daily_goal_minutes || (prefs.daily_goal_secs ? Math.round(prefs.daily_goal_secs / 60) : null);
+          if (goalMins) timerConfig.dailyGoalMinutes = Math.min(1440, Math.max(15, goalMins));
+
+          if (prefs.current_streak || prefs.streak_count) {
+            appState.streakCount = Math.max(0, Number(prefs.current_streak || prefs.streak_count) || 0);
+          }
           if (prefs.last_study_date) appState.lastStudyDate = prefs.last_study_date;
-          if (prefs.custom_timer_minutes) timerConfig.customTimerMinutes = prefs.custom_timer_minutes;
-          if (prefs.pomo_focus_minutes) timerConfig.pomoFocusMinutes = prefs.pomo_focus_minutes;
-          if (prefs.pomo_break_minutes) timerConfig.pomoBreakMinutes = prefs.pomo_break_minutes;
+
+          if (prefs.study_interval_minutes || prefs.pomo_focus_minutes) {
+            timerConfig.pomoFocusMinutes = Number(prefs.study_interval_minutes || prefs.pomo_focus_minutes);
+          }
+          if (prefs.break_interval_minutes || prefs.pomo_break_minutes) {
+            timerConfig.pomoBreakMinutes = Number(prefs.break_interval_minutes || prefs.pomo_break_minutes);
+          }
           if (prefs.pomo_long_break_minutes) timerConfig.pomoLongBreakMinutes = prefs.pomo_long_break_minutes;
           if (prefs.pomo_total_cycles) timerConfig.pomoTotalCycles = prefs.pomo_total_cycles;
           if (typeof prefs.pomo_auto_switch_break === 'boolean') timerConfig.pomoAutoSwitchBreak = prefs.pomo_auto_switch_break;
           if (typeof prefs.pomo_auto_switch_focus === 'boolean') timerConfig.pomoAutoSwitchFocus = prefs.pomo_auto_switch_focus;
+          if (prefs.custom_timer_minutes) timerConfig.customTimerMinutes = prefs.custom_timer_minutes;
 
-          if (prefs.__subject_tags_data__) {
-            const subjectPrefs = JSON.parse(prefs.__subject_tags_data__);
-            if (subjectPrefs.custom_subjects) {
-              const loadedSubjects = typeof subjectPrefs.custom_subjects === 'string' 
-                ? JSON.parse(subjectPrefs.custom_subjects) 
-                : subjectPrefs.custom_subjects;
-              if (Array.isArray(loadedSubjects) && loadedSubjects.length > 0) {
-                appState.subjects = loadedSubjects;
-                appState.selectedSubject = appState.subjects[0];
-              }
-            }
-          }
-
-          if (prefs.__planner_goals_data__) {
+          // 2. Full Subjects Restoration (Android studytimer_subject_tags & Web custom_subjects)
+          const rawTags = prefs.__subject_tags_data__ || data.subject_tags_data || prefs.custom_subjects_json;
+          if (rawTags) {
             try {
-              const loadedGoals = typeof prefs.__planner_goals_data__ === 'string'
-                ? JSON.parse(prefs.__planner_goals_data__)
-                : prefs.__planner_goals_data__;
-              if (Array.isArray(loadedGoals)) {
-                appState.plannerGoals = loadedGoals;
+              const subjectPrefs = typeof rawTags === 'string' ? JSON.parse(rawTags) : rawTags;
+              let customList = [];
+              if (subjectPrefs.custom_subjects_json) {
+                customList = typeof subjectPrefs.custom_subjects_json === 'string'
+                  ? JSON.parse(subjectPrefs.custom_subjects_json)
+                  : subjectPrefs.custom_subjects_json;
+              } else if (subjectPrefs.custom_subjects) {
+                customList = typeof subjectPrefs.custom_subjects === 'string'
+                  ? JSON.parse(subjectPrefs.custom_subjects)
+                  : subjectPrefs.custom_subjects;
+              } else if (Array.isArray(subjectPrefs)) {
+                customList = subjectPrefs;
+              }
+
+              const hiddenSet = new Set();
+              if (subjectPrefs.hidden_subjects_set) {
+                const hiddenArr = Array.isArray(subjectPrefs.hidden_subjects_set)
+                  ? subjectPrefs.hidden_subjects_set
+                  : (typeof subjectPrefs.hidden_subjects_set === 'string' ? JSON.parse(subjectPrefs.hidden_subjects_set) : []);
+                hiddenArr.forEach(h => hiddenSet.add(h));
+              }
+
+              const mergedSubjects = [];
+              DEFAULT_SUBJECTS.forEach(d => {
+                if (!hiddenSet.has(d.id)) {
+                  mergedSubjects.push({ ...d });
+                }
+              });
+
+              if (Array.isArray(customList)) {
+                customList.forEach(c => {
+                  if (c && c.id && !hiddenSet.has(c.id)) {
+                    const existingIdx = mergedSubjects.findIndex(s => s.id === c.id);
+                    const formatted = {
+                      id: c.id,
+                      name: c.name || 'Subject',
+                      color: c.colorHex || c.color || '#3b82f6',
+                      colorHex: c.colorHex || c.color || '#3b82f6',
+                      iconEmoji: c.iconEmoji || '📚',
+                      isCustom: true
+                    };
+                    if (existingIdx >= 0) {
+                      mergedSubjects[existingIdx] = formatted;
+                    } else {
+                      mergedSubjects.push(formatted);
+                    }
+                  }
+                });
+              }
+
+              if (mergedSubjects.length > 0) {
+                appState.subjects = mergedSubjects;
+                const selId = subjectPrefs.selected_subject_id || prefs.selected_subject_id;
+                const foundSel = appState.subjects.find(s => s.id === selId);
+                appState.selectedSubject = foundSel || appState.subjects[0];
               }
             } catch (e) {
-              console.error('Failed to parse remote planner_goals', e);
+              console.error('Failed to parse remote __subject_tags_data__', e);
             }
           }
 
+          // 3. Planner Goals Restoration (Android session_goals_json & Web __planner_goals_data__)
+          let loadedGoals = null;
+          if (prefs.session_goals_json) {
+            try {
+              loadedGoals = typeof prefs.session_goals_json === 'string'
+                ? JSON.parse(prefs.session_goals_json)
+                : prefs.session_goals_json;
+            } catch (_) {}
+          } else if (prefs.__planner_goals_data__) {
+            try {
+              loadedGoals = typeof prefs.__planner_goals_data__ === 'string'
+                ? JSON.parse(prefs.__planner_goals_data__)
+                : prefs.__planner_goals_data__;
+            } catch (_) {}
+          }
+
+          if (Array.isArray(loadedGoals) && loadedGoals.length > 0) {
+            appState.plannerGoals = loadedGoals.map(g => ({
+              id: g.id || ('goal_' + Date.now()),
+              subjectId: g.subjectId || 'general',
+              dailyMinutes: g.targetMinutes || g.dailyMinutes || 60,
+              targetMinutes: g.targetMinutes || g.dailyMinutes || 60,
+              title: g.title || '',
+              note: g.note || '',
+              completed: !!g.completed,
+              checkedAt: g.checkedAt || null,
+              createdAt: g.createdAt || Date.now()
+            }));
+          }
+
+          // 4. User Profile
           if (prefs.__user_profile__) {
             try {
               const loadedProfile = typeof prefs.__user_profile__ === 'string'
@@ -327,9 +410,10 @@ async function pullDataFromCloud() {
         }
       }
 
+      // 5. Timeline History
       if (data.timeline_data) {
         try {
-          const remoteTimeline = JSON.parse(data.timeline_data);
+          const remoteTimeline = typeof data.timeline_data === 'string' ? JSON.parse(data.timeline_data) : data.timeline_data;
           if (Array.isArray(remoteTimeline)) {
             appState.timelineEntries = remoteTimeline;
             reconstructTodaySessionsFromTimeline();
@@ -402,17 +486,60 @@ async function pushDataToCloud() {
     const userEmail = (user.email || '').slice(0, 150);
     const profileImg = (user.user_metadata?.avatar_url || '').slice(0, 500);
 
-    // Payload sanitization & safety caps (prevent bot memory overflow)
+    // Payload sanitization & safety caps
     const sanitizedSubjects = Array.isArray(appState.subjects) ? appState.subjects.slice(0, 50) : [];
     const sanitizedTimeline = Array.isArray(appState.timelineEntries) ? appState.timelineEntries.slice(-500) : [];
     const sanitizedGoals = Array.isArray(appState.plannerGoals) ? appState.plannerGoals.slice(0, 50) : [];
 
+    // Format subjects specifically for Android's studytimer_subject_tags SharedPreferences
+    const defaultIds = DEFAULT_SUBJECTS.map(d => d.id);
+    const customSubjectsForAndroid = sanitizedSubjects
+      .filter(s => !defaultIds.includes(s.id))
+      .map(s => ({
+        id: s.id,
+        name: s.name,
+        iconEmoji: s.iconEmoji || '📚',
+        colorHex: s.color || s.colorHex || '#3b82f6',
+        isCustom: true
+      }));
+
+    const allSubjectsForWeb = sanitizedSubjects.map(s => ({
+      id: s.id,
+      name: s.name,
+      color: s.color || s.colorHex || '#3b82f6',
+      colorHex: s.colorHex || s.color || '#3b82f6',
+      iconEmoji: s.iconEmoji || '📚'
+    }));
+
     const subjectTagsObj = {
-      custom_subjects: JSON.stringify(sanitizedSubjects)
+      custom_subjects_json: JSON.stringify(customSubjectsForAndroid),
+      custom_subjects: JSON.stringify(allSubjectsForWeb),
+      selected_subject_id: appState.selectedSubject?.id || 'general',
+      hidden_subjects_set: []
     };
 
+    // Format planner goals for Android's session_goals_json
+    const androidPlannerGoals = sanitizedGoals.map(g => {
+      const matchingSub = sanitizedSubjects.find(s => s.id === g.subjectId);
+      return {
+        id: g.id || ('goal_' + Date.now()),
+        title: g.title || (matchingSub ? `${matchingSub.name} Daily Target` : 'Daily Study Goal'),
+        note: g.note || '',
+        targetMinutes: Math.min(1440, Math.max(1, Number(g.dailyMinutes || g.targetMinutes) || 60)),
+        subjectId: g.subjectId || null,
+        completed: !!g.completed,
+        checkedAt: g.checkedAt || null,
+        createdAt: g.createdAt || Date.now()
+      };
+    });
+
+    const dailyGoalMin = Math.min(1440, Math.max(1, Number(timerConfig.dailyGoalMinutes) || 120));
+
     const prefsObj = {
-      daily_goal_minutes: Math.min(1440, Math.max(1, Number(timerConfig.dailyGoalMinutes) || 120)),
+      daily_goal_minutes: dailyGoalMin,
+      daily_goal_secs: dailyGoalMin * 60,
+      study_interval_minutes: Math.min(180, Math.max(1, Number(timerConfig.pomoFocusMinutes) || 25)),
+      break_interval_minutes: Math.min(60, Math.max(1, Number(timerConfig.pomoBreakMinutes) || 5)),
       custom_timer_minutes: Math.min(720, Math.max(1, Number(timerConfig.customTimerMinutes) || 45)),
       pomo_focus_minutes: Math.min(180, Math.max(1, Number(timerConfig.pomoFocusMinutes) || 25)),
       pomo_break_minutes: Math.min(60, Math.max(1, Number(timerConfig.pomoBreakMinutes) || 5)),
@@ -420,10 +547,12 @@ async function pushDataToCloud() {
       pomo_total_cycles: Math.min(12, Math.max(1, Number(timerConfig.pomoTotalCycles) || 4)),
       pomo_auto_switch_break: timerConfig.pomoAutoSwitchBreak !== false,
       pomo_auto_switch_focus: timerConfig.pomoAutoSwitchFocus !== false,
+      current_streak: Math.max(0, Number(appState.streakCount) || 0),
       streak_count: Math.max(0, Number(appState.streakCount) || 0),
       last_study_date: appState.lastStudyDate || '',
+      session_goals_json: JSON.stringify(androidPlannerGoals),
       __subject_tags_data__: JSON.stringify(subjectTagsObj),
-      __planner_goals_data__: JSON.stringify(sanitizedGoals),
+      __planner_goals_data__: JSON.stringify(androidPlannerGoals),
       __user_profile__: JSON.stringify(appState.userProfile)
     };
 
@@ -435,6 +564,7 @@ async function pushDataToCloud() {
       profile_image_uri: profileImg,
       prefs_data: JSON.stringify(prefsObj),
       timeline_data: JSON.stringify(sanitizedTimeline),
+      subject_tags_data: JSON.stringify(subjectTagsObj),
       updated_at: nowMs,
       last_modified_timestamp: nowMs
     };
@@ -468,10 +598,11 @@ function reconstructTodaySessionsFromTimeline() {
 
   const sessions = [];
   const entries = (appState.timelineEntries || []).filter(e => e && e.t >= startOfDayMs && e.t < endOfDayMs);
+  const studyStates = new Set(['STUDYING', 'POMODORO', 'COUNT_UP', 'COUNTDOWN', 'MANUAL_FOCUS', 'FOCUS']);
 
   for (let i = 0; i < entries.length; i++) {
     const curr = entries[i];
-    if (curr && (curr.s === 'STUDYING' || curr.s === 'POMODORO' || curr.s === 'COUNT_UP')) {
+    if (curr && studyStates.has(curr.s)) {
       let durationSec = curr.durationSec;
       let sessionEnd = curr.endT;
 
@@ -479,7 +610,7 @@ function reconstructTodaySessionsFromTimeline() {
         const next = entries[i + 1];
         if (next && next.t > curr.t) {
           const diff = Math.round((next.t - curr.t) / 1000);
-          durationSec = (diff > 0 && diff <= 28800) ? diff : 60;
+          durationSec = (diff > 0 && diff <= 86400) ? diff : 60;
           sessionEnd = next.t;
         } else {
           durationSec = 60;
@@ -488,15 +619,23 @@ function reconstructTodaySessionsFromTimeline() {
       }
 
       let modeLabel = 'Focus Study';
-      if (curr.s === 'POMODORO') modeLabel = 'Pomodoro';
+      if (curr.s === 'POMODORO' || curr.s === 'COUNTDOWN') modeLabel = 'Pomodoro';
       else if (curr.s === 'COUNT_UP') modeLabel = 'Stopwatch';
+      else if (curr.s === 'MANUAL_FOCUS') modeLabel = 'Manual Focus';
+
+      const subId = curr.subId || 'general';
+      const matchingSub = (appState.subjects || []).find(s => s.id === subId) || {
+        id: subId,
+        name: curr.subName || 'Focus Study',
+        color: curr.subColor || '#3b82f6'
+      };
 
       sessions.push({
         id: 'sess_' + curr.t,
         subject: {
-          name: curr.subName || 'Focus Study',
-          color: curr.subColor || '#3b82f6',
-          id: curr.subId || 'default'
+          id: matchingSub.id,
+          name: curr.subName || matchingSub.name,
+          color: curr.subColor || matchingSub.color
         },
         durationSec,
         startTime: curr.t,
@@ -526,9 +665,11 @@ function getAllValidatedSessions() {
 
   // 2. Parse historical timeline entries
   const entries = appState.timelineEntries || [];
+  const studyStates = new Set(['STUDYING', 'POMODORO', 'COUNT_UP', 'COUNTDOWN', 'MANUAL_FOCUS', 'FOCUS']);
+
   for (let i = 0; i < entries.length; i++) {
     const curr = entries[i];
-    if (curr && (curr.s === 'STUDYING' || curr.s === 'POMODORO' || curr.s === 'COUNT_UP')) {
+    if (curr && studyStates.has(curr.s)) {
       let durationSec = curr.durationSec;
       let sessionEnd = curr.endT;
 
@@ -536,7 +677,7 @@ function getAllValidatedSessions() {
         const next = entries[i + 1];
         if (next && next.t > curr.t) {
           const diff = Math.round((next.t - curr.t) / 1000);
-          durationSec = (diff > 0 && diff <= 28800) ? diff : 60;
+          durationSec = (diff > 0 && diff <= 86400) ? diff : 60;
           sessionEnd = next.t;
         } else {
           durationSec = 60;
@@ -548,15 +689,23 @@ function getAllValidatedSessions() {
       if (!seenKeys.has(key)) {
         seenKeys.add(key);
         let modeLabel = 'Focus Study';
-        if (curr.s === 'POMODORO') modeLabel = 'Pomodoro';
+        if (curr.s === 'POMODORO' || curr.s === 'COUNTDOWN') modeLabel = 'Pomodoro';
         else if (curr.s === 'COUNT_UP') modeLabel = 'Stopwatch';
+        else if (curr.s === 'MANUAL_FOCUS') modeLabel = 'Manual Focus';
+
+        const subId = curr.subId || 'general';
+        const matchingSub = (appState.subjects || []).find(s => s.id === subId) || {
+          id: subId,
+          name: curr.subName || 'Focus Study',
+          color: curr.subColor || '#3b82f6'
+        };
 
         sessions.push({
           id: 'sess_' + curr.t,
           subject: {
-            id: curr.subId || 'default',
-            name: curr.subName || 'Focus Study',
-            color: curr.subColor || '#3b82f6'
+            id: matchingSub.id,
+            name: curr.subName || matchingSub.name,
+            color: curr.subColor || matchingSub.color
           },
           durationSec,
           startTime: curr.t,
@@ -568,7 +717,7 @@ function getAllValidatedSessions() {
     }
   }
 
-  return sessions;
+  return sessions.sort((a, b) => b.timestamp - a.timestamp);
 }
 
 // ============================================================================
@@ -698,6 +847,23 @@ function setupEventListeners() {
     if (e.target.id === 'leaderboardModalOverlay') closeLeaderboardModal();
   });
   document.getElementById('btnRefreshLeaderboard')?.addEventListener('click', () => fetchLeaderboard(true));
+
+  // Manual "Sync with App" Dropdown Trigger
+  document.getElementById('btnManualSync')?.addEventListener('click', async () => {
+    document.getElementById('userMenuDropdown')?.classList.add('hidden');
+    if (!appState.currentUser) {
+      openAuthModal();
+      return;
+    }
+    showToast('☁️ Pulling latest data from Android app...', 'info');
+    await pullDataFromCloud(true);
+    showToast('✨ All study sessions, subjects & goals synced with Android app!', 'success');
+  });
+
+  // Guest Banner Sign-in Trigger
+  document.getElementById('btnBannerSignIn')?.addEventListener('click', () => {
+    openAuthModal();
+  });
 
   // Profile Customization Modal Trigger (Available upon user login in dropdown)
   document.getElementById('btnOpenProfileModal')?.addEventListener('click', () => {

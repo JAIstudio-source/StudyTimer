@@ -19,6 +19,10 @@ html, body {
   background-color: var(--bg-canvas);
   color: var(--text-primary);
   min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   -webkit-tap-highlight-color: transparent;
@@ -170,18 +174,32 @@ html, body {
   height: 16px;
 }
 
+@media (max-width: 680px) {
+  #btnBrowserFullscreen {
+    display: none !important;
+  }
+}
+
 @media (max-width: 560px) {
   .auth-btn-label {
     display: none !important;
   }
   .auth-btn-compact {
     padding: 6px 8px;
+    font-size: 0.76rem;
   }
   .sync-status-pill .sync-label {
     display: none !important;
   }
   .sync-status-pill {
-    padding: 7px;
+    padding: 6px;
+  }
+  .demo-nav-actions {
+    gap: 5px;
+  }
+  .demo-icon-btn {
+    width: 32px;
+    height: 32px;
   }
 }
 
@@ -576,10 +594,10 @@ html, body {
 /* Central Circular Timer Ring */
 .timer-ring-container {
   position: relative;
-  width: clamp(240px, 42vw, 320px);
-  height: clamp(240px, 42vw, 320px);
+  width: clamp(210px, 58vw, 320px);
+  height: clamp(210px, 58vw, 320px);
   max-width: 100%;
-  margin: 10px auto 30px;
+  margin: 10px auto 26px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -619,10 +637,11 @@ html, body {
   align-items: center;
   justify-content: center;
   text-align: center;
+  width: 80%;
 }
 
 .timer-state-badge {
-  font-size: clamp(0.72rem, 1.8vw, 0.8rem);
+  font-size: clamp(0.7rem, 1.8vw, 0.8rem);
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -632,9 +651,14 @@ html, body {
 
 .timer-digital-display {
   font-family: var(--font-mono);
-  font-size: clamp(3rem, 7vw, 4.2rem);
+  font-size: clamp(2.5rem, 9vw, 4.2rem);
   font-weight: 700;
   line-height: 1;
+  color: var(--text-primary);
+  letter-spacing: -0.03em;
+  margin-bottom: 8px;
+  font-variant-numeric: tabular-nums;
+}
   color: var(--text-primary);
   letter-spacing: -0.03em;
   margin-bottom: 10px;
@@ -1422,4 +1446,232 @@ html, body {
 :fullscreen .demo-header,
 :-webkit-full-screen .demo-header {
   opacity: 0.85;
+}
+
+/* ==========================================================================
+   7. COMPREHENSIVE MOBILE & ANDROID WEB OPTIMIZATIONS
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* Prevent horizontal overflow & cut-offs */
+  .demo-workspace-main {
+    padding: 12px 12px 36px;
+    width: 100%;
+    max-width: 100vw;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
+  .demo-grid-layout {
+    padding: 0 !important;
+    gap: 16px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .studio-card {
+    padding: 18px 14px;
+    border-radius: 20px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .studio-header {
+    margin-bottom: 16px;
+    gap: 8px;
+  }
+
+  .active-mode-badge {
+    font-size: 0.74rem;
+    padding: 5px 10px;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* 4-Tab Responsive Modes */
+  .timer-mode-selector {
+    padding: 3px;
+    gap: 3px;
+    margin-bottom: 18px;
+    width: 100%;
+  }
+
+  .mode-btn {
+    padding: 8px 2px;
+    font-size: 0.74rem;
+    letter-spacing: -0.01em;
+  }
+
+  /* Subject Bar 2-Row Fluid Layout on Mobile */
+  .subject-tag-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    width: 100%;
+  }
+
+  .subject-bar-label {
+    font-size: 0.72rem;
+  }
+
+  .subject-pills-scroll {
+    order: 3;
+    width: 100%;
+    flex: none;
+    padding: 4px 0 6px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .subject-pill {
+    padding: 5px 12px;
+    font-size: 0.78rem;
+  }
+
+  .add-subject-pill-btn {
+    padding: 4px 10px;
+    font-size: 0.74rem;
+  }
+
+  /* Timer Ring Sizing on Mobile */
+  .timer-ring-container {
+    width: clamp(200px, 60vw, 280px);
+    height: clamp(200px, 60vw, 280px);
+    margin: 4px auto 20px;
+  }
+
+  .timer-digital-display {
+    font-size: clamp(2.4rem, 10.5vw, 3.6rem);
+    margin-bottom: 6px;
+  }
+
+  .timer-state-badge {
+    font-size: 0.7rem;
+    margin-bottom: 4px;
+  }
+
+  .timer-current-subject {
+    font-size: 0.76rem;
+    padding: 4px 10px;
+    max-width: 160px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Controls */
+  .timer-controls-area {
+    gap: 12px;
+  }
+
+  .btn-timer-primary {
+    max-width: 280px;
+    padding: 12px 20px;
+    font-size: 0.98rem;
+  }
+
+  .timer-secondary-actions {
+    max-width: 280px;
+    gap: 8px;
+  }
+
+  .btn-timer-subtle {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+
+  /* Hub Cards */
+  .productivity-hub {
+    gap: 14px;
+    width: 100%;
+  }
+
+  .hub-card {
+    padding: 16px 14px;
+    border-radius: 18px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .target-stat-numbers {
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .stat-label {
+    font-size: 0.68rem;
+  }
+
+  .stat-val {
+    font-size: 0.95rem;
+  }
+
+  /* Guest Banner */
+  .guest-banner-container {
+    padding: 0 12px !important;
+    gap: 8px;
+  }
+
+  .guest-banner-text {
+    font-size: 0.76rem;
+  }
+
+  /* Modals */
+  .modal-overlay {
+    padding: 10px;
+  }
+
+  .modal-card {
+    max-height: calc(100dvh - 20px);
+    border-radius: 18px;
+    width: 100%;
+  }
+
+  .modal-header {
+    padding: 18px 16px 12px;
+  }
+
+  .modal-body {
+    padding: 0 16px 16px;
+  }
+
+  .presets-grid {
+    gap: 4px;
+  }
+
+  .settings-chip {
+    padding: 6px 2px;
+    font-size: 0.74rem;
+  }
+
+  .settings-grid-row {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 400px) {
+  .logo-text {
+    font-size: 0.95rem;
+  }
+
+  .mode-btn {
+    font-size: 0.68rem;
+    padding: 7px 1px;
+  }
+
+  .timer-ring-container {
+    width: clamp(190px, 58vw, 240px);
+    height: clamp(190px, 58vw, 240px);
+  }
+
+  .timer-digital-display {
+    font-size: clamp(2.1rem, 9.5vw, 2.8rem);
+  }
+
+  .stat-val {
+    font-size: 0.88rem;
+  }
 }

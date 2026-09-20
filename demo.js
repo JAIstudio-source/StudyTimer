@@ -379,17 +379,29 @@ function reconstructTodaySessionsFromTimeline() {
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
   const startOfDayMs = startOfDay.getTime();
+  const endOfDayMs = startOfDayMs + 86400000;
 
   const sessions = [];
-  const entries = appState.timelineEntries.filter(e => e.t >= startOfDayMs);
+  const entries = (appState.timelineEntries || []).filter(e => e && e.t >= startOfDayMs && e.t < endOfDayMs);
 
   for (let i = 0; i < entries.length; i++) {
     const curr = entries[i];
-    if (curr.s === 'STUDYING' || curr.s === 'POMODORO' || curr.s === 'COUNT_UP') {
-      const next = entries[i + 1];
-      const endMs = next ? next.t : curr.t + 1500 * 1000;
-      const durationSec = Math.max(1, Math.round((endMs - curr.t) / 1000));
-      
+    if (curr && (curr.s === 'STUDYING' || curr.s === 'POMODORO' || curr.s === 'COUNT_UP')) {
+      let durationSec = curr.durationSec;
+      let sessionEnd = curr.endT;
+
+      if (typeof durationSec !== 'number' || durationSec <= 0) {
+        const next = entries[i + 1];
+        if (next && next.t > curr.t) {
+          const diff = Math.round((next.t - curr.t) / 1000);
+          durationSec = (diff > 0 && diff <= 28800) ? diff : 60;
+          sessionEnd = next.t;
+        } else {
+          durationSec = 60;
+          sessionEnd = curr.t + 60000;
+        }
+      }
+
       let modeLabel = 'Focus Study';
       if (curr.s === 'POMODORO') modeLabel = 'Pomodoro';
       else if (curr.s === 'COUNT_UP') modeLabel = 'Stopwatch';
@@ -403,7 +415,7 @@ function reconstructTodaySessionsFromTimeline() {
         },
         durationSec,
         startTime: curr.t,
-        endTime: endMs,
+        endTime: sessionEnd || (curr.t + durationSec * 1000),
         timestamp: curr.t,
         mode: modeLabel
       });
@@ -411,6 +423,67 @@ function reconstructTodaySessionsFromTimeline() {
   }
 
   appState.todaySessions = sessions.reverse();
+}
+
+// Universal extractor for all completed sessions with zero duplicate or hardcoded inflations
+function getAllValidatedSessions() {
+  const sessions = [];
+  const seenKeys = new Set();
+
+  // 1. Add verified sessions from today's real-time state first
+  (appState.todaySessions || []).forEach(s => {
+    if (s && typeof s.durationSec === 'number' && s.durationSec > 0) {
+      sessions.push(s);
+      const key = `${Math.floor(s.timestamp / 1000)}_${s.durationSec}`;
+      seenKeys.add(key);
+    }
+  });
+
+  // 2. Parse historical timeline entries
+  const entries = appState.timelineEntries || [];
+  for (let i = 0; i < entries.length; i++) {
+    const curr = entries[i];
+    if (curr && (curr.s === 'STUDYING' || curr.s === 'POMODORO' || curr.s === 'COUNT_UP')) {
+      let durationSec = curr.durationSec;
+      let sessionEnd = curr.endT;
+
+      if (typeof durationSec !== 'number' || durationSec <= 0) {
+        const next = entries[i + 1];
+        if (next && next.t > curr.t) {
+          const diff = Math.round((next.t - curr.t) / 1000);
+          durationSec = (diff > 0 && diff <= 28800) ? diff : 60;
+          sessionEnd = next.t;
+        } else {
+          durationSec = 60;
+          sessionEnd = curr.t + 60000;
+        }
+      }
+
+      const key = `${Math.floor(curr.t / 1000)}_${durationSec}`;
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        let modeLabel = 'Focus Study';
+        if (curr.s === 'POMODORO') modeLabel = 'Pomodoro';
+        else if (curr.s === 'COUNT_UP') modeLabel = 'Stopwatch';
+
+        sessions.push({
+          id: 'sess_' + curr.t,
+          subject: {
+            id: curr.subId || 'default',
+            name: curr.subName || 'Focus Study',
+            color: curr.subColor || '#3b82f6'
+          },
+          durationSec,
+          startTime: curr.t,
+          endTime: sessionEnd || (curr.t + durationSec * 1000),
+          timestamp: curr.t,
+          mode: modeLabel
+        });
+      }
+    }
+  }
+
+  return sessions;
 }
 
 // ============================================================================
@@ -433,7 +506,23 @@ function loadLocalState() {
       }
       if (Array.isArray(parsed.timelineEntries)) {
         appState.timelineEntries = parsed.timelineEntries;
+      }
+
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const startOfDayMs = startOfDay.getTime();
+      const endOfDayMs = startOfDayMs + 86400000;
+
+      if (Array.isArray(parsed.todaySessions) && parsed.todaySessions.length > 0) {
+        // Filter strictly for verified sessions that occurred TODAY
+        appState.todaySessions = parsed.todaySessions.filter(s => 
+          s && typeof s.durationSec === 'number' && s.durationSec > 0 &&
+          s.timestamp >= startOfDayMs && s.timestamp < endOfDayMs
+        );
+      } else if (Array.isArray(appState.timelineEntries) && appState.timelineEntries.length > 0) {
         reconstructTodaySessionsFromTimeline();
+      } else {
+        appState.todaySessions = [];
       }
     }
   } catch (e) {
@@ -449,7 +538,8 @@ function saveLocalState() {
       lastStudyDate: appState.lastStudyDate,
       subjects: appState.subjects,
       plannerGoals: appState.plannerGoals || [],
-      timelineEntries: appState.timelineEntries
+      timelineEntries: appState.timelineEntries || [],
+      todaySessions: appState.todaySessions || []
     };
     localStorage.setItem('studytimer_demo_state', JSON.stringify(stateToSave));
   } catch (e) {
@@ -1004,7 +1094,9 @@ function finishSession(isAutoFinished = false) {
       s: stateKey,
       subId: subject.id,
       subName: subject.name,
-      subColor: subject.color
+      subColor: subject.color,
+      durationSec: studiedDurationSec,
+      endT: now
     };
     const idleEntry = {
       t: now,
@@ -1495,27 +1587,37 @@ function closeInsightsDrawer() {
 
 function updateProgressAndStreak() {
   let totalSecToday = 0;
-  appState.todaySessions.forEach(s => {
-    totalSecToday += s.durationSec;
+  (appState.todaySessions || []).forEach(s => {
+    if (s && typeof s.durationSec === 'number' && s.durationSec > 0) {
+      totalSecToday += s.durationSec;
+    }
   });
 
   const totalMinToday = Math.round(totalSecToday / 60);
-  const goalMin = timerConfig.dailyGoalMinutes || 120;
-  const percent = Math.min(100, Math.round((totalMinToday / goalMin) * 100));
+  const goalMin = Math.max(1, timerConfig.dailyGoalMinutes || 120);
+  const goalSec = goalMin * 60;
+  const percent = Math.min(100, Math.round((totalSecToday / goalSec) * 100));
+  const remainingSec = Math.max(0, goalSec - totalSecToday);
+  const remainingMin = Math.ceil(remainingSec / 60);
 
   const hubStreakCount = document.getElementById('hubStreakCount');
   if (hubStreakCount) hubStreakCount.textContent = `${appState.streakCount || 1} Day Streak`;
 
   const statStudiedToday = document.getElementById('statStudiedToday');
   const statDailyGoal = document.getElementById('statDailyGoal');
+  const statGoalRemaining = document.getElementById('statGoalRemaining');
   const statGoalPercent = document.getElementById('statGoalPercent');
   const largeGoalProgressBar = document.getElementById('largeGoalProgressBar');
 
   if (statStudiedToday) {
-    if (totalMinToday >= 60) {
+    if (totalSecToday === 0) {
+      statStudiedToday.textContent = '0m';
+    } else if (totalMinToday >= 60) {
       const h = Math.floor(totalMinToday / 60);
       const m = totalMinToday % 60;
       statStudiedToday.textContent = `${h}h ${m > 0 ? m + 'm' : ''}`;
+    } else if (totalMinToday === 0 && totalSecToday > 0) {
+      statStudiedToday.textContent = `${totalSecToday}s`;
     } else {
       statStudiedToday.textContent = `${totalMinToday}m`;
     }
@@ -1528,6 +1630,22 @@ function updateProgressAndStreak() {
       statDailyGoal.textContent = `${h}h ${m > 0 ? m + 'm' : ''}`;
     } else {
       statDailyGoal.textContent = `${goalMin}m`;
+    }
+  }
+
+  if (statGoalRemaining) {
+    if (totalSecToday >= goalSec) {
+      statGoalRemaining.textContent = 'Goal Met! 🎉';
+      statGoalRemaining.style.color = 'var(--accent-emerald)';
+    } else {
+      if (remainingMin >= 60) {
+        const h = Math.floor(remainingMin / 60);
+        const m = remainingMin % 60;
+        statGoalRemaining.textContent = `${h}h ${m > 0 ? m + 'm' : ''} left`;
+      } else {
+        statGoalRemaining.textContent = `${remainingMin}m left`;
+      }
+      statGoalRemaining.style.color = '#f59e0b';
     }
   }
 
@@ -1551,34 +1669,41 @@ function renderSubjectDonutChart() {
   const subjectTotals = {};
   let totalSecToday = 0;
 
-  appState.todaySessions.forEach(s => {
-    const subId = s.subject.id || s.subject.name;
-    if (!subjectTotals[subId]) {
-      subjectTotals[subId] = {
-        id: subId,
-        name: s.subject.name,
-        color: s.subject.color || '#3b82f6',
-        durationSec: 0
-      };
+  (appState.todaySessions || []).forEach(s => {
+    if (s && s.durationSec > 0) {
+      const subId = s.subject?.id || s.subject?.name || 'default';
+      if (!subjectTotals[subId]) {
+        subjectTotals[subId] = {
+          id: subId,
+          name: s.subject?.name || 'Focus Study',
+          color: s.subject?.color || '#3b82f6',
+          durationSec: 0
+        };
+      }
+      subjectTotals[subId].durationSec += s.durationSec;
+      totalSecToday += s.durationSec;
     }
-    subjectTotals[subId].durationSec += s.durationSec;
-    totalSecToday += s.durationSec;
   });
 
   const totalMinToday = Math.round(totalSecToday / 60);
-  const formattedTotal = totalMinToday >= 60 
-    ? `${Math.floor(totalMinToday / 60)}h ${totalMinToday % 60}m` 
-    : `${totalMinToday}m`;
+  let formattedTotal = '0m';
+  if (totalSecToday > 0) {
+    if (totalMinToday >= 60) {
+      formattedTotal = `${Math.floor(totalMinToday / 60)}h ${totalMinToday % 60 > 0 ? (totalMinToday % 60) + 'm' : ''}`;
+    } else if (totalMinToday === 0) {
+      formattedTotal = `${totalSecToday}s`;
+    } else {
+      formattedTotal = `${totalMinToday}m`;
+    }
+  }
 
   if (totalBadge) totalBadge.textContent = `${formattedTotal} total`;
   if (centerSub) centerSub.textContent = 'Today';
   if (centerVal) centerVal.textContent = formattedTotal;
   if (centerPct) centerPct.classList.add('hidden');
 
-  // Reset highlight state
   activeHighlightedSubjectId = null;
 
-  // Clear previous slices while keeping track
   const bgTrack = svg.querySelector('.donut-bg-track');
   svg.innerHTML = '';
   if (bgTrack) {
@@ -1614,7 +1739,9 @@ function renderSubjectDonutChart() {
     activeHighlightedSubjectId = item.id;
     const itemPct = Math.round((item.durationSec / totalSecToday) * 100);
     const itemMin = Math.round(item.durationSec / 60);
-    const itemTimeStr = itemMin >= 60 ? `${Math.floor(itemMin / 60)}h ${itemMin % 60}m` : `${itemMin}m`;
+    const itemTimeStr = itemMin >= 60 
+      ? `${Math.floor(itemMin / 60)}h ${itemMin % 60 > 0 ? (itemMin % 60) + 'm' : ''}` 
+      : (itemMin === 0 ? `${item.durationSec}s` : `${itemMin}m`);
 
     if (centerSub) centerSub.textContent = item.name;
     if (centerVal) centerVal.textContent = itemTimeStr;
@@ -1655,10 +1782,11 @@ function renderSubjectDonutChart() {
   });
 
   entries.forEach(item => {
-    // Relative distribution: Always fills 100% of the ring across all subjects
     const itemPct = (item.durationSec / totalSecToday) * 100;
     const itemMin = Math.round(item.durationSec / 60);
-    const itemTimeStr = itemMin >= 60 ? `${Math.floor(itemMin / 60)}h ${itemMin % 60}m` : `${itemMin}m`;
+    const itemTimeStr = itemMin >= 60 
+      ? `${Math.floor(itemMin / 60)}h ${itemMin % 60 > 0 ? (itemMin % 60) + 'm' : ''}` 
+      : (itemMin === 0 ? `${item.durationSec}s` : `${itemMin}m`);
 
     const sliceLength = (itemPct / 100) * circumference;
     const offset = circumference - ((accumulatedPercent / 100) * circumference);
@@ -1683,7 +1811,6 @@ function renderSubjectDonutChart() {
     svg.appendChild(circle);
     accumulatedPercent += itemPct;
 
-    // Legend Item
     const legendItem = document.createElement('div');
     legendItem.className = 'donut-legend-item';
     legendItem.setAttribute('data-sub-id', item.id);
@@ -1720,18 +1847,14 @@ function renderActivityHeatmap() {
   let totalActiveDays = 0;
   let totalStudiedSec = 0;
 
-  appState.timelineEntries.forEach(entry => {
-    if (entry.t && (entry.s === 'STUDYING' || entry.s === 'POMODORO' || entry.s === 'COUNT_UP')) {
-      const d = new Date(entry.t);
-      const dateKey = d.toISOString().split('T')[0];
-      dateMap[dateKey] = (dateMap[dateKey] || 0) + 1500;
-    }
-  });
+  const allSessions = getAllValidatedSessions();
 
-  appState.todaySessions.forEach(sess => {
-    const d = new Date(sess.timestamp);
-    const dateKey = d.toISOString().split('T')[0];
-    dateMap[dateKey] = (dateMap[dateKey] || 0) + sess.durationSec;
+  allSessions.forEach(sess => {
+    if (sess && sess.durationSec > 0) {
+      const d = new Date(sess.timestamp || sess.startTime);
+      const dateKey = d.toISOString().split('T')[0];
+      dateMap[dateKey] = (dateMap[dateKey] || 0) + sess.durationSec;
+    }
   });
 
   Object.values(dateMap).forEach(sec => {
@@ -1742,8 +1865,10 @@ function renderActivityHeatmap() {
   });
 
   if (yearLabel) {
-    const totalHrs = Math.round(totalStudiedSec / 3600);
-    yearLabel.textContent = `${totalActiveDays} Active Day${totalActiveDays === 1 ? '' : 's'}${totalHrs > 0 ? ' • ' + totalHrs + 'h' : ''}`;
+    const totalHrs = Math.floor(totalStudiedSec / 3600);
+    const totalMins = Math.round((totalStudiedSec % 3600) / 60);
+    const formattedTotal = totalHrs > 0 ? `${totalHrs}h ${totalMins}m` : `${totalMins}m`;
+    yearLabel.textContent = `${totalActiveDays} Active Day${totalActiveDays === 1 ? '' : 's'}${totalStudiedSec > 0 ? ' • ' + formattedTotal : ''}`;
   }
 
   const now = new Date();
@@ -1771,13 +1896,11 @@ function renderActivityHeatmap() {
       currentWeekCol.className = 'heatmap-col-week';
       container.appendChild(currentWeekCol);
 
-      // Check if this week column introduces a new month
       const curMonth = curDate.getMonth();
       if (curMonth !== lastMonthIndex && monthsRow) {
         lastMonthIndex = curMonth;
         const monthLabel = document.createElement('span');
         monthLabel.className = 'heatmap-month-label';
-        // 10px cell + 3px gap = 13px per column
         monthLabel.style.left = `${colIndex * 13}px`;
         monthLabel.textContent = monthNames[curMonth];
         monthsRow.appendChild(monthLabel);
@@ -1810,7 +1933,6 @@ function renderActivityHeatmap() {
     currentWeekCol.appendChild(cell);
   }
 
-  // Auto-scroll to the latest weeks on right
   const scrollWrapper = document.querySelector('.heatmap-scroll-wrapper');
   if (scrollWrapper) {
     scrollWrapper.scrollLeft = scrollWrapper.scrollWidth;
@@ -1843,47 +1965,39 @@ function renderMonthlyCalendar() {
   const lastDayOfMonth = new Date(activeCalendarYear, activeCalendarMonth + 1, 0);
   const daysInMonth = lastDayOfMonth.getDate();
 
-  // Starting Day of week (0 = Mon, 6 = Sun)
   const startDayIndex = (firstDayOfMonth.getDay() + 6) % 7;
-
-  // Previous month padding
   const prevMonthLastDay = new Date(activeCalendarYear, activeCalendarMonth, 0).getDate();
   for (let i = startDayIndex - 1; i >= 0; i--) {
     const cell = document.createElement('div');
     cell.className = 'cal-day-cell other-month';
-    cell.innerHTML = `<span class="cal-day-num">${prevMonthLastDay - i}</span>`;
+    cell.innerHTML = `
+      <div class="cal-day-ring-wrap">
+        <span class="cal-day-num">${prevMonthLastDay - i}</span>
+      </div>
+    `;
     daysGrid.appendChild(cell);
   }
 
   const todayStr = new Date().toISOString().split('T')[0];
 
-  // Map of sessions and total duration per date
   const dateSessionsMap = {};
   const dateDurationMap = {};
 
-  appState.timelineEntries.forEach(e => {
-    if (e.t && (e.s === 'STUDYING' || e.s === 'POMODORO' || e.s === 'COUNT_UP')) {
-      const d = new Date(e.t);
+  const allSessions = getAllValidatedSessions();
+  allSessions.forEach(s => {
+    if (s && s.durationSec > 0) {
+      const d = new Date(s.timestamp || s.startTime);
       const dateKey = d.toISOString().split('T')[0];
       if (!dateSessionsMap[dateKey]) dateSessionsMap[dateKey] = [];
-      dateSessionsMap[dateKey].push(e.subColor || '#3b82f6');
-      dateDurationMap[dateKey] = (dateDurationMap[dateKey] || 0) + 1500;
+      dateSessionsMap[dateKey].push(s.subject?.color || '#3b82f6');
+      dateDurationMap[dateKey] = (dateDurationMap[dateKey] || 0) + s.durationSec;
     }
-  });
-
-  appState.todaySessions.forEach(s => {
-    const d = new Date(s.timestamp);
-    const dateKey = d.toISOString().split('T')[0];
-    if (!dateSessionsMap[dateKey]) dateSessionsMap[dateKey] = [];
-    dateSessionsMap[dateKey].push(s.subject.color || '#3b82f6');
-    dateDurationMap[dateKey] = (dateDurationMap[dateKey] || 0) + s.durationSec;
   });
 
   const dailyGoalSec = (timerConfig.dailyGoalMinutes || 120) * 60;
   let monthGoalsMet = 0;
   let monthTotalSecs = 0;
 
-  // Render Current Month Days
   for (let day = 1; day <= daysInMonth; day++) {
     const dateKey = `${activeCalendarYear}-${String(activeCalendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     
@@ -1911,12 +2025,12 @@ function renderMonthlyCalendar() {
     const cell = document.createElement('div');
     cell.className = `cal-day-cell ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''} ${goalStatusClass}`;
     
-    // Day hover tooltip with study time vs goal
     const minStudied = Math.round(focusSecs / 60);
     const goalMin = Math.round(dailyGoalSec / 60);
+    const leftMin = Math.max(0, goalMin - minStudied);
     const formattedDate = new Date(dateKey + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' });
     cell.title = focusSecs > 0 
-      ? `${formattedDate}: ${minStudied}m / ${goalMin}m goal (${Math.round(pct * 100)}%)` 
+      ? `${formattedDate}: ${minStudied}m / ${goalMin}m goal (${Math.round(pct * 100)}%${leftMin > 0 ? ' • ' + leftMin + 'm left' : ' • Goal Reached!'})` 
       : `${formattedDate}: No study sessions`;
 
     let dotsHtml = '';
@@ -1944,7 +2058,20 @@ function renderMonthlyCalendar() {
     daysGrid.appendChild(cell);
   }
 
-  // Render Monthly Summary Badges
+  // Next month padding to complete grid
+  const totalCellsSoFar = startDayIndex + daysInMonth;
+  const remainingCells = (totalCellsSoFar <= 35 ? 35 : 42) - totalCellsSoFar;
+  for (let d = 1; d <= remainingCells; d++) {
+    const cell = document.createElement('div');
+    cell.className = 'cal-day-cell other-month';
+    cell.innerHTML = `
+      <div class="cal-day-ring-wrap">
+        <span class="cal-day-num">${d}</span>
+      </div>
+    `;
+    daysGrid.appendChild(cell);
+  }
+
   if (summaryRow) {
     const totalHrs = Math.floor(monthTotalSecs / 3600);
     const totalMins = Math.round((monthTotalSecs % 3600) / 60);
@@ -1994,43 +2121,12 @@ function renderSelectedDateTimeline(dateStr) {
     title.textContent = isToday ? "Today's Sessions" : `Sessions (${formattedDate})`;
   }
 
-  const targetDate = new Date(dateStr + 'T00:00:00');
-  const nextDate = new Date(targetDate);
-  nextDate.setDate(nextDate.getDate() + 1);
-
-  const startMs = targetDate.getTime();
-  const endMs = nextDate.getTime();
-
-  let sessions = [];
-  if (isToday) {
-    sessions = appState.todaySessions.filter(s => s.durationSec >= 10);
-  } else {
-    const entries = appState.timelineEntries.filter(e => e.t >= startMs && e.t < endMs);
-    for (let i = 0; i < entries.length; i++) {
-      const curr = entries[i];
-      if (curr.s === 'STUDYING' || curr.s === 'POMODORO' || curr.s === 'COUNT_UP') {
-        const next = entries[i + 1];
-        const sessionEnd = next ? next.t : curr.t + 1500 * 1000;
-        const durationSec = Math.max(1, Math.round((sessionEnd - curr.t) / 1000));
-        let modeLabel = 'Focus Study';
-        if (curr.s === 'POMODORO') modeLabel = 'Pomodoro';
-        else if (curr.s === 'COUNT_UP') modeLabel = 'Stopwatch';
-
-        sessions.push({
-          id: 'sess_' + curr.t,
-          subject: {
-            name: curr.subName || 'Focus Study',
-            color: curr.subColor || '#3b82f6'
-          },
-          durationSec,
-          startTime: curr.t,
-          endTime: sessionEnd,
-          timestamp: curr.t,
-          mode: modeLabel
-        });
-      }
-    }
-  }
+  const allSessions = getAllValidatedSessions();
+  const sessions = allSessions.filter(s => {
+    if (!s || !s.durationSec) return false;
+    const dStr = new Date(s.timestamp || s.startTime).toISOString().split('T')[0];
+    return dStr === dateStr;
+  });
 
   if (countBadge) countBadge.textContent = `${sessions.length} session${sessions.length === 1 ? '' : 's'}`;
 
@@ -2051,8 +2147,6 @@ function renderSelectedDateTimeline(dateStr) {
   container.innerHTML = '';
   sessions.forEach(sess => {
     const mins = Math.max(1, Math.round(sess.durationSec / 60));
-    
-    // Format exact start and end time range (e.g. 10:15 AM – 10:40 AM)
     const startTimeFormatted = new Date(sess.startTime || sess.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const endTimeFormatted = sess.endTime 
       ? new Date(sess.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -2062,9 +2156,9 @@ function renderSelectedDateTimeline(dateStr) {
     item.className = 'timeline-item';
     item.innerHTML = `
       <div class="timeline-item-left">
-        <span class="subject-color-dot" style="background-color: ${sess.subject.color};"></span>
+        <span class="subject-color-dot" style="background-color: ${sess.subject?.color || '#3b82f6'};"></span>
         <div>
-          <div class="timeline-subject-name">${sess.subject.name}</div>
+          <div class="timeline-subject-name">${sess.subject?.name || 'Focus Study'}</div>
           <span class="timeline-mode-pill">${sess.mode || 'Focus Study'}</span>
         </div>
       </div>
@@ -2113,10 +2207,12 @@ function renderPlannerGoals() {
     return;
   }
 
-  const studiedMinMap = {};
-  appState.todaySessions.forEach(s => {
-    const subId = s.subject.id || s.subject.name;
-    studiedMinMap[subId] = (studiedMinMap[subId] || 0) + Math.round(s.durationSec / 60);
+  const studiedSecMap = {};
+  (appState.todaySessions || []).forEach(s => {
+    if (s && s.subject && typeof s.durationSec === 'number' && s.durationSec > 0) {
+      const subId = s.subject.id || s.subject.name;
+      studiedSecMap[subId] = (studiedSecMap[subId] || 0) + s.durationSec;
+    }
   });
 
   container.innerHTML = '';
@@ -2126,13 +2222,33 @@ function renderPlannerGoals() {
       color: '#3b82f6'
     };
 
-    const studiedMin = studiedMinMap[goal.subjectId] || 0;
-    const targetMin = goal.dailyMinutes || 60;
-    const percent = Math.min(100, Math.round((studiedMin / targetMin) * 100));
-    const isCompleted = percent >= 100;
+    const studiedSec = studiedSecMap[goal.subjectId] || 0;
+    const studiedMin = Math.round(studiedSec / 60);
+    const targetMin = Math.max(1, goal.dailyMinutes || 60);
+    const targetSec = targetMin * 60;
+    const percent = Math.min(100, Math.round((studiedSec / targetSec) * 100));
+    const isCompleted = studiedSec >= targetSec;
+    const leftSec = Math.max(0, targetSec - studiedSec);
+    const leftMin = Math.ceil(leftSec / 60);
 
-    const studiedFormatted = studiedMin >= 60 ? `${Math.floor(studiedMin / 60)}h ${studiedMin % 60}m` : `${studiedMin}m`;
-    const targetFormatted = targetMin >= 60 ? `${Math.floor(targetMin / 60)}h ${targetMin % 60}m` : `${targetMin}m`;
+    let studiedFormatted = '0m';
+    if (studiedSec > 0) {
+      if (studiedMin >= 60) {
+        studiedFormatted = `${Math.floor(studiedMin / 60)}h ${studiedMin % 60 > 0 ? (studiedMin % 60) + 'm' : ''}`;
+      } else if (studiedMin === 0) {
+        studiedFormatted = `${studiedSec}s`;
+      } else {
+        studiedFormatted = `${studiedMin}m`;
+      }
+    }
+
+    const targetFormatted = targetMin >= 60 
+      ? `${Math.floor(targetMin / 60)}h ${targetMin % 60 > 0 ? (targetMin % 60) + 'm' : ''}` 
+      : `${targetMin}m`;
+
+    const remainingFormatted = isCompleted
+      ? '✓ Target reached'
+      : (leftMin >= 60 ? `${Math.floor(leftMin / 60)}h ${leftMin % 60 > 0 ? (leftMin % 60) + 'm' : ''} left` : `${leftMin}m left`);
 
     const card = document.createElement('div');
     card.className = 'planner-goal-card';
@@ -2152,8 +2268,9 @@ function renderPlannerGoals() {
       <div class="goal-stat-row">
         <div class="goal-numbers-wrap">
           <span class="goal-current-val">${studiedFormatted}</span>
-          <span class="goal-target-val">/ ${targetFormatted} target</span>
+          <span class="goal-target-val">/ ${targetFormatted}</span>
         </div>
+        <span class="goal-remaining-val ${isCompleted ? 'completed' : ''}">${remainingFormatted}</span>
       </div>
       <div class="goal-progress-track">
         <div class="goal-progress-bar" style="width: ${percent}%; background: linear-gradient(90deg, ${subject.color}, #10b981);"></div>

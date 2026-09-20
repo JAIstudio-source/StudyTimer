@@ -1095,10 +1095,17 @@ html, body {
 /* Daily Target Progress */
 .target-stat-numbers {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
   text-align: center;
   margin-bottom: 14px;
+}
+
+@media (max-width: 480px) {
+  .target-stat-numbers {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
 }
 
 .target-stat-item {
@@ -1119,6 +1126,10 @@ html, body {
   font-size: 1.05rem;
   font-weight: 700;
   color: var(--text-primary);
+}
+
+.stat-remaining-val {
+  color: #f59e0b;
 }
 
 .text-accent {
@@ -1936,6 +1947,16 @@ html, body {
 .goal-target-val {
   font-size: 0.78rem;
   color: var(--text-muted);
+}
+
+.goal-remaining-val {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #f59e0b;
+}
+
+.goal-remaining-val.completed {
+  color: var(--accent-emerald);
 }
 
 .goal-pct-badge {

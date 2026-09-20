@@ -353,7 +353,10 @@
                 <span class="hub-icon">📊</span>
                 <h3 class="hub-card-title">Subject Distribution</h3>
               </div>
-              <span class="donut-total-badge" id="donutTotalBadge">0m total</span>
+              <div class="donut-card-actions">
+                <button class="btn-link-action-mini" id="btnOpenDayPieHistoryModal" title="Browse past day subject pie charts like in the app">📅 Day History</button>
+                <span class="donut-total-badge" id="donutTotalBadge">0m total</span>
+              </div>
             </div>
 
             <div class="donut-chart-container">
@@ -789,6 +792,79 @@
         </div>
 
       </form>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       DAY-BY-DAY SUBJECT PIE CHART & TIMELINE HISTORY MODAL
+       (Matches Android showPieChartDetailsModal in MainActivity.kt)
+       ======================================================== -->
+  <div class="modal-overlay hidden" id="dayPieHistoryModalOverlay">
+    <div class="modal-card modal-card-day-history" id="dayPieHistoryModalCard">
+      <button class="modal-close-btn" id="btnCloseDayPieHistoryModal" aria-label="Close Day History">&times;</button>
+      
+      <div class="modal-header">
+        <div class="modal-icon-wrap" style="background: rgba(59, 130, 246, 0.12); color: #3b82f6;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+        </div>
+        <h3 class="modal-title">Subject Breakdown History</h3>
+        <p class="modal-subtitle">Browse past days' subject distribution and session breakdown.</p>
+      </div>
+
+      <!-- Date Navigator Row (◄ Prev Day | 📅 Date Display | Next Day ► | Today) -->
+      <div class="day-history-nav-row">
+        <button class="day-nav-arrow-btn" id="btnHistoryPrevDay" title="Previous Day">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          <span>Prev</span>
+        </button>
+        <button class="day-history-date-display-btn" id="btnHistoryDateDisplay" title="Click to choose a date">
+          <span id="historyModalDateTitle">📅 Today (Sep 20, 2026)</span>
+        </button>
+        <input type="date" id="historyNativeDatePicker" style="display: none;" />
+        <button class="day-nav-arrow-btn" id="btnHistoryNextDay" title="Next Day">
+          <span>Next</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+        <button class="day-nav-today-btn" id="btnHistoryJumpToday" title="Jump to Today">Today</button>
+      </div>
+
+      <!-- Modal Body with Scroll -->
+      <div class="modal-body day-history-modal-body" id="dayPieHistoryModalBody">
+        <!-- Interactive Donut / Pie Chart for the Selected Day -->
+        <div class="history-chart-card">
+          <div class="donut-chart-container">
+            <div class="donut-chart-svg-wrap" id="historyDonutSvgWrap" title="Hover or click a slice to inspect details">
+              <svg class="donut-chart-svg" viewBox="0 0 200 200" id="historySubjectDonutSvg">
+                <circle cx="100" cy="100" r="70" class="donut-bg-track"></circle>
+              </svg>
+              <div class="donut-center-stat" id="historyDonutCenterStat">
+                <span class="donut-center-sub" id="historyDonutCenterSub">Studied</span>
+                <span class="donut-center-val" id="historyDonutCenterVal">0m</span>
+                <span class="donut-center-pct hidden" id="historyDonutCenterPct">100%</span>
+              </div>
+            </div>
+            <div class="donut-legend-list" id="historyDonutLegendList">
+              <!-- Injected dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Selected Date Sessions Timeline Section -->
+        <div class="history-sessions-card">
+          <div class="history-sessions-header">
+            <h4 class="history-sessions-title" id="historySessionsSectionTitle">Today's Sessions</h4>
+            <span class="sessions-count-badge" id="historySessionsCountBadge">0 sessions</span>
+          </div>
+          <div class="timeline-list-container" id="historyTimelineList">
+            <!-- Injected dynamically -->
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 

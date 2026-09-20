@@ -1060,7 +1060,8 @@ function setupEventListeners() {
   document.getElementById('tabBtnCalendar')?.addEventListener('click', () => switchInsightsTab('calendar'));
   document.getElementById('tabBtnPlanner')?.addEventListener('click', () => switchInsightsTab('planner'));
 
-  // Dedicated Floating Leaderboard Modal Trigger
+  // Dedicated Desktop & Mobile Leaderboard Triggers
+  document.getElementById('btnDesktopLeaderboard')?.addEventListener('click', openLeaderboardModal);
   document.getElementById('btnMobileLeaderboard')?.addEventListener('click', openLeaderboardModal);
   document.getElementById('btnMenuLeaderboard')?.addEventListener('click', () => {
     document.getElementById('userMenuDropdown')?.classList.add('hidden');
@@ -1071,6 +1072,20 @@ function setupEventListeners() {
     if (e.target.id === 'leaderboardModalOverlay') closeLeaderboardModal();
   });
   document.getElementById('btnRefreshLeaderboard')?.addEventListener('click', () => fetchLeaderboard(true));
+
+  // Subject Pie / Donut Historical Time Filter Pills
+  document.querySelectorAll('#pieFilterPills .pie-filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const period = btn.dataset.period || 'today';
+      renderSubjectDonutChart(period);
+    });
+  });
+
+  // Pie Chart Mode Toggle (Donut Mode vs Solid Pie Mode)
+  document.getElementById('btnTogglePieChartType')?.addEventListener('click', () => {
+    isPieDonutMode = !isPieDonutMode;
+    renderSubjectDonutChart(currentPiePeriod);
+  });
 
   // Manual "Sync with App" Dropdown Trigger
   document.getElementById('btnManualSync')?.addEventListener('click', async () => {
@@ -2321,8 +2336,187 @@ function updateProgressAndStreak() {
 
 // Interactive Subject Distribution Donut / Pie Chart (SubjectPieChartView.kt)
 let activeHighlightedSubjectId = null;
+let currentPiePeriod = 'today'; // 'today', '7d', '30d', 'all'
+let isPieDonutMode = true; // true = donut with center hole/HUD, false = solid pie
 
-function renderSubjectDonutChart() {
+function getSubjectDistributionForPeriod(period = 'today') {
+  const subjectTotals = {};
+  let periodLabel = 'Today';
+  const todayStr = new Date().toISOString().split('T')[0];
+  const allSessions = getAllValidatedSessions();
+
+  if (period === 'today') {
+    periodLabel = 'Today';
+    // 1. Unified today sessions
+    (appState.todaySessions || []).forEach(s => {
+      if (s && s.durationSec > 0) {
+        const subId = s.subject?.id || s.subject?.name || 'general';
+        if (!subjectTotals[subId]) {
+          const matching = (appState.subjects || []).find(sub => sub.id === subId) || {
+            id: subId,
+            name: s.subject?.name || 'Focus Study',
+            color: s.subject?.color || '#3b82f6'
+          };
+          subjectTotals[subId] = {
+            id: subId,
+            name: matching.name,
+            color: matching.color || matching.colorHex || '#3b82f6',
+            durationSec: 0
+          };
+        }
+        subjectTotals[subId].durationSec += s.durationSec;
+      }
+    });
+
+    // 2. Fallback to dailySubjectDurations for today if needed
+    if (Object.keys(subjectTotals).length === 0 && appState.dailySubjectDurations && appState.dailySubjectDurations[todayStr]) {
+      const todayBreakdown = appState.dailySubjectDurations[todayStr];
+      if (todayBreakdown && typeof todayBreakdown === 'object') {
+        Object.keys(todayBreakdown).forEach(subId => {
+          const sec = Number(todayBreakdown[subId]) || 0;
+          if (sec > 0) {
+            const matching = (appState.subjects || []).find(sub => sub.id === subId) || {
+              id: subId,
+              name: subId.startsWith('custom_') ? 'Subject' : subId.charAt(0).toUpperCase() + subId.slice(1),
+              color: '#3b82f6'
+            };
+            subjectTotals[subId] = {
+              id: subId,
+              name: matching.name,
+              color: matching.color || matching.colorHex || '#3b82f6',
+              durationSec: sec
+            };
+          }
+        });
+      }
+    }
+  } else if (period === '7d' || period === '30d') {
+    const daysCount = period === '7d' ? 7 : 30;
+    periodLabel = period === '7d' ? 'Past 7 Days' : 'Past 30 Days';
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - (daysCount - 1));
+    cutoffDate.setHours(0, 0, 0, 0);
+    const cutoffMs = cutoffDate.getTime();
+
+    // 1. Sessions within time window
+    allSessions.forEach(s => {
+      if (s && s.timestamp >= cutoffMs && s.durationSec > 0) {
+        const subId = s.subject?.id || s.subject?.name || 'general';
+        if (!subjectTotals[subId]) {
+          const matching = (appState.subjects || []).find(sub => sub.id === subId) || {
+            id: subId,
+            name: s.subject?.name || 'Focus Study',
+            color: s.subject?.color || '#3b82f6'
+          };
+          subjectTotals[subId] = {
+            id: subId,
+            name: matching.name,
+            color: matching.color || matching.colorHex || '#3b82f6',
+            durationSec: 0
+          };
+        }
+        subjectTotals[subId].durationSec += s.durationSec;
+      }
+    });
+
+    // 2. Also check dailySubjectDurations for any dates in this window not already covered
+    if (appState.dailySubjectDurations && typeof appState.dailySubjectDurations === 'object') {
+      const seenDates = new Set(allSessions.map(s => new Date(s.timestamp).toISOString().split('T')[0]));
+      Object.keys(appState.dailySubjectDurations).forEach(dStr => {
+        const dObj = new Date(dStr + 'T12:00:00Z');
+        if (!isNaN(dObj.getTime()) && dObj.getTime() >= cutoffMs) {
+          if (!seenDates.has(dStr)) {
+            const breakdown = appState.dailySubjectDurations[dStr];
+            if (breakdown && typeof breakdown === 'object') {
+              Object.keys(breakdown).forEach(subId => {
+                const sec = Number(breakdown[subId]) || 0;
+                if (sec > 0) {
+                  if (!subjectTotals[subId]) {
+                    const matching = (appState.subjects || []).find(sub => sub.id === subId) || {
+                      id: subId,
+                      name: subId.startsWith('custom_') ? 'Subject' : subId.charAt(0).toUpperCase() + subId.slice(1),
+                      color: '#3b82f6'
+                    };
+                    subjectTotals[subId] = {
+                      id: subId,
+                      name: matching.name,
+                      color: matching.color || matching.colorHex || '#3b82f6',
+                      durationSec: 0
+                    };
+                  }
+                  subjectTotals[subId].durationSec += sec;
+                }
+              });
+            }
+          }
+        }
+      });
+    }
+  } else if (period === 'all') {
+    periodLabel = 'All Time';
+    // 1. Lifetime subjectDurations from Android Cloud sync
+    if (appState.subjectDurations && typeof appState.subjectDurations === 'object') {
+      Object.keys(appState.subjectDurations).forEach(subId => {
+        const sec = Number(appState.subjectDurations[subId]) || 0;
+        if (sec > 0) {
+          const matching = (appState.subjects || []).find(sub => sub.id === subId) || {
+            id: subId,
+            name: subId.startsWith('custom_') ? 'Subject' : subId.charAt(0).toUpperCase() + subId.slice(1),
+            color: '#3b82f6'
+          };
+          subjectTotals[subId] = {
+            id: subId,
+            name: matching.name,
+            color: matching.color || matching.colorHex || '#3b82f6',
+            durationSec: sec
+          };
+        }
+      });
+    }
+
+    // 2. Merge validated sessions
+    const sessionSums = {};
+    allSessions.forEach(s => {
+      if (s && s.durationSec > 0) {
+        const subId = s.subject?.id || s.subject?.name || 'general';
+        sessionSums[subId] = (sessionSums[subId] || 0) + s.durationSec;
+      }
+    });
+
+    Object.keys(sessionSums).forEach(subId => {
+      const sSec = sessionSums[subId];
+      if (!subjectTotals[subId]) {
+        const matching = (appState.subjects || []).find(sub => sub.id === subId) || {
+          id: subId,
+          name: subId.startsWith('custom_') ? 'Subject' : subId.charAt(0).toUpperCase() + subId.slice(1),
+          color: '#3b82f6'
+        };
+        subjectTotals[subId] = {
+          id: subId,
+          name: matching.name,
+          color: matching.color || matching.colorHex || '#3b82f6',
+          durationSec: sSec
+        };
+      } else {
+        subjectTotals[subId].durationSec = Math.max(subjectTotals[subId].durationSec, sSec);
+      }
+    });
+  }
+
+  // Harmonize names & colors with active user registered subjects
+  Object.values(subjectTotals).forEach(item => {
+    const matching = (appState.subjects || []).find(sub => sub.id === item.id || sub.name?.toLowerCase() === item.name?.toLowerCase());
+    if (matching) {
+      item.name = matching.name;
+      item.color = matching.color || matching.colorHex || item.color;
+    }
+  });
+
+  return { subjectTotals, periodLabel };
+}
+
+function renderSubjectDonutChart(period = currentPiePeriod) {
+  currentPiePeriod = period;
   const svg = document.getElementById('subjectDonutSvg');
   const svgWrap = document.getElementById('donutSvgWrap');
   const totalBadge = document.getElementById('donutTotalBadge');
@@ -2330,80 +2524,95 @@ function renderSubjectDonutChart() {
   const centerVal = document.getElementById('donutCenterVal');
   const centerPct = document.getElementById('donutCenterPct');
   const legendList = document.getElementById('donutLegendList');
+  const pieTypeIcon = document.getElementById('pieTypeIcon');
   if (!svg || !legendList) return;
 
-  const subjectTotals = {};
-  let totalSecToday = 0;
-
-  (appState.todaySessions || []).forEach(s => {
-    if (s && s.durationSec > 0) {
-      const subId = s.subject?.id || s.subject?.name || 'default';
-      if (!subjectTotals[subId]) {
-        subjectTotals[subId] = {
-          id: subId,
-          name: s.subject?.name || 'Focus Study',
-          color: s.subject?.color || '#3b82f6',
-          durationSec: 0
-        };
-      }
-      subjectTotals[subId].durationSec += s.durationSec;
-      totalSecToday += s.durationSec;
+  // Update active pill button state
+  document.querySelectorAll('#pieFilterPills .pie-filter-btn').forEach(btn => {
+    if (btn.dataset.period === currentPiePeriod) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
     }
   });
 
-  const totalMinToday = Math.round(totalSecToday / 60);
+  if (pieTypeIcon) {
+    pieTypeIcon.textContent = isPieDonutMode ? '🍩' : '🥧';
+    pieTypeIcon.setAttribute('title', isPieDonutMode ? 'Switch to Solid Pie Chart' : 'Switch to Donut Chart');
+  }
+
+  const { subjectTotals, periodLabel } = getSubjectDistributionForPeriod(currentPiePeriod);
+
+  let totalSec = 0;
+  Object.values(subjectTotals).forEach(item => {
+    if (item && item.durationSec > 0) {
+      totalSec += item.durationSec;
+    }
+  });
+
+  const totalMin = Math.round(totalSec / 60);
   let formattedTotal = '0m';
-  if (totalSecToday > 0) {
-    if (totalMinToday >= 60) {
-      formattedTotal = `${Math.floor(totalMinToday / 60)}h ${totalMinToday % 60 > 0 ? (totalMinToday % 60) + 'm' : ''}`;
-    } else if (totalMinToday === 0) {
-      formattedTotal = `${totalSecToday}s`;
+  if (totalSec > 0) {
+    if (totalMin >= 60) {
+      const h = Math.floor(totalMin / 60);
+      const m = totalMin % 60;
+      formattedTotal = `${h}h ${m > 0 ? m + 'm' : ''}`;
+    } else if (totalMin === 0) {
+      formattedTotal = `${totalSec}s`;
     } else {
-      formattedTotal = `${totalMinToday}m`;
+      formattedTotal = `${totalMin}m`;
     }
   }
 
   if (totalBadge) totalBadge.textContent = `${formattedTotal} total`;
-  if (centerSub) centerSub.textContent = 'Today';
+  if (centerSub) centerSub.textContent = periodLabel;
   if (centerVal) centerVal.textContent = formattedTotal;
   if (centerPct) centerPct.classList.add('hidden');
 
   activeHighlightedSubjectId = null;
 
-  const bgTrack = svg.querySelector('.donut-bg-track');
   svg.innerHTML = '';
-  if (bgTrack) {
-    svg.appendChild(bgTrack);
-  } else {
+  legendList.innerHTML = '';
+
+  const entries = Object.values(subjectTotals).filter(item => item.durationSec > 0);
+
+  if (entries.length === 0 || totalSec === 0) {
+    // Render dashed placeholder circle
     const track = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     track.setAttribute('cx', '100');
     track.setAttribute('cy', '100');
     track.setAttribute('r', '70');
     track.setAttribute('class', 'donut-bg-track');
     svg.appendChild(track);
-  }
 
-  legendList.innerHTML = '';
-
-  const entries = Object.values(subjectTotals);
-  if (entries.length === 0 || totalSecToday === 0) {
     legendList.innerHTML = `
       <div class="empty-hub-state">
-        <span>No study sessions yet today. Start focusing to see subject breakdown.</span>
+        <span>No study sessions recorded for ${periodLabel.toLowerCase()}.</span>
       </div>
     `;
     return;
   }
 
-  const radius = 70;
-  const circumference = 2 * Math.PI * radius; // ~439.82
+  // Chart Geometry
+  const radius = isPieDonutMode ? 70 : 35;
+  const strokeW = isPieDonutMode ? 22 : 70;
+  const circumference = 2 * Math.PI * radius;
   let accumulatedPercent = 0;
+
+  // Background track
+  const bgTrack = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  bgTrack.setAttribute('cx', '100');
+  bgTrack.setAttribute('cy', '100');
+  bgTrack.setAttribute('r', radius.toString());
+  bgTrack.setAttribute('class', 'donut-bg-track');
+  bgTrack.setAttribute('stroke-width', strokeW.toString());
+  svg.appendChild(bgTrack);
 
   entries.sort((a, b) => b.durationSec - a.durationSec);
 
   function highlightSubject(item) {
     activeHighlightedSubjectId = item.id;
-    const itemPct = Math.round((item.durationSec / totalSecToday) * 100);
+    const itemPct = Math.round((item.durationSec / totalSec) * 100);
     const itemMin = Math.round(item.durationSec / 60);
     const itemTimeStr = itemMin >= 60 
       ? `${Math.floor(itemMin / 60)}h ${itemMin % 60 > 0 ? (itemMin % 60) + 'm' : ''}` 
@@ -2420,11 +2629,11 @@ function renderSubjectDonutChart() {
       if (s.getAttribute('data-sub-id') === item.id) {
         s.classList.add('active');
         s.style.opacity = '1';
-        s.style.strokeWidth = '26';
+        s.style.strokeWidth = (strokeW + (isPieDonutMode ? 5 : 4)).toString();
       } else {
         s.classList.remove('active');
         s.style.opacity = '0.35';
-        s.style.strokeWidth = '22';
+        s.style.strokeWidth = strokeW.toString();
       }
     });
 
@@ -2439,14 +2648,14 @@ function renderSubjectDonutChart() {
 
   function resetHighlight() {
     activeHighlightedSubjectId = null;
-    if (centerSub) centerSub.textContent = 'Today';
+    if (centerSub) centerSub.textContent = periodLabel;
     if (centerVal) centerVal.textContent = formattedTotal;
     if (centerPct) centerPct.classList.add('hidden');
 
     svg.querySelectorAll('.donut-slice').forEach(s => {
       s.classList.remove('active');
       s.style.opacity = '1';
-      s.style.strokeWidth = '22';
+      s.style.strokeWidth = strokeW.toString();
     });
     legendList.querySelectorAll('.donut-legend-item').forEach(l => l.classList.remove('active'));
   }
@@ -2456,7 +2665,7 @@ function renderSubjectDonutChart() {
   });
 
   entries.forEach(item => {
-    const itemPct = (item.durationSec / totalSecToday) * 100;
+    const itemPct = (item.durationSec / totalSec) * 100;
     const itemMin = Math.round(item.durationSec / 60);
     const itemTimeStr = itemMin >= 60 
       ? `${Math.floor(itemMin / 60)}h ${itemMin % 60 > 0 ? (itemMin % 60) + 'm' : ''}` 
@@ -2472,6 +2681,7 @@ function renderSubjectDonutChart() {
     circle.setAttribute('class', 'donut-slice');
     circle.setAttribute('data-sub-id', item.id);
     circle.setAttribute('stroke', item.color);
+    circle.setAttribute('stroke-width', strokeW.toString());
     circle.setAttribute('stroke-dasharray', `${sliceLength} ${circumference}`);
     circle.setAttribute('stroke-dashoffset', offset.toString());
     circle.innerHTML = `<title>${item.name}: ${Math.round(itemPct)}% (${itemTimeStr})</title>`;

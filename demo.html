@@ -356,19 +356,6 @@
               <span class="donut-total-badge" id="donutTotalBadge">0m total</span>
             </div>
 
-            <!-- Historical Period Time Range Filter & Mode Toggle (Matches Android App) -->
-            <div class="pie-time-filter-row">
-              <div class="pie-filter-pills" id="pieFilterPills" role="tablist" aria-label="Subject breakdown time period">
-                <button type="button" class="pie-filter-btn active" data-period="today">Today</button>
-                <button type="button" class="pie-filter-btn" data-period="7d">7 Days</button>
-                <button type="button" class="pie-filter-btn" data-period="30d">30 Days</button>
-                <button type="button" class="pie-filter-btn" data-period="all">All Time</button>
-              </div>
-              <button type="button" class="pie-type-toggle-btn" id="btnTogglePieChartType" title="Toggle Donut / Solid Pie View">
-                <span id="pieTypeIcon" class="pie-type-icon">🍩</span>
-              </button>
-            </div>
-
             <div class="donut-chart-container">
               <div class="donut-chart-svg-wrap" id="donutSvgWrap" title="Click or hover a slice to inspect details">
                 <svg class="donut-chart-svg" viewBox="0 0 200 200" id="subjectDonutSvg">
@@ -479,6 +466,34 @@
             <!-- Monthly Summary Row -->
             <div class="cal-month-summary-row" id="calMonthSummaryRow">
               <!-- Injected dynamically -->
+            </div>
+          </div>
+
+          <!-- Selected Past Day Subject Distribution Pie Chart (Matches Android App Day Details Modal) -->
+          <div class="hub-card calendar-day-pie-card" id="calDayPieCard">
+            <div class="hub-card-header">
+              <div class="hub-card-title-group">
+                <span class="hub-icon">📊</span>
+                <h3 class="hub-card-title" id="calDayPieTitle">Day Subject Breakdown</h3>
+              </div>
+              <span class="donut-total-badge" id="calDayPieTotalBadge">0m total</span>
+            </div>
+
+            <div class="donut-chart-container">
+              <div class="donut-chart-svg-wrap" id="calDayDonutSvgWrap" title="Subject breakdown for selected day">
+                <svg class="donut-chart-svg" viewBox="0 0 200 200" id="calDaySubjectDonutSvg">
+                  <circle cx="100" cy="100" r="70" class="donut-bg-track"></circle>
+                </svg>
+                <div class="donut-center-stat" id="calDayDonutCenterStat">
+                  <span class="donut-center-sub" id="calDayDonutCenterSub">Studied</span>
+                  <span class="donut-center-val" id="calDayDonutCenterVal">0m</span>
+                  <span class="donut-center-pct hidden" id="calDayDonutCenterPct">100%</span>
+                </div>
+              </div>
+
+              <div class="donut-legend-list" id="calDayDonutLegendList">
+                <!-- Dynamically injected subject items for selected day -->
+              </div>
             </div>
           </div>
 
@@ -1159,6 +1174,6 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- SCRIPT -->
-  <script src="demo.js?v=3.9.9"></script>
+  <script src="demo.js?v=4.0.0"></script>
 </body>
 </html>

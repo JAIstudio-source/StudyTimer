@@ -676,9 +676,7 @@ async function pushDataToCloud(silent = false) {
       profile_image_uri: profileImg,
       prefs_data: JSON.stringify(prefsObj),
       timeline_data: JSON.stringify(sanitizedTimeline),
-      subject_tags_data: JSON.stringify(subjectTagsObj),
-      updated_at: nowMs,
-      last_modified_timestamp: nowMs
+      updated_at: nowMs
     };
 
     const { error } = await supabaseClient

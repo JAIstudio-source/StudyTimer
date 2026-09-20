@@ -99,6 +99,13 @@
           </div>
         </div>
 
+        <!-- Desktop & Tablet Direct Leaderboard Action -->
+        <button class="nav-leaderboard-btn" id="btnDesktopLeaderboard" title="Live Global Leaderboard" aria-label="Open Global Leaderboard">
+          <span class="nav-lb-trophy">🏆</span>
+          <span class="nav-lb-label">Leaderboard</span>
+          <span class="live-pulse-dot"></span>
+        </button>
+
         <!-- Fullscreen Browser Zen Mode Toggle -->
         <button class="demo-icon-btn" id="btnBrowserFullscreen" aria-label="Toggle Fullscreen Focus" title="Full Screen Zen Focus">
           <svg class="icon-expand-fs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -347,6 +354,19 @@
                 <h3 class="hub-card-title">Subject Distribution</h3>
               </div>
               <span class="donut-total-badge" id="donutTotalBadge">0m total</span>
+            </div>
+
+            <!-- Historical Period Time Range Filter & Mode Toggle (Matches Android App) -->
+            <div class="pie-time-filter-row">
+              <div class="pie-filter-pills" id="pieFilterPills" role="tablist" aria-label="Subject breakdown time period">
+                <button type="button" class="pie-filter-btn active" data-period="today">Today</button>
+                <button type="button" class="pie-filter-btn" data-period="7d">7 Days</button>
+                <button type="button" class="pie-filter-btn" data-period="30d">30 Days</button>
+                <button type="button" class="pie-filter-btn" data-period="all">All Time</button>
+              </div>
+              <button type="button" class="pie-type-toggle-btn" id="btnTogglePieChartType" title="Toggle Donut / Solid Pie View">
+                <span id="pieTypeIcon" class="pie-type-icon">🍩</span>
+              </button>
             </div>
 
             <div class="donut-chart-container">
@@ -1139,6 +1159,6 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- SCRIPT -->
-  <script src="demo.js?v=3.9.5"></script>
+  <script src="demo.js?v=3.9.8"></script>
 </body>
 </html>

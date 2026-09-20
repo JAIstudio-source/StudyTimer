@@ -78,7 +78,10 @@ let appState = {
     { id: 'goal_2', subjectId: 'coding', dailyMinutes: 90 }
   ],
   timelineEntries: [],
-  todaySessions: []
+  todaySessions: [],
+  dailyFocusTotals: {},
+  subjectDurations: {},
+  dailySubjectDurations: {}
 };
 
 // ============================================================================
@@ -320,7 +323,47 @@ async function pullDataFromCloud(isUserTriggered = false) {
           if (typeof prefs.pomo_auto_switch_focus === 'boolean') timerConfig.pomoAutoSwitchFocus = prefs.pomo_auto_switch_focus;
           if (prefs.custom_timer_minutes) timerConfig.customTimerMinutes = prefs.custom_timer_minutes;
 
-          // 2. Full Subjects Restoration (Android studytimer_subject_tags & Web custom_subjects)
+          // 2. Extract all daily focus totals & subject durations from Android
+          const dailyFocus = { ...(appState.dailyFocusTotals || {}) };
+          const todayKey = new Date().toISOString().split('T')[0];
+
+          Object.keys(prefs).forEach(k => {
+            const match = k.match(/^(\d{4}-\d{2}-\d{2})_focus_total$/);
+            if (match) {
+              const dStr = match[1];
+              const sec = Number(prefs[k]) || 0;
+              if (sec > 0) dailyFocus[dStr] = Math.max(dailyFocus[dStr] || 0, sec);
+            }
+          });
+
+          if (prefs.accumulatedStudy) {
+            const acc = Number(prefs.accumulatedStudy) || 0;
+            if (acc > 0) {
+              dailyFocus[todayKey] = Math.max(dailyFocus[todayKey] || 0, acc);
+            }
+          }
+
+          if (prefs.subject_durations_json) {
+            try {
+              const rawSubDur = typeof prefs.subject_durations_json === 'string'
+                ? JSON.parse(prefs.subject_durations_json)
+                : prefs.subject_durations_json;
+              appState.subjectDurations = { ...(appState.subjectDurations || {}), ...rawSubDur };
+            } catch (_) {}
+          }
+
+          if (prefs.daily_subject_durations_json) {
+            try {
+              const rawDailySub = typeof prefs.daily_subject_durations_json === 'string'
+                ? JSON.parse(prefs.daily_subject_durations_json)
+                : prefs.daily_subject_durations_json;
+              appState.dailySubjectDurations = { ...(appState.dailySubjectDurations || {}), ...rawDailySub };
+            } catch (_) {}
+          }
+
+          appState.dailyFocusTotals = dailyFocus;
+
+          // 3. Full Subjects Restoration (Android studytimer_subject_tags & Web custom_subjects)
           const rawTags = prefs.__subject_tags_data__ || data.subject_tags_data || prefs.custom_subjects_json;
           if (rawTags) {
             try {
@@ -386,7 +429,7 @@ async function pullDataFromCloud(isUserTriggered = false) {
             }
           }
 
-          // 3. Planner Goals Restoration (Android session_goals_json & Web __planner_goals_data__)
+          // 4. Planner Goals Restoration (Android session_goals_json & Web __planner_goals_data__)
           let loadedGoals = null;
           if (prefs.session_goals_json) {
             try {
@@ -416,7 +459,7 @@ async function pullDataFromCloud(isUserTriggered = false) {
             }));
           }
 
-          // 4. User Profile
+          // 5. User Profile
           if (prefs.__user_profile__) {
             try {
               const loadedProfile = typeof prefs.__user_profile__ === 'string'
@@ -434,19 +477,20 @@ async function pullDataFromCloud(isUserTriggered = false) {
         }
       }
 
-      // 5. Timeline History Restoration
+      // 6. Timeline History Restoration
       if (data.timeline_data) {
         try {
           const remoteTimeline = typeof data.timeline_data === 'string' ? JSON.parse(data.timeline_data) : data.timeline_data;
           if (Array.isArray(remoteTimeline) && remoteTimeline.length > 0) {
             appState.timelineEntries = remoteTimeline;
             restoredTimelineCount = remoteTimeline.length;
-            reconstructTodaySessionsFromTimeline();
           }
         } catch (e) {
           console.error('Failed to parse remote timeline_data', e);
         }
       }
+
+      reconstructTodaySessionsFromTimeline();
 
       // Auto-sync presence & leaderboard for mobile logged in user
       let totalSecToday = 0;
@@ -464,13 +508,16 @@ async function pullDataFromCloud(isUserTriggered = false) {
       renderActivityHeatmap();
       renderMonthlyCalendar();
       renderPlannerGoals();
+      switchInsightsTab(currentInsightsTab);
       saveLocalState();
       if (timerStatus === 'IDLE') {
         resetTimer();
       }
 
       if (isUserTriggered) {
-        showToast(`Sync complete! Loaded ${restoredTimelineCount} timeline logs & ${appState.subjects.length} subjects. ☁️`, 'success');
+        const validatedSessions = getAllValidatedSessions();
+        const activeDaysCount = Object.keys(appState.dailyFocusTotals || {}).length || validatedSessions.length;
+        showToast(`Sync complete! Loaded ${activeDaysCount} active study days & ${appState.subjects.length} subjects. ☁️`, 'success');
       }
     } else {
       if (isUserTriggered) {
@@ -570,6 +617,13 @@ async function pushDataToCloud() {
 
     const dailyGoalMin = Math.min(1440, Math.max(1, Number(timerConfig.dailyGoalMinutes) || 120));
 
+    // Calculate today's study seconds
+    const todayKey = new Date().toISOString().split('T')[0];
+    let totalSecToday = 0;
+    (appState.todaySessions || []).forEach(s => {
+      if (s && typeof s.durationSec === 'number') totalSecToday += s.durationSec;
+    });
+
     const prefsObj = {
       daily_goal_minutes: dailyGoalMin,
       daily_goal_secs: dailyGoalMin * 60,
@@ -585,11 +639,29 @@ async function pushDataToCloud() {
       current_streak: Math.max(0, Number(appState.streakCount) || 0),
       streak_count: Math.max(0, Number(appState.streakCount) || 0),
       last_study_date: appState.lastStudyDate || '',
+      accumulatedStudy: totalSecToday,
+      [`${todayKey}_focus_total`]: totalSecToday,
       session_goals_json: JSON.stringify(androidPlannerGoals),
       __subject_tags_data__: JSON.stringify(subjectTagsObj),
       __planner_goals_data__: JSON.stringify(androidPlannerGoals),
       __user_profile__: JSON.stringify(appState.userProfile)
     };
+
+    // Preserve previous daily focus records
+    if (appState.dailyFocusTotals) {
+      Object.keys(appState.dailyFocusTotals).forEach(d => {
+        if (d !== todayKey && appState.dailyFocusTotals[d]) {
+          prefsObj[`${d}_focus_total`] = appState.dailyFocusTotals[d];
+        }
+      });
+    }
+
+    if (appState.subjectDurations) {
+      prefsObj.subject_durations_json = JSON.stringify(appState.subjectDurations);
+    }
+    if (appState.dailySubjectDurations) {
+      prefsObj.daily_subject_durations_json = JSON.stringify(appState.dailySubjectDurations);
+    }
 
     const nowMs = Date.now();
     const payload = {
@@ -716,38 +788,146 @@ function reconstructTodaySessionsFromTimeline() {
   startOfDay.setHours(0, 0, 0, 0);
   const startOfDayMs = startOfDay.getTime();
   const endOfDayMs = startOfDayMs + 86400000;
+  const todayKey = new Date().toISOString().split('T')[0];
 
   const allParsed = parseAllTimelineSessions(appState.timelineEntries || []);
-  appState.todaySessions = allParsed
+  let sessions = allParsed
     .filter(s => s.timestamp >= startOfDayMs && s.timestamp < endOfDayMs)
     .sort((a, b) => b.timestamp - a.timestamp);
+
+  // If timeline entries had no sessions for today, but Android recorded today's focus total in prefs
+  const todayFocusSec = (appState.dailyFocusTotals && Number(appState.dailyFocusTotals[todayKey])) || 0;
+  const currentSum = sessions.reduce((acc, s) => acc + (s.durationSec || 0), 0);
+
+  if (todayFocusSec > currentSum) {
+    const missingSec = todayFocusSec - currentSum;
+    const dayBreakdown = (appState.dailySubjectDurations && appState.dailySubjectDurations[todayKey]) || null;
+    if (dayBreakdown && typeof dayBreakdown === 'object') {
+      Object.keys(dayBreakdown).forEach((subId, idx) => {
+        const subSec = Number(dayBreakdown[subId]) || 0;
+        if (subSec > 0) {
+          const matchingSub = (appState.subjects || []).find(s => s.id === subId) || {
+            id: subId,
+            name: subId.charAt(0).toUpperCase() + subId.slice(1),
+            color: '#3b82f6'
+          };
+          sessions.push({
+            id: `today_cloud_${todayKey}_${subId}_${idx}`,
+            subject: {
+              id: matchingSub.id,
+              name: matchingSub.name,
+              color: matchingSub.color || matchingSub.colorHex || '#3b82f6'
+            },
+            durationSec: subSec,
+            startTime: startOfDayMs + 36000000 + idx * 1000,
+            endTime: startOfDayMs + 36000000 + idx * 1000 + subSec * 1000,
+            timestamp: startOfDayMs + 36000000 + idx * 1000,
+            mode: 'Focus Study'
+          });
+        }
+      });
+    } else {
+      const defaultSub = appState.selectedSubject || (appState.subjects && appState.subjects[0]) || DEFAULT_SUBJECTS[0];
+      sessions.push({
+        id: `today_cloud_${todayKey}_${Date.now()}`,
+        subject: {
+          id: defaultSub.id,
+          name: defaultSub.name,
+          color: defaultSub.color || defaultSub.colorHex || '#3b82f6'
+        },
+        durationSec: missingSec,
+        startTime: startOfDayMs + 36000000,
+        endTime: startOfDayMs + 36000000 + missingSec * 1000,
+        timestamp: startOfDayMs + 36000000,
+        mode: 'Focus Study'
+      });
+    }
+  }
+
+  appState.todaySessions = sessions;
 }
 
 // Universal extractor for all completed sessions with zero duplicate or hardcoded inflations
 function getAllValidatedSessions() {
   const allParsed = parseAllTimelineSessions(appState.timelineEntries || []);
-  const seenKeys = new Set();
-  const result = [];
+  const seenDates = {};
+  const sessions = [];
 
+  // 1. Add all parsed timeline sessions
   allParsed.forEach(s => {
-    const key = `${Math.floor(s.timestamp / 1000)}_${s.durationSec}`;
-    if (!seenKeys.has(key)) {
-      seenKeys.add(key);
-      result.push(s);
-    }
+    const dStr = new Date(s.timestamp).toISOString().split('T')[0];
+    seenDates[dStr] = (seenDates[dStr] || 0) + s.durationSec;
+    sessions.push(s);
   });
 
+  // 2. Add real-time today sessions if not already in timeline
   (appState.todaySessions || []).forEach(s => {
     if (s && typeof s.durationSec === 'number' && s.durationSec > 0) {
-      const key = `${Math.floor(s.timestamp / 1000)}_${s.durationSec}`;
-      if (!seenKeys.has(key)) {
-        seenKeys.add(key);
-        result.push(s);
+      const alreadyHas = sessions.some(existing => Math.abs(existing.timestamp - s.timestamp) < 2000);
+      if (!alreadyHas) {
+        const dStr = new Date(s.timestamp).toISOString().split('T')[0];
+        seenDates[dStr] = (seenDates[dStr] || 0) + s.durationSec;
+        sessions.push(s);
       }
     }
   });
 
-  return result.sort((a, b) => b.timestamp - a.timestamp);
+  // 3. For any date in dailyFocusTotals from Android that doesn't have complete sessions in timeline:
+  const dailyTotals = appState.dailyFocusTotals || {};
+  Object.keys(dailyTotals).forEach(dateStr => {
+    const totalRecordedSec = Number(dailyTotals[dateStr]) || 0;
+    const currentParsedSec = seenDates[dateStr] || 0;
+    const missingSec = totalRecordedSec - currentParsedSec;
+
+    if (missingSec > 0) {
+      const parsedDate = new Date(dateStr + 'T12:00:00Z');
+      const ts = !isNaN(parsedDate.getTime()) ? parsedDate.getTime() : Date.now();
+
+      const dayBreakdown = (appState.dailySubjectDurations && appState.dailySubjectDurations[dateStr]) || null;
+      if (dayBreakdown && typeof dayBreakdown === 'object') {
+        Object.keys(dayBreakdown).forEach((subId, idx) => {
+          const subSec = Number(dayBreakdown[subId]) || 0;
+          if (subSec > 0) {
+            const matchingSub = (appState.subjects || []).find(s => s.id === subId) || {
+              id: subId,
+              name: subId.charAt(0).toUpperCase() + subId.slice(1),
+              color: '#3b82f6'
+            };
+            sessions.push({
+              id: `cloud_day_${dateStr}_${subId}_${idx}`,
+              subject: {
+                id: matchingSub.id,
+                name: matchingSub.name,
+                color: matchingSub.color || matchingSub.colorHex || '#3b82f6'
+              },
+              durationSec: subSec,
+              startTime: ts + idx * 1000,
+              endTime: ts + idx * 1000 + subSec * 1000,
+              timestamp: ts + idx * 1000,
+              mode: 'Focus Study'
+            });
+          }
+        });
+      } else {
+        const defaultSub = appState.selectedSubject || (appState.subjects && appState.subjects[0]) || DEFAULT_SUBJECTS[0];
+        sessions.push({
+          id: `cloud_day_${dateStr}`,
+          subject: {
+            id: defaultSub.id,
+            name: defaultSub.name,
+            color: defaultSub.color || defaultSub.colorHex || '#3b82f6'
+          },
+          durationSec: missingSec,
+          startTime: ts,
+          endTime: ts + missingSec * 1000,
+          timestamp: ts,
+          mode: 'Focus Study'
+        });
+      }
+    }
+  });
+
+  return sessions.sort((a, b) => b.timestamp - a.timestamp);
 }
 
 // ============================================================================
@@ -774,6 +954,15 @@ function loadLocalState() {
       if (Array.isArray(parsed.timelineEntries)) {
         appState.timelineEntries = parsed.timelineEntries;
       }
+      if (parsed.dailyFocusTotals && typeof parsed.dailyFocusTotals === 'object') {
+        appState.dailyFocusTotals = parsed.dailyFocusTotals;
+      }
+      if (parsed.subjectDurations && typeof parsed.subjectDurations === 'object') {
+        appState.subjectDurations = parsed.subjectDurations;
+      }
+      if (parsed.dailySubjectDurations && typeof parsed.dailySubjectDurations === 'object') {
+        appState.dailySubjectDurations = parsed.dailySubjectDurations;
+      }
 
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
@@ -781,15 +970,12 @@ function loadLocalState() {
       const endOfDayMs = startOfDayMs + 86400000;
 
       if (Array.isArray(parsed.todaySessions) && parsed.todaySessions.length > 0) {
-        // Filter strictly for verified sessions that occurred TODAY
         appState.todaySessions = parsed.todaySessions.filter(s => 
           s && typeof s.durationSec === 'number' && s.durationSec > 0 &&
           s.timestamp >= startOfDayMs && s.timestamp < endOfDayMs
         );
-      } else if (Array.isArray(appState.timelineEntries) && appState.timelineEntries.length > 0) {
-        reconstructTodaySessionsFromTimeline();
       } else {
-        appState.todaySessions = [];
+        reconstructTodaySessionsFromTimeline();
       }
     }
   } catch (e) {
@@ -807,7 +993,10 @@ function saveLocalState() {
       subjects: appState.subjects,
       plannerGoals: appState.plannerGoals || [],
       timelineEntries: appState.timelineEntries || [],
-      todaySessions: appState.todaySessions || []
+      todaySessions: appState.todaySessions || [],
+      dailyFocusTotals: appState.dailyFocusTotals || {},
+      subjectDurations: appState.subjectDurations || {},
+      dailySubjectDurations: appState.dailySubjectDurations || {}
     };
     localStorage.setItem('studytimer_demo_state', JSON.stringify(stateToSave));
   } catch (e) {

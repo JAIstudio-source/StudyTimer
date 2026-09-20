@@ -36,8 +36,16 @@ let timerConfig = {
   customTimerMinutes: 25,
   pomoFocusMinutes: 25,
   pomoBreakMinutes: 5,
+  pomoLongBreakMinutes: 15,
+  pomoTotalCycles: 4,
+  pomoAutoSwitchBreak: true,
+  pomoAutoSwitchFocus: true,
   dailyGoalMinutes: 120
 };
+
+let pomoCurrentCycle = 1;
+let isLongBreakActive = false;
+let pendingGoalIdToDelete = null;
 
 let currentMode = 'timer'; // 'timer', 'pomodoro', 'stopwatch', 'break'
 let timerStatus = 'IDLE';  // 'IDLE', 'RUNNING', 'PAUSED'
@@ -56,6 +64,10 @@ let appState = {
   lastStudyDate: '',
   subjects: [...DEFAULT_SUBJECTS],
   selectedSubject: DEFAULT_SUBJECTS[0],
+  plannerGoals: [
+    { id: 'goal_1', subjectId: 'math', dailyMinutes: 60 },
+    { id: 'goal_2', subjectId: 'coding', dailyMinutes: 90 }
+  ],
   timelineEntries: [],
   todaySessions: []
 };
@@ -72,9 +84,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   initBackgroundSyncListeners();
   renderSubjects();
   resetTimer();
-  renderTimelineList();
   updateProgressAndStreak();
-  updateSubjectBreakdown();
+  renderSubjectDonutChart();
+  renderActivityHeatmap();
+  renderMonthlyCalendar();
+  renderPlannerGoals();
 
   if (supabaseClient) {
     await initAuth();
@@ -206,6 +220,10 @@ async function pullDataFromCloud() {
           if (prefs.custom_timer_minutes) timerConfig.customTimerMinutes = prefs.custom_timer_minutes;
           if (prefs.pomo_focus_minutes) timerConfig.pomoFocusMinutes = prefs.pomo_focus_minutes;
           if (prefs.pomo_break_minutes) timerConfig.pomoBreakMinutes = prefs.pomo_break_minutes;
+          if (prefs.pomo_long_break_minutes) timerConfig.pomoLongBreakMinutes = prefs.pomo_long_break_minutes;
+          if (prefs.pomo_total_cycles) timerConfig.pomoTotalCycles = prefs.pomo_total_cycles;
+          if (typeof prefs.pomo_auto_switch_break === 'boolean') timerConfig.pomoAutoSwitchBreak = prefs.pomo_auto_switch_break;
+          if (typeof prefs.pomo_auto_switch_focus === 'boolean') timerConfig.pomoAutoSwitchFocus = prefs.pomo_auto_switch_focus;
 
           if (prefs.__subject_tags_data__) {
             const subjectPrefs = JSON.parse(prefs.__subject_tags_data__);
@@ -217,6 +235,19 @@ async function pullDataFromCloud() {
                 appState.subjects = loadedSubjects;
                 appState.selectedSubject = appState.subjects[0];
               }
+            }
+          }
+
+          if (prefs.__planner_goals_data__) {
+            try {
+              const loadedGoals = typeof prefs.__planner_goals_data__ === 'string'
+                ? JSON.parse(prefs.__planner_goals_data__)
+                : prefs.__planner_goals_data__;
+              if (Array.isArray(loadedGoals)) {
+                appState.plannerGoals = loadedGoals;
+              }
+            } catch (e) {
+              console.error('Failed to parse remote planner_goals', e);
             }
           }
         } catch (e) {
@@ -237,9 +268,11 @@ async function pullDataFromCloud() {
       }
 
       renderSubjects();
-      renderTimelineList();
       updateProgressAndStreak();
-      updateSubjectBreakdown();
+      renderSubjectDonutChart();
+      renderActivityHeatmap();
+      renderMonthlyCalendar();
+      renderPlannerGoals();
       saveLocalState();
       if (timerStatus === 'IDLE') {
         resetTimer();
@@ -290,6 +323,7 @@ async function pushDataToCloud() {
     // Payload sanitization & safety caps (prevent bot memory overflow)
     const sanitizedSubjects = Array.isArray(appState.subjects) ? appState.subjects.slice(0, 50) : [];
     const sanitizedTimeline = Array.isArray(appState.timelineEntries) ? appState.timelineEntries.slice(-500) : [];
+    const sanitizedGoals = Array.isArray(appState.plannerGoals) ? appState.plannerGoals.slice(0, 50) : [];
 
     const subjectTagsObj = {
       custom_subjects: JSON.stringify(sanitizedSubjects)
@@ -298,11 +332,16 @@ async function pushDataToCloud() {
     const prefsObj = {
       daily_goal_minutes: Math.min(1440, Math.max(1, Number(timerConfig.dailyGoalMinutes) || 120)),
       custom_timer_minutes: Math.min(720, Math.max(1, Number(timerConfig.customTimerMinutes) || 45)),
-      pomo_focus_minutes: Math.min(120, Math.max(1, Number(timerConfig.pomoFocusMinutes) || 25)),
+      pomo_focus_minutes: Math.min(180, Math.max(1, Number(timerConfig.pomoFocusMinutes) || 25)),
       pomo_break_minutes: Math.min(60, Math.max(1, Number(timerConfig.pomoBreakMinutes) || 5)),
+      pomo_long_break_minutes: Math.min(120, Math.max(1, Number(timerConfig.pomoLongBreakMinutes) || 15)),
+      pomo_total_cycles: Math.min(12, Math.max(1, Number(timerConfig.pomoTotalCycles) || 4)),
+      pomo_auto_switch_break: timerConfig.pomoAutoSwitchBreak !== false,
+      pomo_auto_switch_focus: timerConfig.pomoAutoSwitchFocus !== false,
       streak_count: Math.max(0, Number(appState.streakCount) || 0),
       last_study_date: appState.lastStudyDate || '',
-      __subject_tags_data__: JSON.stringify(subjectTagsObj)
+      __subject_tags_data__: JSON.stringify(subjectTagsObj),
+      __planner_goals_data__: JSON.stringify(sanitizedGoals)
     };
 
     const payload = {
@@ -359,9 +398,12 @@ function reconstructTodaySessionsFromTimeline() {
         id: 'sess_' + curr.t,
         subject: {
           name: curr.subName || 'Focus Study',
-          color: curr.subColor || '#3b82f6'
+          color: curr.subColor || '#3b82f6',
+          id: curr.subId || 'default'
         },
         durationSec,
+        startTime: curr.t,
+        endTime: endMs,
         timestamp: curr.t,
         mode: modeLabel
       });
@@ -386,6 +428,9 @@ function loadLocalState() {
         appState.subjects = parsed.subjects;
         appState.selectedSubject = appState.subjects[0];
       }
+      if (Array.isArray(parsed.plannerGoals)) {
+        appState.plannerGoals = parsed.plannerGoals;
+      }
       if (Array.isArray(parsed.timelineEntries)) {
         appState.timelineEntries = parsed.timelineEntries;
         reconstructTodaySessionsFromTimeline();
@@ -403,6 +448,7 @@ function saveLocalState() {
       streakCount: appState.streakCount,
       lastStudyDate: appState.lastStudyDate,
       subjects: appState.subjects,
+      plannerGoals: appState.plannerGoals || [],
       timelineEntries: appState.timelineEntries
     };
     localStorage.setItem('studytimer_demo_state', JSON.stringify(stateToSave));
@@ -418,7 +464,7 @@ function getModeDurationSec() {
   switch (currentMode) {
     case 'timer': return (timerConfig.customTimerMinutes || 25) * 60;
     case 'pomodoro': return (timerConfig.pomoFocusMinutes || 25) * 60;
-    case 'break': return (timerConfig.pomoBreakMinutes || 5) * 60;
+    case 'break': return (isLongBreakActive ? (timerConfig.pomoLongBreakMinutes || 15) : (timerConfig.pomoBreakMinutes || 5)) * 60;
     case 'stopwatch': return 0;
     default: return 25 * 60;
   }
@@ -427,9 +473,18 @@ function getModeDurationSec() {
 function initDomElements() {
   // Mode Tabs
   document.querySelectorAll('.mode-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (timerStatus === 'RUNNING') {
-        if (!confirm('Switching modes will reset your current timer. Continue?')) return;
+    btn.addEventListener('click', async () => {
+      if (btn.dataset.mode === currentMode) return;
+      if (timerStatus === 'RUNNING' || (timerStatus === 'PAUSED' && accumulatedElapsedSec > 0)) {
+        const confirmed = await showCustomConfirmDialog({
+          title: 'Switch Timer Mode?',
+          subtitle: 'Active session warning',
+          message: 'Switching modes will reset your current timer and unsaved progress. Continue?',
+          confirmText: 'Switch Mode',
+          cancelText: 'Stay Here',
+          isDanger: true
+        });
+        if (!confirmed) return;
       }
       document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
@@ -441,12 +496,67 @@ function initDomElements() {
 function setupEventListeners() {
   // Main Controls
   document.getElementById('btnToggleTimer').addEventListener('click', toggleTimer);
-  document.getElementById('btnResetTimer').addEventListener('click', resetTimer);
-  document.getElementById('btnQuickReset')?.addEventListener('click', resetTimer);
-  document.getElementById('btnFinishSession').addEventListener('click', finishSession);
+  document.getElementById('btnResetTimer').addEventListener('click', handleUserResetTimer);
+  document.getElementById('btnQuickReset')?.addEventListener('click', handleUserResetTimer);
+  document.getElementById('btnFinishSession').addEventListener('click', () => finishSession(false));
 
   // Fullscreen Browser Zen Mode
   document.getElementById('btnBrowserFullscreen')?.addEventListener('click', toggleBrowserFullscreen);
+
+  // 3-Tab Pill Switcher Navbar
+  document.getElementById('tabBtnOverview')?.addEventListener('click', () => switchInsightsTab('overview'));
+  document.getElementById('tabBtnCalendar')?.addEventListener('click', () => switchInsightsTab('calendar'));
+  document.getElementById('tabBtnPlanner')?.addEventListener('click', () => switchInsightsTab('planner'));
+
+  // Mobile Insights Bottom Sheet Drawer & Backdrop
+  document.getElementById('btnMobileInsights')?.addEventListener('click', openInsightsDrawer);
+  document.getElementById('btnCloseMobileInsights')?.addEventListener('click', closeInsightsDrawer);
+  document.getElementById('insightsBackdrop')?.addEventListener('click', closeInsightsDrawer);
+
+  // Calendar Month Navigation
+  document.getElementById('btnPrevMonth')?.addEventListener('click', () => changeCalendarMonth(-1));
+  document.getElementById('btnNextMonth')?.addEventListener('click', () => changeCalendarMonth(1));
+
+  // Planner Goals Modal Triggers
+  document.getElementById('btnOpenAddGoalModal')?.addEventListener('click', openAddGoalModal);
+  document.getElementById('btnCloseGoalModal')?.addEventListener('click', closeAddGoalModal);
+  document.getElementById('plannerGoalModalOverlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'plannerGoalModalOverlay') closeAddGoalModal();
+  });
+  document.getElementById('addGoalForm')?.addEventListener('submit', handleAddGoal);
+
+  // Goal Delete Confirmation Modal
+  document.getElementById('btnConfirmDeleteGoal')?.addEventListener('click', confirmDeletePlannerGoal);
+  document.getElementById('btnCancelDeleteGoal')?.addEventListener('click', closeDeleteGoalModal);
+  document.getElementById('btnCloseDeleteGoalModal')?.addEventListener('click', closeDeleteGoalModal);
+  document.getElementById('deleteGoalModalOverlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'deleteGoalModalOverlay') closeDeleteGoalModal();
+  });
+
+  // Post-Session Complete & Subject Switch Modal
+  document.getElementById('btnKeepSameSubject')?.addEventListener('click', closeSessionCompleteModal);
+  document.getElementById('btnApplyNextSubject')?.addEventListener('click', applyNextSessionSubject);
+  document.getElementById('btnCloseSessionCompleteModal')?.addEventListener('click', closeSessionCompleteModal);
+  document.getElementById('sessionCompleteModalOverlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'sessionCompleteModalOverlay') closeSessionCompleteModal();
+  });
+
+  // Delete All Local Data Modal
+  document.getElementById('btnOpenDeleteAllDataModal')?.addEventListener('click', openDeleteAllDataModal);
+  document.getElementById('btnConfirmDeleteAllData')?.addEventListener('click', confirmDeleteAllData);
+  document.getElementById('btnCancelDeleteAllData')?.addEventListener('click', closeDeleteAllDataModal);
+  document.getElementById('btnCloseDeleteAllDataModal')?.addEventListener('click', closeDeleteAllDataModal);
+  document.getElementById('deleteAllDataModalOverlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'deleteAllDataModalOverlay') closeDeleteAllDataModal();
+  });
+
+  // Custom Confirmation Dialog Modal
+  document.getElementById('btnOkCustomConfirm')?.addEventListener('click', () => closeCustomConfirmDialog(true));
+  document.getElementById('btnCancelCustomConfirm')?.addEventListener('click', () => closeCustomConfirmDialog(false));
+  document.getElementById('btnCloseCustomConfirmModal')?.addEventListener('click', () => closeCustomConfirmDialog(false));
+  document.getElementById('customConfirmModalOverlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'customConfirmModalOverlay') closeCustomConfirmDialog(false);
+  });
 
   // Settings Modal Triggers
   document.getElementById('btnOpenTimerSettings')?.addEventListener('click', openTimerSettingsModal);
@@ -656,11 +766,27 @@ function switchMode(modeKey) {
   
   const modeBadge = document.getElementById('activeModeBadge');
   if (modeBadge) {
-    if (modeKey === 'timer') modeBadge.textContent = '⏱️ Countdown Timer';
-    else if (modeKey === 'pomodoro') modeBadge.textContent = '🍅 Pomodoro Focus';
-    else if (modeKey === 'stopwatch') modeBadge.textContent = '⚡ Stopwatch';
-    else if (modeKey === 'break') modeBadge.textContent = '☕ Short Break';
+    if (modeKey === 'timer') {
+      modeBadge.textContent = '⏱️ Countdown Timer';
+    } else if (modeKey === 'pomodoro') {
+      const total = timerConfig.pomoTotalCycles || 4;
+      modeBadge.textContent = `🍅 Pomodoro Focus (Cycle ${pomoCurrentCycle}/${total})`;
+    } else if (modeKey === 'stopwatch') {
+      modeBadge.textContent = '⚡ Stopwatch';
+    } else if (modeKey === 'break') {
+      const dur = isLongBreakActive ? (timerConfig.pomoLongBreakMinutes || 15) : (timerConfig.pomoBreakMinutes || 5);
+      modeBadge.textContent = `☕ ${isLongBreakActive ? 'Long Break' : 'Short Break'} (${dur}m)`;
+    }
   }
+
+  // Synchronize top mode buttons
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    if (btn.dataset.mode === modeKey) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
 
   resetTimer();
 }
@@ -771,7 +897,7 @@ function tickTimer() {
     const totalSec = getModeDurationSec();
     timeRemaining = Math.max(0, totalSec - totalElapsedSec);
     if (timeRemaining === 0) {
-      finishSession();
+      finishSession(true);
       return;
     }
   }
@@ -805,6 +931,22 @@ function pauseTimer() {
   updateTimerDisplay();
 }
 
+async function handleUserResetTimer() {
+  if (timerStatus === 'RUNNING' || timerStatus === 'PAUSED' || accumulatedElapsedSec > 0) {
+    const confirmed = await showCustomConfirmDialog({
+      title: 'Reset Active Timer?',
+      subtitle: 'Unsaved focus progress warning',
+      message: 'Are you sure you want to reset the timer? Current unsaved session progress will be lost.',
+      confirmText: 'Reset Timer',
+      cancelText: 'Keep Focus',
+      isDanger: true
+    });
+    if (!confirmed) return;
+  }
+  resetTimer();
+  showToast('Timer reset', 'info');
+}
+
 function resetTimer() {
   stopInterval();
   timerStatus = 'IDLE';
@@ -828,18 +970,18 @@ function stopInterval() {
   releaseWakeLock();
 }
 
-function finishSession() {
+function finishSession(isAutoFinished = false) {
   let currentElapsed = accumulatedElapsedSec;
   if (timerStatus === 'RUNNING' && timerStartTimestamp) {
     currentElapsed += Math.floor((Date.now() - timerStartTimestamp) / 1000);
   }
 
-  if (currentElapsed < 10) {
+  if (currentElapsed < 10 && !isAutoFinished) {
     showToast('Session too short to save (< 10s). Focus a bit longer!', 'info');
     return;
   }
 
-  let studiedDurationSec = currentElapsed;
+  let studiedDurationSec = Math.max(isAutoFinished ? 60 : 1, currentElapsed);
   if (timerStatus === 'RUNNING' && timerStartTimestamp) {
     const elapsedSinceResume = Math.floor((Date.now() - timerStartTimestamp) / 1000);
     accumulatedElapsedSec += elapsedSinceResume;
@@ -848,6 +990,7 @@ function finishSession() {
   const now = Date.now();
   const startMs = now - (studiedDurationSec * 1000);
   const subject = appState.selectedSubject;
+  const prevMode = currentMode;
 
   let stateKey = 'STUDYING';
   let modeLabel = 'Focus Timer';
@@ -874,6 +1017,8 @@ function finishSession() {
       id: 'sess_' + Date.now(),
       subject: { ...subject },
       durationSec: studiedDurationSec,
+      startTime: startMs,
+      endTime: now,
       timestamp: startMs,
       mode: modeLabel
     };
@@ -885,9 +1030,11 @@ function finishSession() {
   }
 
   resetTimer();
-  renderTimelineList();
   updateProgressAndStreak();
-  updateSubjectBreakdown();
+  renderSubjectDonutChart();
+  renderActivityHeatmap();
+  renderMonthlyCalendar();
+  renderPlannerGoals();
   saveLocalState();
 
   // Only push to cloud database if session is at least 1 minute (>= 60s) and not a break
@@ -899,12 +1046,41 @@ function finishSession() {
 
   if (stateKey === 'BREAK') {
     showToast('☕ Break finished! Ready to focus.', 'info');
+
+    // Automation: Auto-switch back to Pomodoro Focus after break
+    if (timerConfig.pomoAutoSwitchFocus !== false) {
+      isLongBreakActive = false;
+      setTimeout(() => {
+        switchMode('pomodoro');
+        const totalCycles = timerConfig.pomoTotalCycles || 4;
+        showToast(`🍅 Ready for Pomodoro Focus (Cycle ${pomoCurrentCycle}/${totalCycles})`, 'info');
+      }, 500);
+    }
   } else {
-    const minStr = Math.round(studiedDurationSec / 60);
+    const minStr = Math.max(1, Math.round(studiedDurationSec / 60));
     if (studiedDurationSec >= 60) {
       showToast(`🎉 Focus session saved! +${minStr}m added to ${subject.name}`, 'success');
     } else {
       showToast(`✓ Session saved locally (+${studiedDurationSec}s). Cloud sync activates after 1 min.`, 'info');
+    }
+
+    // Give option to change subject after session ended
+    openSessionCompleteModal(subject, minStr);
+
+    // Pomodoro Automation: Auto-switch to break
+    if (prevMode === 'pomodoro' && timerConfig.pomoAutoSwitchBreak !== false) {
+      const totalCycles = timerConfig.pomoTotalCycles || 4;
+      if (pomoCurrentCycle >= totalCycles) {
+        isLongBreakActive = true;
+        pomoCurrentCycle = 1;
+      } else {
+        isLongBreakActive = false;
+        pomoCurrentCycle++;
+      }
+
+      setTimeout(() => {
+        switchMode('break');
+      }, 600);
     }
   }
 }
@@ -1080,8 +1256,14 @@ function updateTimerDisplay() {
     stateBadge.style.color = stateColor;
   }
   if (zenStateBadge) {
-    zenStateBadge.textContent = stateText;
-    zenStateBadge.style.color = stateColor;
+    let zenText = 'READY TO FOCUS';
+    if (currentMode === 'break') {
+      zenText = timerStatus === 'RUNNING' ? 'BREAK' : (timerStatus === 'PAUSED' ? 'BREAK PAUSED' : 'READY FOR BREAK');
+    } else {
+      zenText = timerStatus === 'RUNNING' ? 'FOCUSING' : (timerStatus === 'PAUSED' ? 'PAUSED' : 'READY TO FOCUS');
+    }
+    zenStateBadge.textContent = zenText;
+    zenStateBadge.style.color = 'var(--text-muted)';
   }
 }
 
@@ -1250,54 +1432,68 @@ function updateSelectedSubjectUI() {
   }
 }
 
-function renderTimelineList() {
-  const container = document.getElementById('timelineList');
-  const countBadge = document.getElementById('sessionsCountBadge');
-  if (!container) return;
+// ============================================================================
+// 7. INSIGHTS HUB (3-TAB ARCHITECTURE & ANALYTICS SUITE)
+// ============================================================================
 
-  const validSessions = appState.todaySessions.filter(s => s.durationSec >= 10);
-  if (countBadge) countBadge.textContent = `${validSessions.length} session${validSessions.length === 1 ? '' : 's'}`;
+let currentInsightsTab = 'overview';
 
-  if (validSessions.length === 0) {
-    container.innerHTML = `
-      <div class="timeline-empty-state">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="12" cy="12" r="10"></circle>
-          <polyline points="12 6 12 12 16 14"></polyline>
-        </svg>
-        <p>No study sessions recorded yet today.</p>
-        <span>Click <strong>Start Focus</strong> to record your first study block!</span>
-      </div>
-    `;
-    return;
-  }
-
-  container.innerHTML = '';
-  validSessions.forEach(sess => {
-    const mins = Math.max(1, Math.round(sess.durationSec / 60));
-    const timeStr = new Date(sess.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    const item = document.createElement('div');
-    item.className = 'timeline-item';
-    item.innerHTML = `
-      <div class="timeline-item-left">
-        <span class="subject-color-dot" style="background-color: ${sess.subject.color};"></span>
-        <div>
-          <div class="timeline-subject-name">${sess.subject.name}</div>
-          <span class="timeline-mode-pill">${sess.mode || 'Focus Study'}</span>
-        </div>
-      </div>
-      <div class="timeline-item-right">
-        <span class="timeline-duration">+${mins} min</span>
-        <span class="timeline-time">${timeStr}</span>
-      </div>
-    `;
-    container.appendChild(item);
+function switchInsightsTab(tabName) {
+  currentInsightsTab = tabName;
+  
+  const tabs = ['overview', 'calendar', 'planner'];
+  tabs.forEach(t => {
+    const btn = document.getElementById(`tabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
+    const panel = document.getElementById(`panel${t.charAt(0).toUpperCase() + t.slice(1)}`);
+    if (t === tabName) {
+      btn?.classList.add('active');
+      panel?.classList.remove('hidden');
+    } else {
+      btn?.classList.remove('active');
+      panel?.classList.add('hidden');
+    }
   });
+
+  if (tabName === 'overview') {
+    updateProgressAndStreak();
+    renderSubjectDonutChart();
+    renderActivityHeatmap();
+  } else if (tabName === 'calendar') {
+    renderMonthlyCalendar();
+  } else if (tabName === 'planner') {
+    renderPlannerGoals();
+  }
 }
 
+// Mobile Bottom Sheet Drawer Controls
+function openInsightsDrawer() {
+  const hub = document.getElementById('insightsHub');
+  const backdrop = document.getElementById('insightsBackdrop');
+  hub?.classList.add('open');
+  backdrop?.classList.add('open');
+  backdrop?.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+
+  // Trigger render of current active tab
+  switchInsightsTab(currentInsightsTab);
+}
+
+function closeInsightsDrawer() {
+  const hub = document.getElementById('insightsHub');
+  const backdrop = document.getElementById('insightsBackdrop');
+  hub?.classList.remove('open');
+  backdrop?.classList.remove('open');
+  setTimeout(() => {
+    backdrop?.classList.add('hidden');
+  }, 300);
+  document.body.style.overflow = '';
+}
+
+// ----------------------------------------------------------------------------
+// TAB 1: OVERVIEW (Daily Goal, Donut Chart, 52-Week Heatmap)
+// ----------------------------------------------------------------------------
+
 function updateProgressAndStreak() {
-  // Calculate total study minutes today
   let totalSecToday = 0;
   appState.todaySessions.forEach(s => {
     totalSecToday += s.durationSec;
@@ -1307,11 +1503,9 @@ function updateProgressAndStreak() {
   const goalMin = timerConfig.dailyGoalMinutes || 120;
   const percent = Math.min(100, Math.round((totalMinToday / goalMin) * 100));
 
-  // Update Insights Hub Streak & Goal
   const hubStreakCount = document.getElementById('hubStreakCount');
   if (hubStreakCount) hubStreakCount.textContent = `${appState.streakCount || 1} Day Streak`;
 
-  // Update Hub Stats
   const statStudiedToday = document.getElementById('statStudiedToday');
   const statDailyGoal = document.getElementById('statDailyGoal');
   const statGoalPercent = document.getElementById('statGoalPercent');
@@ -1341,56 +1535,710 @@ function updateProgressAndStreak() {
   if (largeGoalProgressBar) largeGoalProgressBar.style.width = `${percent}%`;
 }
 
-function updateSubjectBreakdown() {
-  const container = document.getElementById('subjectBarsList');
-  if (!container) return;
+// Interactive Subject Distribution Donut / Pie Chart (SubjectPieChartView.kt)
+let activeHighlightedSubjectId = null;
+
+function renderSubjectDonutChart() {
+  const svg = document.getElementById('subjectDonutSvg');
+  const svgWrap = document.getElementById('donutSvgWrap');
+  const totalBadge = document.getElementById('donutTotalBadge');
+  const centerSub = document.getElementById('donutCenterSub');
+  const centerVal = document.getElementById('donutCenterVal');
+  const centerPct = document.getElementById('donutCenterPct');
+  const legendList = document.getElementById('donutLegendList');
+  if (!svg || !legendList) return;
 
   const subjectTotals = {};
-  let maxDurationSec = 0;
+  let totalSecToday = 0;
 
   appState.todaySessions.forEach(s => {
-    const subName = s.subject.name;
-    if (!subjectTotals[subName]) {
-      subjectTotals[subName] = { durationSec: 0, color: s.subject.color };
+    const subId = s.subject.id || s.subject.name;
+    if (!subjectTotals[subId]) {
+      subjectTotals[subId] = {
+        id: subId,
+        name: s.subject.name,
+        color: s.subject.color || '#3b82f6',
+        durationSec: 0
+      };
     }
-    subjectTotals[subName].durationSec += s.durationSec;
-    if (subjectTotals[subName].durationSec > maxDurationSec) {
-      maxDurationSec = subjectTotals[subName].durationSec;
+    subjectTotals[subId].durationSec += s.durationSec;
+    totalSecToday += s.durationSec;
+  });
+
+  const totalMinToday = Math.round(totalSecToday / 60);
+  const formattedTotal = totalMinToday >= 60 
+    ? `${Math.floor(totalMinToday / 60)}h ${totalMinToday % 60}m` 
+    : `${totalMinToday}m`;
+
+  if (totalBadge) totalBadge.textContent = `${formattedTotal} total`;
+  if (centerSub) centerSub.textContent = 'Today';
+  if (centerVal) centerVal.textContent = formattedTotal;
+  if (centerPct) centerPct.classList.add('hidden');
+
+  // Reset highlight state
+  activeHighlightedSubjectId = null;
+
+  // Clear previous slices while keeping track
+  const bgTrack = svg.querySelector('.donut-bg-track');
+  svg.innerHTML = '';
+  if (bgTrack) {
+    svg.appendChild(bgTrack);
+  } else {
+    const track = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    track.setAttribute('cx', '100');
+    track.setAttribute('cy', '100');
+    track.setAttribute('r', '70');
+    track.setAttribute('class', 'donut-bg-track');
+    svg.appendChild(track);
+  }
+
+  legendList.innerHTML = '';
+
+  const entries = Object.values(subjectTotals);
+  if (entries.length === 0 || totalSecToday === 0) {
+    legendList.innerHTML = `
+      <div class="empty-hub-state">
+        <span>No study sessions yet today. Start focusing to see subject breakdown.</span>
+      </div>
+    `;
+    return;
+  }
+
+  const radius = 70;
+  const circumference = 2 * Math.PI * radius; // ~439.82
+  let accumulatedPercent = 0;
+
+  entries.sort((a, b) => b.durationSec - a.durationSec);
+
+  function highlightSubject(item) {
+    activeHighlightedSubjectId = item.id;
+    const itemPct = Math.round((item.durationSec / totalSecToday) * 100);
+    const itemMin = Math.round(item.durationSec / 60);
+    const itemTimeStr = itemMin >= 60 ? `${Math.floor(itemMin / 60)}h ${itemMin % 60}m` : `${itemMin}m`;
+
+    if (centerSub) centerSub.textContent = item.name;
+    if (centerVal) centerVal.textContent = itemTimeStr;
+    if (centerPct) {
+      centerPct.textContent = `${itemPct}% of study`;
+      centerPct.classList.remove('hidden');
+    }
+
+    svg.querySelectorAll('.donut-slice').forEach(s => {
+      if (s.getAttribute('data-sub-id') === item.id) {
+        s.classList.add('active');
+      } else {
+        s.classList.remove('active');
+      }
+    });
+
+    legendList.querySelectorAll('.donut-legend-item').forEach(l => {
+      if (l.getAttribute('data-sub-id') === item.id) {
+        l.classList.add('active');
+      } else {
+        l.classList.remove('active');
+      }
+    });
+  }
+
+  function resetHighlight() {
+    activeHighlightedSubjectId = null;
+    if (centerSub) centerSub.textContent = 'Today';
+    if (centerVal) centerVal.textContent = formattedTotal;
+    if (centerPct) centerPct.classList.add('hidden');
+
+    svg.querySelectorAll('.donut-slice').forEach(s => s.classList.remove('active'));
+    legendList.querySelectorAll('.donut-legend-item').forEach(l => l.classList.remove('active'));
+  }
+
+  svgWrap?.addEventListener('mouseleave', () => {
+    if (activeHighlightedSubjectId) resetHighlight();
+  });
+
+  entries.forEach(item => {
+    // Relative distribution: Always fills 100% of the ring across all subjects
+    const itemPct = (item.durationSec / totalSecToday) * 100;
+    const itemMin = Math.round(item.durationSec / 60);
+    const itemTimeStr = itemMin >= 60 ? `${Math.floor(itemMin / 60)}h ${itemMin % 60}m` : `${itemMin}m`;
+
+    const sliceLength = (itemPct / 100) * circumference;
+    const offset = circumference - ((accumulatedPercent / 100) * circumference);
+
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', '100');
+    circle.setAttribute('cy', '100');
+    circle.setAttribute('r', radius.toString());
+    circle.setAttribute('class', 'donut-slice');
+    circle.setAttribute('data-sub-id', item.id);
+    circle.setAttribute('stroke', item.color);
+    circle.setAttribute('stroke-dasharray', `${sliceLength} ${circumference}`);
+    circle.setAttribute('stroke-dashoffset', offset.toString());
+    circle.innerHTML = `<title>${item.name}: ${Math.round(itemPct)}% (${itemTimeStr})</title>`;
+
+    circle.addEventListener('mouseenter', () => highlightSubject(item));
+    circle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      highlightSubject(item);
+    });
+
+    svg.appendChild(circle);
+    accumulatedPercent += itemPct;
+
+    // Legend Item
+    const legendItem = document.createElement('div');
+    legendItem.className = 'donut-legend-item';
+    legendItem.setAttribute('data-sub-id', item.id);
+    legendItem.innerHTML = `
+      <div class="donut-legend-left">
+        <span class="donut-legend-dot" style="background-color: ${item.color};"></span>
+        <span class="donut-legend-name">${item.name}</span>
+      </div>
+      <div class="donut-legend-right">
+        <span class="donut-legend-pct">${Math.round(itemPct)}%</span>
+        <span class="donut-legend-time">${itemTimeStr}</span>
+      </div>
+    `;
+
+    legendItem.addEventListener('mouseenter', () => highlightSubject(item));
+    legendItem.addEventListener('mouseleave', () => resetHighlight());
+    legendItem.addEventListener('click', (e) => {
+      e.stopPropagation();
+      highlightSubject(item);
+    });
+
+    legendList.appendChild(legendItem);
+  });
+}
+
+// 52-Week Activity Heatmap (HeatmapView.kt)
+function renderActivityHeatmap() {
+  const container = document.getElementById('heatmapGrid');
+  const monthsRow = document.getElementById('heatmapMonthsRow');
+  const yearLabel = document.getElementById('heatmapYearLabel');
+  if (!container) return;
+
+  const dateMap = {};
+  let totalActiveDays = 0;
+  let totalStudiedSec = 0;
+
+  appState.timelineEntries.forEach(entry => {
+    if (entry.t && (entry.s === 'STUDYING' || entry.s === 'POMODORO' || entry.s === 'COUNT_UP')) {
+      const d = new Date(entry.t);
+      const dateKey = d.toISOString().split('T')[0];
+      dateMap[dateKey] = (dateMap[dateKey] || 0) + 1500;
     }
   });
 
-  const keys = Object.keys(subjectTotals);
-  if (keys.length === 0) {
+  appState.todaySessions.forEach(sess => {
+    const d = new Date(sess.timestamp);
+    const dateKey = d.toISOString().split('T')[0];
+    dateMap[dateKey] = (dateMap[dateKey] || 0) + sess.durationSec;
+  });
+
+  Object.values(dateMap).forEach(sec => {
+    if (sec > 0) {
+      totalActiveDays++;
+      totalStudiedSec += sec;
+    }
+  });
+
+  if (yearLabel) {
+    const totalHrs = Math.round(totalStudiedSec / 3600);
+    yearLabel.textContent = `${totalActiveDays} Active Day${totalActiveDays === 1 ? '' : 's'}${totalHrs > 0 ? ' • ' + totalHrs + 'h' : ''}`;
+  }
+
+  const now = new Date();
+  const currentDayOfWeek = (now.getDay() + 6) % 7; // Monday = 0, Sunday = 6
+  const totalDays = (51 * 7) + (currentDayOfWeek + 1); // 52 weeks total
+
+  container.innerHTML = '';
+  if (monthsRow) monthsRow.innerHTML = '';
+
+  const startDate = new Date();
+  startDate.setDate(now.getDate() - totalDays + 1);
+
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  let lastMonthIndex = -1;
+  let currentWeekCol = null;
+  let colIndex = 0;
+
+  for (let i = 0; i < totalDays; i++) {
+    const curDate = new Date(startDate);
+    curDate.setDate(startDate.getDate() + i);
+
+    const dayOfWeek = (curDate.getDay() + 6) % 7; // 0 = Mon, 6 = Sun
+    if (dayOfWeek === 0 || !currentWeekCol) {
+      currentWeekCol = document.createElement('div');
+      currentWeekCol.className = 'heatmap-col-week';
+      container.appendChild(currentWeekCol);
+
+      // Check if this week column introduces a new month
+      const curMonth = curDate.getMonth();
+      if (curMonth !== lastMonthIndex && monthsRow) {
+        lastMonthIndex = curMonth;
+        const monthLabel = document.createElement('span');
+        monthLabel.className = 'heatmap-month-label';
+        // 10px cell + 3px gap = 13px per column
+        monthLabel.style.left = `${colIndex * 13}px`;
+        monthLabel.textContent = monthNames[curMonth];
+        monthsRow.appendChild(monthLabel);
+      }
+
+      colIndex++;
+    }
+
+    const dateKey = curDate.toISOString().split('T')[0];
+    const secStudied = dateMap[dateKey] || 0;
+    const minStudied = Math.round(secStudied / 60);
+
+    let level = 0;
+    if (minStudied > 0 && minStudied < 30) level = 1;
+    else if (minStudied >= 30 && minStudied < 60) level = 2;
+    else if (minStudied >= 60 && minStudied < 120) level = 3;
+    else if (minStudied >= 120) level = 4;
+
+    const cell = document.createElement('div');
+    cell.className = `heatmap-cell lvl-${level}`;
+    const formattedDate = curDate.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    const formattedTime = minStudied >= 60 ? `${Math.floor(minStudied / 60)}h ${minStudied % 60}m` : `${minStudied}m`;
+    cell.title = `${minStudied > 0 ? formattedTime : 'No study'} on ${formattedDate}`;
+
+    cell.addEventListener('click', () => {
+      switchInsightsTab('calendar');
+      selectCalendarDate(dateKey);
+    });
+
+    currentWeekCol.appendChild(cell);
+  }
+
+  // Auto-scroll to the latest weeks on right
+  const scrollWrapper = document.querySelector('.heatmap-scroll-wrapper');
+  if (scrollWrapper) {
+    scrollWrapper.scrollLeft = scrollWrapper.scrollWidth;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// TAB 2: CALENDAR & DAY TIMELINE (CalendarTimeline.kt)
+// ----------------------------------------------------------------------------
+
+let activeCalendarMonth = new Date().getMonth();
+let activeCalendarYear = new Date().getFullYear();
+let selectedCalendarDateStr = new Date().toISOString().split('T')[0];
+
+function renderMonthlyCalendar() {
+  const monthTitle = document.getElementById('calMonthTitle');
+  const daysGrid = document.getElementById('calendarDaysGrid');
+  const summaryRow = document.getElementById('calMonthSummaryRow');
+  if (!monthTitle || !daysGrid) return;
+
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  monthTitle.textContent = `${monthNames[activeCalendarMonth]} ${activeCalendarYear}`;
+  daysGrid.innerHTML = '';
+
+  const firstDayOfMonth = new Date(activeCalendarYear, activeCalendarMonth, 1);
+  const lastDayOfMonth = new Date(activeCalendarYear, activeCalendarMonth + 1, 0);
+  const daysInMonth = lastDayOfMonth.getDate();
+
+  // Starting Day of week (0 = Mon, 6 = Sun)
+  const startDayIndex = (firstDayOfMonth.getDay() + 6) % 7;
+
+  // Previous month padding
+  const prevMonthLastDay = new Date(activeCalendarYear, activeCalendarMonth, 0).getDate();
+  for (let i = startDayIndex - 1; i >= 0; i--) {
+    const cell = document.createElement('div');
+    cell.className = 'cal-day-cell other-month';
+    cell.innerHTML = `<span class="cal-day-num">${prevMonthLastDay - i}</span>`;
+    daysGrid.appendChild(cell);
+  }
+
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // Map of sessions and total duration per date
+  const dateSessionsMap = {};
+  const dateDurationMap = {};
+
+  appState.timelineEntries.forEach(e => {
+    if (e.t && (e.s === 'STUDYING' || e.s === 'POMODORO' || e.s === 'COUNT_UP')) {
+      const d = new Date(e.t);
+      const dateKey = d.toISOString().split('T')[0];
+      if (!dateSessionsMap[dateKey]) dateSessionsMap[dateKey] = [];
+      dateSessionsMap[dateKey].push(e.subColor || '#3b82f6');
+      dateDurationMap[dateKey] = (dateDurationMap[dateKey] || 0) + 1500;
+    }
+  });
+
+  appState.todaySessions.forEach(s => {
+    const d = new Date(s.timestamp);
+    const dateKey = d.toISOString().split('T')[0];
+    if (!dateSessionsMap[dateKey]) dateSessionsMap[dateKey] = [];
+    dateSessionsMap[dateKey].push(s.subject.color || '#3b82f6');
+    dateDurationMap[dateKey] = (dateDurationMap[dateKey] || 0) + s.durationSec;
+  });
+
+  const dailyGoalSec = (timerConfig.dailyGoalMinutes || 120) * 60;
+  let monthGoalsMet = 0;
+  let monthTotalSecs = 0;
+
+  // Render Current Month Days
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateKey = `${activeCalendarYear}-${String(activeCalendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    
+    const isToday = dateKey === todayStr;
+    const isSelected = dateKey === selectedCalendarDateStr;
+    const subjectColors = [...new Set(dateSessionsMap[dateKey] || [])];
+    const focusSecs = dateDurationMap[dateKey] || 0;
+
+    monthTotalSecs += focusSecs;
+    const goalReached = dailyGoalSec > 0 && focusSecs >= dailyGoalSec;
+    const goalIncomplete = focusSecs > 0 && !goalReached;
+    if (goalReached) monthGoalsMet++;
+
+    let goalStatusClass = '';
+    if (goalReached) {
+      goalStatusClass = 'goal-met';
+    } else if (goalIncomplete) {
+      goalStatusClass = 'goal-incomplete';
+    }
+
+    const pct = dailyGoalSec > 0 ? Math.min(1, focusSecs / dailyGoalSec) : 0;
+    const ringCircumference = 75.4; // 2 * PI * 12
+    const ringOffset = ringCircumference * (1 - pct);
+
+    const cell = document.createElement('div');
+    cell.className = `cal-day-cell ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''} ${goalStatusClass}`;
+    
+    // Day hover tooltip with study time vs goal
+    const minStudied = Math.round(focusSecs / 60);
+    const goalMin = Math.round(dailyGoalSec / 60);
+    const formattedDate = new Date(dateKey + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' });
+    cell.title = focusSecs > 0 
+      ? `${formattedDate}: ${minStudied}m / ${goalMin}m goal (${Math.round(pct * 100)}%)` 
+      : `${formattedDate}: No study sessions`;
+
+    let dotsHtml = '';
+    if (subjectColors.length > 0) {
+      dotsHtml = `<div class="cal-study-dots-wrap">` + 
+        subjectColors.slice(0, 3).map(color => `<span class="cal-dot" style="background-color: ${color};"></span>`).join('') +
+        `</div>`;
+    }
+
+    cell.innerHTML = `
+      <div class="cal-day-ring-wrap">
+        <svg class="cal-day-svg-ring" viewBox="0 0 30 30">
+          <circle class="cal-ring-bg" cx="15" cy="15" r="12"></circle>
+          ${pct > 0 ? `<circle class="cal-ring-fg" cx="15" cy="15" r="12" stroke-dasharray="${ringCircumference}" stroke-dashoffset="${ringOffset}"></circle>` : ''}
+        </svg>
+        <span class="cal-day-num">${day}</span>
+      </div>
+      ${dotsHtml}
+    `;
+
+    cell.addEventListener('click', () => {
+      selectCalendarDate(dateKey);
+    });
+
+    daysGrid.appendChild(cell);
+  }
+
+  // Render Monthly Summary Badges
+  if (summaryRow) {
+    const totalHrs = Math.floor(monthTotalSecs / 3600);
+    const totalMins = Math.round((monthTotalSecs % 3600) / 60);
+    const formattedMonthStudy = totalHrs > 0 ? `${totalHrs}h ${totalMins}m` : `${totalMins}m`;
+
+    summaryRow.innerHTML = `
+      <span class="cal-summary-chip goals-met">✓ ${monthGoalsMet} ${monthGoalsMet === 1 ? 'Goal' : 'Goals'} Met</span>
+      <span class="cal-summary-chip total-study">⏱️ ${formattedMonthStudy} Total Study</span>
+    `;
+  }
+
+  renderSelectedDateTimeline(selectedCalendarDateStr);
+}
+
+function changeCalendarMonth(delta) {
+  activeCalendarMonth += delta;
+  if (activeCalendarMonth > 11) {
+    activeCalendarMonth = 0;
+    activeCalendarYear++;
+  } else if (activeCalendarMonth < 0) {
+    activeCalendarMonth = 11;
+    activeCalendarYear--;
+  }
+  renderMonthlyCalendar();
+}
+
+function selectCalendarDate(dateStr) {
+  selectedCalendarDateStr = dateStr;
+  renderMonthlyCalendar();
+}
+
+// Precise Session Timeline with exact Start & End Time
+function renderSelectedDateTimeline(dateStr) {
+  const title = document.getElementById('selectedDateTimelineTitle');
+  const countBadge = document.getElementById('selectedDateSessionCount');
+  const container = document.getElementById('timelineList');
+  if (!container) return;
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const isToday = dateStr === todayStr;
+
+  const formattedDate = new Date(dateStr + 'T00:00:00').toLocaleDateString([], {
+    month: 'short', day: 'numeric', year: 'numeric'
+  });
+
+  if (title) {
+    title.textContent = isToday ? "Today's Sessions" : `Sessions (${formattedDate})`;
+  }
+
+  const targetDate = new Date(dateStr + 'T00:00:00');
+  const nextDate = new Date(targetDate);
+  nextDate.setDate(nextDate.getDate() + 1);
+
+  const startMs = targetDate.getTime();
+  const endMs = nextDate.getTime();
+
+  let sessions = [];
+  if (isToday) {
+    sessions = appState.todaySessions.filter(s => s.durationSec >= 10);
+  } else {
+    const entries = appState.timelineEntries.filter(e => e.t >= startMs && e.t < endMs);
+    for (let i = 0; i < entries.length; i++) {
+      const curr = entries[i];
+      if (curr.s === 'STUDYING' || curr.s === 'POMODORO' || curr.s === 'COUNT_UP') {
+        const next = entries[i + 1];
+        const sessionEnd = next ? next.t : curr.t + 1500 * 1000;
+        const durationSec = Math.max(1, Math.round((sessionEnd - curr.t) / 1000));
+        let modeLabel = 'Focus Study';
+        if (curr.s === 'POMODORO') modeLabel = 'Pomodoro';
+        else if (curr.s === 'COUNT_UP') modeLabel = 'Stopwatch';
+
+        sessions.push({
+          id: 'sess_' + curr.t,
+          subject: {
+            name: curr.subName || 'Focus Study',
+            color: curr.subColor || '#3b82f6'
+          },
+          durationSec,
+          startTime: curr.t,
+          endTime: sessionEnd,
+          timestamp: curr.t,
+          mode: modeLabel
+        });
+      }
+    }
+  }
+
+  if (countBadge) countBadge.textContent = `${sessions.length} session${sessions.length === 1 ? '' : 's'}`;
+
+  if (sessions.length === 0) {
     container.innerHTML = `
-      <div class="empty-hub-state">
-        <span>Start studying to see time breakdown per subject.</span>
+      <div class="timeline-empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        <p>No study sessions on ${formattedDate}.</p>
+        <span>${isToday ? 'Click Start Focus to log your first session!' : 'Select a date with activity dots to view history.'}</span>
       </div>
     `;
     return;
   }
 
   container.innerHTML = '';
-  keys.forEach(name => {
-    const item = subjectTotals[name];
-    const mins = Math.round(item.durationSec / 60);
-    const barWidthPercent = maxDurationSec > 0 ? Math.round((item.durationSec / maxDurationSec) * 100) : 0;
+  sessions.forEach(sess => {
+    const mins = Math.max(1, Math.round(sess.durationSec / 60));
+    
+    // Format exact start and end time range (e.g. 10:15 AM – 10:40 AM)
+    const startTimeFormatted = new Date(sess.startTime || sess.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const endTimeFormatted = sess.endTime 
+      ? new Date(sess.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : new Date((sess.startTime || sess.timestamp) + (sess.durationSec * 1000)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    const row = document.createElement('div');
-    row.className = 'subject-bar-row';
-    row.innerHTML = `
-      <div class="subject-bar-meta">
-        <div class="subject-name-with-dot">
-          <span class="subject-color-dot" style="background-color: ${item.color};"></span>
-          <span>${name}</span>
+    const item = document.createElement('div');
+    item.className = 'timeline-item';
+    item.innerHTML = `
+      <div class="timeline-item-left">
+        <span class="subject-color-dot" style="background-color: ${sess.subject.color};"></span>
+        <div>
+          <div class="timeline-subject-name">${sess.subject.name}</div>
+          <span class="timeline-mode-pill">${sess.mode || 'Focus Study'}</span>
         </div>
-        <span class="subject-duration-text">${mins}m</span>
       </div>
-      <div class="subject-progress-track">
-        <div class="subject-progress-fill" style="width: ${barWidthPercent}%; background-color: ${item.color};"></div>
+      <div class="timeline-item-right timeline-time-meta">
+        <span class="timeline-duration">+${mins} min</span>
+        <div class="timeline-time-range">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span>${startTimeFormatted} – ${endTimeFormatted}</span>
+        </div>
       </div>
     `;
-    container.appendChild(row);
+    container.appendChild(item);
   });
+}
+
+// ----------------------------------------------------------------------------
+// TAB 3: PLANNER & GOALS (PlannerHistoryManager.kt)
+// ----------------------------------------------------------------------------
+
+function renderPlannerGoals() {
+  const container = document.getElementById('plannerGoalsContainer');
+  const subjectSelect = document.getElementById('goalSubjectSelect');
+  if (!container) return;
+
+  if (subjectSelect) {
+    subjectSelect.innerHTML = appState.subjects.map(s => 
+      `<option value="${s.id}">${s.name}</option>`
+    ).join('');
+  }
+
+  const goals = appState.plannerGoals || [];
+  if (goals.length === 0) {
+    container.innerHTML = `
+      <div class="planner-empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+        <p>No dedicated subject targets set yet.</p>
+        <span>Click <strong>+ New Target</strong> above to track daily goals per subject!</span>
+      </div>
+    `;
+    return;
+  }
+
+  const studiedMinMap = {};
+  appState.todaySessions.forEach(s => {
+    const subId = s.subject.id || s.subject.name;
+    studiedMinMap[subId] = (studiedMinMap[subId] || 0) + Math.round(s.durationSec / 60);
+  });
+
+  container.innerHTML = '';
+  goals.forEach(goal => {
+    const subject = appState.subjects.find(s => s.id === goal.subjectId) || {
+      name: goal.subjectId,
+      color: '#3b82f6'
+    };
+
+    const studiedMin = studiedMinMap[goal.subjectId] || 0;
+    const targetMin = goal.dailyMinutes || 60;
+    const percent = Math.min(100, Math.round((studiedMin / targetMin) * 100));
+    const isCompleted = percent >= 100;
+
+    const studiedFormatted = studiedMin >= 60 ? `${Math.floor(studiedMin / 60)}h ${studiedMin % 60}m` : `${studiedMin}m`;
+    const targetFormatted = targetMin >= 60 ? `${Math.floor(targetMin / 60)}h ${targetMin % 60}m` : `${targetMin}m`;
+
+    const card = document.createElement('div');
+    card.className = 'planner-goal-card';
+    card.innerHTML = `
+      <div class="goal-card-header">
+        <div class="goal-subject-meta">
+          <span class="goal-dot" style="background-color: ${subject.color};"></span>
+          <span class="goal-title">${subject.name}</span>
+        </div>
+        <div class="goal-actions">
+          <span class="goal-pct-badge ${isCompleted ? 'completed' : ''}">${isCompleted ? '✓ Completed' : percent + '%'}</span>
+          <button class="goal-btn-delete" data-goal-id="${goal.id}" title="Remove Target">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+      </div>
+      <div class="goal-stat-row">
+        <div class="goal-numbers-wrap">
+          <span class="goal-current-val">${studiedFormatted}</span>
+          <span class="goal-target-val">/ ${targetFormatted} target</span>
+        </div>
+      </div>
+      <div class="goal-progress-track">
+        <div class="goal-progress-bar" style="width: ${percent}%; background: linear-gradient(90deg, ${subject.color}, #10b981);"></div>
+      </div>
+    `;
+
+    card.querySelector('.goal-btn-delete')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openDeleteGoalModal(goal.id);
+    });
+
+    container.appendChild(card);
+  });
+}
+
+function openDeleteGoalModal(goalId) {
+  pendingGoalIdToDelete = goalId;
+  const goal = appState.plannerGoals?.find(g => g.id === goalId);
+  const subject = appState.subjects.find(s => s.id === goal?.subjectId);
+  const subtitle = document.getElementById('deleteGoalModalSubtitle');
+  if (subtitle) {
+    subtitle.textContent = `Are you sure you want to remove the daily target for "${subject ? subject.name : 'this subject'}"?`;
+  }
+  document.getElementById('deleteGoalModalOverlay')?.classList.remove('hidden');
+}
+
+function closeDeleteGoalModal() {
+  pendingGoalIdToDelete = null;
+  document.getElementById('deleteGoalModalOverlay')?.classList.add('hidden');
+}
+
+function confirmDeletePlannerGoal() {
+  if (!pendingGoalIdToDelete || !appState.plannerGoals) return;
+  appState.plannerGoals = appState.plannerGoals.filter(g => g.id !== pendingGoalIdToDelete);
+  closeDeleteGoalModal();
+  renderPlannerGoals();
+  saveLocalState();
+  pushDataToCloud();
+  showToast('Subject target goal removed.', 'info');
+}
+
+function openAddGoalModal() {
+  const modal = document.getElementById('plannerGoalModalOverlay');
+  const subjectSelect = document.getElementById('goalSubjectSelect');
+  if (subjectSelect) {
+    subjectSelect.innerHTML = appState.subjects.map(s => 
+      `<option value="${s.id}">${s.name}</option>`
+    ).join('');
+  }
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeAddGoalModal() {
+  const modal = document.getElementById('plannerGoalModalOverlay');
+  if (modal) modal.classList.add('hidden');
+}
+
+function handleAddGoal(e) {
+  e.preventDefault();
+  const subjectSelect = document.getElementById('goalSubjectSelect');
+  const minutesInput = document.getElementById('goalMinutesInput');
+
+  const subjectId = subjectSelect?.value;
+  const dailyMinutes = parseInt(minutesInput?.value, 10) || 60;
+
+  if (!subjectId) return;
+
+  if (!appState.plannerGoals) appState.plannerGoals = [];
+
+  const existing = appState.plannerGoals.find(g => g.subjectId === subjectId);
+  if (existing) {
+    existing.dailyMinutes = dailyMinutes;
+  } else {
+    appState.plannerGoals.push({
+      id: 'goal_' + Date.now(),
+      subjectId,
+      dailyMinutes
+    });
+  }
+
+  closeAddGoalModal();
+  renderPlannerGoals();
+  saveLocalState();
+  pushDataToCloud();
+  showToast('🎯 Subject target goal set!', 'success');
 }
 
 // ============================================================================
@@ -1403,11 +2251,19 @@ function openTimerSettingsModal() {
   const customMinInput = document.getElementById('customMinutesInput');
   const pomoFocusInput = document.getElementById('pomoFocusInput');
   const pomoBreakInput = document.getElementById('pomoBreakInput');
+  const pomoLongBreakInput = document.getElementById('pomoLongBreakInput');
+  const pomoTotalCyclesInput = document.getElementById('pomoTotalCyclesInput');
+  const pomoAutoSwitchBreak = document.getElementById('pomoAutoSwitchBreak');
+  const pomoAutoSwitchFocus = document.getElementById('pomoAutoSwitchFocus');
   const dailyGoalInput = document.getElementById('dailyTargetGoalInput');
 
   if (customMinInput) customMinInput.value = timerConfig.customTimerMinutes || 25;
   if (pomoFocusInput) pomoFocusInput.value = timerConfig.pomoFocusMinutes || 25;
   if (pomoBreakInput) pomoBreakInput.value = timerConfig.pomoBreakMinutes || 5;
+  if (pomoLongBreakInput) pomoLongBreakInput.value = timerConfig.pomoLongBreakMinutes || 15;
+  if (pomoTotalCyclesInput) pomoTotalCyclesInput.value = timerConfig.pomoTotalCycles || 4;
+  if (pomoAutoSwitchBreak) pomoAutoSwitchBreak.checked = timerConfig.pomoAutoSwitchBreak !== false;
+  if (pomoAutoSwitchFocus) pomoAutoSwitchFocus.checked = timerConfig.pomoAutoSwitchFocus !== false;
   if (dailyGoalInput) dailyGoalInput.value = timerConfig.dailyGoalMinutes || 120;
 
   // Active chip highlight
@@ -1428,20 +2284,36 @@ function closeTimerSettingsModal() {
   if (modal) modal.classList.add('hidden');
 }
 
-function handleSaveTimerSettings(e) {
+async function handleSaveTimerSettings(e) {
   e.preventDefault();
-  if (timerStatus === 'RUNNING') {
-    if (!confirm('Applying new settings will reset your active timer. Continue?')) return;
+  if (timerStatus === 'RUNNING' || (timerStatus === 'PAUSED' && accumulatedElapsedSec > 0)) {
+    const confirmed = await showCustomConfirmDialog({
+      title: 'Apply Timer Settings?',
+      subtitle: 'Active session warning',
+      message: 'Applying new settings will reset your active timer and unsaved progress. Continue?',
+      confirmText: 'Apply & Reset',
+      cancelText: 'Cancel',
+      isDanger: true
+    });
+    if (!confirmed) return;
   }
 
   const customMin = parseInt(document.getElementById('customMinutesInput')?.value, 10) || 25;
   const pomoFocus = parseInt(document.getElementById('pomoFocusInput')?.value, 10) || 25;
   const pomoBreak = parseInt(document.getElementById('pomoBreakInput')?.value, 10) || 5;
+  const pomoLongBreak = parseInt(document.getElementById('pomoLongBreakInput')?.value, 10) || 15;
+  const pomoTotalCycles = parseInt(document.getElementById('pomoTotalCyclesInput')?.value, 10) || 4;
+  const pomoAutoSwitchBreak = document.getElementById('pomoAutoSwitchBreak')?.checked !== false;
+  const pomoAutoSwitchFocus = document.getElementById('pomoAutoSwitchFocus')?.checked !== false;
   const dailyGoal = parseInt(document.getElementById('dailyTargetGoalInput')?.value, 10) || 120;
 
   timerConfig.customTimerMinutes = Math.max(1, Math.min(720, customMin));
   timerConfig.pomoFocusMinutes = Math.max(1, Math.min(180, pomoFocus));
   timerConfig.pomoBreakMinutes = Math.max(1, Math.min(60, pomoBreak));
+  timerConfig.pomoLongBreakMinutes = Math.max(1, Math.min(120, pomoLongBreak));
+  timerConfig.pomoTotalCycles = Math.max(1, Math.min(12, pomoTotalCycles));
+  timerConfig.pomoAutoSwitchBreak = pomoAutoSwitchBreak;
+  timerConfig.pomoAutoSwitchFocus = pomoAutoSwitchFocus;
   timerConfig.dailyGoalMinutes = Math.max(15, Math.min(1440, dailyGoal));
 
   closeTimerSettingsModal();
@@ -1449,6 +2321,155 @@ function handleSaveTimerSettings(e) {
   updateProgressAndStreak();
   pushDataToCloud();
   showToast('Timer preferences applied! ⚙️', 'success');
+}
+
+// Post-Session Subject Switch Modal
+function openSessionCompleteModal(subject, mins) {
+  const modal = document.getElementById('sessionCompleteModalOverlay');
+  const title = document.getElementById('sessionCompleteTitle');
+  const subtitle = document.getElementById('sessionCompleteSubtitle');
+  const select = document.getElementById('nextSessionSubjectSelect');
+  if (!modal || !select) return;
+
+  if (title) title.textContent = 'Session Completed! 🎉';
+  if (subtitle) subtitle.textContent = `+${mins || 1}m added to ${subject.name}`;
+
+  select.innerHTML = appState.subjects.map(s => 
+    `<option value="${s.id}" ${s.id === subject.id ? 'selected' : ''}>${s.name}</option>`
+  ).join('');
+
+  modal.classList.remove('hidden');
+}
+
+function closeSessionCompleteModal() {
+  document.getElementById('sessionCompleteModalOverlay')?.classList.add('hidden');
+}
+
+function applyNextSessionSubject() {
+  const select = document.getElementById('nextSessionSubjectSelect');
+  if (select && select.value) {
+    const chosen = appState.subjects.find(s => s.id === select.value);
+    if (chosen) {
+      appState.selectedSubject = chosen;
+      saveLocalState();
+      renderSubjects();
+      updateSelectedSubjectUI();
+      showToast(`Next session subject set to: ${chosen.name}`, 'info');
+    }
+  }
+  closeSessionCompleteModal();
+}
+
+// Delete All Local Data Modal Handlers
+function openDeleteAllDataModal() {
+  document.getElementById('deleteAllDataModalOverlay')?.classList.remove('hidden');
+}
+
+function closeDeleteAllDataModal() {
+  document.getElementById('deleteAllDataModalOverlay')?.classList.add('hidden');
+}
+
+function confirmDeleteAllData() {
+  try {
+    localStorage.removeItem('studytimer_demo_state');
+  } catch (e) {}
+
+  appState.streakCount = 1;
+  appState.lastStudyDate = '';
+  appState.subjects = [...DEFAULT_SUBJECTS];
+  appState.selectedSubject = DEFAULT_SUBJECTS[0];
+  appState.plannerGoals = [
+    { id: 'goal_1', subjectId: 'math', dailyMinutes: 60 },
+    { id: 'goal_2', subjectId: 'coding', dailyMinutes: 90 }
+  ];
+  appState.timelineEntries = [];
+  appState.todaySessions = [];
+
+  timerConfig = {
+    customTimerMinutes: 25,
+    pomoFocusMinutes: 25,
+    pomoBreakMinutes: 5,
+    pomoLongBreakMinutes: 15,
+    pomoTotalCycles: 4,
+    pomoAutoSwitchBreak: true,
+    pomoAutoSwitchFocus: true,
+    dailyGoalMinutes: 120
+  };
+
+  pomoCurrentCycle = 1;
+  isLongBreakActive = false;
+
+  closeDeleteAllDataModal();
+  renderSubjects();
+  resetTimer();
+  updateProgressAndStreak();
+  renderSubjectDonutChart();
+  renderActivityHeatmap();
+  renderMonthlyCalendar();
+  renderPlannerGoals();
+
+  showToast('✨ All local study records and custom data erased.', 'info');
+}
+
+// Custom Reusable Confirmation Dialog System
+let customConfirmResolve = null;
+
+function showCustomConfirmDialog(options = {}) {
+  const {
+    title = 'Confirm Action',
+    subtitle = 'Confirmation required',
+    message = 'Are you sure you want to proceed?',
+    confirmText = 'Confirm',
+    cancelText = 'Cancel',
+    isDanger = true
+  } = options;
+
+  const modal = document.getElementById('customConfirmModalOverlay');
+  const titleEl = document.getElementById('customConfirmTitle');
+  const subtitleEl = document.getElementById('customConfirmSubtitle');
+  const msgEl = document.getElementById('customConfirmMessage');
+  const btnOk = document.getElementById('btnOkCustomConfirm');
+  const btnCancel = document.getElementById('btnCancelCustomConfirm');
+  const iconWrap = document.getElementById('customConfirmIconWrap');
+
+  if (!modal) {
+    return Promise.resolve(window.confirm(message));
+  }
+
+  if (titleEl) titleEl.textContent = title;
+  if (subtitleEl) subtitleEl.textContent = subtitle;
+  if (msgEl) msgEl.textContent = message;
+  if (btnOk) {
+    btnOk.textContent = confirmText;
+    btnOk.className = isDanger ? 'btn btn-danger flex-1' : 'btn btn-primary flex-1';
+  }
+  if (btnCancel) btnCancel.textContent = cancelText;
+
+  if (iconWrap) {
+    if (isDanger) {
+      iconWrap.style.background = 'rgba(239, 68, 68, 0.15)';
+      iconWrap.style.color = 'var(--accent-red)';
+    } else {
+      iconWrap.style.background = 'rgba(245, 158, 11, 0.15)';
+      iconWrap.style.color = '#f59e0b';
+    }
+  }
+
+  modal.classList.remove('hidden');
+
+  return new Promise((resolve) => {
+    customConfirmResolve = resolve;
+  });
+}
+
+function closeCustomConfirmDialog(result = false) {
+  const modal = document.getElementById('customConfirmModalOverlay');
+  if (modal) modal.classList.add('hidden');
+  if (customConfirmResolve) {
+    const resolve = customConfirmResolve;
+    customConfirmResolve = null;
+    resolve(result);
+  }
 }
 
 // ============================================================================
@@ -1559,6 +2580,7 @@ function handleAddCustomSubject(e) {
 
   closeSubjectModal();
   renderSubjects();
+  renderPlannerGoals();
   saveLocalState();
   pushDataToCloud();
   showToast(`Subject "${name}" added!`, 'success');

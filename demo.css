@@ -317,7 +317,7 @@ html, body {
 .guest-banner {
   background: linear-gradient(90deg, rgba(245, 158, 11, 0.12) 0%, rgba(245, 158, 11, 0.04) 100%);
   border-bottom: 1px solid rgba(245, 158, 11, 0.25);
-  padding: 8px 0;
+  padding: 10px 16px;
   font-size: 0.82rem;
   width: 100%;
 }
@@ -329,9 +329,8 @@ html, body {
   gap: 12px;
   padding: 0 clamp(16px, 3vw, 32px);
   width: 100%;
-  max-width: 1400px;
+  max-width: 1300px;
   margin: 0 auto;
-  flex-wrap: wrap;
 }
 
 .guest-banner-text {
@@ -392,6 +391,8 @@ html, body {
    ========================================================================== */
 .focus-timer-studio {
   width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 .studio-card {
@@ -403,15 +404,34 @@ html, body {
   position: relative;
   overflow: hidden;
   transition: var(--transition-smooth);
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
 }
 
-/* Studio Header Bar */
+/* Studio Header Bar with locked center alignment */
 .studio-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
   align-items: center;
-  justify-content: space-between;
   margin-bottom: 24px;
-  gap: 12px;
+  gap: 8px;
+  width: 100%;
+}
+
+.studio-header-left {
+  justify-self: start;
+}
+
+.studio-header-center {
+  justify-self: center;
+  display: flex;
+  justify-content: center;
+  text-align: center;
+}
+
+.studio-header-right {
+  justify-self: end;
 }
 
 .timer-tool-btn {
@@ -632,12 +652,19 @@ html, body {
 
 .timer-center-content {
   position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  width: 80%;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
 .timer-state-badge {
@@ -1452,41 +1479,72 @@ html, body {
    7. COMPREHENSIVE MOBILE & ANDROID WEB OPTIMIZATIONS
    ========================================================================== */
 @media (max-width: 768px) {
-  /* Prevent horizontal overflow & cut-offs */
+  /* Prevent horizontal overflow & ensure true centering */
   .demo-workspace-main {
     padding: 12px 12px 36px;
     width: 100%;
     max-width: 100vw;
     box-sizing: border-box;
     overflow-x: hidden;
+    display: flex;
+    justify-content: center;
   }
 
   .demo-grid-layout {
     padding: 0 !important;
     gap: 16px;
     width: 100%;
-    max-width: 100%;
+    max-width: 540px;
+    margin: 0 auto;
+  }
+
+  .focus-timer-studio {
+    width: 100%;
+    display: flex;
+    justify-content: center;
   }
 
   .studio-card {
     padding: 18px 14px;
     border-radius: 20px;
     width: 100%;
+    max-width: 100%;
     box-sizing: border-box;
+    margin: 0 auto;
   }
 
   .studio-header {
+    display: grid;
+    grid-template-columns: 36px 1fr 36px;
+    align-items: center;
     margin-bottom: 16px;
-    gap: 8px;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .studio-header-left {
+    justify-self: start;
+  }
+
+  .studio-header-center {
+    justify-self: center;
+    display: flex;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .studio-header-right {
+    justify-self: end;
   }
 
   .active-mode-badge {
     font-size: 0.74rem;
     padding: 5px 10px;
-    max-width: 140px;
+    max-width: 150px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    text-align: center;
   }
 
   /* 4-Tab Responsive Modes */
@@ -1538,19 +1596,37 @@ html, body {
 
   /* Timer Ring Sizing on Mobile */
   .timer-ring-container {
-    width: clamp(200px, 60vw, 280px);
-    height: clamp(200px, 60vw, 280px);
-    margin: 4px auto 20px;
+    width: clamp(210px, 64vw, 280px);
+    height: clamp(210px, 64vw, 280px);
+    margin: 8px auto 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .timer-center-content {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    width: 100%;
+    height: 100%;
   }
 
   .timer-digital-display {
-    font-size: clamp(2.4rem, 10.5vw, 3.6rem);
+    font-size: clamp(2.4rem, 11vw, 3.8rem);
     margin-bottom: 6px;
+    text-align: center;
   }
 
   .timer-state-badge {
     font-size: 0.7rem;
     margin-bottom: 4px;
+    text-align: center;
   }
 
   .timer-current-subject {
@@ -1562,20 +1638,27 @@ html, body {
     text-overflow: ellipsis;
   }
 
-  /* Controls */
+  /* Controls Centered */
   .timer-controls-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin: 0 auto;
     gap: 12px;
   }
 
   .btn-timer-primary {
-    max-width: 280px;
-    padding: 12px 20px;
+    max-width: 290px;
+    padding: 13px 20px;
     font-size: 0.98rem;
   }
 
   .timer-secondary-actions {
-    max-width: 280px;
+    max-width: 290px;
     gap: 8px;
+    justify-content: center;
   }
 
   .btn-timer-subtle {
@@ -1587,6 +1670,8 @@ html, body {
   .productivity-hub {
     gap: 14px;
     width: 100%;
+    max-width: 540px;
+    margin: 0 auto;
   }
 
   .hub-card {
@@ -1609,14 +1694,28 @@ html, body {
     font-size: 0.95rem;
   }
 
-  /* Guest Banner */
+  /* Guest Banner Centered on Mobile */
+  .guest-banner {
+    padding: 10px 14px;
+  }
+
   .guest-banner-container {
-    padding: 0 12px !important;
+    padding: 0 !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
     gap: 8px;
+    max-width: 540px;
+    margin: 0 auto;
   }
 
   .guest-banner-text {
-    font-size: 0.76rem;
+    font-size: 0.78rem;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.4;
   }
 
   /* Modals */
@@ -1663,12 +1762,12 @@ html, body {
   }
 
   .timer-ring-container {
-    width: clamp(190px, 58vw, 240px);
-    height: clamp(190px, 58vw, 240px);
+    width: clamp(190px, 60vw, 240px);
+    height: clamp(190px, 60vw, 240px);
   }
 
   .timer-digital-display {
-    font-size: clamp(2.1rem, 9.5vw, 2.8rem);
+    font-size: clamp(2.1rem, 10vw, 2.9rem);
   }
 
   .stat-val {

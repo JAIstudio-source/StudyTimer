@@ -68,6 +68,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadLocalState();
   initDomElements();
   setupEventListeners();
+  initTimerWorker();
+  initBackgroundSyncListeners();
   renderSubjects();
   resetTimer();
   renderTimelineList();
@@ -645,30 +647,124 @@ function toggleTimer() {
   }
 }
 
+// ============================================================================
+// BACKGROUND WORKER TICKER & DESKTOP/ANDROID BACKGROUND SYNC
+// ============================================================================
+let timerWorker = null;
+let wakeLockSentinel = null;
+
+function initTimerWorker() {
+  try {
+    const workerCode = `
+      let interval = null;
+      self.onmessage = function(e) {
+        if (e.data === 'start') {
+          if (interval) clearInterval(interval);
+          interval = setInterval(() => {
+            self.postMessage('tick');
+          }, 250);
+        } else if (e.data === 'stop') {
+          if (interval) {
+            clearInterval(interval);
+            interval = null;
+          }
+        }
+      };
+    `;
+    const blob = new Blob([workerCode], { type: 'application/javascript' });
+    const workerUrl = URL.createObjectURL(blob);
+    timerWorker = new Worker(workerUrl);
+    timerWorker.onmessage = function(e) {
+      if (e.data === 'tick') {
+        tickTimer();
+      }
+    };
+  } catch (err) {
+    console.warn('Web Worker ticker unsupported, falling back to standard interval:', err);
+    timerWorker = null;
+  }
+}
+
+function initBackgroundSyncListeners() {
+  // Seamless sync when returning from minimized window, locked screen, or other tabs
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      if (timerStatus === 'RUNNING') {
+        tickTimer();
+        requestWakeLock();
+      }
+    }
+  });
+
+  window.addEventListener('focus', () => {
+    if (timerStatus === 'RUNNING') {
+      tickTimer();
+    }
+  });
+
+  window.addEventListener('pageshow', () => {
+    if (timerStatus === 'RUNNING') {
+      tickTimer();
+    }
+  });
+}
+
+// Request Screen Wake Lock (keeps screen on during active focus study)
+async function requestWakeLock() {
+  if ('wakeLock' in navigator) {
+    try {
+      if (!wakeLockSentinel) {
+        wakeLockSentinel = await navigator.wakeLock.request('screen');
+        wakeLockSentinel.addEventListener('release', () => {
+          wakeLockSentinel = null;
+        });
+      }
+    } catch (err) {
+      // Ignored if device is low battery or tab is not active
+    }
+  }
+}
+
+function releaseWakeLock() {
+  if (wakeLockSentinel) {
+    wakeLockSentinel.release().catch(() => {});
+    wakeLockSentinel = null;
+  }
+}
+
+function tickTimer() {
+  if (timerStatus !== 'RUNNING' || !timerStartTimestamp) return;
+
+  const now = Date.now();
+  const elapsedSinceResume = Math.floor((now - timerStartTimestamp) / 1000);
+  const totalElapsedSec = accumulatedElapsedSec + elapsedSinceResume;
+
+  if (currentMode === 'stopwatch') {
+    stopwatchElapsed = totalElapsedSec;
+  } else {
+    const totalSec = getModeDurationSec();
+    timeRemaining = Math.max(0, totalSec - totalElapsedSec);
+    if (timeRemaining === 0) {
+      finishSession();
+      return;
+    }
+  }
+  updateTimerDisplay();
+}
+
 function startTimer() {
   timerStatus = 'RUNNING';
   timerStartTimestamp = Date.now();
 
   updateTimerControlsUI();
+  requestWakeLock();
 
-  // Tick interval checks real timestamp differences: 100% exact timing
-  timerInterval = setInterval(() => {
-    const now = Date.now();
-    const elapsedSinceResume = Math.floor((now - timerStartTimestamp) / 1000);
-    const totalElapsedSec = accumulatedElapsedSec + elapsedSinceResume;
+  if (timerWorker) {
+    timerWorker.postMessage('start');
+  }
 
-    if (currentMode === 'stopwatch') {
-      stopwatchElapsed = totalElapsedSec;
-    } else {
-      const totalSec = getModeDurationSec();
-      timeRemaining = Math.max(0, totalSec - totalElapsedSec);
-      if (timeRemaining === 0) {
-        finishSession();
-        return;
-      }
-    }
-    updateTimerDisplay();
-  }, 200);
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(tickTimer, 250);
 }
 
 function pauseTimer() {
@@ -700,6 +796,10 @@ function stopInterval() {
     clearInterval(timerInterval);
     timerInterval = null;
   }
+  if (timerWorker) {
+    timerWorker.postMessage('stop');
+  }
+  releaseWakeLock();
 }
 
 function finishSession() {

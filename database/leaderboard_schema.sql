@@ -179,3 +179,107 @@ BEGIN
     LIMIT LEAST(p_limit, 50);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- =========================================================================
+-- 7. RPC FUNCTION: Get Weekly Leaderboard (Aggregated over last 7 days / ISO week)
+-- =========================================================================
+CREATE OR REPLACE FUNCTION public.get_weekly_leaderboard(
+    p_start_date DATE DEFAULT (CURRENT_DATE - INTERVAL '6 days')::DATE,
+    p_end_date DATE DEFAULT CURRENT_DATE,
+    p_limit INT DEFAULT 25
+)
+RETURNS TABLE (
+    rank BIGINT,
+    user_id TEXT,
+    user_name TEXT,
+    avatar_url TEXT,
+    total_seconds INT,
+    is_studying BOOLEAN,
+    current_subject TEXT,
+    subject_color TEXT,
+    last_active_at TIMESTAMPTZ
+) AS $$
+BEGIN
+    RETURN QUERY
+    WITH weekly_agg AS (
+        SELECT
+            d.user_id,
+            MAX(d.user_name) AS user_name,
+            MAX(d.avatar_url) AS avatar_url,
+            SUM(d.total_seconds)::INT AS total_seconds,
+            BOOL_OR(d.is_studying AND d.last_active_at > (NOW() - INTERVAL '3 minutes')) AS is_studying,
+            MAX(d.current_subject) FILTER (WHERE d.study_date = p_end_date) AS current_subject,
+            MAX(d.subject_color) FILTER (WHERE d.study_date = p_end_date) AS subject_color,
+            MAX(d.last_active_at) AS last_active_at
+        FROM public.daily_leaderboard d
+        WHERE d.study_date >= p_start_date AND d.study_date <= p_end_date
+        GROUP BY d.user_id
+        HAVING SUM(d.total_seconds) > 0 OR BOOL_OR(d.is_studying) = true
+    )
+    SELECT
+        ROW_NUMBER() OVER (ORDER BY w.total_seconds DESC, w.last_active_at DESC) AS rank,
+        w.user_id,
+        w.user_name,
+        w.avatar_url,
+        w.total_seconds,
+        w.is_studying,
+        COALESCE(w.current_subject, ''),
+        COALESCE(w.subject_color, '#3b82f6'),
+        w.last_active_at
+    FROM weekly_agg w
+    ORDER BY w.total_seconds DESC, w.last_active_at DESC
+    LIMIT LEAST(p_limit, 50);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- =========================================================================
+-- 8. RPC FUNCTION: Get Monthly Leaderboard (Aggregated over calendar month)
+-- =========================================================================
+CREATE OR REPLACE FUNCTION public.get_monthly_leaderboard(
+    p_start_date DATE DEFAULT DATE_TRUNC('month', CURRENT_DATE)::DATE,
+    p_end_date DATE DEFAULT CURRENT_DATE,
+    p_limit INT DEFAULT 25
+)
+RETURNS TABLE (
+    rank BIGINT,
+    user_id TEXT,
+    user_name TEXT,
+    avatar_url TEXT,
+    total_seconds INT,
+    is_studying BOOLEAN,
+    current_subject TEXT,
+    subject_color TEXT,
+    last_active_at TIMESTAMPTZ
+) AS $$
+BEGIN
+    RETURN QUERY
+    WITH monthly_agg AS (
+        SELECT
+            d.user_id,
+            MAX(d.user_name) AS user_name,
+            MAX(d.avatar_url) AS avatar_url,
+            SUM(d.total_seconds)::INT AS total_seconds,
+            BOOL_OR(d.is_studying AND d.last_active_at > (NOW() - INTERVAL '3 minutes')) AS is_studying,
+            MAX(d.current_subject) FILTER (WHERE d.study_date = p_end_date) AS current_subject,
+            MAX(d.subject_color) FILTER (WHERE d.study_date = p_end_date) AS subject_color,
+            MAX(d.last_active_at) AS last_active_at
+        FROM public.daily_leaderboard d
+        WHERE d.study_date >= p_start_date AND d.study_date <= p_end_date
+        GROUP BY d.user_id
+        HAVING SUM(d.total_seconds) > 0 OR BOOL_OR(d.is_studying) = true
+    )
+    SELECT
+        ROW_NUMBER() OVER (ORDER BY m.total_seconds DESC, m.last_active_at DESC) AS rank,
+        m.user_id,
+        m.user_name,
+        m.avatar_url,
+        m.total_seconds,
+        m.is_studying,
+        COALESCE(m.current_subject, ''),
+        COALESCE(m.subject_color, '#3b82f6'),
+        m.last_active_at
+    FROM monthly_agg m
+    ORDER BY m.total_seconds DESC, m.last_active_at DESC
+    LIMIT LEAST(p_limit, 50);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

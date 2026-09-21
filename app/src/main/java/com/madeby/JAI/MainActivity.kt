@@ -1423,6 +1423,7 @@ class MainActivity : AppCompatActivity() {
                 GoalReminderScheduler.schedule(this)
                 migrateHistoricalDailyGoals(this)
                 checkAndResetGoalsForNewDay()
+                triggerAutoSyncIfEligible(force = true)
             } catch (_: Exception) {}
         }.start()
 
@@ -10092,7 +10093,14 @@ class MainActivity : AppCompatActivity() {
             .apply()
 
         statsDirty = true
-        Thread { backupManager.runSilentAutoBackup() }.start()
+        Thread {
+            backupManager.runSilentAutoBackup()
+            if (AuthManager.isLoggedIn(this@MainActivity)) {
+                kotlinx.coroutines.runBlocking {
+                    CloudSyncManager.syncDataToCloud(this@MainActivity)
+                }
+            }
+        }.start()
         recalculateStreak(todayExtra = if (silent) 0L else savedStudy)
 
         if (silent) {
@@ -11786,6 +11794,48 @@ class MainActivity : AppCompatActivity() {
         updateDateView()
         dialog.setContentView(rootLayout)
         dialog.show()
+    }
+
+    private var lastForegroundSyncCheckTime = 0L
+
+    override fun onResume() {
+        super.onResume()
+        triggerAutoSyncIfEligible()
+    }
+
+    internal fun triggerAutoSyncIfEligible(force: Boolean = false) {
+        if (!AuthManager.isLoggedIn(this)) return
+        val now = SystemClock.elapsedRealtime()
+        if (!force && (now - lastForegroundSyncCheckTime < 30_000L)) return
+        lastForegroundSyncCheckTime = now
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val (remoteMeta, rawRecord) = CloudSyncManager.fetchRemoteMetadata(this@MainActivity)
+                if (remoteMeta != null && rawRecord != null) {
+                    val localTs = BackupManager(this@MainActivity).getLastModifiedTimestamp()
+                    val cloudTs = maxOf(remoteMeta.lastModifiedTimestamp, remoteMeta.updatedAt)
+                    if (cloudTs > localTs + 1500L) {
+                        android.util.Log.i("MainActivity", "Live auto-sync: Cloud data ($cloudTs) is newer than local ($localTs). Merging in background...")
+                        val merged = CloudSyncManager.mergeCloudAndLocalData(this@MainActivity, rawRecord)
+                        if (merged) {
+                            withContext(Dispatchers.Main) {
+                                if (!isDestroyed && !isFinishing) {
+                                    statsDirty = true
+                                    statsSnapshotCache = null
+                                    tabPageCache.clear()
+                                    themeCoordinator.applyThemeCoordinates()
+                                    navigateToPanel(currentPanel)
+                                    StudyWidgetProvider.refresh(this@MainActivity)
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("MainActivity", "Auto-sync check non-fatal exception", e)
+            }
+        }
     }
 
     override fun onStop() {

@@ -10682,6 +10682,7 @@ class MainActivity : AppCompatActivity() {
         StudyWidgetProvider.refresh(this)
         checkOngoingScheduledLecturePrompt()
         checkCelebration()
+        triggerAutoSyncIfEligible()
     }
 
     override fun onPause() {
@@ -11797,11 +11798,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private var lastForegroundSyncCheckTime = 0L
-
-    override fun onResume() {
-        super.onResume()
-        triggerAutoSyncIfEligible()
-    }
 
     internal fun triggerAutoSyncIfEligible(force: Boolean = false) {
         if (!AuthManager.isLoggedIn(this)) return

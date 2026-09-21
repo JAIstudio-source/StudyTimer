@@ -170,18 +170,18 @@ object AppAnalytics {
         try {
             val anonId = getAnonymousId(context)
             val isCurrentlyLoggedIn = AuthManager.isLoggedIn(context) && !AuthManager.isGuest(context)
-            val currentUserId = AuthManager.getUserId(context)
-            val linkedName = AuthManager.getLinkedUserName(context)
-            val linkedEmail = AuthManager.getLinkedUserEmail(context)
+            val currentUserId = if (isCurrentlyLoggedIn) AuthManager.getUserId(context) else null
+            val currentUserName = if (isCurrentlyLoggedIn) AuthManager.getUserName(context) else null
+            val currentUserEmail = if (isCurrentlyLoggedIn) AuthManager.getUserEmail(context) else null
             val now = System.currentTimeMillis()
             val eventId = "${anonId}_${eventName}_${now}_${UUID.randomUUID().toString().substring(0, 6)}"
 
             val eventJson = JSONObject().apply {
                 put("event_id", eventId)
                 put("anonymous_id", anonId)
-                put("user_id", if (isCurrentlyLoggedIn && !currentUserId.isNullOrBlank()) currentUserId else JSONObject.NULL)
-                put("user_name", if (!linkedName.isNullOrBlank()) linkedName else JSONObject.NULL)
-                put("user_email", if (!linkedEmail.isNullOrBlank()) linkedEmail else JSONObject.NULL)
+                put("user_id", if (!currentUserId.isNullOrBlank()) currentUserId else JSONObject.NULL)
+                put("user_name", if (!currentUserName.isNullOrBlank()) currentUserName else JSONObject.NULL)
+                put("user_email", if (!currentUserEmail.isNullOrBlank()) currentUserEmail else JSONObject.NULL)
                 put("is_authenticated", isCurrentlyLoggedIn)
                 put("event_name", eventName)
                 put("app_version", BuildConfig.VERSION_NAME)
@@ -309,9 +309,9 @@ object AppAnalytics {
             try {
                 val anonId = getAnonymousId(context)
                 val isCurrentlyLoggedIn = AuthManager.isLoggedIn(context) && !AuthManager.isGuest(context)
-                val currentUserId = AuthManager.getUserId(context)
-                val linkedName = AuthManager.getLinkedUserName(context)
-                val linkedEmail = AuthManager.getLinkedUserEmail(context)
+                val currentUserId = if (isCurrentlyLoggedIn) AuthManager.getUserId(context) else null
+                val currentUserName = if (isCurrentlyLoggedIn) AuthManager.getUserName(context) else null
+                val currentUserEmail = if (isCurrentlyLoggedIn) AuthManager.getUserEmail(context) else null
                 val firstSeen = prefs.getLong(KEY_FIRST_SEEN, now)
                 val totalStudySecs = prefs.getLong(KEY_TOTAL_STUDY_SECS, 0L)
                 val totalSessions = prefs.getLong(KEY_TOTAL_SESSIONS, 0L)
@@ -319,9 +319,9 @@ object AppAnalytics {
 
                 val payload = JSONObject().apply {
                     put("anonymous_id", anonId)
-                    put("user_id", if (isCurrentlyLoggedIn && !currentUserId.isNullOrBlank()) currentUserId else JSONObject.NULL)
-                    put("user_name", if (!linkedName.isNullOrBlank()) linkedName else JSONObject.NULL)
-                    put("user_email", if (!linkedEmail.isNullOrBlank()) linkedEmail else JSONObject.NULL)
+                    put("user_id", if (!currentUserId.isNullOrBlank()) currentUserId else JSONObject.NULL)
+                    put("user_name", if (!currentUserName.isNullOrBlank()) currentUserName else JSONObject.NULL)
+                    put("user_email", if (!currentUserEmail.isNullOrBlank()) currentUserEmail else JSONObject.NULL)
                     put("is_authenticated", isCurrentlyLoggedIn)
                     put("first_seen", firstSeen)
                     put("last_active_at", now)

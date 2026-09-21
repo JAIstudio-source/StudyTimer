@@ -38,11 +38,13 @@ object CloudSyncManager {
         }
 
         try {
+            val encodedUserId = java.net.URLEncoder.encode(userId, "UTF-8")
             val userEmail = AuthManager.getUserEmail(context) ?: ""
-            val queryParams = if (userEmail.isNotBlank()) {
-                "or=(user_id.eq.$userId,user_id.eq.$userEmail,user_email.eq.$userEmail)&order=updated_at.desc&select=*"
+            val queryParams = if (userEmail.isNotBlank() && userEmail != userId) {
+                val encodedEmail = java.net.URLEncoder.encode(userEmail, "UTF-8")
+                "or=(user_id.eq.$encodedUserId,user_id.eq.$encodedEmail,user_email.eq.$encodedEmail)&order=updated_at.desc&select=*"
             } else {
-                "user_id=eq.$userId&select=*"
+                "user_id=eq.$encodedUserId&order=updated_at.desc&select=*"
             }
             val url = URL("$supabaseUrl/rest/v1/user_sync_data?$queryParams")
             val conn = url.openConnection() as HttpURLConnection
@@ -504,11 +506,13 @@ object CloudSyncManager {
         }
 
         try {
+            val encodedUserId = java.net.URLEncoder.encode(userId, "UTF-8")
             val userEmail = AuthManager.getUserEmail(context) ?: ""
-            val queryParams = if (userEmail.isNotBlank()) {
-                "or=(user_id.eq.$userId,user_id.eq.$userEmail,user_email.eq.$userEmail)&order=updated_at.desc&select=*"
+            val queryParams = if (userEmail.isNotBlank() && userEmail != userId) {
+                val encodedEmail = java.net.URLEncoder.encode(userEmail, "UTF-8")
+                "or=(user_id.eq.$encodedUserId,user_id.eq.$encodedEmail,user_email.eq.$encodedEmail)&order=updated_at.desc&select=*"
             } else {
-                "user_id=eq.$userId&select=*"
+                "user_id=eq.$encodedUserId&order=updated_at.desc&select=*"
             }
             var url = URL("$supabaseUrl/rest/v1/user_sync_data?$queryParams")
             var conn = url.openConnection() as HttpURLConnection
@@ -537,8 +541,13 @@ object CloudSyncManager {
                     AuthManager.saveProfileImageUri(context, recordProfileImg)
                 }
 
+                // Cleanly clear existing local preferences and tags before restoring to avoid mixing with previous user
+                val sharedPrefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+                sharedPrefs.edit().clear().commit()
+                val subPrefs = context.getSharedPreferences("studytimer_subject_tags", Context.MODE_PRIVATE)
+                subPrefs.edit().clear().commit()
+
                 if (prefsStr.isNotEmpty()) {
-                    val sharedPrefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
                     val editor = sharedPrefs.edit()
                     val prefsObj = JSONObject(prefsStr)
                     val keys = prefsObj.keys()
@@ -595,7 +604,6 @@ object CloudSyncManager {
                 } else ""
 
                 if (subjectTagsStr.isNotEmpty()) {
-                    val subPrefs = context.getSharedPreferences("studytimer_subject_tags", Context.MODE_PRIVATE)
                     val subEditor = subPrefs.edit()
                     val subObj = JSONObject(subjectTagsStr)
                     val subKeys = subObj.keys()
@@ -663,7 +671,8 @@ object CloudSyncManager {
 
         var deletedSync = false
         try {
-            val url = URL("$supabaseUrl/rest/v1/user_sync_data?user_id=eq.$userId")
+            val encodedUserId = java.net.URLEncoder.encode(userId, "UTF-8")
+            val url = URL("$supabaseUrl/rest/v1/user_sync_data?user_id=eq.$encodedUserId")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "DELETE"
             conn.setRequestProperty("apikey", anonKey)

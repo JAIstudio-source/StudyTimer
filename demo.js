@@ -183,14 +183,8 @@ function initUserSyncRealtime() {
           const newRecord = payload?.new;
           if (!newRecord) return;
 
-          const rowUserId = (newRecord.user_id || '').trim().toLowerCase();
-          const rowUserEmail = (newRecord.user_email || '').trim().toLowerCase();
-
-          // Check if this row update is for the currently signed-in user
-          const isUserMatch =
-            (currentUserId && rowUserId === currentUserId) ||
-            (currentUserEmail && (rowUserEmail === currentUserEmail || rowUserId === currentUserEmail));
-
+          // Strict user ID matching (RLS compliant)
+          const isUserMatch = currentUserId && rowUserId === currentUserId;
           if (!isUserMatch) return;
 
           const remoteUpdatedAt = Number(newRecord.updated_at) || 0;
@@ -384,14 +378,9 @@ async function pullDataFromCloud(isUserTriggered = false) {
   try {
     const user = appState.currentUser;
     const userId = user.id;
-    const userEmail = (user.email || user.user_metadata?.email || '').trim();
 
-    let query = supabaseClient.from('user_sync_data').select('*');
-    if (userEmail && userEmail !== userId) {
-      query = query.or(`user_id.eq.${userId},user_id.eq.${userEmail},user_email.eq.${userEmail}`);
-    } else {
-      query = query.eq('user_id', userId);
-    }
+    // Strict user ID query
+    const query = supabaseClient.from('user_sync_data').select('*').eq('user_id', userId);
 
     const { data: rows, error } = await query.order('updated_at', { ascending: false });
 
@@ -842,13 +831,6 @@ async function pushDataToCloud(silent = false) {
     const { error } = await supabaseClient
       .from('user_sync_data')
       .upsert(payload, { onConflict: 'user_id' });
-
-    if (userEmail && userEmail !== user.id) {
-      const emailPayload = { ...payload, user_id: userEmail };
-      await supabaseClient
-        .from('user_sync_data')
-        .upsert(emailPayload, { onConflict: 'user_id' });
-    }
 
     if (error) {
       console.warn('Cloud sync push warning:', error);

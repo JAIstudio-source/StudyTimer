@@ -162,6 +162,7 @@ function initLeaderboardRealtime() {
 // Supabase Realtime Live User Sync Listener (App <-> Web instant synchronization)
 let userSyncRealtimeChannel = null;
 let lastPulledCloudUpdatedAt = 0;
+let lastCloudPushTime = 0;
 
 function initUserSyncRealtime() {
   if (!supabaseClient || userSyncRealtimeChannel || !appState.currentUser) return;
@@ -183,6 +184,7 @@ function initUserSyncRealtime() {
           const newRecord = payload?.new;
           if (!newRecord) return;
 
+          const rowUserId = (newRecord.user_id || '').trim().toLowerCase();
           // Strict user ID matching (RLS compliant)
           const isUserMatch = currentUserId && rowUserId === currentUserId;
           if (!isUserMatch) return;
@@ -817,6 +819,7 @@ async function pushDataToCloud(silent = false) {
 
 
     const nowMs = Date.now();
+    lastCloudPushTime = nowMs;
     lastPulledCloudUpdatedAt = nowMs;
     const payload = {
       user_id: user.id,
@@ -1777,14 +1780,6 @@ function initBackgroundSyncListeners() {
       saveLocalState();
     }
   });
-
-  // Ask for notification permission on first user interaction so alerts work when app is switched
-  document.addEventListener('click', function reqNotifOnce() {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().catch(() => {});
-    }
-    document.removeEventListener('click', reqNotifOnce);
-  }, { once: true });
 }
 
 // Request Screen Wake Lock (keeps screen on during active focus study)

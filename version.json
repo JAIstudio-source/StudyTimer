@@ -1,7 +1,7 @@
 {
-    "apkUrl":  "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-    "url":  "https://get-studytimer.vercel.app/?download=true",
-    "versionCode":  26,
-    "versionName":  "2.9.4",
-    "releaseNotes":  "What's New in Version 2.9.4 🚀\n1. Bug Fixes"
+    "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
+    "url": "https://get-studytimer.vercel.app/?download=true",
+    "versionCode": 27,
+    "versionName": "2.9.5",
+    "releaseNotes": "What's New in Version 2.9.5 🚀\n1. Fixed bugs\n2. New leaderboard"
 }

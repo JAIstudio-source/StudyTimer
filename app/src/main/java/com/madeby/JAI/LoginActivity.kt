@@ -153,19 +153,37 @@ class LoginActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
+    private fun completeLoginAndSync(email: String, name: String, accessToken: String?, userId: String) {
+        val isSameUser = AuthManager.isSameUser(this, userId, email)
+        if (!isSameUser) {
+            // Switched to a different account or fresh login from guest: clean old local data so previous account data is never merged
+            AuthManager.resetLocalUserData(this)
+        }
+
+        AuthManager.saveUserSession(this, email, name, accessToken, userId)
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val (remoteMeta, _) = CloudSyncManager.fetchRemoteMetadata(this@LoginActivity)
+            if (remoteMeta != null && remoteMeta.updatedAt > 0L) {
+                CloudSyncManager.restoreDataFromCloud(this@LoginActivity)
+            } else {
+                // Fresh cloud account - sync clean state
+                CloudSyncManager.syncDataToCloud(this@LoginActivity, force = true)
+            }
+
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@LoginActivity, "Welcome, $name!", Toast.LENGTH_SHORT).show()
+                proceedToMain()
+            }
+        }
+    }
+
     private fun exchangeTokenWithSupabase(idToken: String, displayName: String, googleEmail: String) {
         val supabaseUrl = BuildConfig.SUPABASE_URL
         val anonKey = BuildConfig.SUPABASE_ANON_KEY
 
         if (supabaseUrl.isBlank() || anonKey.isBlank()) {
-            // If Supabase API config is missing, save Google identity directly locally
-            AuthManager.saveUserSession(this, googleEmail, displayName, idToken, googleEmail)
-            lifecycleScope.launch(Dispatchers.IO) {
-                CloudSyncManager.syncDataToCloud(this@LoginActivity)
-                withContext(Dispatchers.Main) {
-                    proceedToMain()
-                }
-            }
+            completeLoginAndSync(googleEmail, displayName, idToken, googleEmail)
             return
         }
 
@@ -196,51 +214,23 @@ class LoginActivity : AppCompatActivity() {
                     val metaObj = userObj?.optJSONObject("user_metadata") ?: userObj?.optJSONObject("raw_user_meta_data")
                     val fetchedName = metaObj?.optString("full_name")?.takeIf { it.isNotBlank() }
                         ?: metaObj?.optString("name")?.takeIf { it.isNotBlank() }
-                        ?: displayName
+                        ?: displayName.takeIf { it.isNotBlank() }
+                        ?: googleEmail.substringBefore("@")
                     val email = userObj?.optString("email")?.takeIf { it.isNotBlank() } ?: googleEmail
                     val userId = userObj?.optString("id")?.takeIf { it.isNotBlank() } ?: email
 
                     withContext(Dispatchers.Main) {
-                        AuthManager.saveUserSession(this@LoginActivity, email, fetchedName, accessToken, userId)
-                        Toast.makeText(this@LoginActivity, "Welcome, $fetchedName!", Toast.LENGTH_SHORT).show()
-                    }
-
-                    // Safely check remote metadata first before blindly overwriting cloud data
-                    val (remoteMeta, _) = CloudSyncManager.fetchRemoteMetadata(this@LoginActivity)
-                    if (remoteMeta != null && remoteMeta.updatedAt > 0L) {
-                        CloudSyncManager.restoreDataFromCloud(this@LoginActivity)
-                    } else {
-                        CloudSyncManager.syncDataToCloud(this@LoginActivity, force = true)
-                    }
-
-                    withContext(Dispatchers.Main) {
-                        proceedToMain()
+                        completeLoginAndSync(email, fetchedName, accessToken, userId)
                     }
                 } else {
                     withContext(Dispatchers.Main) {
-                        // Save local session on API fallback
-                        AuthManager.saveUserSession(this@LoginActivity, googleEmail, displayName, idToken, googleEmail)
-                        Toast.makeText(this@LoginActivity, "Welcome, $displayName!", Toast.LENGTH_SHORT).show()
-                    }
-                    val (remoteMeta, _) = CloudSyncManager.fetchRemoteMetadata(this@LoginActivity)
-                    if (remoteMeta != null && remoteMeta.updatedAt > 0L) {
-                        CloudSyncManager.restoreDataFromCloud(this@LoginActivity)
-                    } else {
-                        CloudSyncManager.syncDataToCloud(this@LoginActivity, force = true)
-                    }
-                    withContext(Dispatchers.Main) {
-                        proceedToMain()
+                        completeLoginAndSync(googleEmail, displayName, idToken, googleEmail)
                     }
                 }
             } catch (e: Exception) {
                 Log.e("LoginActivity", "Supabase token exchange error", e)
                 withContext(Dispatchers.Main) {
-                    AuthManager.saveUserSession(this@LoginActivity, googleEmail, displayName, idToken, googleEmail)
-                    Toast.makeText(this@LoginActivity, "Welcome, $displayName!", Toast.LENGTH_SHORT).show()
-                }
-                CloudSyncManager.syncDataToCloud(this@LoginActivity)
-                withContext(Dispatchers.Main) {
-                    proceedToMain()
+                    completeLoginAndSync(googleEmail, displayName, idToken, googleEmail)
                 }
             }
         }
@@ -256,13 +246,71 @@ class LoginActivity : AppCompatActivity() {
                     if (p.startsWith("access_token=")) accessToken = p.substringAfter("access_token=")
                 }
             }
-            AuthManager.saveUserSession(this, "Google User", "Study User", accessToken)
-            Toast.makeText(this, "Signed in successfully!", Toast.LENGTH_SHORT).show()
-            lifecycleScope.launch(Dispatchers.IO) {
-                CloudSyncManager.restoreDataFromCloud(this@LoginActivity)
-                withContext(Dispatchers.Main) {
-                    proceedToMain()
+            if (!accessToken.isNullOrBlank()) {
+                fetchSupabaseProfileAndCompleteLogin(accessToken)
+            }
+        }
+    }
+
+    private fun fetchSupabaseProfileAndCompleteLogin(accessToken: String) {
+        val supabaseUrl = BuildConfig.SUPABASE_URL
+        val anonKey = BuildConfig.SUPABASE_ANON_KEY
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            var userId = ""
+            var email = ""
+            var name = ""
+
+            if (supabaseUrl.isNotBlank() && anonKey.isNotBlank()) {
+                try {
+                    val url = URL("$supabaseUrl/auth/v1/user")
+                    val conn = url.openConnection() as HttpURLConnection
+                    conn.requestMethod = "GET"
+                    conn.setRequestProperty("apikey", anonKey)
+                    conn.setRequestProperty("Authorization", "Bearer $accessToken")
+                    conn.connectTimeout = 8000
+                    conn.readTimeout = 8000
+
+                    if (conn.responseCode in 200..299) {
+                        val responseStr = conn.inputStream.bufferedReader().use { it.readText() }
+                        val userObj = JSONObject(responseStr)
+                        userId = userObj.optString("id")
+                        email = userObj.optString("email")
+                        val meta = userObj.optJSONObject("user_metadata") ?: userObj.optJSONObject("raw_user_meta_data")
+                        name = meta?.optString("full_name")?.takeIf { it.isNotBlank() }
+                            ?: meta?.optString("name")?.takeIf { it.isNotBlank() }
+                            ?: email.substringBefore("@")
+                    }
+                } catch (e: Exception) {
+                    Log.w("LoginActivity", "Failed to fetch user from Supabase auth endpoint", e)
                 }
+            }
+
+            // Fallback: parse JWT payload from accessToken if available
+            if (userId.isBlank() || email.isBlank()) {
+                try {
+                    val parts = accessToken.split(".")
+                    if (parts.size >= 2) {
+                        val payloadBytes = android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING)
+                        val jwtObj = JSONObject(String(payloadBytes, Charsets.UTF_8))
+                        if (userId.isBlank()) userId = jwtObj.optString("sub")
+                        if (email.isBlank()) email = jwtObj.optString("email")
+                        if (name.isBlank()) {
+                            val meta = jwtObj.optJSONObject("user_metadata")
+                            name = meta?.optString("full_name")?.takeIf { it.isNotBlank() }
+                                ?: meta?.optString("name")?.takeIf { it.isNotBlank() }
+                                ?: email.substringBefore("@")
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+
+            if (email.isBlank()) email = "user_${System.currentTimeMillis()}@studytimer.app"
+            if (userId.isBlank()) userId = email
+            if (name.isBlank()) name = email.substringBefore("@")
+
+            withContext(Dispatchers.Main) {
+                completeLoginAndSync(email, name, accessToken, userId)
             }
         }
     }

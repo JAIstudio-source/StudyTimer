@@ -11,14 +11,9 @@ object AuthManager {
     private const val KEY_USER_EMAIL = "user_email"
     private const val KEY_USER_NAME = "user_name"
     private const val KEY_ACCESS_TOKEN = "access_token"
-
     private const val KEY_USER_ID = "user_id"
-
     private const val KEY_PROFILE_IMAGE_URI = "profile_image_uri"
-
-    private const val KEY_DEVICE_LINKED_USER_ID = "device_linked_user_id"
-    private const val KEY_DEVICE_LINKED_USER_NAME = "device_linked_user_name"
-    private const val KEY_DEVICE_LINKED_USER_EMAIL = "device_linked_user_email"
+    private const val KEY_LAST_ACTIVE_USER_ID = "last_active_user_id"
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
@@ -45,35 +40,38 @@ object AuthManager {
         return prefs.getBoolean(KEY_IS_GUEST, false) || !isLoggedIn(context)
     }
 
+    fun isSameUser(context: Context, newUserId: String?, newEmail: String?): Boolean {
+        val currentUserId = getUserId(context)
+        val currentEmail = getUserEmail(context)
+        if (!newUserId.isNullOrEmpty() && currentUserId == newUserId) return true
+        if (!newEmail.isNullOrEmpty() && currentEmail.equals(newEmail, ignoreCase = true)) return true
+        return false
+    }
+
     fun saveUserSession(context: Context, email: String?, name: String?, token: String?, userId: String? = null) {
         val actualUserId = if (!userId.isNullOrEmpty()) userId else email
+        val effectiveName = if (!name.isNullOrBlank()) name else (email?.substringBefore("@") ?: "Student")
         val prefs = getPrefs(context)
         prefs.edit().apply {
             putBoolean(KEY_IS_LOGGED_IN, true)
             putBoolean(KEY_IS_GUEST, false)
             putBoolean(KEY_HAS_COMPLETED_ONBOARDING, true)
             putString(KEY_USER_EMAIL, email)
-            if (!getUserName(context).isNullOrEmpty() && name.isNullOrEmpty()) {
-                // preserve updated user name
-            } else {
-                putString(KEY_USER_NAME, name)
-            }
+            putString(KEY_USER_NAME, effectiveName)
             putString(KEY_ACCESS_TOKEN, token)
             if (!actualUserId.isNullOrEmpty()) {
                 putString(KEY_USER_ID, actualUserId)
-                putString(KEY_DEVICE_LINKED_USER_ID, actualUserId)
+                putString(KEY_LAST_ACTIVE_USER_ID, actualUserId)
             }
-            if (!email.isNullOrEmpty()) putString(KEY_DEVICE_LINKED_USER_EMAIL, email)
-            if (!name.isNullOrEmpty()) putString(KEY_DEVICE_LINKED_USER_NAME, name)
             apply()
         }
         AppAnalytics.associateUser(context, actualUserId)
     }
 
     fun updateUserName(context: Context, name: String) {
+        if (name.isBlank()) return
         getPrefs(context).edit().apply {
             putString(KEY_USER_NAME, name)
-            putString(KEY_DEVICE_LINKED_USER_NAME, name)
             apply()
         }
         AppAnalytics.associateUser(context, getUserId(context))
@@ -92,9 +90,14 @@ object AuthManager {
             putBoolean(KEY_IS_LOGGED_IN, false)
             putBoolean(KEY_IS_GUEST, true)
             putBoolean(KEY_HAS_COMPLETED_ONBOARDING, true)
+            remove(KEY_USER_EMAIL)
+            remove(KEY_USER_NAME)
+            remove(KEY_ACCESS_TOKEN)
+            remove(KEY_USER_ID)
+            remove(KEY_PROFILE_IMAGE_URI)
             apply()
         }
-        AppAnalytics.associateUser(context, getLinkedUserId(context))
+        AppAnalytics.associateUser(context, null)
     }
 
     fun getUserEmail(context: Context): String? {
@@ -109,43 +112,48 @@ object AuthManager {
         return getPrefs(context).getString(KEY_USER_ID, null) ?: getUserEmail(context)
     }
 
-    fun getLinkedUserId(context: Context): String? {
-        return getUserId(context) ?: getPrefs(context).getString(KEY_DEVICE_LINKED_USER_ID, null) ?: getUserEmail(context) ?: getPrefs(context).getString(KEY_DEVICE_LINKED_USER_EMAIL, null)
-    }
-
-    fun getLinkedUserName(context: Context): String? {
-        return getUserName(context) ?: getPrefs(context).getString(KEY_DEVICE_LINKED_USER_NAME, null)
-    }
-
-    fun getLinkedUserEmail(context: Context): String? {
-        return getUserEmail(context) ?: getPrefs(context).getString(KEY_DEVICE_LINKED_USER_EMAIL, null)
+    fun getLastActiveUserId(context: Context): String? {
+        return getPrefs(context).getString(KEY_LAST_ACTIVE_USER_ID, null)
     }
 
     fun getAccessToken(context: Context): String? {
         return getPrefs(context).getString(KEY_ACCESS_TOKEN, null)
     }
 
+    fun resetLocalUserData(context: Context) {
+        try {
+            // Reset main study preferences
+            context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit().clear().apply()
+            // Reset custom subjects and tags
+            context.getSharedPreferences("studytimer_subject_tags", Context.MODE_PRIVATE).edit().clear().apply()
+            // Clear timeline logs
+            TimelineLogger.importRaw(context, null)
+            // Delete local avatar
+            LocalAvatarManager.deleteAvatar(context)
+            // Remove local backup dat
+            val backupFile = java.io.File(context.filesDir, "study_timer_backup.dat")
+            if (backupFile.exists()) backupFile.delete()
+        } catch (_: Exception) {}
+    }
+
     fun logout(context: Context) {
         AppAnalytics.onLogout(context)
-        val linkedId = getPrefs(context).getString(KEY_DEVICE_LINKED_USER_ID, null)
-        val linkedName = getPrefs(context).getString(KEY_DEVICE_LINKED_USER_NAME, null)
-        val linkedEmail = getPrefs(context).getString(KEY_DEVICE_LINKED_USER_EMAIL, null)
-        
-        getPrefs(context).edit().apply {
-            clear()
-            if (!linkedId.isNullOrEmpty()) putString(KEY_DEVICE_LINKED_USER_ID, linkedId)
-            if (!linkedName.isNullOrEmpty()) putString(KEY_DEVICE_LINKED_USER_NAME, linkedName)
-            if (!linkedEmail.isNullOrEmpty()) putString(KEY_DEVICE_LINKED_USER_EMAIL, linkedEmail)
+        val prefs = getPrefs(context)
+        prefs.edit().apply {
+            putBoolean(KEY_IS_LOGGED_IN, false)
+            putBoolean(KEY_IS_GUEST, true)
+            putBoolean(KEY_HAS_COMPLETED_ONBOARDING, true)
+            remove(KEY_USER_EMAIL)
+            remove(KEY_USER_NAME)
+            remove(KEY_ACCESS_TOKEN)
+            remove(KEY_USER_ID)
+            remove(KEY_PROFILE_IMAGE_URI)
             apply()
         }
+        resetLocalUserData(context)
     }
 
     fun deleteLocalUserData(context: Context) {
         logout(context)
-        context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit().clear().apply()
-        TimelineLogger.importRaw(context, null)
-        try {
-            java.io.File(context.filesDir, "study_timer_backup.dat").delete()
-        } catch (_: Exception) {}
     }
 }

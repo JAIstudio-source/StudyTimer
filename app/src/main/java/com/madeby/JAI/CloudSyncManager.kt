@@ -39,13 +39,7 @@ object CloudSyncManager {
 
         try {
             val encodedUserId = java.net.URLEncoder.encode(userId, "UTF-8")
-            val userEmail = AuthManager.getUserEmail(context) ?: ""
-            val queryParams = if (userEmail.isNotBlank() && userEmail != userId) {
-                val encodedEmail = java.net.URLEncoder.encode(userEmail, "UTF-8")
-                "or=(user_id.eq.$encodedUserId,user_id.eq.$encodedEmail,user_email.eq.$encodedEmail)&order=updated_at.desc&select=*"
-            } else {
-                "user_id=eq.$encodedUserId&order=updated_at.desc&select=*"
-            }
+            val queryParams = "user_id=eq.$encodedUserId&order=updated_at.desc&select=*"
             val url = URL("$supabaseUrl/rest/v1/user_sync_data?$queryParams")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
@@ -506,14 +500,11 @@ object CloudSyncManager {
         }
 
         try {
+            // Save an emergency local safety snapshot before altering local storage
+            BackupManager(context).createPreAuthSafetySnapshot("pre_restore")
+
             val encodedUserId = java.net.URLEncoder.encode(userId, "UTF-8")
-            val userEmail = AuthManager.getUserEmail(context) ?: ""
-            val queryParams = if (userEmail.isNotBlank() && userEmail != userId) {
-                val encodedEmail = java.net.URLEncoder.encode(userEmail, "UTF-8")
-                "or=(user_id.eq.$encodedUserId,user_id.eq.$encodedEmail,user_email.eq.$encodedEmail)&order=updated_at.desc&select=*"
-            } else {
-                "user_id=eq.$encodedUserId&order=updated_at.desc&select=*"
-            }
+            val queryParams = "user_id=eq.$encodedUserId&order=updated_at.desc&select=*"
             var url = URL("$supabaseUrl/rest/v1/user_sync_data?$queryParams")
             var conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
@@ -671,6 +662,7 @@ object CloudSyncManager {
 
         var deletedSync = false
         try {
+            BackupManager(context).createPreAuthSafetySnapshot("pre_cloud_delete")
             val encodedUserId = java.net.URLEncoder.encode(userId, "UTF-8")
             val url = URL("$supabaseUrl/rest/v1/user_sync_data?user_id=eq.$encodedUserId")
             val conn = url.openConnection() as HttpURLConnection

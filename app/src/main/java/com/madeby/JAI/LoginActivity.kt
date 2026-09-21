@@ -154,20 +154,32 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun completeLoginAndSync(email: String, name: String, accessToken: String?, userId: String) {
+        val backupMgr = BackupManager(this)
+        val wasGuest = AuthManager.isGuest(this)
+        val hasLocalData = backupMgr.hasLocalStudyData()
         val isSameUser = AuthManager.isSameUser(this, userId, email)
-        if (!isSameUser) {
-            // Switched to a different account or fresh login from guest: clean old local data so previous account data is never merged
+
+        // Always create a pre-auth safety checkpoint before modifying any state
+        backupMgr.createPreAuthSafetySnapshot("pre_login_${userId.take(8)}")
+
+        if (!isSameUser && !wasGuest) {
+            // Switched from a different signed-in user: reset current memory to avoid leaking previous user profile
             AuthManager.resetLocalUserData(this)
         }
 
         AuthManager.saveUserSession(this, email, name, accessToken, userId)
 
         lifecycleScope.launch(Dispatchers.IO) {
-            val (remoteMeta, _) = CloudSyncManager.fetchRemoteMetadata(this@LoginActivity)
-            if (remoteMeta != null && remoteMeta.updatedAt > 0L) {
-                CloudSyncManager.restoreDataFromCloud(this@LoginActivity)
+            val (remoteMeta, rawRecord) = CloudSyncManager.fetchRemoteMetadata(this@LoginActivity)
+            if (remoteMeta != null && remoteMeta.updatedAt > 0L && rawRecord != null) {
+                if (wasGuest && hasLocalData) {
+                    // Smart non-destructive merge so guest progress merges seamlessly with the account
+                    CloudSyncManager.mergeCloudAndLocalData(this@LoginActivity, rawRecord)
+                } else {
+                    CloudSyncManager.restoreDataFromCloud(this@LoginActivity)
+                }
             } else {
-                // Fresh cloud account - sync clean state
+                // Fresh cloud account with no existing backup: upload local study data to the account
                 CloudSyncManager.syncDataToCloud(this@LoginActivity, force = true)
             }
 

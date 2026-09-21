@@ -109,6 +109,93 @@ class BackupManager(private val context: Context) {
         } catch (_: Exception) {}
     }
 
+    private fun getSafetyBackupsDir(): File {
+        val dir = File(context.filesDir, "safety_backups")
+        if (!dir.exists()) dir.mkdirs()
+        return dir
+    }
+
+    private fun getPreAuthSafetyFile(): File = File(context.filesDir, "pre_auth_safety_snapshot.dat")
+
+    fun hasLocalStudyData(): Boolean {
+        try {
+            val sharedPrefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+            val hasStudyKeys = sharedPrefs.all.keys.any { it.endsWith("_focus_total") && (sharedPrefs.getLong(it, 0L) > 0L || sharedPrefs.getInt(it, 0) > 0) }
+            val accumulated = sharedPrefs.getLong("accumulatedStudy", 0L) > 0L
+            val timelineEntries = TimelineLogger.load(context)
+            return hasStudyKeys || accumulated || timelineEntries.isNotEmpty()
+        } catch (_: Exception) {
+            return false
+        }
+    }
+
+    fun createPreAuthSafetySnapshot(tag: String = "pre_auth"): File? {
+        return try {
+            val sharedPrefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+            val json = JSONObject()
+            for ((key, value) in sharedPrefs.all) {
+                json.put(key, value)
+            }
+            putTimeline(json)
+            putSubjectTags(json)
+            val now = System.currentTimeMillis()
+            json.put("schema_version", 2)
+            json.put("snapshot_tag", tag)
+            json.put("backup_created_at", now)
+            json.put("last_modified_timestamp", getLastModifiedTimestamp())
+
+            val jsonStr = json.toString()
+
+            // 1. Write current pre-auth safety snapshot
+            val safetyFile = getPreAuthSafetyFile()
+            safetyFile.writeText(jsonStr)
+
+            // 2. Also save into rolling safety_backups directory
+            val backupsDir = getSafetyBackupsDir()
+            val timestampedFile = File(backupsDir, "safety_backup_${tag}_${now}.dat")
+            timestampedFile.writeText(jsonStr)
+
+            // Prune safety backups older than 30 days, while ALWAYS keeping the most recent files
+            val thirtyDaysAgo = now - (30L * 24 * 60 * 60 * 1000L)
+            val files = backupsDir.listFiles { f -> f.name.startsWith("safety_backup_") && f.name.endsWith(".dat") }
+            if (files != null && files.isNotEmpty()) {
+                files.sortBy { it.lastModified() }
+                // Always keep at least the 3 newest snapshots regardless of age
+                val filesToConsider = files.dropLast(3)
+                for (f in filesToConsider) {
+                    if (f.lastModified() < thirtyDaysAgo || files.size > 20) {
+                        f.delete()
+                    }
+                }
+            }
+            safetyFile
+        } catch (e: Exception) {
+            android.util.Log.e("BackupManager", "Failed to create pre-auth safety snapshot", e)
+            null
+        }
+    }
+
+    fun restorePreAuthSafetySnapshot(): Boolean {
+        val safetyFile = getPreAuthSafetyFile()
+        if (!safetyFile.exists()) return false
+        return try {
+            val jsonString = safetyFile.readText()
+            val importedJsonObject = JSONObject(jsonString)
+            val sharedPrefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+            val editor = sharedPrefs.edit()
+            editor.clear()
+            sanitizeAndBuildPreferences(importedJsonObject, editor)
+            editor.apply()
+            restoreTimeline(importedJsonObject)
+            restoreSubjectTags(importedJsonObject)
+            runSilentAutoBackup()
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("BackupManager", "Failed to restore pre-auth safety snapshot", e)
+            false
+        }
+    }
+
     fun runSilentAutoBackup() {
         try {
             val sharedPrefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)

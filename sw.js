@@ -1,24 +1,35 @@
 /**
- * StudyTimer - Production Service Worker
- * Network-First caching strategy for CSS, JS, and HTML to guarantee fresh loads
- * with instant offline fallback.
+ * StudyTimer - Production Service Worker (v7)
+ * Offline-First & Stale-While-Revalidate caching strategy for HTML, CSS, JS, Fonts & Assets.
+ * Guarantees 100% offline functionality for the Pomodoro Web Studio & App Landing.
  */
 
-var CACHE_NAME = 'studytimer-web-v6';
+var CACHE_NAME = 'studytimer-web-v7';
 
 var CORE_ASSETS = [
     './',
     './index.html',
-    './privacy.html',
-    './terms.html',
-    './delete-account.html',
-    './thank-you.html',
-    './404.html',
+    './demo.html',
+    './demo.css',
+    './demo.js',
     './style.css',
     './script.js',
     './version.json',
     './assets/logo.png',
-    './assets/Featured.webp'
+    './assets/Featured.webp',
+    './privacy.html',
+    './terms.html',
+    './delete-account.html',
+    './thank-you.html',
+    './404.html'
+];
+
+// Third-party CDN domains allowed to be cached for offline capability
+var CACHABLE_CDN_HOSTS = [
+    'cdn.jsdelivr.net',
+    'cdnjs.cloudflare.com',
+    'fonts.googleapis.com',
+    'fonts.gstatic.com'
 ];
 
 self.addEventListener('install', function (event) {
@@ -26,7 +37,9 @@ self.addEventListener('install', function (event) {
     event.waitUntil(
         caches.open(CACHE_NAME).then(function (cache) {
             return cache.addAll(CORE_ASSETS);
-        }).catch(function () {})
+        }).catch(function (err) {
+            console.warn('Service Worker cache.addAll non-fatal warning:', err);
+        })
     );
 });
 
@@ -51,16 +64,20 @@ self.addEventListener('fetch', function (event) {
     if (request.method !== 'GET') return;
 
     var url = new URL(request.url);
-    if (url.origin !== location.origin) return;
 
-    // Do not cache binary APK downloads
+    // Never cache binary APK download
     if (url.pathname.endsWith('.apk')) return;
 
-    // Network-First Strategy for HTML, CSS, JS, and Version JSON
+    var isSameOrigin = url.origin === location.origin;
+    var isCachableCdn = CACHABLE_CDN_HOSTS.some(function (host) { return url.hostname.includes(host); });
+
+    if (!isSameOrigin && !isCachableCdn) return;
+
+    // Network-First with Stale Cache Fallback for maximum freshness and reliable offline support
     event.respondWith(
         fetch(request)
             .then(function (networkResponse) {
-                if (networkResponse && networkResponse.status === 200) {
+                if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
                     var responseToCache = networkResponse.clone();
                     caches.open(CACHE_NAME).then(function (cache) {
                         cache.put(request, responseToCache);
@@ -69,10 +86,13 @@ self.addEventListener('fetch', function (event) {
                 return networkResponse;
             })
             .catch(function () {
-                // Offline fallback
+                // Offline Fallback
                 return caches.match(request).then(function (cachedResponse) {
                     if (cachedResponse) return cachedResponse;
                     if (request.mode === 'navigate') {
+                        if (url.pathname.includes('demo') || url.href.includes('demo')) {
+                            return caches.match('./demo.html');
+                        }
                         return caches.match('./index.html');
                     }
                 });

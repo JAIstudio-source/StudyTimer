@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
   
   <!-- Primary Meta Tags -->
-  <title>StudyTimer Web - Online Focus Timer, Pomodoro &amp; Study Habit Tracker</title>
-  <meta name="title" content="StudyTimer Web - Online Focus Timer, Pomodoro &amp; Study Habit Tracker">
-  <meta name="description" content="Free online study timer with Pomodoro, custom countdown timer, stopwatch, subject tracking, and automatic cloud sync with the StudyTimer Android App.">
-  <meta name="keywords" content="online study timer, web pomodoro timer, study habit tracker, student focus timer, cloud sync study timer">
+  <title>Online Pomodoro Timer &amp; Habit Tracker | StudyTimer Studio</title>
+  <meta name="title" content="Online Pomodoro Timer &amp; Habit Tracker | StudyTimer Studio">
+  <meta name="description" content="Free online Pomodoro study timer with customizable countdown intervals, stopwatch, subject tracking, offline support, and seamless Android cloud sync.">
+  <meta name="keywords" content="online pomodoro timer, web study timer, study habit tracker, student focus timer, pomodoro technique online, subject timer, study timer with cloud sync">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://get-studytimer.vercel.app/demo.html">
   <meta name="theme-color" content="#09090b">
@@ -20,16 +20,19 @@
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://get-studytimer.vercel.app/demo.html">
-  <meta property="og:title" content="StudyTimer Web - Online Focus Timer &amp; Habit Tracker">
-  <meta property="og:description" content="Focus deeply, track subjects, and seamlessly sync your study progress between Web and Android. Free &amp; Ad-free.">
-  <meta property="og:image" content="https://get-studytimer.vercel.app/assets/Featured.webp">
+  <meta property="og:title" content="Online Pomodoro Timer &amp; Habit Tracker | StudyTimer Studio">
+  <meta property="og:description" content="Free online Pomodoro study timer with customizable countdown intervals, stopwatch, subject tracking, offline support, and seamless Android cloud sync.">
+  <meta property="og:image" content="https://get-studytimer.vercel.app/assets/feature_graphic_1024x500.png">
+  <meta property="og:image:width" content="1024">
+  <meta property="og:image:height" content="500">
+  <meta property="og:image:type" content="image/png">
 
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image">
   <meta property="twitter:url" content="https://get-studytimer.vercel.app/demo.html">
-  <meta property="twitter:title" content="StudyTimer Web - Online Focus Timer &amp; Habit Tracker">
-  <meta property="twitter:description" content="Focus deeply, track subjects, and seamlessly sync your study progress between Web and Android. Free &amp; Ad-free.">
-  <meta property="twitter:image" content="https://get-studytimer.vercel.app/assets/Featured.webp">
+  <meta property="twitter:title" content="Online Pomodoro Timer &amp; Habit Tracker | StudyTimer Studio">
+  <meta property="twitter:description" content="Free online Pomodoro study timer with customizable countdown intervals, stopwatch, subject tracking, offline support, and seamless Android cloud sync.">
+  <meta property="twitter:image" content="https://get-studytimer.vercel.app/assets/feature_graphic_1024x500.png">
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -63,7 +66,7 @@
       "priceCurrency": "USD"
     },
     "description": "Interactive online study studio with Pomodoro timer, stopwatch, subject tracking, daily targets, and Android cloud sync.",
-    "image": "https://get-studytimer.vercel.app/assets/Featured.webp",
+    "image": "https://get-studytimer.vercel.app/assets/feature_graphic_1024x500.png",
     "author": {
       "@type": "Organization",
       "name": "StudyTimer",
@@ -95,6 +98,7 @@
           <img src="assets/logo.png" alt="StudyTimer Logo" class="nav-logo-img">
           <span class="logo-text">StudyTimer <span class="web-badge">Web</span></span>
         </a>
+        <h1 style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;">Online Pomodoro Study Timer &amp; Habit Tracker</h1>
       </div>
 
       <!-- Right Header Actions (Clean & Minimal) -->
@@ -725,27 +729,47 @@
       
       <!-- Leaderboard Header Control Card -->
       <div class="leaderboard-modal-header">
-        <div class="leaderboard-title-wrap">
-          <div class="hub-icon-badge hub-icon-trophy">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path></svg>
-          </div>
-          <div>
-            <h3 class="leaderboard-title">Daily Leaderboard</h3>
-            <div class="leaderboard-subtitle-row">
-              <span class="live-active-counter" id="leaderboardActiveCounter">
-                <span class="live-pulse-dot"></span>
-                <span id="leaderboardActiveStudyingText">Live Leaderboard</span>
-              </span>
-              <span class="reset-countdown" id="leaderboardResetCountdown" title="Resets daily at 00:00">Resets in --:--</span>
+        <div class="leaderboard-top-bar">
+          <div class="leaderboard-title-wrap">
+            <div class="hub-icon-badge hub-icon-trophy">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path></svg>
             </div>
+            <div class="leaderboard-title-text-group">
+              <h3 class="leaderboard-title" id="leaderboardModalHeading">Study Rankings</h3>
+              <div class="leaderboard-subtitle-row">
+                <span class="live-active-counter" id="leaderboardActiveCounter">
+                  <span class="live-pulse-dot"></span>
+                  <span id="leaderboardActiveStudyingText">Live</span>
+                </span>
+                <span class="reset-countdown" id="leaderboardResetCountdown" title="Countdown until period reset">Resets in --:--</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="leaderboard-actions-group">
+            <button class="btn-icon-subtle" id="btnRefreshLeaderboard" title="Refresh Rankings" aria-label="Refresh Leaderboard">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+              </svg>
+            </button>
           </div>
         </div>
 
-        <button class="btn-icon-subtle" id="btnRefreshLeaderboard" title="Refresh Rankings" aria-label="Refresh Leaderboard">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-          </svg>
-        </button>
+        <!-- Daily, Weekly & Monthly Timeframe Tabs -->
+        <div class="leaderboard-timeframe-tabs" id="leaderboardTimeframeTabs" role="tablist" aria-label="Leaderboard Period">
+          <button class="lb-timeframe-tab active" id="lbTabDaily" data-period="daily" role="tab" aria-selected="true">
+            <span class="lb-tab-icon">☀️</span>
+            <span class="lb-tab-label">Daily</span>
+          </button>
+          <button class="lb-timeframe-tab" id="lbTabWeekly" data-period="weekly" role="tab" aria-selected="false">
+            <span class="lb-tab-icon">📅</span>
+            <span class="lb-tab-label">Weekly</span>
+          </button>
+          <button class="lb-timeframe-tab" id="lbTabMonthly" data-period="monthly" role="tab" aria-selected="false">
+            <span class="lb-tab-icon">🏆</span>
+            <span class="lb-tab-label">Monthly</span>
+          </button>
+        </div>
       </div>
 
       <!-- Top 3 Podium Showcase -->
@@ -1424,5 +1448,15 @@
 
   <!-- SCRIPT -->
   <script src="demo.js?v=4.0.0"></script>
+  <!-- Service Worker Registration for 100% Offline Capability -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('./sw.js').catch(function(err) {
+          console.warn('Service Worker registration warning:', err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>

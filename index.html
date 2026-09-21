@@ -12,6 +12,17 @@
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://get-studytimer.vercel.app/">
 
+  <!-- Instant OAuth Token Forwarder (passes Supabase redirect tokens to demo.html) -->
+  <script>
+    (function() {
+      if (window.location.hash && (window.location.hash.includes('access_token=') || window.location.hash.includes('error='))) {
+        window.location.replace('./demo.html' + window.location.hash);
+      } else if (window.location.search && (window.location.search.includes('code=') || window.location.search.includes('error='))) {
+        window.location.replace('./demo.html' + window.location.search);
+      }
+    })();
+  </script>
+
   <!-- Favicon & Touch Icons -->
   <link rel="icon" href="assets/logo.png" type="image/png">
   <link rel="apple-touch-icon" href="assets/logo.png">

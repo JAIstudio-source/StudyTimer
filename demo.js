@@ -270,7 +270,7 @@ async function initAuth() {
 
     initLeaderboardRealtime();
 
-    // 1. Always Attach Auth State Change Listener FIRST
+    // 1. Attach Auth State Change Listener FIRST
     supabaseClient.auth.onAuthStateChange(async (event, session) => {
       console.log(`🔐 Supabase Auth Event: ${event}`, session?.user?.email);
       if (session && session.user) {
@@ -298,14 +298,14 @@ async function initAuth() {
         const params = new URLSearchParams(hash);
         const access_token = params.get('access_token');
         const refresh_token = params.get('refresh_token');
-        if (access_token && refresh_token) {
+        if (access_token) {
           const { data, error } = await supabaseClient.auth.setSession({
             access_token,
-            refresh_token
+            refresh_token: refresh_token || ''
           });
-          window.history.replaceState(null, '', window.location.pathname + window.location.search);
           if (!error && data?.session?.user) {
             handleUserSignedIn(data.session.user);
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
             return;
           }
         }
@@ -321,9 +321,9 @@ async function initAuth() {
         const code = params.get('code');
         if (code) {
           const { data, error } = await supabaseClient.auth.exchangeCodeForSession(code);
-          window.history.replaceState(null, '', window.location.pathname);
           if (!error && data?.session?.user) {
             handleUserSignedIn(data.session.user);
+            window.history.replaceState(null, '', window.location.pathname);
             return;
           }
         }
@@ -332,12 +332,13 @@ async function initAuth() {
       }
     }
 
-    // 5. Existing Session Check (from localStorage)
+    // 5. Existing Session Check (from localStorage / Supabase auto-detect)
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session && session.user) {
       handleUserSignedIn(session.user);
-    } else if (!appState.currentUser) {
-      handleUserSignedOut();
+      if (window.location.hash.includes('access_token=') || window.location.search.includes('code=')) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
     }
   } catch (err) {
     console.error('Supabase auth initialization error:', err);
@@ -348,13 +349,13 @@ function handleUserSignedIn(user) {
   if (!user) return;
   const isNewlySignedIn = !appState.currentUser || appState.currentUser.id !== user.id;
   
+  appState.currentUser = user;
+
   if (isNewlySignedIn) {
     // Cleanly isolate state for this specific user account
     const cleanState = getCleanInitialState(user);
     Object.assign(appState, cleanState);
     loadLocalState(user.id);
-  } else {
-    appState.currentUser = user;
   }
   
   closeAuthModal();
@@ -369,11 +370,13 @@ function handleUserSignedIn(user) {
   const syncStatusPill = document.getElementById('syncStatusPill');
   const syncStatusText = document.getElementById('syncStatusText');
 
-  const name = user.user_metadata?.full_name || 
+  const name = appState.userProfile?.displayName || 
+               user.user_metadata?.full_name || 
                user.user_metadata?.name || 
                user.email?.split('@')[0] || 
                'Student';
-  const avatar = user.user_metadata?.avatar_url || 
+  const avatar = appState.userProfile?.avatarPreset || 
+                 user.user_metadata?.avatar_url || 
                  user.user_metadata?.picture || 
                  'assets/logo.png';
 
@@ -385,10 +388,22 @@ function handleUserSignedIn(user) {
   if (userAvatarImg) userAvatarImg.src = avatar;
   if (guestBanner) guestBanner.classList.add('hidden');
 
+  renderUserProfileUI();
+
   if (syncStatusPill) {
     syncStatusPill.classList.add('synced');
     syncStatusText.textContent = 'Synced';
   }
+
+  // Immediately render all views for the authenticated user
+  if (typeof renderSubjects === 'function') renderSubjects();
+  if (typeof updateProgressAndStreak === 'function') updateProgressAndStreak();
+  if (typeof renderSubjectDonutChart === 'function') renderSubjectDonutChart();
+  if (typeof renderActivityHeatmap === 'function') renderActivityHeatmap();
+  if (typeof renderMonthlyCalendar === 'function') renderMonthlyCalendar();
+  if (typeof renderPlannerGoals === 'function') renderPlannerGoals();
+  if (typeof renderTimeline === 'function') renderTimeline();
+  if (typeof updateStatsDisplay === 'function') updateStatsDisplay();
 
   // Refresh presence & leaderboard on login
   if (timerStatus === 'RUNNING' && currentMode !== 'break') {
@@ -423,6 +438,7 @@ function handleUserSignedOut() {
   if (typeof renderSubjectDonutChart === 'function') renderSubjectDonutChart();
   if (typeof renderActivityHeatmap === 'function') renderActivityHeatmap();
   if (typeof renderMonthlyCalendar === 'function') renderMonthlyCalendar();
+  if (typeof renderUserProfileUI === 'function') renderUserProfileUI();
 
   leaderboardCache.timestamp = 0;
   const lbModal = document.getElementById('leaderboardModalOverlay');

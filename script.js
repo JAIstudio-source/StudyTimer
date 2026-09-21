@@ -75,19 +75,50 @@ function initFaqAccordion() {
  * Use Case Tabs for Students
  */
 function initUseCaseTabs() {
-  const tabBtns = document.querySelectorAll('.tab-btn');
+  const tabBtns = Array.from(document.querySelectorAll('.tab-btn'));
   const tabContents = document.querySelectorAll('.usecase-tab-content');
 
-  tabBtns.forEach(btn => {
+  function activateTab(btn, setFocus = false) {
+    const targetId = btn.getAttribute('data-target');
+
+    tabBtns.forEach(b => {
+      b.classList.remove('active');
+      b.setAttribute('aria-selected', 'false');
+      b.setAttribute('tabindex', '-1');
+    });
+
+    tabContents.forEach(c => c.classList.remove('active'));
+
+    btn.classList.add('active');
+    btn.setAttribute('aria-selected', 'true');
+    btn.setAttribute('tabindex', '0');
+    if (setFocus) btn.focus();
+
+    const targetEl = document.getElementById(`tab-${targetId}`);
+    if (targetEl) targetEl.classList.add('active');
+  }
+
+  tabBtns.forEach((btn, index) => {
     btn.addEventListener('click', () => {
-      const targetId = btn.getAttribute('data-target');
+      activateTab(btn);
+    });
 
-      tabBtns.forEach(b => b.classList.remove('active'));
-      tabContents.forEach(c => c.classList.remove('active'));
+    btn.addEventListener('keydown', (e) => {
+      let nextIndex = null;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        nextIndex = (index + 1) % tabBtns.length;
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        nextIndex = (index - 1 + tabBtns.length) % tabBtns.length;
+      } else if (e.key === 'Home') {
+        nextIndex = 0;
+      } else if (e.key === 'End') {
+        nextIndex = tabBtns.length - 1;
+      }
 
-      btn.classList.add('active');
-      const targetEl = document.getElementById(`tab-${targetId}`);
-      if (targetEl) targetEl.classList.add('active');
+      if (nextIndex !== null) {
+        e.preventDefault();
+        activateTab(tabBtns[nextIndex], true);
+      }
     });
   });
 }

@@ -96,30 +96,39 @@ let timeRemaining = 25 * 60;
 let stopwatchElapsed = 0;
 let timerInterval = null;
 
-// User Data & History
-let appState = {
-  currentUser: null,
-  streakCount: 1,
-  lastStudyDate: '',
-  userProfile: {
-    displayName: 'Student',
-    avatarPreset: '🐱',
-    motto: '🎯 Deep focus & daily consistency',
-    primarySubjectId: 'math',
-    isPublicLeaderboard: true
-  },
-  subjects: [...DEFAULT_SUBJECTS],
-  selectedSubject: DEFAULT_SUBJECTS[0],
-  plannerGoals: [
-    { id: 'goal_1', subjectId: 'math', dailyMinutes: 60 },
-    { id: 'goal_2', subjectId: 'coding', dailyMinutes: 90 }
-  ],
-  timelineEntries: [],
-  todaySessions: [],
-  dailyFocusTotals: {},
-  subjectDurations: {},
-  dailySubjectDurations: {}
-};
+// User Data & History Helpers
+function getCleanInitialState(user = null) {
+  const name = user?.user_metadata?.full_name || 
+               user?.user_metadata?.name || 
+               user?.email?.split('@')[0] || 
+               'Student';
+  const avatar = user?.user_metadata?.avatar_url || 
+                 user?.user_metadata?.picture || 
+                 'assets/logo.png';
+
+  return {
+    currentUser: user || null,
+    streakCount: 0,
+    lastStudyDate: '',
+    userProfile: {
+      displayName: name,
+      avatarPreset: avatar,
+      motto: '🎯 Deep focus & daily consistency',
+      primarySubjectId: 'general',
+      isPublicLeaderboard: true
+    },
+    subjects: JSON.parse(JSON.stringify(DEFAULT_SUBJECTS)),
+    selectedSubject: DEFAULT_SUBJECTS[0],
+    plannerGoals: [],
+    timelineEntries: [],
+    todaySessions: [],
+    dailyFocusTotals: {},
+    subjectDurations: {},
+    dailySubjectDurations: {}
+  };
+}
+
+let appState = getCleanInitialState(null);
 
 // ============================================================================
 // 3. INITIALIZATION
@@ -338,7 +347,15 @@ async function initAuth() {
 function handleUserSignedIn(user) {
   if (!user) return;
   const isNewlySignedIn = !appState.currentUser || appState.currentUser.id !== user.id;
-  appState.currentUser = user;
+  
+  if (isNewlySignedIn) {
+    // Cleanly isolate state for this specific user account
+    const cleanState = getCleanInitialState(user);
+    Object.assign(appState, cleanState);
+    loadLocalState(user.id);
+  } else {
+    appState.currentUser = user;
+  }
   
   closeAuthModal();
 
@@ -394,29 +411,18 @@ function handleUserSignedIn(user) {
 function handleUserSignedOut() {
   teardownUserSyncRealtime();
   stopPresenceHeartbeat();
-  appState.currentUser = null;
-  appState.userProfile = {
-    displayName: 'Student',
-    avatarEmoji: '🐱',
-    bio: '',
-    joinedDate: new Date().toISOString()
-  };
-  appState.streakCount = 0;
-  appState.lastStudyDate = null;
-  appState.dailyFocusTotals = {};
-  appState.todaySessions = [];
-  appState.timelineEntries = [];
-  appState.plannerGoals = [];
-  appState.subjects = JSON.parse(JSON.stringify(DEFAULT_SUBJECTS));
-  appState.selectedSubject = appState.subjects[0];
-  appState.subjectDurations = {};
-  appState.dailySubjectDurations = {};
+  
+  const cleanGuest = getCleanInitialState(null);
+  Object.assign(appState, cleanGuest);
 
   saveLocalState();
   if (typeof renderSubjects === 'function') renderSubjects();
   if (typeof renderPlannerGoals === 'function') renderPlannerGoals();
   if (typeof renderTimeline === 'function') renderTimeline();
   if (typeof updateStatsDisplay === 'function') updateStatsDisplay();
+  if (typeof renderSubjectDonutChart === 'function') renderSubjectDonutChart();
+  if (typeof renderActivityHeatmap === 'function') renderActivityHeatmap();
+  if (typeof renderMonthlyCalendar === 'function') renderMonthlyCalendar();
 
   leaderboardCache.timestamp = 0;
   const lbModal = document.getElementById('leaderboardModalOverlay');
@@ -515,6 +521,13 @@ async function pullDataFromCloud(isUserTriggered = false) {
       let restoredSubjectCount = 0;
       let restoredTimelineCount = 0;
 
+      // Cleanly clear state collections before applying this user's cloud data
+      const dailyFocus = {};
+      let restoredSubDur = {};
+      let restoredDailySub = {};
+      let restoredGoals = [];
+      let restoredTimeline = [];
+
       if (data.prefs_data) {
         try {
           const prefs = typeof data.prefs_data === 'string' ? JSON.parse(data.prefs_data) : data.prefs_data;
@@ -523,10 +536,8 @@ async function pullDataFromCloud(isUserTriggered = false) {
           const goalMins = prefs.daily_goal_minutes || (prefs.daily_goal_secs ? Math.round(prefs.daily_goal_secs / 60) : null);
           if (goalMins) timerConfig.dailyGoalMinutes = Math.min(1440, Math.max(15, goalMins));
 
-          if (prefs.current_streak || prefs.streak_count) {
-            appState.streakCount = Math.max(0, Number(prefs.current_streak || prefs.streak_count) || 0);
-          }
-          if (prefs.last_study_date) appState.lastStudyDate = prefs.last_study_date;
+          appState.streakCount = Math.max(0, Number(prefs.current_streak || prefs.streak_count) || 0);
+          appState.lastStudyDate = prefs.last_study_date || '';
 
           if (prefs.study_interval_minutes || prefs.pomo_focus_minutes) {
             timerConfig.pomoFocusMinutes = Number(prefs.study_interval_minutes || prefs.pomo_focus_minutes);
@@ -541,7 +552,6 @@ async function pullDataFromCloud(isUserTriggered = false) {
           if (prefs.custom_timer_minutes) timerConfig.customTimerMinutes = prefs.custom_timer_minutes;
 
           // 2. Extract all daily focus totals & subject durations from Android
-          const dailyFocus = { ...(appState.dailyFocusTotals || {}) };
           const todayKey = getLocalDateStr();
 
           Object.keys(prefs).forEach(k => {
@@ -549,7 +559,7 @@ async function pullDataFromCloud(isUserTriggered = false) {
             if (match) {
               const dStr = match[1];
               const sec = Number(prefs[k]) || 0;
-              if (sec > 0) dailyFocus[dStr] = Math.max(dailyFocus[dStr] || 0, sec);
+              if (sec > 0) dailyFocus[dStr] = sec;
             }
           });
 
@@ -565,7 +575,7 @@ async function pullDataFromCloud(isUserTriggered = false) {
               const rawSubDur = typeof prefs.subject_durations_json === 'string'
                 ? JSON.parse(prefs.subject_durations_json)
                 : prefs.subject_durations_json;
-              appState.subjectDurations = { ...(appState.subjectDurations || {}), ...rawSubDur };
+              if (rawSubDur && typeof rawSubDur === 'object') restoredSubDur = rawSubDur;
             } catch (_) {}
           }
 
@@ -574,11 +584,13 @@ async function pullDataFromCloud(isUserTriggered = false) {
               const rawDailySub = typeof prefs.daily_subject_durations_json === 'string'
                 ? JSON.parse(prefs.daily_subject_durations_json)
                 : prefs.daily_subject_durations_json;
-              appState.dailySubjectDurations = { ...(appState.dailySubjectDurations || {}), ...rawDailySub };
+              if (rawDailySub && typeof rawDailySub === 'object') restoredDailySub = rawDailySub;
             } catch (_) {}
           }
 
           appState.dailyFocusTotals = dailyFocus;
+          appState.subjectDurations = restoredSubDur;
+          appState.dailySubjectDurations = restoredDailySub;
 
           // 3. Full Subjects Restoration (Android studytimer_subject_tags & Web custom_subjects)
           const rawTags = prefs.__subject_tags_data__ || data.subject_tags_data || prefs.custom_subjects_json;
@@ -698,8 +710,8 @@ async function pullDataFromCloud(isUserTriggered = false) {
             } catch (_) {}
           }
 
-          if (Array.isArray(loadedGoals) && loadedGoals.length > 0) {
-            appState.plannerGoals = loadedGoals.map(g => ({
+          if (Array.isArray(loadedGoals)) {
+            restoredGoals = loadedGoals.map(g => ({
               id: g.id || ('goal_' + Date.now()),
               subjectId: g.subjectId || null,
               dailyMinutes: Math.max(0, Number(g.targetMinutes ?? g.dailyMinutes) || 0),
@@ -711,6 +723,7 @@ async function pullDataFromCloud(isUserTriggered = false) {
               createdAt: g.createdAt || Date.now()
             }));
           }
+          appState.plannerGoals = restoredGoals;
 
           // 5. User Profile
           if (prefs.__user_profile__) {
@@ -733,15 +746,16 @@ async function pullDataFromCloud(isUserTriggered = false) {
       // 6. Timeline History Restoration
       if (data.timeline_data) {
         try {
-          const remoteTimeline = typeof data.timeline_data === 'string' ? JSON.parse(data.timeline_data) : data.timeline_data;
-          if (Array.isArray(remoteTimeline) && remoteTimeline.length > 0) {
-            appState.timelineEntries = remoteTimeline;
-            restoredTimelineCount = remoteTimeline.length;
+          const parsedTimeline = typeof data.timeline_data === 'string' ? JSON.parse(data.timeline_data) : data.timeline_data;
+          if (Array.isArray(parsedTimeline)) {
+            restoredTimeline = parsedTimeline;
+            restoredTimelineCount = parsedTimeline.length;
           }
         } catch (e) {
           console.error('Failed to parse remote timeline_data', e);
         }
       }
+      appState.timelineEntries = restoredTimeline;
 
       reconstructTodaySessionsFromTimeline();
 
@@ -779,8 +793,7 @@ async function pullDataFromCloud(isUserTriggered = false) {
       }
     } else {
       if (isUserTriggered) {
-        showToast('No existing cloud backup found. Uploaded current session to cloud.', 'info');
-        pushDataToCloud();
+        showToast('No existing cloud backup found. Clean account initialized.', 'info');
       }
     }
   } catch (err) {
@@ -1186,15 +1199,17 @@ function getAllValidatedSessions() {
 }
 
 // ============================================================================
-// 5. LOCAL STORAGE PERSISTENCE
+// 5. LOCAL STORAGE PERSISTENCE (Strictly User-Scoped)
 // ============================================================================
-function loadLocalState() {
+function loadLocalState(targetUserId = null) {
   try {
-    const local = localStorage.getItem('studytimer_demo_state');
+    const uid = targetUserId || appState.currentUser?.id;
+    const storageKey = uid ? `studytimer_state_${uid}` : 'studytimer_guest_state';
+    const local = localStorage.getItem(storageKey);
     if (local) {
       const parsed = JSON.parse(local);
       if (parsed.timerConfig) timerConfig = { ...timerConfig, ...parsed.timerConfig };
-      if (parsed.streakCount) appState.streakCount = parsed.streakCount;
+      if (typeof parsed.streakCount === 'number') appState.streakCount = parsed.streakCount;
       if (parsed.lastStudyDate) appState.lastStudyDate = parsed.lastStudyDate;
       if (Array.isArray(parsed.subjects) && parsed.subjects.length > 0) {
         appState.subjects = parsed.subjects;
@@ -1234,12 +1249,14 @@ function loadLocalState() {
       }
     }
   } catch (e) {
-    console.error('Failed to load local demo state:', e);
+    console.error('Failed to load local state:', e);
   }
 }
 
 function saveLocalState() {
   try {
+    const uid = appState.currentUser?.id;
+    const storageKey = uid ? `studytimer_state_${uid}` : 'studytimer_guest_state';
     const stateToSave = {
       timerConfig,
       streakCount: appState.streakCount,
@@ -1253,9 +1270,9 @@ function saveLocalState() {
       subjectDurations: appState.subjectDurations || {},
       dailySubjectDurations: appState.dailySubjectDurations || {}
     };
-    localStorage.setItem('studytimer_demo_state', JSON.stringify(stateToSave));
+    localStorage.setItem(storageKey, JSON.stringify(stateToSave));
   } catch (e) {
-    console.error('Failed to save local demo state:', e);
+    console.error('Failed to save local state:', e);
   }
 }
 
@@ -4595,7 +4612,8 @@ async function syncLeaderboardScore() {
                     appState.currentUser.user_metadata?.picture || 
                     '🐱';
 
-  const canonicalUserId = appState.currentUser.id || 'cc0a1395-071f-4252-9b04-305f71798725';
+  const canonicalUserId = appState.currentUser?.id;
+  if (!canonicalUserId) return;
 
   const payload = {
     user_id: canonicalUserId,

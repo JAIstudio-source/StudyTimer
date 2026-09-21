@@ -559,14 +559,14 @@
           <p class="section-subtitle">Helpful for school, university, coding, and competitive exams.</p>
         </div>
 
-        <div class="usecase-tabs" id="usecaseTabs">
-          <button class="tab-btn active" data-target="college">🎓 High School &amp; College</button>
-          <button class="tab-btn" data-target="competitive">🩺 Board &amp; Entrance Exams</button>
-          <button class="tab-btn" data-target="coding">💻 Coding &amp; Projects</button>
-          <button class="tab-btn" data-target="language">📚 Languages &amp; Reading</button>
+        <div class="usecase-tabs" id="usecaseTabs" role="tablist" aria-label="Study use cases">
+          <button class="tab-btn active" role="tab" id="tab-btn-college" aria-selected="true" aria-controls="tab-college" tabindex="0" data-target="college">🎓 High School &amp; College</button>
+          <button class="tab-btn" role="tab" id="tab-btn-competitive" aria-selected="false" aria-controls="tab-competitive" tabindex="-1" data-target="competitive">🩺 Board &amp; Entrance Exams</button>
+          <button class="tab-btn" role="tab" id="tab-btn-coding" aria-selected="false" aria-controls="tab-coding" tabindex="-1" data-target="coding">💻 Coding &amp; Projects</button>
+          <button class="tab-btn" role="tab" id="tab-btn-language" aria-selected="false" aria-controls="tab-language" tabindex="-1" data-target="language">📚 Languages &amp; Reading</button>
         </div>
 
-        <div class="usecase-tab-content active" id="tab-college">
+        <div class="usecase-tab-content active" id="tab-college" role="tabpanel" aria-labelledby="tab-btn-college" tabindex="0">
           <div class="usecase-card">
             <div class="usecase-text">
               <h3>Balance All Your Classes Before Finals</h3>
@@ -582,7 +582,7 @@
           </div>
         </div>
 
-        <div class="usecase-tab-content" id="tab-competitive">
+        <div class="usecase-tab-content" id="tab-competitive" role="tabpanel" aria-labelledby="tab-btn-competitive" tabindex="0">
           <div class="usecase-card">
             <div class="usecase-text">
               <h3>Handle Long 6 to 8 Hour Study Days</h3>
@@ -598,7 +598,7 @@
           </div>
         </div>
 
-        <div class="usecase-tab-content" id="tab-coding">
+        <div class="usecase-tab-content" id="tab-coding" role="tabpanel" aria-labelledby="tab-btn-coding" tabindex="0">
           <div class="usecase-card">
             <div class="usecase-text">
               <h3>Focus on Coding Practice &amp; Homework</h3>
@@ -614,7 +614,7 @@
           </div>
         </div>
 
-        <div class="usecase-tab-content" id="tab-language">
+        <div class="usecase-tab-content" id="tab-language" role="tabpanel" aria-labelledby="tab-btn-language" tabindex="0">
           <div class="usecase-card">
             <div class="usecase-text">
               <h3>Daily 25-Minute Habit for Languages &amp; Books</h3>
@@ -841,7 +841,7 @@
       </div>
 
       <div class="footer-nav-col">
-        <h4>App Features</h4>
+        <h3 class="footer-heading">App Features</h3>
         <ul>
           <li><a href="demo.html">Online Pomodoro Studio</a></li>
           <li><a href="StudyTimer-release.apk" download>Download APK</a></li>
@@ -853,7 +853,7 @@
       </div>
 
       <div class="footer-nav-col">
-        <h4>About &amp; Legal</h4>
+        <h3 class="footer-heading">About &amp; Legal</h3>
         <ul>
           <li><a href="about.html">About StudyTimer</a></li>
           <li><a href="privacy.html">Privacy Policy</a></li>
@@ -864,7 +864,7 @@
       </div>
 
       <div class="footer-nav-col">
-        <h4>Help &amp; Support</h4>
+        <h3 class="footer-heading">Help &amp; Support</h3>
         <ul>
           <li><a href="contact.html">Contact Us</a></li>
           <li><a href="mailto:studytimer737@gmail.com">studytimer737@gmail.com</a></li>

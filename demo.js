@@ -95,7 +95,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   initTimerWorker();
   initBackgroundSyncListeners();
   renderSubjects();
-  resetTimer();
+  if (!restoreActiveSessionIfAny()) {
+    resetTimer();
+  }
   updateProgressAndStreak();
   renderSubjectDonutChart();
   renderActivityHeatmap();
@@ -154,6 +156,66 @@ function initLeaderboardRealtime() {
       .subscribe();
   } catch (err) {
     console.warn('Leaderboard realtime subscription error:', err);
+  }
+}
+
+// Supabase Realtime Live User Sync Listener (App <-> Web instant synchronization)
+let userSyncRealtimeChannel = null;
+let lastPulledCloudUpdatedAt = 0;
+
+function initUserSyncRealtime() {
+  if (!supabaseClient || userSyncRealtimeChannel || !appState.currentUser) return;
+  try {
+    const user = appState.currentUser;
+    const currentUserId = (user.id || '').trim().toLowerCase();
+    const currentUserEmail = (user.email || user.user_metadata?.email || '').trim().toLowerCase();
+
+    userSyncRealtimeChannel = supabaseClient
+      .channel(`realtime_user_sync_${currentUserId.replace(/[^a-zA-Z0-9_-]/g, '_')}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_sync_data'
+        },
+        (payload) => {
+          const newRecord = payload?.new;
+          if (!newRecord) return;
+
+          const rowUserId = (newRecord.user_id || '').trim().toLowerCase();
+          const rowUserEmail = (newRecord.user_email || '').trim().toLowerCase();
+
+          // Check if this row update is for the currently signed-in user
+          const isUserMatch =
+            (currentUserId && rowUserId === currentUserId) ||
+            (currentUserEmail && (rowUserEmail === currentUserEmail || rowUserId === currentUserEmail)) ||
+            (rowUserId === 'google user' && rowUserEmail === currentUserEmail);
+
+          if (!isUserMatch) return;
+
+          const remoteUpdatedAt = Number(newRecord.updated_at) || 0;
+          // Guard against echo-loops: if the web pushed this change within 4 seconds or timestamp is older/same, skip
+          if (Date.now() - lastCloudPushTime < 4000) return;
+          if (remoteUpdatedAt > 0 && remoteUpdatedAt <= lastPulledCloudUpdatedAt) return;
+
+          lastPulledCloudUpdatedAt = remoteUpdatedAt;
+          console.log('⚡ Live sync event received from mobile app. Updating Web Studio data in real-time...');
+          pullDataFromCloud(false);
+        }
+      )
+      .subscribe();
+  } catch (err) {
+    console.warn('Live user sync realtime subscription error:', err);
+  }
+}
+
+function teardownUserSyncRealtime() {
+  if (userSyncRealtimeChannel && supabaseClient) {
+    try {
+      supabaseClient.removeChannel(userSyncRealtimeChannel);
+    } catch (_) {}
+    userSyncRealtimeChannel = null;
   }
 }
 
@@ -221,11 +283,13 @@ function handleUserSignedIn(user) {
     fetchLeaderboard(true);
   }
 
+  initUserSyncRealtime();
   pullDataFromCloud();
-  showToast('Signed in! Cloud Sync active.', 'success');
+  showToast('Signed in! Live Cloud Sync active.', 'success');
 }
 
 function handleUserSignedOut() {
+  teardownUserSyncRealtime();
   stopPresenceHeartbeat();
   appState.currentUser = null;
   leaderboardCache.timestamp = 0;
@@ -324,6 +388,9 @@ async function pullDataFromCloud(isUserTriggered = false) {
     }
 
     if (data) {
+      if (data.updated_at) {
+        lastPulledCloudUpdatedAt = Math.max(lastPulledCloudUpdatedAt, Number(data.updated_at) || 0);
+      }
       let restoredSubjectCount = 0;
       let restoredTimelineCount = 0;
 
@@ -739,6 +806,7 @@ async function pushDataToCloud(silent = false) {
 
 
     const nowMs = Date.now();
+    lastPulledCloudUpdatedAt = nowMs;
     const payload = {
       user_id: user.id,
       user_name: userName,
@@ -1145,6 +1213,14 @@ function setupEventListeners() {
     if (e.target.id === 'leaderboardModalOverlay') closeLeaderboardModal();
   });
   document.getElementById('btnRefreshLeaderboard')?.addEventListener('click', () => fetchLeaderboard(true));
+
+  // Leaderboard Period Timeframe Tabs (Daily / Weekly / Monthly)
+  document.querySelectorAll('.lb-timeframe-tab').forEach(tabBtn => {
+    tabBtn.addEventListener('click', (e) => {
+      const period = e.currentTarget.dataset.period || 'daily';
+      switchLeaderboardTimeframe(period);
+    });
+  });
 
   // Manual "Sync with App" Dropdown Trigger
   document.getElementById('btnManualSync')?.addEventListener('click', async () => {
@@ -1553,6 +1629,54 @@ function toggleTimer() {
 // ============================================================================
 let timerWorker = null;
 let wakeLockSentinel = null;
+let lastAutoSavedMinute = 0;
+let defaultPageTitle = document.title || 'StudyTimer Web - Focus Timer & Habit Tracker for Students';
+
+// Native Offline Web Audio Synthesizer (Zero external mp3 dependencies)
+function playAlarmChime() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+    const notes = [587.33, 880, 1174.66]; // D5, A5, D6 harmonic chime
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.18);
+      gain.gain.setValueAtTime(0.001, ctx.currentTime + idx * 0.18);
+      gain.gain.exponentialRampToValueAtTime(0.28, ctx.currentTime + idx * 0.18 + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + idx * 0.18 + 1.2);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + idx * 0.18);
+      osc.stop(ctx.currentTime + idx * 0.18 + 1.25);
+    });
+  } catch (err) {
+    console.warn('Audio chime warning:', err);
+  }
+}
+
+// System Web Notifications (Notifies when tab is minimized or switched to another app)
+function sendSessionNotification(title, body) {
+  try {
+    if ('Notification' in window) {
+      if (Notification.permission === 'granted') {
+        new Notification(title, {
+          body,
+          icon: 'assets/logo.png',
+          badge: 'assets/logo.png',
+          tag: 'studytimer-session-alert'
+        });
+      } else if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+  } catch (_) {}
+}
 
 function initTimerWorker() {
   try {
@@ -1563,7 +1687,7 @@ function initTimerWorker() {
           if (interval) clearInterval(interval);
           interval = setInterval(() => {
             self.postMessage('tick');
-          }, 250);
+          }, 200);
         } else if (e.data === 'stop') {
           if (interval) {
             clearInterval(interval);
@@ -1594,6 +1718,11 @@ function initBackgroundSyncListeners() {
         tickTimer();
         requestWakeLock();
       }
+    } else {
+      if (timerStatus === 'RUNNING') {
+        saveActiveSessionState();
+        saveLocalState();
+      }
     }
   });
 
@@ -1608,6 +1737,54 @@ function initBackgroundSyncListeners() {
       tickTimer();
     }
   });
+
+  window.addEventListener('online', () => {
+    const syncStatusPill = document.getElementById('syncStatusPill');
+    const syncStatusText = document.getElementById('syncStatusText');
+    if (syncStatusPill) {
+      syncStatusPill.classList.remove('offline');
+      if (appState.currentUser) {
+        syncStatusPill.classList.add('synced');
+        syncStatusText.textContent = 'Synced';
+        showToast('Online! Cloud sync reconnected ☁️', 'success');
+        pullDataFromCloud();
+      } else {
+        syncStatusText.textContent = 'Local';
+      }
+    }
+  });
+
+  window.addEventListener('offline', () => {
+    const syncStatusPill = document.getElementById('syncStatusPill');
+    const syncStatusText = document.getElementById('syncStatusText');
+    if (syncStatusPill) {
+      syncStatusPill.classList.add('offline');
+      syncStatusText.textContent = 'Offline (Local)';
+      showToast('Offline Mode: All study data saved locally 📱', 'info');
+    }
+  });
+
+  window.addEventListener('beforeunload', () => {
+    if (timerStatus === 'RUNNING') {
+      saveActiveSessionState();
+      saveLocalState();
+    }
+  });
+
+  window.addEventListener('pagehide', () => {
+    if (timerStatus === 'RUNNING') {
+      saveActiveSessionState();
+      saveLocalState();
+    }
+  });
+
+  // Ask for notification permission on first user interaction so alerts work when app is switched
+  document.addEventListener('click', function reqNotifOnce() {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+    document.removeEventListener('click', reqNotifOnce);
+  }, { once: true });
 }
 
 // Request Screen Wake Lock (keeps screen on during active focus study)
@@ -1633,6 +1810,100 @@ function releaseWakeLock() {
   }
 }
 
+// Persist active running session to localStorage for crash & tab-switch resilience
+function saveActiveSessionState() {
+  if (timerStatus === 'RUNNING' || timerStatus === 'PAUSED') {
+    const sessionSnapshot = {
+      timerStatus,
+      currentMode,
+      pomoCurrentCycle,
+      isLongBreakActive,
+      timerStartTimestamp,
+      accumulatedElapsedSec,
+      selectedSubjectId: appState.selectedSubject?.id || 'general',
+      savedAt: Date.now()
+    };
+    try {
+      localStorage.setItem('studytimer_active_session', JSON.stringify(sessionSnapshot));
+    } catch (_) {}
+  } else {
+    clearActiveSessionState();
+  }
+}
+
+function clearActiveSessionState() {
+  try {
+    localStorage.removeItem('studytimer_active_session');
+  } catch (_) {}
+}
+
+function restoreActiveSessionIfAny() {
+  try {
+    const raw = localStorage.getItem('studytimer_active_session');
+    if (!raw) return false;
+    const session = JSON.parse(raw);
+    if (!session || !session.timerStatus) return false;
+
+    if (session.currentMode) currentMode = session.currentMode;
+    if (session.pomoCurrentCycle) pomoCurrentCycle = session.pomoCurrentCycle;
+    if (typeof session.isLongBreakActive === 'boolean') isLongBreakActive = session.isLongBreakActive;
+
+    if (session.selectedSubjectId) {
+      const foundSub = (appState.subjects || []).find(s => s.id === session.selectedSubjectId);
+      if (foundSub) appState.selectedSubject = foundSub;
+    }
+
+    if (session.timerStatus === 'PAUSED') {
+      timerStatus = 'PAUSED';
+      accumulatedElapsedSec = session.accumulatedElapsedSec || 0;
+      timerStartTimestamp = null;
+      if (currentMode === 'stopwatch') {
+        stopwatchElapsed = accumulatedElapsedSec;
+      } else {
+        const totalSec = getModeDurationSec();
+        timeRemaining = Math.max(0, totalSec - accumulatedElapsedSec);
+      }
+      updateTimerControlsUI();
+      updateTimerDisplay();
+      return true;
+    } else if (session.timerStatus === 'RUNNING' && session.timerStartTimestamp) {
+      const now = Date.now();
+      const elapsedSinceStart = Math.floor((now - session.timerStartTimestamp) / 1000);
+      const totalElapsed = (session.accumulatedElapsedSec || 0) + elapsedSinceStart;
+      const totalSec = getModeDurationSec();
+
+      if (currentMode !== 'stopwatch' && totalElapsed >= totalSec && totalSec > 0) {
+        // Session finished while tab/browser was away
+        accumulatedElapsedSec = totalSec;
+        timeRemaining = 0;
+        clearActiveSessionState();
+        finishSession(true);
+        return true;
+      } else {
+        timerStatus = 'RUNNING';
+        accumulatedElapsedSec = session.accumulatedElapsedSec || 0;
+        timerStartTimestamp = session.timerStartTimestamp;
+        if (currentMode === 'stopwatch') {
+          stopwatchElapsed = totalElapsed;
+        } else {
+          timeRemaining = Math.max(0, totalSec - totalElapsed);
+        }
+        updateTimerControlsUI();
+        updateTimerDisplay();
+        requestWakeLock();
+        if (timerWorker) timerWorker.postMessage('start');
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(tickTimer, 200);
+        return true;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to restore active session:', e);
+    clearActiveSessionState();
+  }
+  return false;
+}
+
 function tickTimer() {
   if (timerStatus !== 'RUNNING' || !timerStartTimestamp) return;
 
@@ -1651,14 +1922,57 @@ function tickTimer() {
     }
   }
   updateTimerDisplay();
+  saveActiveSessionState();
+
+  // Minute-by-Minute Auto-Save (Saves locally & syncs to cloud every 60s for logged-in user)
+  const currentMinute = Math.floor(totalElapsedSec / 60);
+  if (currentMinute > lastAutoSavedMinute && currentMinute > 0) {
+    lastAutoSavedMinute = currentMinute;
+    if (currentMode !== 'break') {
+      const todayKey = new Date().toISOString().split('T')[0];
+      appState.dailyFocusTotals[todayKey] = (appState.dailyFocusTotals[todayKey] || 0) + 60;
+
+      const subId = appState.selectedSubject?.id || 'general';
+      appState.subjectDurations[subId] = (appState.subjectDurations[subId] || 0) + 60;
+
+      if (!appState.dailySubjectDurations[todayKey]) {
+        appState.dailySubjectDurations[todayKey] = {};
+      }
+      appState.dailySubjectDurations[todayKey][subId] = (appState.dailySubjectDurations[todayKey][subId] || 0) + 60;
+
+      saveLocalState();
+
+      // If user is logged in, auto-save to cloud
+      if (appState.currentUser && supabaseClient && navigator.onLine) {
+        pushDataToCloud(true);
+        syncLeaderboardScore();
+
+        const syncStatusPill = document.getElementById('syncStatusPill');
+        const syncStatusText = document.getElementById('syncStatusText');
+        if (syncStatusPill && syncStatusText) {
+          syncStatusPill.classList.add('auto-saved');
+          const originalText = syncStatusText.textContent;
+          syncStatusText.textContent = `Auto-saved (${currentMinute}m)`;
+          setTimeout(() => {
+            syncStatusPill.classList.remove('auto-saved');
+            if (syncStatusText.textContent.startsWith('Auto-saved')) {
+              syncStatusText.textContent = originalText || 'Synced';
+            }
+          }, 2500);
+        }
+      }
+    }
+  }
 }
 
 function startTimer() {
   timerStatus = 'RUNNING';
   timerStartTimestamp = Date.now();
+  lastAutoSavedMinute = Math.floor(accumulatedElapsedSec / 60);
 
   updateTimerControlsUI();
   requestWakeLock();
+  saveActiveSessionState();
 
   if (currentMode !== 'break') {
     startPresenceHeartbeat();
@@ -1669,7 +1983,7 @@ function startTimer() {
   }
 
   if (timerInterval) clearInterval(timerInterval);
-  timerInterval = setInterval(tickTimer, 250);
+  timerInterval = setInterval(tickTimer, 200);
 }
 
 function pauseTimer() {
@@ -1681,6 +1995,7 @@ function pauseTimer() {
   timerStartTimestamp = null;
   stopPresenceHeartbeat();
   stopInterval();
+  saveActiveSessionState();
   updateTimerControlsUI();
   updateTimerDisplay();
 }
@@ -1698,6 +2013,7 @@ async function handleUserResetTimer() {
     if (!confirmed) return;
   }
   resetTimer();
+  clearActiveSessionState();
   showToast('Timer reset', 'info');
 }
 
@@ -1708,7 +2024,9 @@ function resetTimer() {
   timerStartTimestamp = null;
   accumulatedElapsedSec = 0;
   stopwatchElapsed = 0;
+  lastAutoSavedMinute = 0;
   timeRemaining = getModeDurationSec();
+  clearActiveSessionState();
 
   updateTimerControlsUI();
   updateTimerDisplay();
@@ -1753,6 +2071,15 @@ function finishSession(isAutoFinished = false) {
   else if (currentMode === 'stopwatch') { stateKey = 'COUNT_UP'; modeLabel = 'Stopwatch'; }
   else if (currentMode === 'break') { stateKey = 'BREAK'; modeLabel = 'Break'; }
 
+  // Sound chime & trigger system notification
+  playAlarmChime();
+  if (stateKey === 'BREAK') {
+    sendSessionNotification('Break Complete! ⚡', 'Ready for your next focus study session.');
+  } else {
+    const minCount = Math.max(1, Math.round(studiedDurationSec / 60));
+    sendSessionNotification(`Focus Complete! 🎉 (+${minCount}m)`, `Great job studying ${subject?.name || 'Subject'}. Time for a break!`);
+  }
+
   if (stateKey !== 'BREAK') {
     const startEntry = {
       t: startMs,
@@ -1786,6 +2113,7 @@ function finishSession(isAutoFinished = false) {
     checkAndUpdateStreak();
   }
 
+  clearActiveSessionState();
   resetTimer();
   updateProgressAndStreak();
   renderSubjectDonutChart();
@@ -4248,11 +4576,45 @@ async function logSessionToLeaderboard(durationSec, subject) {
   }
 }
 
+let currentLeaderboardPeriod = 'daily'; // 'daily' | 'weekly' | 'monthly'
+let leaderboardTimeframeCache = {
+  daily: { data: null, timestamp: 0 },
+  weekly: { data: null, timestamp: 0 },
+  monthly: { data: null, timestamp: 0 }
+};
+
+function switchLeaderboardTimeframe(period) {
+  if (!['daily', 'weekly', 'monthly'].includes(period)) period = 'daily';
+  currentLeaderboardPeriod = period;
+
+  // Update tabs UI
+  document.querySelectorAll('.lb-timeframe-tab').forEach(btn => {
+    const isTarget = btn.dataset.period === period;
+    btn.classList.toggle('active', isTarget);
+    btn.setAttribute('aria-selected', isTarget ? 'true' : 'false');
+  });
+
+  // Update title heading
+  const heading = document.getElementById('leaderboardModalHeading');
+  if (heading) {
+    if (period === 'daily') heading.textContent = 'Daily Leaderboard';
+    else if (period === 'weekly') heading.textContent = 'Weekly Leaderboard';
+    else if (period === 'monthly') heading.textContent = 'Monthly Leaderboard';
+  }
+
+  // Update countdown timer
+  updateLeaderboardCountdownDisplay();
+
+  // Fetch rankings for the selected period
+  fetchLeaderboard(false);
+}
+
 async function openLeaderboardModal() {
   const modal = document.getElementById('leaderboardModalOverlay');
   if (modal) {
     lockBodyScroll();
     modal.classList.remove('hidden');
+    switchLeaderboardTimeframe(currentLeaderboardPeriod || 'daily');
     await syncLeaderboardScore();
     fetchLeaderboard(true);
   }
@@ -4263,16 +4625,36 @@ function closeLeaderboardModal() {
   unlockBodyScroll();
 }
 
+// Helpers for dates
+function getIsoDateStr(d = new Date()) {
+  return d.toISOString().split('T')[0];
+}
+
+function getStartOfWeekDateStr() {
+  const d = new Date();
+  const day = d.getDay(); // 0 is Sunday
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday
+  const monday = new Date(d.setDate(diff));
+  return getIsoDateStr(monday);
+}
+
+function getStartOfMonthDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
 async function fetchLeaderboard(forceRefresh = false) {
   const now = Date.now();
+  const period = currentLeaderboardPeriod || 'daily';
   startResetCountdownTimer();
 
   if (forceRefresh) {
     await syncLeaderboardScore();
   }
 
-  if (!forceRefresh && leaderboardCache.data && (now - leaderboardCache.timestamp < LEADERBOARD_CACHE_TTL_MS)) {
-    renderLeaderboard(leaderboardCache.data);
+  const cached = leaderboardTimeframeCache[period];
+  if (!forceRefresh && cached && cached.data && (now - cached.timestamp < LEADERBOARD_CACHE_TTL_MS)) {
+    renderLeaderboard(cached.data, period);
     return;
   }
 
@@ -4281,28 +4663,120 @@ async function fetchLeaderboard(forceRefresh = false) {
 
   try {
     if (supabaseClient) {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const { data, error } = await supabaseClient.rpc('get_daily_leaderboard', {
-        p_date: todayStr,
-        p_limit: 25
-      });
+      const todayStr = getIsoDateStr();
+      let rankings = null;
 
-      if (error) {
-        console.warn('Supabase get_daily_leaderboard error:', error);
-        fallbackLocalLeaderboard();
-      } else if (data) {
-        leaderboardCache = { data, timestamp: now };
-        renderLeaderboard(data);
+      if (period === 'daily') {
+        const { data, error } = await supabaseClient.rpc('get_daily_leaderboard', {
+          p_date: todayStr,
+          p_limit: 25
+        });
+        if (!error && data) rankings = data;
+      } else if (period === 'weekly') {
+        const startWeekStr = getStartOfWeekDateStr();
+        // Try RPC first
+        const { data: rpcData, error: rpcErr } = await supabaseClient.rpc('get_weekly_leaderboard', {
+          p_start_date: startWeekStr,
+          p_end_date: todayStr,
+          p_limit: 25
+        });
+
+        if (!rpcErr && rpcData) {
+          rankings = rpcData;
+        } else {
+          // Client-side fallback aggregation from daily_leaderboard table
+          const { data: tableData, error: tableErr } = await supabaseClient
+            .from('daily_leaderboard')
+            .select('*')
+            .gte('study_date', startWeekStr)
+            .lte('study_date', todayStr);
+
+          if (!tableErr && tableData) {
+            rankings = aggregateLeaderboardEntries(tableData);
+          }
+        }
+      } else if (period === 'monthly') {
+        const startMonthStr = getStartOfMonthDateStr();
+        // Try RPC first
+        const { data: rpcData, error: rpcErr } = await supabaseClient.rpc('get_monthly_leaderboard', {
+          p_start_date: startMonthStr,
+          p_end_date: todayStr,
+          p_limit: 25
+        });
+
+        if (!rpcErr && rpcData) {
+          rankings = rpcData;
+        } else {
+          // Client-side fallback aggregation from daily_leaderboard table
+          const { data: tableData, error: tableErr } = await supabaseClient
+            .from('daily_leaderboard')
+            .select('*')
+            .gte('study_date', startMonthStr)
+            .lte('study_date', todayStr);
+
+          if (!tableErr && tableData) {
+            rankings = aggregateLeaderboardEntries(tableData);
+          }
+        }
+      }
+
+      if (rankings && Array.isArray(rankings)) {
+        leaderboardTimeframeCache[period] = { data: rankings, timestamp: now };
+        renderLeaderboard(rankings, period);
+      } else {
+        fallbackLocalLeaderboard(period);
       }
     } else {
-      fallbackLocalLeaderboard();
+      fallbackLocalLeaderboard(period);
     }
   } catch (err) {
     console.warn('Leaderboard fetch exception:', err);
-    fallbackLocalLeaderboard();
+    fallbackLocalLeaderboard(period);
   } finally {
-    setTimeout(() => refreshBtn?.classList.remove('spinning'), 500);
+    setTimeout(() => refreshBtn?.classList.remove('spinning'), 400);
   }
+}
+
+// Client-side aggregator for table rows
+function aggregateLeaderboardEntries(rows) {
+  const userMap = new Map();
+  const threeMinsAgo = Date.now() - 3 * 60 * 1000;
+
+  (rows || []).forEach(row => {
+    if (!row || !row.user_id) return;
+    const uid = row.user_id;
+    const isRecentActive = row.last_active_at ? new Date(row.last_active_at).getTime() > threeMinsAgo : false;
+    const isStudyingNow = Boolean(row.is_studying && isRecentActive);
+
+    if (!userMap.has(uid)) {
+      userMap.set(uid, {
+        user_id: uid,
+        user_name: row.user_name || 'Student',
+        avatar_url: row.avatar_url || '🐱',
+        total_seconds: Number(row.total_seconds) || 0,
+        is_studying: isStudyingNow,
+        current_subject: row.current_subject || '',
+        subject_color: row.subject_color || '#3b82f6',
+        last_active_at: row.last_active_at || new Date().toISOString()
+      });
+    } else {
+      const existing = userMap.get(uid);
+      existing.total_seconds += (Number(row.total_seconds) || 0);
+      if (row.user_name && row.user_name !== 'Student') existing.user_name = row.user_name;
+      if (row.avatar_url) existing.avatar_url = row.avatar_url;
+      if (isStudyingNow) {
+        existing.is_studying = true;
+        existing.current_subject = row.current_subject || existing.current_subject;
+        existing.subject_color = row.subject_color || existing.subject_color;
+      }
+      if (new Date(row.last_active_at) > new Date(existing.last_active_at)) {
+        existing.last_active_at = row.last_active_at;
+      }
+    }
+  });
+
+  const sorted = Array.from(userMap.values()).sort((a, b) => b.total_seconds - a.total_seconds);
+  return sorted.slice(0, 25);
 }
 
 function isCurrentUserEntry(entry) {
@@ -4319,16 +4793,50 @@ function isCurrentUserEntry(entry) {
   return false;
 }
 
-function fallbackLocalLeaderboard() {
-  const todayKey = new Date().toISOString().split('T')[0];
-  let totalSecToday = 0;
-  (appState.todaySessions || []).forEach(s => {
-    if (s && typeof s.durationSec === 'number') totalSecToday += s.durationSec;
-  });
-  if (appState.dailyFocusTotals && appState.dailyFocusTotals[todayKey]) {
-    totalSecToday = Math.max(totalSecToday, Number(appState.dailyFocusTotals[todayKey]) || 0);
+function calculateLocalFocusSecondsForPeriod(period) {
+  const todayKey = getIsoDateStr();
+  let totalSec = 0;
+
+  if (period === 'daily') {
+    (appState.todaySessions || []).forEach(s => {
+      if (s && typeof s.durationSec === 'number') totalSec += s.durationSec;
+    });
+    if (appState.dailyFocusTotals && appState.dailyFocusTotals[todayKey]) {
+      totalSec = Math.max(totalSec, Number(appState.dailyFocusTotals[todayKey]) || 0);
+    }
+  } else if (period === 'weekly') {
+    const startWeekStr = getStartOfWeekDateStr();
+    const totals = appState.dailyFocusTotals || {};
+    Object.keys(totals).forEach(k => {
+      if (k >= startWeekStr && k <= todayKey) {
+        totalSec += Number(totals[k]) || 0;
+      }
+    });
+    if (totalSec === 0) {
+      (appState.todaySessions || []).forEach(s => {
+        if (s && typeof s.durationSec === 'number') totalSec += s.durationSec;
+      });
+    }
+  } else if (period === 'monthly') {
+    const startMonthStr = getStartOfMonthDateStr();
+    const totals = appState.dailyFocusTotals || {};
+    Object.keys(totals).forEach(k => {
+      if (k >= startMonthStr && k <= todayKey) {
+        totalSec += Number(totals[k]) || 0;
+      }
+    });
+    if (totalSec === 0) {
+      (appState.todaySessions || []).forEach(s => {
+        if (s && typeof s.durationSec === 'number') totalSec += s.durationSec;
+      });
+    }
   }
 
+  return totalSec;
+}
+
+function fallbackLocalLeaderboard(period = 'daily') {
+  const totalSec = calculateLocalFocusSecondsForPeriod(period);
   const isUserStudying = timerStatus === 'RUNNING' && currentMode !== 'break';
   const dummyRanks = [];
 
@@ -4336,23 +4844,23 @@ function fallbackLocalLeaderboard() {
   const userName = profile.displayName || appState.currentUser?.user_metadata?.full_name || 'You';
   const avatar = profile.avatarPreset || appState.currentUser?.user_metadata?.avatar_url || '🐱';
 
-  if (totalSecToday > 0 || isUserStudying) {
+  if (totalSec > 0 || isUserStudying) {
     dummyRanks.push({
       rank: 1,
       user_id: appState.currentUser ? appState.currentUser.id : 'guest',
       user_name: userName,
       avatar_url: avatar,
-      total_seconds: totalSecToday,
+      total_seconds: totalSec,
       is_studying: isUserStudying,
       current_subject: isUserStudying ? (appState.selectedSubject?.name || 'Mathematics') : '',
       subject_color: appState.selectedSubject?.color || '#3b82f6'
     });
   }
 
-  renderLeaderboard(dummyRanks);
+  renderLeaderboard(dummyRanks, period);
 }
 
-function renderLeaderboard(rankings) {
+function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
   const podiumContainer = document.getElementById('leaderboardPodium');
   const listContainer = document.getElementById('leaderboardListItems');
   const activeStudyingText = document.getElementById('leaderboardActiveStudyingText');
@@ -4451,6 +4959,8 @@ function renderLeaderboard(rankings) {
     ${renderPodiumCard(top3, 3)}
   `;
 
+  const periodLabel = period === 'daily' ? 'today' : (period === 'weekly' ? 'this week' : 'this month');
+
   if (uniqueRankings.length === 0) {
     listContainer.innerHTML = `
       <div class="leaderboard-empty-state" style="padding: 24px 16px;">
@@ -4458,11 +4968,12 @@ function renderLeaderboard(rankings) {
           <circle cx="12" cy="8" r="6"></circle>
           <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path>
         </svg>
-        <p>No study sessions recorded today yet.</p>
+        <p>No study sessions recorded ${periodLabel} yet.</p>
         <span>Start a timer session to claim the #1 spot on the leaderboard!</span>
       </div>
     `;
-    updatePersonalUserBar(null, 0);
+    const localSec = calculateLocalFocusSecondsForPeriod(period);
+    updatePersonalUserBar(null, localSec);
     return;
   }
 
@@ -4471,7 +4982,7 @@ function renderLeaderboard(rankings) {
   if (remainingRanks.length === 0) {
     listContainer.innerHTML = `
       <div class="leaderboard-empty-state" style="padding: 24px 16px;">
-        <p style="font-size: 0.85rem;">Only ${uniqueRankings.length} on the board today!</p>
+        <p style="font-size: 0.85rem;">Only ${uniqueRankings.length} on the board ${periodLabel}!</p>
         <span>Complete a session to join the top rankings.</span>
       </div>
     `;
@@ -4500,15 +5011,7 @@ function renderLeaderboard(rankings) {
   }
 
   // 4. Update Personal User Bar
-  const todayKey = new Date().toISOString().split('T')[0];
-  let localTotalSec = 0;
-  (appState.todaySessions || []).forEach(s => {
-    if (s && typeof s.durationSec === 'number') localTotalSec += s.durationSec;
-  });
-  if (appState.dailyFocusTotals && appState.dailyFocusTotals[todayKey]) {
-    localTotalSec = Math.max(localTotalSec, Number(appState.dailyFocusTotals[todayKey]) || 0);
-  }
-
+  const localTotalSec = calculateLocalFocusSecondsForPeriod(period);
   const myEntry = uniqueRankings.find(r => isCurrentUserEntry(r));
   updatePersonalUserBar(myEntry, localTotalSec);
 }
@@ -4549,32 +5052,49 @@ function updatePersonalUserBar(myEntry, localTotalSec) {
   }
 }
 
-function startResetCountdownTimer() {
-  if (resetCountdownInterval) return;
+function updateLeaderboardCountdownDisplay() {
+  const countdownEl = document.getElementById('leaderboardResetCountdown');
+  if (!countdownEl) return;
 
-  const updateCountdown = () => {
-    const countdownEl = document.getElementById('leaderboardResetCountdown');
-    if (!countdownEl) return;
+  const now = new Date();
+  const period = currentLeaderboardPeriod || 'daily';
 
-    const now = new Date();
+  if (period === 'daily') {
     const midnight = new Date(now);
     midnight.setHours(24, 0, 0, 0);
-
     const diffMs = midnight - now;
     if (diffMs <= 0) {
       countdownEl.textContent = 'Resets at 00:00';
-      return;
+    } else {
+      const hours = Math.floor(diffMs / 3600000);
+      const mins = Math.floor((diffMs % 3600000) / 60000);
+      countdownEl.textContent = `Resets in ${hours}h ${mins}m`;
     }
+  } else if (period === 'weekly') {
+    // Next Sunday 23:59:59
+    const day = now.getDay();
+    const daysUntilSunday = (7 - day) % 7;
+    const sundayNight = new Date(now);
+    sundayNight.setDate(now.getDate() + daysUntilSunday);
+    sundayNight.setHours(23, 59, 59, 999);
+    const diffMs = sundayNight - now;
+    const days = Math.floor(diffMs / (24 * 3600000));
+    const hours = Math.floor((diffMs % (24 * 3600000)) / 3600000);
+    countdownEl.textContent = `Resets in ${days}d ${hours}h`;
+  } else if (period === 'monthly') {
+    // End of current month
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    const diffMs = endOfMonth - now;
+    const days = Math.floor(diffMs / (24 * 3600000));
+    const hours = Math.floor((diffMs % (24 * 3600000)) / 3600000);
+    countdownEl.textContent = `Resets in ${days}d ${hours}h`;
+  }
+}
 
-    const hours = Math.floor(diffMs / 3600000);
-    const mins = Math.floor((diffMs % 3600000) / 60000);
-    const secs = Math.floor((diffMs % 60000) / 1000);
-
-    countdownEl.textContent = `Resets in ${hours}h ${mins}m`;
-  };
-
-  updateCountdown();
-  resetCountdownInterval = setInterval(updateCountdown, 60000);
+function startResetCountdownTimer() {
+  if (resetCountdownInterval) clearInterval(resetCountdownInterval);
+  updateLeaderboardCountdownDisplay();
+  resetCountdownInterval = setInterval(updateLeaderboardCountdownDisplay, 60000);
 }
 
 // Window Unload Presence Cleanup

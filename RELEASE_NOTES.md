@@ -1,25 +1,21 @@
-# StudyTimer 2.9.3 (versionCode 25)
+# StudyTimer 2.9.4 (versionCode 26)
 
-What's New in Version 2.9.3 🚀
-1. **Improved UI**:
-   - Refined Light theme styling across the entire app with crisp borders, rich emerald goal badges, fully visible activity heatmap grid, and high-contrast segmented controls.
-   - Added a dedicated pure White Background & Black Timer theme toggle for Pomodoro focus mode.
-   - Enhanced Goal Planner history, calendar checkmarks, and completion matrix with crystal-clear readability in both light and dark themes.
-   - Updated comprehensive in-app User Guide covering all timer modes, habits, insights, and cloud sync workflows.
+What's New in Version 2.9.4 🚀
+1. **Fixed Login & Account Isolation Bug**:
+   - Resolved multi-user data merge when switching Google accounts. Each account now maintains completely separated local and cloud study records, stats, custom subjects, and timeline logs.
+   - Fixed account identity detection in OAuth deep-link callbacks and dynamic user profile synchronization.
 
-2. **Fixed Minor Bugs**:
-   - Fixed calendar view checkmarks and goal completion indicators blending into white cards in Light theme.
-   - Resolved Pomodoro button text and state transitions when switching between break and focus sessions.
-   - Fixed subject tag button contrast and full-screen notification bar contrast.
-   - Fixed empty states in pie charts, heatmap legends, and stats breakdown panels.
+2. **Clean Account Switch & Reset**:
+   - Logging out or switching accounts now resets local data cleanly before restoring cloud backups, preventing old profile information or study stats from leaking to new accounts.
+   - Isolated guest mode sessions from authenticated cloud user sessions.
 
-3. **Added Stability**:
-   - Improved background timer execution and alarm scheduling consistency.
-   - Enhanced local storage caching and Google Cloud sync resilience.
-   - Overall stability enhancements and memory optimizations.
+3. **Enhanced Cloud Sync & Security**:
+   - Strict URL-encoded user ID isolation ensures multi-device cloud synchronization is 100% secure and isolated per account.
+   - Clean local storage reset during cloud restoration prevents non-matching keys from previous accounts from lingering.
 
 ## Compatibility
 - Android 9 (API 28) through Android 16 (API 36)
 
 ## Installation
-Install `StudyTimer-release.apk` (v2.9.3). Updating preserves all your study logs, streaks, and settings.
+Install `StudyTimer-release.apk` (v2.9.4). Updating preserves all your study logs, streaks, and settings.
+

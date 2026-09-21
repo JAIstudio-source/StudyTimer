@@ -189,8 +189,7 @@ function initUserSyncRealtime() {
           // Check if this row update is for the currently signed-in user
           const isUserMatch =
             (currentUserId && rowUserId === currentUserId) ||
-            (currentUserEmail && (rowUserEmail === currentUserEmail || rowUserId === currentUserEmail)) ||
-            (rowUserId === 'google user' && rowUserEmail === currentUserEmail);
+            (currentUserEmail && (rowUserEmail === currentUserEmail || rowUserId === currentUserEmail));
 
           if (!isUserMatch) return;
 
@@ -292,6 +291,29 @@ function handleUserSignedOut() {
   teardownUserSyncRealtime();
   stopPresenceHeartbeat();
   appState.currentUser = null;
+  appState.userProfile = {
+    displayName: 'Student',
+    avatarEmoji: '🐱',
+    bio: '',
+    joinedDate: new Date().toISOString()
+  };
+  appState.streakCount = 0;
+  appState.lastStudyDate = null;
+  appState.dailyFocusTotals = {};
+  appState.todaySessions = [];
+  appState.timelineEntries = [];
+  appState.plannerGoals = [];
+  appState.subjects = JSON.parse(JSON.stringify(DEFAULT_SUBJECTS));
+  appState.selectedSubject = appState.subjects[0];
+  appState.subjectDurations = {};
+  appState.dailySubjectDurations = {};
+
+  saveLocalState();
+  if (typeof renderSubjects === 'function') renderSubjects();
+  if (typeof renderPlannerGoals === 'function') renderPlannerGoals();
+  if (typeof renderTimeline === 'function') renderTimeline();
+  if (typeof updateStatsDisplay === 'function') updateStatsDisplay();
+
   leaderboardCache.timestamp = 0;
   const lbModal = document.getElementById('leaderboardModalOverlay');
   if (lbModal && !lbModal.classList.contains('hidden')) {
@@ -365,10 +387,10 @@ async function pullDataFromCloud(isUserTriggered = false) {
     const userEmail = (user.email || user.user_metadata?.email || '').trim();
 
     let query = supabaseClient.from('user_sync_data').select('*');
-    if (userEmail) {
-      query = query.or(`user_id.eq.${userId},user_id.eq.${userEmail},user_email.eq.${userEmail},user_email.ilike.${userEmail},user_id.eq.Google User,user_email.eq.Google User`);
+    if (userEmail && userEmail !== userId) {
+      query = query.or(`user_id.eq.${userId},user_id.eq.${userEmail},user_email.eq.${userEmail}`);
     } else {
-      query = query.or(`user_id.eq.${userId},user_id.eq.Google User`);
+      query = query.eq('user_id', userId);
     }
 
     const { data: rows, error } = await query.order('updated_at', { ascending: false });
@@ -821,18 +843,12 @@ async function pushDataToCloud(silent = false) {
       .from('user_sync_data')
       .upsert(payload, { onConflict: 'user_id' });
 
-    // Mirror to email-keyed and mobile Google User rows for 100% Android compatibility
     if (userEmail && userEmail !== user.id) {
       const emailPayload = { ...payload, user_id: userEmail };
       await supabaseClient
         .from('user_sync_data')
         .upsert(emailPayload, { onConflict: 'user_id' });
     }
-
-    const mobilePayload = { ...payload, user_id: 'Google User', user_email: userEmail || 'Google User' };
-    await supabaseClient
-      .from('user_sync_data')
-      .upsert(mobilePayload, { onConflict: 'user_id' });
 
     if (error) {
       console.warn('Cloud sync push warning:', error);
@@ -4783,13 +4799,9 @@ function isCurrentUserEntry(entry) {
   if (!entry) return false;
   const currentUserId = appState.currentUser?.id;
   const currentUserEmail = appState.currentUser?.email;
-  const profileName = (appState.userProfile?.displayName || '').trim().toLowerCase();
-  const entryName = (entry.user_name || '').trim().toLowerCase();
 
   if (currentUserId && entry.user_id === currentUserId) return true;
-  if (entry.user_id === 'Google User') return true;
   if (currentUserEmail && (entry.user_id === currentUserEmail || entry.user_id === currentUserEmail.split('@')[0])) return true;
-  if (profileName && profileName !== 'student' && profileName !== 'you' && entryName === profileName) return true;
   return false;
 }
 

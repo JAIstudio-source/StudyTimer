@@ -5357,19 +5357,44 @@ function closeAuthModal() {
 }
 
 async function signInWithGoogle() {
-  if (!supabaseClient) return;
+  if (!supabaseClient) {
+    if (typeof supabase !== 'undefined' && supabase.createClient) {
+      supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+  }
+  if (!supabaseClient) {
+    showToast('Authentication service is still initializing. Please check your internet connection.', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btnGoogleSignIn');
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.style.opacity = '0.7';
+    btn.innerHTML = '<span>Connecting to Google...</span>';
+  }
+
   try {
     const redirectUrl = window.location.origin + window.location.pathname;
-    const { error } = await supabaseClient.auth.signInWithOAuth({
+    const { data, error } = await supabaseClient.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: redirectUrl
       }
     });
     if (error) throw error;
+    if (data?.url) {
+      window.location.assign(data.url);
+    }
   } catch (err) {
     console.error('Google Sign-In Error:', err);
-    showToast('Failed to start Google Sign-In: ' + err.message, 'error');
+    showToast('Google Sign-In failed: ' + err.message, 'error');
+    if (btn) {
+      btn.disabled = false;
+      btn.style.opacity = '';
+      btn.innerHTML = originalHtml;
+    }
   }
 }
 

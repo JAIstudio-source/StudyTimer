@@ -1606,8 +1606,10 @@ function switchMode(modeKey) {
   document.querySelectorAll('.mode-btn').forEach(btn => {
     if (btn.dataset.mode === modeKey) {
       btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
     } else {
       btn.classList.remove('active');
+      btn.setAttribute('aria-selected', 'false');
     }
   });
 

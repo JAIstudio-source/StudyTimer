@@ -208,9 +208,13 @@
         
         <div class="studio-card">
           
-          <!-- Top Window Header with Settings, Reset & Fullscreen -->
+          <!-- Top Window Header with Settings & Reset -->
           <div class="studio-header">
-            <div class="studio-header-left">
+            <div class="studio-header-title">
+              <span class="studio-heading-text">Focus Studio</span>
+            </div>
+
+            <div class="studio-header-actions">
               <button class="timer-tool-btn" id="btnOpenTimerSettings" title="Timer Settings" aria-label="Timer Settings">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="12" cy="12" r="3"></circle>
@@ -223,37 +227,23 @@
                 <span class="tool-btn-label">Reset</span>
               </button>
             </div>
-
-            <!-- Studio Active Mode Pill -->
-            <div class="studio-header-center">
-              <span class="active-mode-badge" id="activeModeBadge">Countdown Timer</span>
-            </div>
-
-            <div class="studio-header-right">
-              <button class="timer-tool-btn btn-fullscreen-trigger" id="btnZenTimer" title="Open Full Screen Mode" aria-label="Full Screen Mode">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
-                </svg>
-                <span class="tool-btn-label">Full Screen</span>
-              </button>
-            </div>
           </div>
 
           <!-- Mode Selector Tabs -->
-          <div class="timer-mode-selector">
-            <button class="mode-btn active" data-mode="timer">
+          <div class="timer-mode-selector" role="tablist" aria-label="Timer Mode Selection">
+            <button class="mode-btn active" role="tab" aria-selected="true" data-mode="timer" id="tabModeCountdown">
               <svg class="mode-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
               <span>Countdown</span>
             </button>
-            <button class="mode-btn" data-mode="pomodoro">
+            <button class="mode-btn" role="tab" aria-selected="false" data-mode="pomodoro" id="tabModePomodoro">
               <svg class="mode-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 3v3m-3-1 2 2m4-2-2 2"></path></svg>
               <span>Pomodoro</span>
             </button>
-            <button class="mode-btn" data-mode="stopwatch">
+            <button class="mode-btn" role="tab" aria-selected="false" data-mode="stopwatch" id="tabModeStopwatch">
               <svg class="mode-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
               <span>Stopwatch</span>
             </button>
-            <button class="mode-btn" data-mode="break">
+            <button class="mode-btn" role="tab" aria-selected="false" data-mode="break" id="tabModeBreak">
               <svg class="mode-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>
               <span>Break</span>
             </button>
@@ -396,11 +386,14 @@
                   <strong class="stat-val" id="statStudiedToday">0m</strong>
                 </div>
                 <div class="target-stat-item">
-                  <div class="stat-label-with-action">
-                    <span class="stat-label">Daily Goal</span>
-                    <button class="btn-link-action-mini" id="btnEditGoal" title="Change target">Edit</button>
+                  <span class="stat-label">Daily Goal</span>
+                  <div class="stat-val-with-action">
+                    <strong class="stat-val text-muted" id="statDailyGoal">120m</strong>
+                    <button class="btn-edit-target-pill" id="btnEditGoal" aria-label="Change daily study goal" title="Change target">
+                      <svg class="edit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                      <span>Edit</span>
+                    </button>
                   </div>
-                  <strong class="stat-val text-muted" id="statDailyGoal">120m</strong>
                 </div>
                 <div class="target-stat-item">
                   <span class="stat-label">Remaining</span>

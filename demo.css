@@ -3,6 +3,39 @@
    Browser-Native Focus Studio & Productivity Workspace
    ========================================================================== */
 
+:root {
+  /* Standardized Typography Scale */
+  --font-size-xs:      0.75rem;   /* 12px - Badges, microcopy, tags */
+  --font-size-sm:      0.875rem;  /* 14px - Captions, tooltips, secondary copy */
+  --font-size-base:    1rem;      /* 16px - Standard body & inputs */
+  --font-size-lg:      1.125rem;  /* 18px - Subheadings, card titles */
+  --font-size-xl:      1.375rem;  /* 22px - Section headers (H3) */
+  --font-size-2xl:     1.75rem;   /* 28px - Main section titles (H2) */
+  --font-size-3xl:     2.25rem;   /* 36px - Page titles (H1) */
+  --font-size-display: 3.5rem;    /* 56px - Digital timer display */
+
+  /* Standardized Text Colors */
+  --text-primary:   #09090b;
+  --text-secondary: #52525b;
+  --text-muted:     #71717a;
+  --text-accent:    #059669;
+  --text-danger:    #dc2626;
+
+  /* Standardized Border Radii */
+  --radius-sm:   6px;
+  --radius-md:   12px;
+  --radius-lg:   20px;
+  --radius-pill: 9999px;
+}
+
+[data-theme="dark"] {
+  --text-primary:   #ffffff;
+  --text-secondary: #a1a1aa;
+  --text-muted:     #71717a;
+  --text-accent:    #10b981;
+  --text-danger:    #ef4444;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
 }
@@ -516,37 +549,33 @@ html, body {
   margin: 0 auto;
 }
 
-/* Studio Header Bar with locked center alignment */
+/* Studio Header Bar with clean grouping */
 .studio-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 24px;
-  gap: 8px;
+  gap: 12px;
   width: 100%;
 }
 
-.studio-header-left {
+.studio-header-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1;
-  justify-content: flex-start;
 }
 
-.studio-header-center {
-  display: flex;
-  justify-content: center;
-  text-align: center;
-  flex-shrink: 0;
+.studio-heading-text {
+  font-size: var(--font-size-base, 1rem);
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: -0.01em;
 }
 
-.studio-header-right {
+.studio-header-actions {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1;
-  justify-content: flex-end;
 }
 
 .timer-tool-btn {
@@ -1273,15 +1302,56 @@ html, body {
   gap: 4px;
 }
 
+.stat-val-with-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-edit-target-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 26px;
+  min-width: 44px;
+  padding: 3px 8px;
+  font-size: var(--font-size-xs, 12px);
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-edit-target-pill:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+  border-color: var(--border-focus);
+  transform: translateY(-1px);
+}
+
+.btn-edit-target-pill:focus-visible {
+  outline: 2px solid var(--accent-emerald);
+  outline-offset: 2px;
+}
+
+.btn-edit-target-pill .edit-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
 .btn-link-action-mini {
   background: transparent;
   border: none;
-  font-size: 0.68rem;
-  font-weight: 700;
+  font-size: var(--font-size-xs, 12px);
+  font-weight: 600;
   color: var(--accent-blue);
   cursor: pointer;
-  padding: 0;
-  text-transform: uppercase;
+  padding: 2px 4px;
 }
 
 .btn-link-action-mini:hover {
@@ -1727,11 +1797,12 @@ html, body {
 
 /* 2. 52-Week Activity Heatmap (Matches HeatmapView.kt) */
 .heatmap-year-label {
-  font-size: 0.72rem;
+  font-size: var(--font-size-sm, 14px);
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   background: var(--bg-subtle);
-  padding: 2px 7px;
+  border: 1px solid var(--border-subtle);
+  padding: 4px 10px;
   border-radius: var(--radius-pill);
 }
 
@@ -2474,24 +2545,27 @@ html, body {
   padding: 9px 14px;
 }
 
-/* Floating Action Group (Always visible across desktop and mobile) */
+/* Floating Action Group (Only displayed on mobile to prevent desktop UI collision) */
 .mobile-fabs-group {
-  display: flex;
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 10px;
-  z-index: 950;
-}
-
-/* Insights FAB is only needed on mobile/tablet (<=992px) */
-.btn-mobile-insights-fab {
   display: none;
 }
 
-@media (max-width: 992px) {
+@media (max-width: 768px) {
+  .demo-workspace-main {
+    padding-bottom: 90px; /* Clearance so FABs never overlap cards */
+  }
+
+  .mobile-fabs-group {
+    display: flex;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    z-index: 950;
+  }
+
   .btn-mobile-insights-fab {
     display: inline-flex;
   }
@@ -3605,10 +3679,10 @@ body.modal-open {
 }
 
 .demo-footer-group-title {
-  font-size: 0.8rem;
+  font-size: var(--font-size-sm, 14px);
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  text-transform: none;
+  letter-spacing: 0.02em;
   color: var(--text-primary);
 }
 

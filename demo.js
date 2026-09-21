@@ -162,7 +162,6 @@ function initLeaderboardRealtime() {
 // Supabase Realtime Live User Sync Listener (App <-> Web instant synchronization)
 let userSyncRealtimeChannel = null;
 let lastPulledCloudUpdatedAt = 0;
-let lastCloudPushTime = 0;
 
 function initUserSyncRealtime() {
   if (!supabaseClient || userSyncRealtimeChannel || !appState.currentUser) return;

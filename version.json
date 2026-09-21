@@ -3,5 +3,5 @@
     "url":  "https://get-studytimer.vercel.app/?download=true",
     "versionCode":  26,
     "versionName":  "2.9.4",
-    "releaseNotes":  "What's New in Version 2.9.4 🚀\n1. Fixed Login & Account Bug: Fixed cross-user data merging when switching Google accounts. Each account now maintains completely separated local and cloud study records, stats, custom subjects, and timeline logs.\n2. Clean Account Reset: Logging out or switching accounts now resets local data cleanly before restoring cloud backups, preventing old profile information or study stats from leaking to new accounts.\n3. Enhanced Cloud Sync: Strict URL-encoded user ID isolation ensures multi-device cloud synchronization is 100% secure and isolated per account."
+    "releaseNotes":  "What's New in Version 2.9.4 🚀\n1. Bug Fixes"
 }

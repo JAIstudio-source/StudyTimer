@@ -111,9 +111,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderMonthlyCalendar();
   renderPlannerGoals();
 
-  if (supabaseClient) {
-    await initAuth();
-  }
+  await initAuth();
 });
 
 // Theme Management
@@ -227,10 +225,56 @@ async function initAuth() {
     if (!supabaseClient) {
       setTimeout(() => {
         if (getSupabase()) initAuth();
-      }, 500);
+      }, 300);
       return;
     }
+
     initLeaderboardRealtime();
+
+    // 1. Check for OAuth Hash Tokens (#access_token=...&refresh_token=...)
+    if (window.location.hash && window.location.hash.includes('access_token=')) {
+      try {
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        const access_token = params.get('access_token');
+        const refresh_token = params.get('refresh_token');
+        if (access_token && refresh_token) {
+          const { data, error } = await supabaseClient.auth.setSession({
+            access_token,
+            refresh_token
+          });
+          if (!error && data?.session?.user) {
+            handleUserSignedIn(data.session.user);
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            showToast(`Welcome back, ${data.session.user.user_metadata?.full_name || 'Student'}! ☁️`, 'success');
+            return;
+          }
+        }
+      } catch (hashErr) {
+        console.warn('OAuth hash parse error:', hashErr);
+      }
+    }
+
+    // 2. Check for OAuth PKCE Code (?code=...)
+    if (window.location.search && window.location.search.includes('code=')) {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+        if (code) {
+          const { data, error } = await supabaseClient.auth.exchangeCodeForSession(code);
+          if (!error && data?.session?.user) {
+            handleUserSignedIn(data.session.user);
+            window.history.replaceState(null, '', window.location.pathname);
+            showToast(`Welcome back, ${data.session.user.user_metadata?.full_name || 'Student'}! ☁️`, 'success');
+            return;
+          }
+        }
+      } catch (codeErr) {
+        console.warn('OAuth code exchange error:', codeErr);
+      }
+    }
+
+    // 3. Regular Session Check
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session && session.user) {
       handleUserSignedIn(session.user);
@@ -238,6 +282,7 @@ async function initAuth() {
       handleUserSignedOut();
     }
 
+    // 4. Auth State Change Listener
     supabaseClient.auth.onAuthStateChange(async (event, session) => {
       if (session && session.user) {
         if (!appState.currentUser || appState.currentUser.id !== session.user.id) {

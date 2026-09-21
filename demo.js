@@ -17,9 +17,16 @@ const SUPABASE_URL = 'https://vkveimpvrpnzelbsvdrg.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_Aec72P1pUF1I6eeO-C5vcA_i2jQgEx6';
 
 let supabaseClient = null;
-if (typeof supabase !== 'undefined' && supabase.createClient) {
-  supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+function getSupabase() {
+  if (!supabaseClient && typeof window !== 'undefined') {
+    const sb = window.supabase || (typeof supabase !== 'undefined' ? supabase : null);
+    if (sb && sb.createClient) {
+      supabaseClient = sb.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+  }
+  return supabaseClient;
 }
+getSupabase();
 
 // ============================================================================
 // 2. STATE MANAGEMENT & PREFERENCES
@@ -216,6 +223,13 @@ function teardownUserSyncRealtime() {
 // Supabase Authentication
 async function initAuth() {
   try {
+    getSupabase();
+    if (!supabaseClient) {
+      setTimeout(() => {
+        if (getSupabase()) initAuth();
+      }, 500);
+      return;
+    }
     initLeaderboardRealtime();
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session && session.user) {
@@ -5357,16 +5371,6 @@ function closeAuthModal() {
 }
 
 async function signInWithGoogle() {
-  if (!supabaseClient) {
-    if (typeof supabase !== 'undefined' && supabase.createClient) {
-      supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    }
-  }
-  if (!supabaseClient) {
-    showToast('Authentication service is still initializing. Please check your internet connection.', 'error');
-    return;
-  }
-
   const btn = document.getElementById('btnGoogleSignIn');
   const originalHtml = btn ? btn.innerHTML : '';
   if (btn) {
@@ -5377,16 +5381,10 @@ async function signInWithGoogle() {
 
   try {
     const redirectUrl = window.location.origin + window.location.pathname;
-    const { data, error } = await supabaseClient.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: redirectUrl
-      }
-    });
-    if (error) throw error;
-    if (data?.url) {
-      window.location.assign(data.url);
-    }
+    const oauthUrl = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUrl)}`;
+    
+    // Direct, infallible browser navigation to Supabase OAuth endpoint
+    window.location.assign(oauthUrl);
   } catch (err) {
     console.error('Google Sign-In Error:', err);
     showToast('Google Sign-In failed: ' + err.message, 'error');
@@ -5400,7 +5398,6 @@ async function signInWithGoogle() {
 
 async function signInWithEmail(e) {
   e.preventDefault();
-  if (!supabaseClient) return;
 
   const emailInput = document.getElementById('authEmailInput');
   const statusMsg = document.getElementById('authStatusMessage');
@@ -5413,14 +5410,36 @@ async function signInWithEmail(e) {
     statusMsg.classList.remove('hidden');
 
     const redirectUrl = window.location.origin + window.location.pathname;
-    const { error } = await supabaseClient.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: redirectUrl
-      }
-    });
+    const sb = getSupabase();
 
-    if (error) throw error;
+    if (sb) {
+      const { error } = await sb.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: redirectUrl
+        }
+      });
+      if (error) throw error;
+    } else {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email,
+          create_user: true,
+          options: {
+            email_redirect_to: redirectUrl
+          }
+        })
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.msg || errJson.message || `HTTP ${res.status}`);
+      }
+    }
 
     statusMsg.textContent = 'Magic sign-in link sent! Please check your email inbox.';
     statusMsg.style.borderColor = 'var(--accent-emerald)';

@@ -11,17 +11,47 @@
  */
 
 // ============================================================================
-// 1. SUPABASE CLIENT CONFIGURATION
+// 1. SUPABASE CLIENT CONFIGURATION & DATE HELPERS
 // ============================================================================
 const SUPABASE_URL = 'https://vkveimpvrpnzelbsvdrg.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_Aec72P1pUF1I6eeO-C5vcA_i2jQgEx6';
+
+/**
+ * Standard Local Calendar Date Formatter (yyyy-MM-dd)
+ * Matches Android's SimpleDateFormat("yyyy-MM-dd", Locale.US) exactly.
+ */
+function getLocalDateStr(d = new Date()) {
+  if (!d) d = new Date();
+  const dateObj = (d instanceof Date && !isNaN(d)) ? d : new Date(d);
+  if (isNaN(dateObj.getTime())) {
+    const fallback = new Date();
+    const year = fallback.getFullYear();
+    const month = String(fallback.getMonth() + 1).padStart(2, '0');
+    const day = String(fallback.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getIsoDateStr(d = new Date()) {
+  return getLocalDateStr(d);
+}
 
 let supabaseClient = null;
 function getSupabase() {
   if (!supabaseClient && typeof window !== 'undefined') {
     const sb = window.supabase || (typeof supabase !== 'undefined' ? supabase : null);
     if (sb && sb.createClient) {
-      supabaseClient = sb.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      supabaseClient = sb.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true
+        }
+      });
     }
   }
   return supabaseClient;
@@ -225,13 +255,34 @@ async function initAuth() {
     if (!supabaseClient) {
       setTimeout(() => {
         if (getSupabase()) initAuth();
-      }, 300);
+      }, 200);
       return;
     }
 
     initLeaderboardRealtime();
 
-    // 1. Check for OAuth Hash Tokens (#access_token=...&refresh_token=...)
+    // 1. Always Attach Auth State Change Listener FIRST
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      console.log(`🔐 Supabase Auth Event: ${event}`, session?.user?.email);
+      if (session && session.user) {
+        handleUserSignedIn(session.user);
+      } else if (event === 'SIGNED_OUT') {
+        handleUserSignedOut();
+      }
+    });
+
+    // 2. Check for OAuth Hash Errors (#error=...&error_description=...)
+    if (window.location.hash && window.location.hash.includes('error=')) {
+      try {
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        const errorMsg = params.get('error_description') || params.get('error') || 'Sign-in error';
+        showToast('Google Sign-In: ' + decodeURIComponent(errorMsg), 'error');
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      } catch (_) {}
+    }
+
+    // 3. Check for OAuth Hash Tokens (#access_token=...&refresh_token=...)
     if (window.location.hash && window.location.hash.includes('access_token=')) {
       try {
         const hash = window.location.hash.substring(1);
@@ -243,10 +294,9 @@ async function initAuth() {
             access_token,
             refresh_token
           });
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
           if (!error && data?.session?.user) {
             handleUserSignedIn(data.session.user);
-            window.history.replaceState(null, '', window.location.pathname + window.location.search);
-            showToast(`Welcome back, ${data.session.user.user_metadata?.full_name || 'Student'}! ☁️`, 'success');
             return;
           }
         }
@@ -255,17 +305,16 @@ async function initAuth() {
       }
     }
 
-    // 2. Check for OAuth PKCE Code (?code=...)
+    // 4. Check for OAuth PKCE Code (?code=...)
     if (window.location.search && window.location.search.includes('code=')) {
       try {
         const params = new URLSearchParams(window.location.search);
         const code = params.get('code');
         if (code) {
           const { data, error } = await supabaseClient.auth.exchangeCodeForSession(code);
+          window.history.replaceState(null, '', window.location.pathname);
           if (!error && data?.session?.user) {
             handleUserSignedIn(data.session.user);
-            window.history.replaceState(null, '', window.location.pathname);
-            showToast(`Welcome back, ${data.session.user.user_metadata?.full_name || 'Student'}! ☁️`, 'success');
             return;
           }
         }
@@ -274,32 +323,25 @@ async function initAuth() {
       }
     }
 
-    // 3. Regular Session Check
+    // 5. Existing Session Check (from localStorage)
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session && session.user) {
       handleUserSignedIn(session.user);
-    } else {
+    } else if (!appState.currentUser) {
       handleUserSignedOut();
     }
-
-    // 4. Auth State Change Listener
-    supabaseClient.auth.onAuthStateChange(async (event, session) => {
-      if (session && session.user) {
-        if (!appState.currentUser || appState.currentUser.id !== session.user.id) {
-          handleUserSignedIn(session.user);
-        }
-      } else if (!session) {
-        handleUserSignedOut();
-      }
-    });
   } catch (err) {
     console.error('Supabase auth initialization error:', err);
   }
 }
 
 function handleUserSignedIn(user) {
+  if (!user) return;
+  const isNewlySignedIn = !appState.currentUser || appState.currentUser.id !== user.id;
   appState.currentUser = user;
   
+  closeAuthModal();
+
   const btnOpenAuth = document.getElementById('btnOpenAuth');
   const userDropdownContainer = document.getElementById('userDropdownContainer');
   const userDisplayName = document.getElementById('userDisplayName');
@@ -310,8 +352,13 @@ function handleUserSignedIn(user) {
   const syncStatusPill = document.getElementById('syncStatusPill');
   const syncStatusText = document.getElementById('syncStatusText');
 
-  const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Student';
-  const avatar = user.user_metadata?.avatar_url || 'assets/logo.png';
+  const name = user.user_metadata?.full_name || 
+               user.user_metadata?.name || 
+               user.email?.split('@')[0] || 
+               'Student';
+  const avatar = user.user_metadata?.avatar_url || 
+                 user.user_metadata?.picture || 
+                 'assets/logo.png';
 
   if (btnOpenAuth) btnOpenAuth.classList.add('hidden');
   if (userDropdownContainer) userDropdownContainer.classList.remove('hidden');
@@ -338,7 +385,10 @@ function handleUserSignedIn(user) {
 
   initUserSyncRealtime();
   pullDataFromCloud();
-  showToast('Signed in! Live Cloud Sync active.', 'success');
+  
+  if (isNewlySignedIn) {
+    showToast(`Welcome, ${name}! Live Cloud Sync active. ☁️`, 'success');
+  }
 }
 
 function handleUserSignedOut() {
@@ -492,7 +542,7 @@ async function pullDataFromCloud(isUserTriggered = false) {
 
           // 2. Extract all daily focus totals & subject durations from Android
           const dailyFocus = { ...(appState.dailyFocusTotals || {}) };
-          const todayKey = new Date().toISOString().split('T')[0];
+          const todayKey = getLocalDateStr();
 
           Object.keys(prefs).forEach(k => {
             const match = k.match(/^(\d{4}-\d{2}-\d{2})_focus_total$/);
@@ -829,7 +879,7 @@ async function pushDataToCloud(silent = false) {
     const dailyGoalMin = Math.min(1440, Math.max(1, Number(timerConfig.dailyGoalMinutes) || 120));
 
     // Calculate today's study seconds
-    const todayKey = new Date().toISOString().split('T')[0];
+    const todayKey = getLocalDateStr();
     let totalSecToday = 0;
     (appState.todaySessions || []).forEach(s => {
       if (s && typeof s.durationSec === 'number') totalSecToday += s.durationSec;
@@ -993,7 +1043,7 @@ function reconstructTodaySessionsFromTimeline() {
   startOfDay.setHours(0, 0, 0, 0);
   const startOfDayMs = startOfDay.getTime();
   const endOfDayMs = startOfDayMs + 86400000;
-  const todayKey = new Date().toISOString().split('T')[0];
+  const todayKey = getLocalDateStr();
 
   const allParsed = parseAllTimelineSessions(appState.timelineEntries || []);
   let sessions = allParsed
@@ -1060,7 +1110,7 @@ function getAllValidatedSessions() {
 
   // 1. Add all parsed timeline sessions
   allParsed.forEach(s => {
-    const dStr = new Date(s.timestamp).toISOString().split('T')[0];
+    const dStr = getLocalDateStr(s.timestamp);
     seenDates[dStr] = (seenDates[dStr] || 0) + s.durationSec;
     sessions.push(s);
   });
@@ -1070,7 +1120,7 @@ function getAllValidatedSessions() {
     if (s && typeof s.durationSec === 'number' && s.durationSec > 0) {
       const alreadyHas = sessions.some(existing => Math.abs(existing.timestamp - s.timestamp) < 2000);
       if (!alreadyHas) {
-        const dStr = new Date(s.timestamp).toISOString().split('T')[0];
+        const dStr = getLocalDateStr(s.timestamp);
         seenDates[dStr] = (seenDates[dStr] || 0) + s.durationSec;
         sessions.push(s);
       }
@@ -1303,14 +1353,14 @@ function setupEventListeners() {
   document.getElementById('btnHistoryPrevDay')?.addEventListener('click', () => changeHistoryModalDay(-1));
   document.getElementById('btnHistoryNextDay')?.addEventListener('click', () => changeHistoryModalDay(1));
   document.getElementById('btnHistoryJumpToday')?.addEventListener('click', () => {
-    activeHistoryModalDateStr = new Date().toISOString().split('T')[0];
+    activeHistoryModalDateStr = getLocalDateStr();
     renderDayPieHistoryModal(activeHistoryModalDateStr);
   });
   const historyDatePicker = document.getElementById('historyNativeDatePicker');
   document.getElementById('btnHistoryDateDisplay')?.addEventListener('click', () => {
     if (historyDatePicker) {
       historyDatePicker.value = activeHistoryModalDateStr;
-      historyDatePicker.max = new Date().toISOString().split('T')[0];
+      historyDatePicker.max = getLocalDateStr();
       if (typeof historyDatePicker.showPicker === 'function') {
         historyDatePicker.showPicker();
       } else {
@@ -1982,7 +2032,7 @@ function tickTimer() {
   if (currentMinute > lastAutoSavedMinute && currentMinute > 0) {
     lastAutoSavedMinute = currentMinute;
     if (currentMode !== 'break') {
-      const todayKey = new Date().toISOString().split('T')[0];
+      const todayKey = getLocalDateStr();
       appState.dailyFocusTotals[todayKey] = (appState.dailyFocusTotals[todayKey] || 0) + 60;
 
       const subId = appState.selectedSubject?.id || 'general';
@@ -2283,11 +2333,11 @@ function resetSaveButtonState() {
 }
 
 function checkAndUpdateStreak() {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalDateStr();
   if (appState.lastStudyDate !== todayStr) {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterdayStr = getLocalDateStr(yesterday);
 
     if (appState.lastStudyDate === yesterdayStr) {
       appState.streakCount = (appState.streakCount || 0) + 1;
@@ -2850,7 +2900,7 @@ function renderSubjectDonutChart() {
   const legendList = document.getElementById('donutLegendList');
   if (!svg || !legendList) return;
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalDateStr();
   const subjectTotals = getSubjectDistributionForDate(todayStr);
 
   let totalSec = 0;
@@ -3036,13 +3086,13 @@ function renderSubjectDonutChart() {
 // ========================================================
 function getSubjectDistributionForDate(dateStr) {
   const subjectTotals = {};
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalDateStr();
   const allSessions = getAllValidatedSessions();
 
   // 1. Sessions for this specific date
   allSessions.forEach(s => {
     if (!s || !s.durationSec || s.durationSec <= 0) return;
-    const dStr = new Date(s.timestamp || s.startTime).toISOString().split('T')[0];
+    const dStr = getLocalDateStr(s.timestamp || s.startTime);
     if (dStr === dateStr) {
       const subId = s.subject?.id || s.subject?.name || 'general';
       if (!subjectTotals[subId]) {
@@ -3136,7 +3186,7 @@ function renderCalendarDayPieChart(dateStr) {
   const legendList = document.getElementById('calDayDonutLegendList');
   if (!svg || !legendList) return;
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalDateStr();
   const isToday = dateStr === todayStr;
   const formattedDate = new Date(dateStr + 'T00:00:00').toLocaleDateString([], {
     month: 'short', day: 'numeric', year: 'numeric'
@@ -3329,7 +3379,7 @@ function renderActivityHeatmap() {
   allSessions.forEach(sess => {
     if (sess && sess.durationSec > 0) {
       const d = new Date(sess.timestamp || sess.startTime);
-      const dateKey = d.toISOString().split('T')[0];
+      const dateKey = getLocalDateStr(d);
       dateMap[dateKey] = (dateMap[dateKey] || 0) + sess.durationSec;
     }
   });
@@ -3386,7 +3436,7 @@ function renderActivityHeatmap() {
       colIndex++;
     }
 
-    const dateKey = curDate.toISOString().split('T')[0];
+    const dateKey = getLocalDateStr(curDate);
     const secStudied = dateMap[dateKey] || 0;
     const minStudied = Math.round(secStudied / 60);
 
@@ -3422,7 +3472,7 @@ function renderActivityHeatmap() {
 
 let activeCalendarMonth = new Date().getMonth();
 let activeCalendarYear = new Date().getFullYear();
-let selectedCalendarDateStr = new Date().toISOString().split('T')[0];
+let selectedCalendarDateStr = getLocalDateStr();
 
 function renderMonthlyCalendar() {
   const monthTitle = document.getElementById('calMonthTitle');
@@ -3455,7 +3505,7 @@ function renderMonthlyCalendar() {
     daysGrid.appendChild(cell);
   }
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalDateStr();
 
   const dateSessionsMap = {};
   const dateDurationMap = {};
@@ -3464,7 +3514,7 @@ function renderMonthlyCalendar() {
   allSessions.forEach(s => {
     if (s && s.durationSec > 0) {
       const d = new Date(s.timestamp || s.startTime);
-      const dateKey = d.toISOString().split('T')[0];
+      const dateKey = getLocalDateStr(d);
       if (!dateSessionsMap[dateKey]) dateSessionsMap[dateKey] = [];
       dateSessionsMap[dateKey].push(s.subject?.color || '#3b82f6');
       dateDurationMap[dateKey] = (dateDurationMap[dateKey] || 0) + s.durationSec;
@@ -3588,7 +3638,7 @@ function renderSelectedDateTimeline(dateStr) {
   const container = document.getElementById('timelineList');
   if (!container) return;
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalDateStr();
   const isToday = dateStr === todayStr;
 
   const formattedDate = new Date(dateStr + 'T00:00:00').toLocaleDateString([], {
@@ -3602,7 +3652,7 @@ function renderSelectedDateTimeline(dateStr) {
   const allSessions = getAllValidatedSessions();
   const sessions = allSessions.filter(s => {
     if (!s || !s.durationSec) return false;
-    const dStr = new Date(s.timestamp || s.startTime).toISOString().split('T')[0];
+    const dStr = getLocalDateStr(s.timestamp || s.startTime);
     return dStr === dateStr;
   });
 
@@ -4168,12 +4218,12 @@ async function handleSaveProfile(e) {
 // DAY-BY-DAY SUBJECT PIE CHART & TIMELINE HISTORY MODAL
 // (Matches Android showPieChartDetailsModal in MainActivity.kt)
 // ============================================================================
-let activeHistoryModalDateStr = new Date().toISOString().split('T')[0];
+let activeHistoryModalDateStr = getLocalDateStr();
 
 function openDayPieHistoryModal(dateStr) {
   const modal = document.getElementById('dayPieHistoryModalOverlay');
   if (!modal) return;
-  activeHistoryModalDateStr = dateStr || selectedCalendarDateStr || new Date().toISOString().split('T')[0];
+  activeHistoryModalDateStr = dateStr || selectedCalendarDateStr || getLocalDateStr();
   lockBodyScroll();
   modal.classList.remove('hidden');
   renderDayPieHistoryModal(activeHistoryModalDateStr);
@@ -4216,7 +4266,7 @@ function renderDayPieHistoryModal(dateStr) {
 
   if (!svg || !legendList || !timelineList) return;
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalDateStr();
   const isToday = dateStr === todayStr;
 
   const parsedDate = new Date(dateStr + 'T00:00:00');
@@ -4405,7 +4455,7 @@ function renderDayPieHistoryModal(dateStr) {
   const allSessions = getAllValidatedSessions();
   const dateSessions = allSessions.filter(s => {
     if (!s || !s.durationSec) return false;
-    const dStr = new Date(s.timestamp || s.startTime).toISOString().split('T')[0];
+    const dStr = getLocalDateStr(s.timestamp || s.startTime);
     return dStr === dateStr;
   });
 
@@ -4508,7 +4558,8 @@ async function updateStudyPresence(isStudying = false) {
       p_avatar_url: avatarUrl,
       p_is_studying: shouldBeStudying,
       p_current_subject: shouldBeStudying ? (currentSub.name || 'Focus Study') : '',
-      p_subject_color: shouldBeStudying ? (currentSub.color || '#3b82f6') : '#3b82f6'
+      p_subject_color: shouldBeStudying ? (currentSub.color || '#3b82f6') : '#3b82f6',
+      p_study_date: getLocalDateStr()
     });
   } catch (err) {
     console.warn('Presence update error:', err);
@@ -4520,7 +4571,7 @@ async function syncLeaderboardScore() {
   const profile = appState.userProfile || {};
   if (profile.isPublicLeaderboard === false) return;
 
-  const todayKey = new Date().toISOString().split('T')[0];
+  const todayKey = getLocalDateStr();
   let totalSecToday = 0;
   (appState.todaySessions || []).forEach(s => {
     if (s && typeof s.durationSec === 'number' && s.durationSec > 0) {
@@ -4617,7 +4668,8 @@ async function logSessionToLeaderboard(durationSec, subject) {
       p_avatar_url: avatarUrl,
       p_duration_seconds: durationSec,
       p_subject: subject?.name || 'Focus Study',
-      p_subject_color: subject?.color || '#3b82f6'
+      p_subject_color: subject?.color || '#3b82f6',
+      p_study_date: getLocalDateStr()
     });
     await syncLeaderboardScore();
     const modal = document.getElementById('leaderboardModalOverlay');
@@ -4679,16 +4731,12 @@ function closeLeaderboardModal() {
 }
 
 // Helpers for dates
-function getIsoDateStr(d = new Date()) {
-  return d.toISOString().split('T')[0];
-}
-
 function getStartOfWeekDateStr() {
   const d = new Date();
   const day = d.getDay(); // 0 is Sunday
   const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday
   const monday = new Date(d.setDate(diff));
-  return getIsoDateStr(monday);
+  return getLocalDateStr(monday);
 }
 
 function getStartOfMonthDateStr() {
@@ -4716,7 +4764,7 @@ async function fetchLeaderboard(forceRefresh = false) {
 
   try {
     if (supabaseClient) {
-      const todayStr = getIsoDateStr();
+      const todayStr = getLocalDateStr();
       let rankings = null;
 
       if (period === 'daily') {
@@ -5426,17 +5474,38 @@ async function signInWithGoogle() {
 
   try {
     const redirectUrl = window.location.origin + window.location.pathname;
+    const sb = getSupabase();
+
+    if (sb && sb.auth && typeof sb.auth.signInWithOAuth === 'function') {
+      const { data, error } = await sb.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl
+        }
+      });
+      if (error) throw error;
+      if (data && data.url) {
+        window.location.assign(data.url);
+        return;
+      }
+    }
+
+    // Direct endpoint fallback
     const oauthUrl = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUrl)}`;
-    
-    // Direct, infallible browser navigation to Supabase OAuth endpoint
     window.location.assign(oauthUrl);
   } catch (err) {
     console.error('Google Sign-In Error:', err);
-    showToast('Google Sign-In failed: ' + err.message, 'error');
-    if (btn) {
-      btn.disabled = false;
-      btn.style.opacity = '';
-      btn.innerHTML = originalHtml;
+    try {
+      const redirectUrl = window.location.origin + window.location.pathname;
+      const oauthUrl = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUrl)}`;
+      window.location.assign(oauthUrl);
+    } catch (fallbackErr) {
+      showToast('Google Sign-In failed: ' + err.message, 'error');
+      if (btn) {
+        btn.disabled = false;
+        btn.style.opacity = '';
+        btn.innerHTML = originalHtml;
+      }
     }
   }
 }

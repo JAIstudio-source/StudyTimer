@@ -122,17 +122,17 @@ object AuthManager {
 
     fun resetLocalUserData(context: Context) {
         try {
-            // Reset main study preferences
+            // 1. First create a local safety snapshot so guest/prior data is NEVER lost
+            BackupManager(context).createPreAuthSafetySnapshot("pre_reset")
+
+            // 2. Reset main study preferences
             context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit().clear().apply()
-            // Reset custom subjects and tags
+            // 3. Reset custom subjects and tags
             context.getSharedPreferences("studytimer_subject_tags", Context.MODE_PRIVATE).edit().clear().apply()
-            // Clear timeline logs
+            // 4. Clear timeline logs
             TimelineLogger.importRaw(context, null)
-            // Delete local avatar
+            // 5. Delete local avatar
             LocalAvatarManager.deleteAvatar(context)
-            // Remove local backup dat
-            val backupFile = java.io.File(context.filesDir, "study_timer_backup.dat")
-            if (backupFile.exists()) backupFile.delete()
         } catch (_: Exception) {}
     }
 

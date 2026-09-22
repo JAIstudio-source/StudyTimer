@@ -1,101 +1,16 @@
 -- =========================================================================
--- StudyTimer Daily & Weekly Leaderboard + Live Presence Schema (Supabase SQL)
--- Free Tier Optimized: Aggregated Rollups, Fast Indexes & Stale Presence Timeout
+-- StudyTimer Master Backend Hardening & Anti-Cheat Security Script
+-- (Execute in Supabase Dashboard -> SQL Editor -> New Query -> Run)
 -- =========================================================================
 
--- 1. Create Daily Leaderboard Table
-CREATE TABLE IF NOT EXISTS public.daily_leaderboard (
-    id BIGSERIAL PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    user_name TEXT NOT NULL DEFAULT 'Student',
-    avatar_url TEXT DEFAULT '',
-    study_date DATE NOT NULL DEFAULT CURRENT_DATE,
-    total_seconds INT NOT NULL DEFAULT 0,
-    is_studying BOOLEAN NOT NULL DEFAULT FALSE,
-    current_subject TEXT DEFAULT '',
-    subject_color TEXT DEFAULT '#3b82f6',
-    last_active_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT unique_user_daily_entry UNIQUE (user_id, study_date),
-    CONSTRAINT anti_cheat_max_daily_seconds CHECK (total_seconds >= 0 AND total_seconds <= 86400)
-);
+-- 1. ADD SECURITY & ANTI-CHEAT COLUMNS (IF NOT PRESENT)
+ALTER TABLE IF EXISTS public.daily_leaderboard ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE;
+ALTER TABLE IF EXISTS public.user_sync_profiles ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE;
+ALTER TABLE IF EXISTS public.user_sync_snapshots ADD COLUMN IF NOT EXISTS client_timestamp BIGINT DEFAULT 0;
 
--- 2. Fast Lookup & Ranking Indexes
-CREATE INDEX IF NOT EXISTS idx_leaderboard_date_seconds ON public.daily_leaderboard(study_date, total_seconds DESC);
-CREATE INDEX IF NOT EXISTS idx_leaderboard_user_date ON public.daily_leaderboard(user_id, study_date);
-CREATE INDEX IF NOT EXISTS idx_leaderboard_active ON public.daily_leaderboard(is_studying, last_active_at);
+CREATE INDEX IF NOT EXISTS idx_leaderboard_banned ON public.daily_leaderboard(is_banned);
 
--- 3. Enable Row Level Security (RLS)
-ALTER TABLE public.daily_leaderboard ENABLE ROW LEVEL SECURITY;
-
--- Clean existing policies
-DROP POLICY IF EXISTS "Allow public read for leaderboard" ON public.daily_leaderboard;
-DROP POLICY IF EXISTS "Allow anon upsert for leaderboard" ON public.daily_leaderboard;
-DROP POLICY IF EXISTS "Allow anon update for leaderboard" ON public.daily_leaderboard;
-
--- RLS Policies
-CREATE POLICY "Allow public read for leaderboard" ON public.daily_leaderboard 
-    FOR SELECT USING (true);
-
-CREATE POLICY "Allow anon upsert for leaderboard" ON public.daily_leaderboard 
-    FOR ALL USING (true) WITH CHECK (true);
-
--- =========================================================================
--- 4. RPC FUNCTION: Update Live Study Presence & Heartbeat
--- =========================================================================
-CREATE OR REPLACE FUNCTION public.update_study_presence(
-    p_user_id TEXT,
-    p_user_name TEXT,
-    p_avatar_url TEXT,
-    p_is_studying BOOLEAN,
-    p_current_subject TEXT DEFAULT '',
-    p_subject_color TEXT DEFAULT '#3b82f6',
-    p_study_date DATE DEFAULT NULL
-)
-RETURNS VOID AS $$
-DECLARE
-    v_date DATE;
-BEGIN
-    v_date := COALESCE(p_study_date, CURRENT_DATE);
-
-    INSERT INTO public.daily_leaderboard (
-        user_id,
-        user_name,
-        avatar_url,
-        study_date,
-        total_seconds,
-        is_studying,
-        current_subject,
-        subject_color,
-        last_active_at,
-        updated_at
-    )
-    VALUES (
-        p_user_id,
-        COALESCE(NULLIF(p_user_name, ''), 'Student'),
-        COALESCE(p_avatar_url, ''),
-        v_date,
-        0,
-        p_is_studying,
-        COALESCE(p_current_subject, ''),
-        COALESCE(p_subject_color, '#3b82f6'),
-        NOW(),
-        NOW()
-    )
-    ON CONFLICT (user_id, study_date) DO UPDATE SET
-        user_name = CASE WHEN EXCLUDED.user_name <> 'Student' THEN EXCLUDED.user_name ELSE daily_leaderboard.user_name END,
-        avatar_url = CASE WHEN EXCLUDED.avatar_url <> '' THEN EXCLUDED.avatar_url ELSE daily_leaderboard.avatar_url END,
-        is_studying = EXCLUDED.is_studying,
-        current_subject = EXCLUDED.current_subject,
-        subject_color = EXCLUDED.subject_color,
-        last_active_at = NOW(),
-        updated_at = NOW();
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- =========================================================================
--- 5. RPC FUNCTION: Record Completed Study Session (Anti-Cheat & Rate-Clamped)
--- =========================================================================
+-- 2. HARDENED RPC: Record Completed Study Session (Anti-Cheat & Rate-Clamped)
 CREATE OR REPLACE FUNCTION public.record_study_session_leaderboard(
     p_user_id TEXT,
     p_user_name TEXT,
@@ -114,6 +29,7 @@ DECLARE
     v_is_banned BOOLEAN;
     v_time_diff_secs INT;
 BEGIN
+    -- Input sanitization
     IF p_user_id IS NULL OR TRIM(p_user_id) = '' OR TRIM(p_user_id) = 'null' THEN
         RETURN;
     END IF;
@@ -140,11 +56,11 @@ BEGIN
         RETURN;
     END IF;
 
-    -- Anti-Spam burst flood protection
+    -- Anti-Spam burst flood protection (prevent automated script loop attacks)
     IF v_existing_last_active IS NOT NULL THEN
         v_time_diff_secs := EXTRACT(EPOCH FROM (NOW() - v_existing_last_active))::INT;
         IF v_time_diff_secs < 10 AND v_clamped_duration > 3600 THEN
-            v_clamped_duration := 300;
+            v_clamped_duration := 300; -- clamp burst to 5 mins max
         END IF;
     END IF;
 
@@ -188,9 +104,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- =========================================================================
--- 5B. RPC FUNCTION: Live Progress Sync (Velocity-Clamped & Rate-Limited)
--- =========================================================================
+-- 3. HARDENED RPC: Live Study Progress Sync (Velocity-Clamped & Real-World Rate Limited)
 CREATE OR REPLACE FUNCTION public.sync_study_progress_leaderboard(
     p_user_id TEXT,
     p_user_name TEXT,
@@ -231,7 +145,7 @@ BEGIN
         RETURN;
     END IF;
 
-    -- Enforce real-world elapsed time velocity limit
+    -- Enforce real-world elapsed time velocity limit (prevents rapid REST call spoofing)
     IF v_existing_last_active IS NOT NULL AND v_clamped_seconds > 0 THEN
         v_elapsed_secs := GREATEST(EXTRACT(EPOCH FROM (NOW() - v_existing_last_active))::INT, 1);
         v_allowed_max := GREATEST(v_elapsed_secs * 2, 60);
@@ -277,9 +191,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- =========================================================================
--- 6. RPC FUNCTION: Get Daily Leaderboard Top 25 with Stale Presence & Ban Filter
--- =========================================================================
+-- 4. HARDENED LEADERBOARD QUERIES (Excludes Shadowbanned & Stale Presence)
 CREATE OR REPLACE FUNCTION public.get_daily_leaderboard(
     p_date DATE DEFAULT CURRENT_DATE,
     p_limit INT DEFAULT 25
@@ -316,9 +228,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- =========================================================================
--- 7. RPC FUNCTION: Get Weekly Leaderboard (Aggregated over last 7 days / ISO week)
--- =========================================================================
 CREATE OR REPLACE FUNCTION public.get_weekly_leaderboard(
     p_start_date DATE DEFAULT (CURRENT_DATE - INTERVAL '6 days')::DATE,
     p_end_date DATE DEFAULT CURRENT_DATE,
@@ -349,6 +258,7 @@ BEGIN
             MAX(d.last_active_at) AS last_active_at
         FROM public.daily_leaderboard d
         WHERE d.study_date >= p_start_date AND d.study_date <= p_end_date
+          AND (d.is_banned IS FALSE OR d.is_banned IS NULL)
         GROUP BY d.user_id
         HAVING SUM(d.total_seconds) > 0 OR BOOL_OR(d.is_studying) = true
     )
@@ -368,54 +278,62 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- =========================================================================
--- 8. RPC FUNCTION: Get Monthly Leaderboard (Aggregated over calendar month)
--- =========================================================================
-CREATE OR REPLACE FUNCTION public.get_monthly_leaderboard(
-    p_start_date DATE DEFAULT DATE_TRUNC('month', CURRENT_DATE)::DATE,
-    p_end_date DATE DEFAULT CURRENT_DATE,
-    p_limit INT DEFAULT 25
+-- 5. IDEMPOTENT OFFLINE DELTA SYNC RPC (Safe WiFi Reconnect & Deduplication)
+CREATE OR REPLACE FUNCTION public.sync_offline_study_sessions(
+    p_user_id TEXT,
+    p_sessions JSONB
 )
-RETURNS TABLE (
-    rank BIGINT,
-    user_id TEXT,
-    user_name TEXT,
-    avatar_url TEXT,
-    total_seconds INT,
-    is_studying BOOLEAN,
-    current_subject TEXT,
-    subject_color TEXT,
-    last_active_at TIMESTAMPTZ
-) AS $$
+RETURNS JSONB AS $$
+DECLARE
+    v_item JSONB;
+    v_count INT := 0;
 BEGIN
-    RETURN QUERY
-    WITH monthly_agg AS (
-        SELECT
-            d.user_id,
-            MAX(d.user_name) AS user_name,
-            MAX(d.avatar_url) AS avatar_url,
-            SUM(d.total_seconds)::INT AS total_seconds,
-            BOOL_OR(d.is_studying AND d.last_active_at > (NOW() - INTERVAL '3 minutes')) AS is_studying,
-            MAX(d.current_subject) FILTER (WHERE d.study_date = p_end_date) AS current_subject,
-            MAX(d.subject_color) FILTER (WHERE d.study_date = p_end_date) AS subject_color,
-            MAX(d.last_active_at) AS last_active_at
-        FROM public.daily_leaderboard d
-        WHERE d.study_date >= p_start_date AND d.study_date <= p_end_date
-        GROUP BY d.user_id
-        HAVING SUM(d.total_seconds) > 0 OR BOOL_OR(d.is_studying) = true
-    )
-    SELECT
-        ROW_NUMBER() OVER (ORDER BY m.total_seconds DESC, m.last_active_at DESC) AS rank,
-        m.user_id,
-        m.user_name,
-        m.avatar_url,
-        m.total_seconds,
-        m.is_studying,
-        COALESCE(m.current_subject, ''),
-        COALESCE(m.subject_color, '#3b82f6'),
-        m.last_active_at
-    FROM monthly_agg m
-    ORDER BY m.total_seconds DESC, m.last_active_at DESC
-    LIMIT LEAST(p_limit, 50);
+    IF p_user_id IS NULL OR p_sessions IS NULL OR jsonb_array_length(p_sessions) = 0 THEN
+        RETURN jsonb_build_object('success', false, 'processed', 0);
+    END IF;
+
+    FOR v_item IN SELECT * FROM jsonb_array_elements(p_sessions) LOOP
+        INSERT INTO public.user_study_sessions (
+            session_uuid,
+            user_id,
+            study_date,
+            start_time,
+            end_time,
+            duration_secs,
+            subject_id,
+            subject_name,
+            subject_color,
+            platform,
+            is_deleted,
+            updated_at
+        )
+        VALUES (
+            v_item->>'session_uuid',
+            p_user_id,
+            COALESCE(v_item->>'study_date', CURRENT_DATE::text),
+            COALESCE((v_item->>'start_time')::BIGINT, EXTRACT(EPOCH FROM NOW())::BIGINT * 1000),
+            COALESCE((v_item->>'end_time')::BIGINT, EXTRACT(EPOCH FROM NOW())::BIGINT * 1000),
+            LEAST(GREATEST(COALESCE((v_item->>'duration_secs')::INT, 0), 0), 50400),
+            COALESCE(v_item->>'subject_id', 'general'),
+            COALESCE(v_item->>'subject_name', 'General'),
+            COALESCE(v_item->>'subject_color', '#3b82f6'),
+            COALESCE(v_item->>'platform', 'android'),
+            COALESCE((v_item->>'is_deleted')::BOOLEAN, false),
+            COALESCE((v_item->>'updated_at')::BIGINT, EXTRACT(EPOCH FROM NOW())::BIGINT * 1000)
+        )
+        ON CONFLICT (session_uuid) DO UPDATE SET
+            is_deleted = EXCLUDED.is_deleted,
+            subject_name = EXCLUDED.subject_name,
+            subject_color = EXCLUDED.subject_color,
+            updated_at = EXCLUDED.updated_at
+        WHERE EXCLUDED.updated_at >= user_study_sessions.updated_at;
+
+        v_count := v_count + 1;
+    END LOOP;
+
+    RETURN jsonb_build_object('success', true, 'processed', v_count);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 6. RELOAD SCHEMA CACHE IMMEDIATELY
+NOTIFY pgrst, 'reload schema';

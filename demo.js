@@ -1482,6 +1482,10 @@ function setupEventListeners() {
   document.getElementById('tabBtnCalendar')?.addEventListener('click', () => switchInsightsTab('calendar'));
   document.getElementById('tabBtnPlanner')?.addEventListener('click', () => switchInsightsTab('planner'));
 
+  // Calendar Month Navigation
+  document.getElementById('btnPrevMonth')?.addEventListener('click', () => changeCalendarMonth(-1));
+  document.getElementById('btnNextMonth')?.addEventListener('click', () => changeCalendarMonth(1));
+
   // Dedicated Desktop & Mobile Leaderboard Triggers
   document.getElementById('btnDesktopLeaderboard')?.addEventListener('click', openLeaderboardModal);
   document.getElementById('btnMobileLeaderboard')?.addEventListener('click', openLeaderboardModal);

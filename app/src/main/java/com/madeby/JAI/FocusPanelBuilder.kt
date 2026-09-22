@@ -2,6 +2,7 @@ package com.madeby.JAI
 
 import android.content.Context
 import android.content.res.Configuration
+import android.graphics.Color
 import android.graphics.Typeface
 import android.os.SystemClock
 import android.view.Gravity
@@ -58,6 +59,41 @@ class FocusPanelBuilder(private val host: MainActivity) {
             layoutParams = LinearLayout.LayoutParams(0, 1, 1f)
         }
         navHeader.addView(headerSpacer)
+
+        val leaderboardHeaderIconView = FrameLayout(this).apply {
+            val trophyImg = ImageView(this@with).apply {
+                setImageResource(R.drawable.ic_trophy_placeholder)
+                setPadding(dp(11), dp(11), dp(11), dp(11))
+                if (isPomoWhite) {
+                    background = android.graphics.drawable.GradientDrawable().apply {
+                        shape = android.graphics.drawable.GradientDrawable.OVAL
+                        setColor(0xFFF1F5F9.toInt())
+                    }
+                } else {
+                    background = if (themeCoordinator.isGlassStyle() || themeCoordinator.isBubbleStyle()) themeCoordinator.createGlassIconBackground(tintedColor(themeCoordinator.primaryColor, 70)) else null
+                }
+                layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+            }
+            addView(trophyImg)
+
+            val liveDot = View(this@with).apply {
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.OVAL
+                    setColor(Color.parseColor("#22C55E"))
+                }
+                layoutParams = FrameLayout.LayoutParams(dp(8), dp(8), Gravity.TOP or Gravity.END).apply {
+                    setMargins(0, dp(5), dp(5), 0)
+                }
+            }
+            addView(liveDot)
+
+            contentDescription = "Open Leaderboard"
+            setOnClickListener { navigateToPanel(AppPanel.LEADERBOARD) }
+            layoutParams = LinearLayout.LayoutParams(dp(44), dp(44)).apply {
+                if (isLandscape) setMargins(0, 0, dp(8), 0)
+            }
+        }
+        navHeader.addView(leaderboardHeaderIconView)
 
         val insightsHeaderIconView = ImageView(this).apply {
             setImageResource(R.drawable.ic_insights)

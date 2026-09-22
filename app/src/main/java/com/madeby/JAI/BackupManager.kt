@@ -109,6 +109,31 @@ class BackupManager(private val context: Context) {
         } catch (_: Exception) {}
     }
 
+    private fun putExamCountdowns(json: JSONObject) {
+        try {
+            val examPrefs = context.getSharedPreferences("studytimer_exam_countdowns", Context.MODE_PRIVATE)
+            val raw = examPrefs.getString("exams_list_json", "[]") ?: "[]"
+            json.put("exam_countdowns_json", raw)
+            json.put("__exam_countdowns_data__", raw)
+        } catch (_: Exception) {}
+    }
+
+    private fun restoreExamCountdowns(importedJsonObject: JSONObject) {
+        try {
+            val raw = if (importedJsonObject.has("exam_countdowns_json")) {
+                importedJsonObject.optString("exam_countdowns_json")
+            } else if (importedJsonObject.has("__exam_countdowns_data__")) {
+                importedJsonObject.optString("__exam_countdowns_data__")
+            } else {
+                ""
+            }
+            if (raw.isNotEmpty()) {
+                val examPrefs = context.getSharedPreferences("studytimer_exam_countdowns", Context.MODE_PRIVATE)
+                examPrefs.edit().putString("exams_list_json", raw).commit()
+            }
+        } catch (_: Exception) {}
+    }
+
     private fun getSafetyBackupsDir(): File {
         val dir = File(context.filesDir, "safety_backups")
         if (!dir.exists()) dir.mkdirs()
@@ -138,6 +163,7 @@ class BackupManager(private val context: Context) {
             }
             putTimeline(json)
             putSubjectTags(json)
+            putExamCountdowns(json)
             val now = System.currentTimeMillis()
             json.put("schema_version", 2)
             json.put("snapshot_tag", tag)
@@ -188,6 +214,7 @@ class BackupManager(private val context: Context) {
             editor.apply()
             restoreTimeline(importedJsonObject)
             restoreSubjectTags(importedJsonObject)
+            restoreExamCountdowns(importedJsonObject)
             runSilentAutoBackup()
             true
         } catch (e: Exception) {
@@ -205,6 +232,7 @@ class BackupManager(private val context: Context) {
             }
             putTimeline(json)
             putSubjectTags(json)
+            putExamCountdowns(json)
             getBackupFile().writeText(json.toString())
         } catch (_: Exception) {}
     }
@@ -224,6 +252,7 @@ class BackupManager(private val context: Context) {
             editor.apply()
             restoreTimeline(importedJsonObject)
             restoreSubjectTags(importedJsonObject)
+            restoreExamCountdowns(importedJsonObject)
         } catch (_: Exception) {}
     }
 
@@ -291,6 +320,7 @@ class BackupManager(private val context: Context) {
             }
             putTimeline(json)
             putSubjectTags(json)
+            putExamCountdowns(json)
             val now = System.currentTimeMillis()
             val lastMod = getLastModifiedTimestamp()
             json.put("schema_version", 2)
@@ -325,6 +355,7 @@ class BackupManager(private val context: Context) {
                 val committed = editor.commit() // Synchronous commit to ensure immediate UI update
                 restoreTimeline(importedJsonObject)
                 restoreSubjectTags(importedJsonObject)
+                restoreExamCountdowns(importedJsonObject)
                 runSilentAutoBackup()
 
                 if (allowCloudSync && AuthManager.isLoggedIn(context)) {
@@ -382,8 +413,8 @@ class BackupManager(private val context: Context) {
             val key = keys.next()
             when (key) {
                 "timerState" -> editor.putString(key, "IDLE")
-                "focus_timeline", "subject_tags_data", "__subject_tags_data__" -> {
-                    // Restored via separate stores (TimelineLogger and SubjectTagManager), not StudyTimerPrefs.
+                "focus_timeline", "subject_tags_data", "__subject_tags_data__", "exam_countdowns_json", "__exam_countdowns_data__" -> {
+                    // Restored via separate stores (TimelineLogger, SubjectTagManager, ExamCountdownManager), not StudyTimerPrefs.
                 }
                 "accumulatedStudy", "currentBreakSeconds", "lastTimestamp", "focus_remaining_secs", "pre_pause_state", "streak_last_calculated" -> {
                     // Never resurrect an in-flight session from a backup; streak is recomputed on next stats open.
@@ -403,5 +434,43 @@ class BackupManager(private val context: Context) {
                 }
             }
         }
+    }
+
+    enum class AppInstallState {
+        FIRST_INSTALL,
+        APP_UPDATE,
+        SAME_VERSION
+    }
+
+    /**
+     * Verifies whether the app is on a fresh installation, an update from a previous version,
+     * or a normal app start. Ensures data integrity and prevents duplicate backup entries.
+     */
+    fun verifyAppVersionAndMigrate(): AppInstallState {
+        val prefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val currentVersionCode = try {
+            val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(pInfo)
+        } catch (_: Exception) {
+            1L
+        }
+
+        val lastRunVersion = prefs.getLong("last_run_version_code", -1L)
+
+        val installState = when {
+            lastRunVersion == -1L -> AppInstallState.FIRST_INSTALL
+            lastRunVersion < currentVersionCode -> AppInstallState.APP_UPDATE
+            else -> AppInstallState.SAME_VERSION
+        }
+
+        if (installState == AppInstallState.APP_UPDATE) {
+            // Perform non-destructive migration & reconciliation on update
+            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            TimelineLogger.reconcileSubjectDurationsFromTimeline(context, todayStr)
+            StatsEngine(context).forceReconcileDayTotals(todayStr)
+        }
+
+        prefs.edit().putLong("last_run_version_code", currentVersionCode).apply()
+        return installState
     }
 }

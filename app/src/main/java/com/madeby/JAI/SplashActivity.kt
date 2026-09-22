@@ -18,6 +18,9 @@ class SplashActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Verify installation / app update integrity and migrate if needed
+        BackupManager(this).verifyAppVersionAndMigrate()
+
         val shouldSkipLogin = AuthManager.isLoggedIn(this) || AuthManager.hasCompletedOnboarding(this)
         if (isSplashShownThisSession && shouldSkipLogin) {
             navigateToNextScreen()

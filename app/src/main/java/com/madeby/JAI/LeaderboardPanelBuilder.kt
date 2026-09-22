@@ -1,0 +1,729 @@
+package com.madeby.JAI
+
+import android.content.Context
+import android.content.Intent
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import android.view.Gravity
+import android.view.View
+import android.widget.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+class LeaderboardPanelBuilder(private val host: MainActivity) {
+
+    private val density = host.resources.displayMetrics.density
+    private fun dp(v: Int): Int = (v * density).toInt()
+
+    private var selectedPeriod: LeaderboardPeriod = LeaderboardPeriod.DAILY
+    private var isLoading = false
+    private var hasLoadedOnce = false
+    private var currentEntries: List<LeaderboardEntry> = emptyList()
+    private var pollJob: kotlinx.coroutines.Job? = null
+
+    fun build(target: android.view.ViewGroup = host.panelContainer) {
+        val root = LinearLayout(host).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            setPadding(dp(16), dp(12), dp(16), 0)
+        }
+
+        renderLeaderboardUI(root)
+        target.addView(root)
+
+        loadLeaderboardData(root, forceRefresh = false)
+        startLivePolling(root)
+    }
+
+    private fun startLivePolling(root: LinearLayout) {
+        pollJob?.cancel()
+        pollJob = CoroutineScope(Dispatchers.Main).launch {
+            while (true) {
+                kotlinx.coroutines.delay(15_000L)
+                if (!root.isAttachedToWindow) break
+                if (!isLoading) {
+                    loadLeaderboardData(root, forceRefresh = true, isSilent = true)
+                }
+            }
+        }
+    }
+
+    private fun renderLeaderboardUI(root: LinearLayout) {
+        root.removeAllViews()
+
+        // 1. TOP HEADER (Back Button + Title + Live Count + Refresh Button)
+        val header = LinearLayout(host).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, 0, 0, dp(12))
+        }
+
+        val backBtn = ImageView(host).apply {
+            setImageResource(android.R.drawable.ic_menu_revert)
+            setColorFilter(host.themeCoordinator.textColor)
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+            background = host.themeCoordinator.createGlassIconBackground(
+                host.tintedColor(host.themeCoordinator.textColor, 25)
+            )
+            contentDescription = "Back to Timer"
+            setOnClickListener {
+                host.navigateToPanel(AppPanel.FOCUS)
+            }
+            layoutParams = LinearLayout.LayoutParams(dp(42), dp(42)).apply {
+                setMargins(0, 0, dp(10), 0)
+            }
+        }
+        header.addView(backBtn)
+
+        val titleCol = LinearLayout(host).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val title = TextView(host).apply {
+            text = "Leaderboard"
+            textSize = 22f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setTextColor(host.themeCoordinator.textColor)
+        }
+        titleCol.addView(title)
+
+        val subtitle = TextView(host).apply {
+            text = "Global Study Community"
+            textSize = 11.5f
+            alpha = 0.65f
+            setTextColor(host.themeCoordinator.textColor)
+        }
+        titleCol.addView(subtitle)
+        header.addView(titleCol)
+
+        // Live Studying Pill
+        val liveCountPill = TextView(host).apply {
+            val activeCount = currentEntries.count { it.isStudying }
+            text = if (activeCount > 0) "🟢 $activeCount Live" else "⚡ Global"
+            textSize = 11f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setTextColor(if (activeCount > 0) Color.parseColor("#4ADE80") else host.themeCoordinator.primaryColor)
+            background = GradientDrawable().apply {
+                cornerRadius = dp(16).toFloat()
+                setColor(if (activeCount > 0) Color.argb(40, 74, 222, 128) else host.tintedColor(host.themeCoordinator.primaryColor, 35))
+                setStroke(dp(1), if (activeCount > 0) Color.argb(90, 74, 222, 128) else host.tintedColor(host.themeCoordinator.primaryColor, 80))
+            }
+            setPadding(dp(10), dp(5), dp(10), dp(5))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(0, 0, dp(8), 0) }
+        }
+        header.addView(liveCountPill)
+
+        val refreshBtn = ImageView(host).apply {
+            setImageResource(R.drawable.ic_clock)
+            setColorFilter(host.themeCoordinator.primaryColor)
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+            background = host.themeCoordinator.createGlassIconBackground(
+                host.tintedColor(host.themeCoordinator.primaryColor, 30)
+            )
+            contentDescription = "Refresh Leaderboard"
+            setOnClickListener {
+                loadLeaderboardData(root, forceRefresh = true)
+            }
+            layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
+        }
+        header.addView(refreshBtn)
+        root.addView(header)
+
+        // 2. PERIOD SELECTOR TABS (Today | This Week | This Month)
+        val periodContainer = LinearLayout(host).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            background = host.themeCoordinator.createCardBackground(24f)
+            setPadding(dp(4), dp(4), dp(4), dp(4))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(44)
+            ).apply {
+                setMargins(0, 0, 0, dp(14))
+            }
+        }
+
+        val periods = listOf(
+            LeaderboardPeriod.DAILY to "Today",
+            LeaderboardPeriod.WEEKLY to "This Week",
+            LeaderboardPeriod.MONTHLY to "This Month"
+        )
+
+        periods.forEach { (p, label) ->
+            val isSelected = (p == selectedPeriod)
+            val tabView = TextView(host).apply {
+                text = label
+                textSize = 12.5f
+                gravity = Gravity.CENTER
+                typeface = Typeface.create("sans-serif-medium", if (isSelected) Typeface.BOLD else Typeface.NORMAL)
+                setTextColor(if (isSelected) Color.WHITE else host.themeCoordinator.textColor)
+                alpha = if (isSelected) 1f else 0.7f
+                background = if (isSelected) {
+                    GradientDrawable().apply {
+                        cornerRadius = dp(20).toFloat()
+                        setColor(host.themeCoordinator.primaryColor)
+                    }
+                } else null
+
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+                setOnClickListener {
+                    if (selectedPeriod != p) {
+                        selectedPeriod = p
+                        loadLeaderboardData(root, forceRefresh = false)
+                    }
+                }
+            }
+            periodContainer.addView(tabView)
+        }
+        root.addView(periodContainer)
+
+        // 3. SCROLLABLE CONTENT (Podium + Rankings List)
+        val scrollWrapper = FrameLayout(host).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+        }
+
+        if (isLoading) {
+            val loadingBox = LinearLayout(host).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+            }
+            val progress = ProgressBar(host)
+            val loadText = TextView(host).apply {
+                text = "Fetching live rankings..."
+                textSize = 13f
+                alpha = 0.7f
+                setTextColor(host.themeCoordinator.textColor)
+                setPadding(0, dp(10), 0, 0)
+            }
+            loadingBox.addView(progress)
+            loadingBox.addView(loadText)
+            scrollWrapper.addView(loadingBox)
+        } else {
+            val contentScroll = ScrollView(host).apply {
+                isVerticalScrollBarEnabled = false
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+            }
+
+            val scrollContent = LinearLayout(host).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(0, 0, 0, dp(16))
+            }
+
+            // A. Top 3 Podium
+            val podiumView = buildPodiumView(currentEntries)
+            scrollContent.addView(podiumView)
+
+            // B. Rankings List (Ranks 4-50)
+            val listHeader = TextView(host).apply {
+                text = "TOP RANKS"
+                textSize = 11f
+                letterSpacing = 0.08f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(host.themeCoordinator.primaryColor)
+                setPadding(dp(4), dp(16), 0, dp(8))
+            }
+            scrollContent.addView(listHeader)
+
+            val remainingRanks = currentEntries.filter { it.rank > 3 }
+            if (remainingRanks.isEmpty() && currentEntries.size <= 3) {
+                if (currentEntries.isEmpty()) {
+                    val emptyBox = LinearLayout(host).apply {
+                        orientation = LinearLayout.VERTICAL
+                        gravity = Gravity.CENTER
+                        background = host.themeCoordinator.createCardBackground(18f)
+                        setPadding(dp(20), dp(24), dp(20), dp(24))
+                        layoutParams = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT
+                        ).apply { setMargins(0, dp(8), 0, dp(8)) }
+                    }
+                    val emptyTitle = TextView(host).apply {
+                        text = "🏆 No Sessions Yet"
+                        textSize = 16f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        setTextColor(host.themeCoordinator.textColor)
+                    }
+                    val emptySubtitle = TextView(host).apply {
+                        text = "Start a focus timer to claim the #1 spot on the leaderboard!"
+                        textSize = 12f
+                        alpha = 0.7f
+                        gravity = Gravity.CENTER
+                        setTextColor(host.themeCoordinator.textColor)
+                        setPadding(0, dp(6), 0, 0)
+                    }
+                    emptyBox.addView(emptyTitle)
+                    emptyBox.addView(emptySubtitle)
+                    scrollContent.addView(emptyBox)
+                }
+            } else {
+                remainingRanks.forEach { entry ->
+                    scrollContent.addView(buildRankRow(entry))
+                }
+            }
+
+            contentScroll.addView(scrollContent)
+            scrollWrapper.addView(contentScroll)
+        }
+        root.addView(scrollWrapper)
+
+        // 4. STICKY BOTTOM BAR (Personal User Card or Guest CTA)
+        val bottomBar = buildBottomBar()
+        root.addView(bottomBar)
+    }
+
+    private fun loadLeaderboardData(root: LinearLayout, forceRefresh: Boolean, isSilent: Boolean = false) {
+        if (!isSilent) {
+            isLoading = true
+            renderLeaderboardUI(root)
+        }
+
+        CoroutineScope(Dispatchers.Main).launch {
+            val result = withContext(Dispatchers.IO) {
+                LeaderboardManager.fetchLeaderboard(host, selectedPeriod, forceRefresh)
+            }
+            isLoading = false
+            hasLoadedOnce = true
+            if (result.isSuccess) {
+                currentEntries = result.getOrDefault(emptyList())
+            } else if (!isSilent) {
+                Toast.makeText(host, "Could not refresh leaderboard. Check internet connection.", Toast.LENGTH_SHORT).show()
+            }
+            renderLeaderboardUI(root)
+        }
+    }
+
+    private fun buildPodiumView(entries: List<LeaderboardEntry>): LinearLayout {
+        val podiumContainer = LinearLayout(host).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.BOTTOM
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(0, dp(8), 0, dp(12))
+            }
+        }
+
+        val top1 = entries.find { it.rank == 1 }
+        val top2 = entries.find { it.rank == 2 }
+        val top3 = entries.find { it.rank == 3 }
+
+        // Rank 2 (Left, Silver)
+        podiumContainer.addView(buildPodiumPedestal(top2, 2, Color.parseColor("#94A3B8"), dp(160)))
+        // Rank 1 (Center, Gold - Tallest)
+        podiumContainer.addView(buildPodiumPedestal(top1, 1, Color.parseColor("#F59E0B"), dp(185)))
+        // Rank 3 (Right, Bronze)
+        podiumContainer.addView(buildPodiumPedestal(top3, 3, Color.parseColor("#D97706"), dp(148)))
+
+        return podiumContainer
+    }
+
+    private fun buildPodiumPedestal(entry: LeaderboardEntry?, rank: Int, accentColor: Int, minHeightPx: Int): View {
+        val isCurrent = entry != null && LeaderboardManager.isCurrentUser(entry, host)
+
+        val pedestal = LinearLayout(host).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            background = GradientDrawable().apply {
+                cornerRadius = dp(20).toFloat()
+                val bgCol = if (host.themeCoordinator.isDarkMode()) {
+                    if (isCurrent) Color.argb(40, Color.red(host.themeCoordinator.primaryColor), Color.green(host.themeCoordinator.primaryColor), Color.blue(host.themeCoordinator.primaryColor))
+                    else Color.parseColor("#14161F")
+                } else {
+                    if (isCurrent) Color.argb(30, 99, 102, 241) else Color.parseColor("#FFFFFF")
+                }
+                setColor(bgCol)
+                setStroke(
+                    dp(if (rank == 1 || isCurrent) 2 else 1),
+                    if (isCurrent) host.themeCoordinator.primaryColor else Color.argb(120, Color.red(accentColor), Color.green(accentColor), Color.blue(accentColor))
+                )
+            }
+            setPadding(dp(8), dp(12), dp(8), dp(12))
+            minimumHeight = minHeightPx
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                setMargins(dp(4), 0, dp(4), 0)
+            }
+        }
+
+        // Crown on Rank 1
+        if (rank == 1) {
+            val crown = TextView(host).apply {
+                text = "👑"
+                textSize = 18f
+                gravity = Gravity.CENTER
+            }
+            pedestal.addView(crown)
+        } else {
+            val medal = TextView(host).apply {
+                text = if (rank == 2) "🥈" else "🥉"
+                textSize = 14f
+                gravity = Gravity.CENTER
+            }
+            pedestal.addView(medal)
+        }
+
+        // Avatar Frame
+        val avatarSize = if (rank == 1) dp(46) else dp(40)
+        val avatarFrame = FrameLayout(host).apply {
+            layoutParams = LinearLayout.LayoutParams(avatarSize, avatarSize).apply {
+                setMargins(0, dp(4), 0, dp(6))
+            }
+        }
+
+        val avatarCircle = TextView(host).apply {
+            val initial = entry?.userName?.trim()?.take(1)?.uppercase() ?: "-"
+            text = if (entry != null && entry.avatarUrl.isNotEmpty() && entry.avatarUrl.length <= 4) entry.avatarUrl else initial
+            textSize = if (rank == 1) 16f else 14f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(if (entry != null) accentColor else Color.DKGRAY)
+            }
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+        }
+        avatarFrame.addView(avatarCircle)
+
+        // Rank Pill Badge
+        val rankPill = TextView(host).apply {
+            text = "#$rank"
+            textSize = 9.5f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                cornerRadius = dp(10).toFloat()
+                setColor(accentColor)
+            }
+            setPadding(dp(5), dp(1), dp(5), dp(1))
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            )
+        }
+        avatarFrame.addView(rankPill)
+        pedestal.addView(avatarFrame)
+
+        // Name
+        val nameText = TextView(host).apply {
+            text = if (entry != null) {
+                if (isCurrent) "You" else entry.userName
+            } else "Open Spot"
+            textSize = 11.5f
+            maxLines = 1
+            typeface = Typeface.create("sans-serif-medium", if (isCurrent) Typeface.BOLD else Typeface.NORMAL)
+            setTextColor(if (isCurrent) host.themeCoordinator.primaryColor else host.themeCoordinator.textColor)
+            alpha = if (entry != null) 1f else 0.5f
+            gravity = Gravity.CENTER
+            setPadding(0, dp(2), 0, dp(2))
+        }
+        pedestal.addView(nameText)
+
+        // Time Duration
+        val timeText = TextView(host).apply {
+            text = if (entry != null) LeaderboardManager.formatDuration(entry.totalSeconds) else "--"
+            textSize = 12f
+            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            setTextColor(if (entry != null) accentColor else host.themeCoordinator.textColor)
+            alpha = if (entry != null) 1f else 0.4f
+            gravity = Gravity.CENTER
+        }
+        pedestal.addView(timeText)
+
+        // Live Subject / State Chip
+        if (entry != null) {
+            val statusChip = TextView(host).apply {
+                text = if (entry.isStudying) {
+                    if (entry.currentSubject.isNotBlank()) "🟢 ${entry.currentSubject}" else "🟢 Studying"
+                } else "Resting"
+                textSize = 9f
+                maxLines = 1
+                setTextColor(if (entry.isStudying) Color.parseColor("#4ADE80") else host.themeCoordinator.textColor)
+                alpha = if (entry.isStudying) 1f else 0.5f
+                setPadding(dp(4), dp(2), dp(4), dp(2))
+                gravity = Gravity.CENTER
+            }
+            pedestal.addView(statusChip)
+        }
+
+        return pedestal
+    }
+
+    private fun buildRankRow(entry: LeaderboardEntry): View {
+        val isCurrent = LeaderboardManager.isCurrentUser(entry, host)
+
+        val row = LinearLayout(host).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = GradientDrawable().apply {
+                cornerRadius = dp(16).toFloat()
+                val bgCol = if (host.themeCoordinator.isDarkMode()) {
+                    if (isCurrent) Color.argb(45, Color.red(host.themeCoordinator.primaryColor), Color.green(host.themeCoordinator.primaryColor), Color.blue(host.themeCoordinator.primaryColor))
+                    else Color.parseColor("#12141C")
+                } else {
+                    if (isCurrent) Color.argb(35, 99, 102, 241) else Color.parseColor("#FFFFFF")
+                }
+                setColor(bgCol)
+                setStroke(
+                    dp(1),
+                    if (isCurrent) host.themeCoordinator.primaryColor else Color.argb(40, 255, 255, 255)
+                )
+            }
+            setPadding(dp(12), dp(10), dp(14), dp(10))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(0, 0, 0, dp(8))
+            }
+        }
+
+        // Rank Number
+        val rankView = TextView(host).apply {
+            text = "#${entry.rank}"
+            textSize = 13f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setTextColor(if (isCurrent) host.themeCoordinator.primaryColor else host.themeCoordinator.textColor)
+            alpha = if (isCurrent) 1f else 0.7f
+            setPadding(0, 0, dp(12), 0)
+        }
+        row.addView(rankView)
+
+        // Avatar
+        val avatarCircle = TextView(host).apply {
+            val initial = entry.userName.trim().take(1).uppercase()
+            text = if (entry.avatarUrl.isNotEmpty() && entry.avatarUrl.length <= 4) entry.avatarUrl else initial
+            textSize = 13f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(host.themeCoordinator.primaryColor)
+            }
+            layoutParams = LinearLayout.LayoutParams(dp(34), dp(34)).apply {
+                setMargins(0, 0, dp(12), 0)
+            }
+        }
+        row.addView(avatarCircle)
+
+        // User Info (Name + Subject)
+        val userCol = LinearLayout(host).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val nameRow = LinearLayout(host).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        val nameView = TextView(host).apply {
+            text = entry.userName
+            textSize = 13.5f
+            typeface = Typeface.create("sans-serif-medium", if (isCurrent) Typeface.BOLD else Typeface.NORMAL)
+            setTextColor(host.themeCoordinator.textColor)
+        }
+        nameRow.addView(nameView)
+
+        if (isCurrent) {
+            val youTag = TextView(host).apply {
+                text = "YOU"
+                textSize = 9f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.WHITE)
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(8).toFloat()
+                    setColor(host.themeCoordinator.primaryColor)
+                }
+                setPadding(dp(5), dp(1), dp(5), dp(1))
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { setMargins(dp(6), 0, 0, 0) }
+            }
+            nameRow.addView(youTag)
+        }
+        userCol.addView(nameRow)
+
+        val statusView = TextView(host).apply {
+            text = if (entry.isStudying) {
+                if (entry.currentSubject.isNotBlank()) "🟢 Studying ${entry.currentSubject}" else "🟢 Studying Now"
+            } else "Resting"
+            textSize = 10.5f
+            setTextColor(if (entry.isStudying) Color.parseColor("#4ADE80") else host.themeCoordinator.textColor)
+            alpha = if (entry.isStudying) 1f else 0.55f
+        }
+        userCol.addView(statusView)
+        row.addView(userCol)
+
+        // Study Duration
+        val durationView = TextView(host).apply {
+            text = LeaderboardManager.formatDuration(entry.totalSeconds)
+            textSize = 13f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setTextColor(if (isCurrent) host.themeCoordinator.primaryColor else host.themeCoordinator.textColor)
+        }
+        row.addView(durationView)
+
+        return row
+    }
+
+    private fun buildBottomBar(): View {
+        val isGuest = AuthManager.isGuest(host)
+
+        if (isGuest) {
+            // GUEST CTA: Log in to join the leaderboard
+            val ctaCard = LinearLayout(host).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                background = GradientDrawable(
+                    GradientDrawable.Orientation.LEFT_RIGHT,
+                    intArrayOf(
+                        Color.argb(220, 79, 70, 229),
+                        Color.argb(220, 147, 51, 234)
+                    )
+                ).apply {
+                    cornerRadius = dp(18).toFloat()
+                }
+                setPadding(dp(16), dp(12), dp(14), dp(12))
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    setMargins(0, dp(8), 0, dp(12))
+                }
+            }
+
+            val iconView = TextView(host).apply {
+                text = "🏆"
+                textSize = 22f
+                setPadding(0, 0, dp(12), 0)
+            }
+            ctaCard.addView(iconView)
+
+            val textCol = LinearLayout(host).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+
+            val ctaTitle = TextView(host).apply {
+                text = "Join the Leaderboard"
+                textSize = 13.5f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(Color.WHITE)
+            }
+            textCol.addView(ctaTitle)
+
+            val ctaDesc = TextView(host).apply {
+                text = "Log in to compete & track your rank"
+                textSize = 11f
+                setTextColor(Color.WHITE)
+                alpha = 0.85f
+            }
+            textCol.addView(ctaDesc)
+            ctaCard.addView(textCol)
+
+            val loginBtn = Button(host).apply {
+                text = "LOG IN"
+                textSize = 11.5f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(Color.parseColor("#4F46E5"))
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(14).toFloat()
+                    setColor(Color.WHITE)
+                }
+                setPadding(dp(14), dp(4), dp(14), dp(4))
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    dp(36)
+                )
+                setOnClickListener {
+                    host.startActivity(Intent(host, LoginActivity::class.java))
+                }
+            }
+            ctaCard.addView(loginBtn)
+
+            return ctaCard
+        } else {
+            // LOGGED-IN: Sticky Personal Ranking Card
+            val myEntry = currentEntries.find { LeaderboardManager.isCurrentUser(it, host) }
+
+            val myCard = LinearLayout(host).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                background = host.themeCoordinator.createCardBackground(18f)
+                setPadding(dp(14), dp(10), dp(14), dp(10))
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    setMargins(0, dp(8), 0, dp(12))
+                }
+            }
+
+            val myRankBadge = TextView(host).apply {
+                text = if (myEntry != null) "#${myEntry.rank}" else "--"
+                textSize = 14f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(host.themeCoordinator.primaryColor)
+                setPadding(0, 0, dp(12), 0)
+            }
+            myCard.addView(myRankBadge)
+
+            val myInfoCol = LinearLayout(host).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+
+            val myName = TextView(host).apply {
+                text = AuthManager.getUserName(host) ?: "You"
+                textSize = 13.5f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(host.themeCoordinator.textColor)
+            }
+            myInfoCol.addView(myName)
+
+            val myStatus = TextView(host).apply {
+                text = if (myEntry != null) "Ranked in top 50" else "Start studying to get ranked!"
+                textSize = 11f
+                setTextColor(host.themeCoordinator.textColor)
+                alpha = 0.65f
+            }
+            myInfoCol.addView(myStatus)
+            myCard.addView(myInfoCol)
+
+            val myTime = TextView(host).apply {
+                text = if (myEntry != null) LeaderboardManager.formatDuration(myEntry.totalSeconds) else "0m"
+                textSize = 14f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(host.themeCoordinator.primaryColor)
+            }
+            myCard.addView(myTime)
+
+            return myCard
+        }
+    }
+}

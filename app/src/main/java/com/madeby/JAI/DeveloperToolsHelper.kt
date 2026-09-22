@@ -1,6 +1,5 @@
 package com.madeby.JAI
 
-import android.app.AlertDialog
 import android.app.DatePickerDialog
 import android.app.Dialog
 import android.app.TimePickerDialog
@@ -53,6 +52,260 @@ object DeveloperToolsHelper {
 
     private fun getPickerThemeRes(): Int {
         return R.style.AmoledPickerDialogTheme
+    }
+
+    /**
+     * Shows a beautiful glassmorphism-themed Subject Picker modal adhering to ThemeCoordinator.
+     */
+    fun showThemedSubjectPickerModal(
+        activity: MainActivity,
+        themeCoordinator: ThemeCoordinator,
+        title: String = "Select Subject Tag",
+        includeGeneral: Boolean = true,
+        includeCreateOption: Boolean = false,
+        onSelected: (SubjectTag?) -> Unit,
+        onCreateCustom: (() -> Unit)? = null
+    ) {
+        val dialog = Dialog(activity)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val dp = { v: Int -> (v * activity.resources.displayMetrics.density).toInt() }
+        val subjects = SubjectTagManager.getAllSubjects(activity)
+
+        val root = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            background = themeCoordinator.createDialogBackground(28f)
+            setPadding(dp(20), dp(18), dp(20), dp(18))
+        }
+
+        val titleBar = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, 0, 0, dp(12))
+        }
+        val titleText = TextView(activity).apply {
+            text = title
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 16f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        val closeBtn = TextView(activity).apply {
+            text = "✕"
+            textSize = 16f
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.6f
+            setPadding(dp(8), dp(4), dp(4), dp(4))
+            setOnClickListener { dialog.dismiss() }
+        }
+        titleBar.addView(titleText)
+        titleBar.addView(closeBtn)
+        root.addView(titleBar)
+
+        val scroll = ScrollView(activity).apply {
+            isVerticalScrollBarEnabled = false
+            overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                (activity.resources.displayMetrics.heightPixels * 0.52f).toInt()
+            )
+        }
+        val listContainer = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(4), 0, dp(8))
+        }
+
+        fun createSubjectRow(name: String, emoji: String, colorHex: String, tag: SubjectTag?): View {
+            val colorInt = try { Color.parseColor(colorHex) } catch (_: Exception) { themeCoordinator.primaryColor }
+            val card = LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 22), 14f)
+                setPadding(dp(14), dp(11), dp(14), dp(11))
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(0, 0, 0, dp(8))
+                }
+                setOnClickListener {
+                    onSelected(tag)
+                    dialog.dismiss()
+                }
+            }
+
+            val iconBadge = TextView(activity).apply {
+                text = emoji
+                textSize = 16f
+                gravity = Gravity.CENTER
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(tintedColor(colorInt, 40))
+                }
+                setPadding(dp(8), dp(6), dp(8), dp(6))
+                layoutParams = LinearLayout.LayoutParams(dp(36), dp(36)).apply {
+                    setMargins(0, 0, dp(12), 0)
+                }
+            }
+
+            val label = TextView(activity).apply {
+                text = name
+                setTextColor(themeCoordinator.textColor)
+                textSize = 13.5f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+
+            val colorPill = View(activity).apply {
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(6).toFloat()
+                    setColor(colorInt)
+                }
+                layoutParams = LinearLayout.LayoutParams(dp(12), dp(12))
+            }
+
+            card.addView(iconBadge)
+            card.addView(label)
+            card.addView(colorPill)
+            return card
+        }
+
+        if (includeGeneral) {
+            listContainer.addView(createSubjectRow("General Focus (Untagged)", "📖", "#6366F1", null))
+        }
+
+        if (includeCreateOption) {
+            val createCard = LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 40), 14f)
+                setPadding(dp(14), dp(11), dp(14), dp(11))
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(0, 0, 0, dp(8))
+                }
+                setOnClickListener {
+                    onCreateCustom?.invoke()
+                    dialog.dismiss()
+                }
+            }
+            val plusIcon = TextView(activity).apply {
+                text = "➕"
+                textSize = 15f
+                gravity = Gravity.CENTER
+                layoutParams = LinearLayout.LayoutParams(dp(36), dp(36)).apply {
+                    setMargins(0, 0, dp(12), 0)
+                }
+            }
+            val plusLabel = TextView(activity).apply {
+                text = "Create Custom Subject..."
+                setTextColor(themeCoordinator.primaryColor)
+                textSize = 13.5f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+            createCard.addView(plusIcon)
+            createCard.addView(plusLabel)
+            listContainer.addView(createCard)
+        }
+
+        for (sub in subjects) {
+            listContainer.addView(createSubjectRow(sub.name, sub.iconEmoji, sub.colorHex, sub))
+        }
+
+        scroll.addView(listContainer)
+        root.addView(scroll)
+
+        dialog.setContentView(root)
+        dialog.window?.apply {
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+            setGravity(Gravity.CENTER)
+            setLayout((activity.resources.displayMetrics.widthPixels * 0.90f).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
+        }
+        dialog.show()
+    }
+
+    /**
+     * Shows a beautiful themed confirmation dialog instead of standard Android alerts.
+     */
+    fun showThemedConfirmDialog(
+        activity: MainActivity,
+        themeCoordinator: ThemeCoordinator,
+        title: String,
+        message: String,
+        confirmText: String = "Confirm",
+        isDestructive: Boolean = false,
+        onConfirm: () -> Unit
+    ) {
+        val dialog = Dialog(activity)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val dp = { v: Int -> (v * activity.resources.displayMetrics.density).toInt() }
+
+        val root = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            background = themeCoordinator.createDialogBackground(28f)
+            setPadding(dp(22), dp(20), dp(22), dp(20))
+        }
+
+        val titleView = TextView(activity).apply {
+            text = title
+            setTextColor(if (isDestructive) Color.parseColor("#EF4444") else themeCoordinator.primaryColor)
+            textSize = 16.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(0, 0, 0, dp(8))
+        }
+        val msgView = TextView(activity).apply {
+            text = message
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.85f
+            textSize = 13f
+            setPadding(0, 0, 0, dp(18))
+        }
+
+        val btnRow = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.END
+        }
+
+        val cancelBtn = Button(activity).apply {
+            text = "Cancel"
+            setTextColor(tintedColor(themeCoordinator.textColor, 180))
+            textSize = 12f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 25), 12f)
+            setPadding(dp(16), dp(8), dp(16), dp(8))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(40)).apply {
+                setMargins(0, 0, dp(8), 0)
+            }
+            setOnClickListener { dialog.dismiss() }
+        }
+
+        val confirmBtn = Button(activity).apply {
+            text = confirmText
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = GradientDrawable().apply {
+                cornerRadius = dp(12).toFloat()
+                setColor(if (isDestructive) Color.parseColor("#EF4444") else themeCoordinator.primaryColor)
+            }
+            setPadding(dp(16), dp(8), dp(16), dp(8))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(40))
+            setOnClickListener {
+                dialog.dismiss()
+                onConfirm()
+            }
+        }
+
+        btnRow.addView(cancelBtn)
+        btnRow.addView(confirmBtn)
+
+        root.addView(titleView)
+        root.addView(msgView)
+        root.addView(btnRow)
+
+        dialog.setContentView(root)
+        dialog.window?.apply {
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+            setGravity(Gravity.CENTER)
+            setLayout((activity.resources.displayMetrics.widthPixels * 0.88f).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
+        }
+        dialog.show()
     }
 
     fun buildDevCard(activity: MainActivity, themeCoordinator: ThemeCoordinator): View {
@@ -320,6 +573,11 @@ object DeveloperToolsHelper {
                 showAdjustTodayTimeDialog(activity, themeCoordinator, isDeveloperExtended = true)
             })
 
+            addView(devButton("⚡ Add Custom Time (Leaderboard & Cloud Synced)", "Log custom study time directly verified & pushed to the Public Leaderboard", Color.parseColor("#10B981")) {
+                dialog.dismiss()
+                showDevCustomLeaderboardTimeDialog(activity, themeCoordinator)
+            })
+
             addView(devButton("✍️ Custom Manual Session Builder", "Start & End Time pickers, real-time duration, custom or untagged subject") {
                 dialog.dismiss()
                 showManualSessionLoggerDialog(activity, themeCoordinator)
@@ -411,17 +669,19 @@ object DeveloperToolsHelper {
             })
 
             addView(devButton("🗑️ Wipe Planner & Habit History", "Clears all historical snapshots and resets active goals", Color.parseColor("#EF4444")) {
-                AlertDialog.Builder(activity)
-                    .setTitle("Wipe Planner History?")
-                    .setMessage("This will delete all past habit completion snapshots and reset current goals.")
-                    .setPositiveButton("WIPE PLANNER") { _, _ ->
-                        wipePlannerData(activity)
-                        Toast.makeText(activity, "Planner & habit history cleared!", Toast.LENGTH_SHORT).show()
-                        activity.refreshStatsPanel()
-                        activity.tabPageCache.clear()
-                    }
-                    .setNegativeButton("Cancel", null)
-                    .show()
+                showThemedConfirmDialog(
+                    activity = activity,
+                    themeCoordinator = themeCoordinator,
+                    title = "Wipe Planner History?",
+                    message = "This will delete all past habit completion snapshots and reset current goals.",
+                    confirmText = "WIPE PLANNER",
+                    isDestructive = true
+                ) {
+                    wipePlannerData(activity)
+                    Toast.makeText(activity, "Planner & habit history cleared!", Toast.LENGTH_SHORT).show()
+                    activity.refreshStatsPanel()
+                    activity.tabPageCache.clear()
+                }
             })
         }
 
@@ -485,26 +745,28 @@ object DeveloperToolsHelper {
             })
 
             addView(devButton("Wipe All Local Database Logs", "Completely erases timeline and resets all statistics", Color.parseColor("#EF4444")) {
-                AlertDialog.Builder(activity)
-                    .setTitle("Wipe Entire Database?")
-                    .setMessage("This will permanently delete all local timeline sessions, calendar history, and subject counters.")
-                    .setPositiveButton("WIPE EVERYTHING") { _, _ ->
-                        TimelineLogger.importRaw(activity, "[]")
-                        val prefs = activity.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-                        val editor = prefs.edit()
-                        for (k in prefs.all.keys) {
-                            if (k.endsWith("_focus_total") || k.endsWith("_break_total") || k.startsWith("subject_")) {
-                                editor.remove(k)
-                            }
+                showThemedConfirmDialog(
+                    activity = activity,
+                    themeCoordinator = themeCoordinator,
+                    title = "Wipe Entire Database?",
+                    message = "This will permanently delete all local timeline sessions, calendar history, and subject counters.",
+                    confirmText = "WIPE EVERYTHING",
+                    isDestructive = true
+                ) {
+                    TimelineLogger.importRaw(activity, "[]")
+                    val prefs = activity.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+                    val editor = prefs.edit()
+                    for (k in prefs.all.keys) {
+                        if (k.endsWith("_focus_total") || k.endsWith("_break_total") || k.startsWith("subject_")) {
+                            editor.remove(k)
                         }
-                        editor.putInt("current_streak", 0).apply()
-                        activity.statsDirty = true
-                        activity.recalculateStreak()
-                        activity.tabPageCache.clear()
-                        Toast.makeText(activity, "Database wiped cleanly", Toast.LENGTH_LONG).show()
                     }
-                    .setNegativeButton("Cancel", null)
-                    .show()
+                    editor.putInt("current_streak", 0).apply()
+                    activity.statsDirty = true
+                    activity.recalculateStreak()
+                    activity.tabPageCache.clear()
+                    Toast.makeText(activity, "Database wiped cleanly", Toast.LENGTH_LONG).show()
+                }
             })
         }
 
@@ -661,31 +923,27 @@ object DeveloperToolsHelper {
         customInputContainer.addView(customNameEdit)
 
         subjectPickerBtn.setOnClickListener {
-            val options = mutableListOf("⏱ No Subject Tag / General Focus", "➕ Create New Subject...")
-            options.addAll(subjects.map { "${it.iconEmoji} ${it.name}" })
-
-            AlertDialog.Builder(activity, getPickerThemeRes())
-                .setTitle("Select or Create Subject")
-                .setItems(options.toTypedArray()) { _, which ->
-                    when (which) {
-                        0 -> {
-                            selectedSubject = null
-                            customInputContainer.visibility = View.GONE
-                            subjectPickerBtn.text = "Tag: ⏱ No Subject Tag / General Focus"
-                        }
-                        1 -> {
-                            selectedSubject = null
-                            customInputContainer.visibility = View.VISIBLE
-                            subjectPickerBtn.text = "Tag: ➕ Custom Subject (Type below)"
-                        }
-                        else -> {
-                            selectedSubject = subjects[which - 2]
-                            customInputContainer.visibility = View.GONE
-                            subjectPickerBtn.text = "Tag: ${selectedSubject?.iconEmoji} ${selectedSubject?.name}"
-                        }
+            showThemedSubjectPickerModal(
+                activity = activity,
+                themeCoordinator = themeCoordinator,
+                title = "Select or Create Subject",
+                includeGeneral = true,
+                includeCreateOption = true,
+                onSelected = { sub ->
+                    selectedSubject = sub
+                    customInputContainer.visibility = View.GONE
+                    if (sub == null) {
+                        subjectPickerBtn.text = "Tag: ⏱ No Subject Tag / General Focus"
+                    } else {
+                        subjectPickerBtn.text = "Tag: ${sub.iconEmoji} ${sub.name}"
                     }
+                },
+                onCreateCustom = {
+                    selectedSubject = null
+                    customInputContainer.visibility = View.VISIBLE
+                    subjectPickerBtn.text = "Tag: ➕ Custom Subject (Type below)"
                 }
-                .show()
+            )
         }
         root.addView(subjectPickerBtn)
         root.addView(customInputContainer)
@@ -1401,7 +1659,8 @@ object DeveloperToolsHelper {
         activity: MainActivity,
         themeCoordinator: ThemeCoordinator,
         isDeveloperExtended: Boolean = false,
-        initialDate: String? = null
+        initialDate: String? = null,
+        defaultSyncLeaderboard: Boolean = false
     ) {
         val dialog = Dialog(activity)
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
@@ -1414,6 +1673,7 @@ object DeveloperToolsHelper {
 
         var isFocusCategory = true // true = Study Focus, false = Break Time
         var actionMode = 0 // 0 = Add, 1 = Deduct, 2 = Set (dev only)
+        var syncLeaderboard = defaultSyncLeaderboard || isDeveloperExtended
 
         val subjects = SubjectTagManager.getAllSubjects(activity)
         var selectedSubject: SubjectTag? = subjects.firstOrNull()
@@ -1461,6 +1721,38 @@ object DeveloperToolsHelper {
             orientation = LinearLayout.VERTICAL
             setPadding(0, 0, 0, dp(12))
         }
+
+        // Developer Leaderboard Sync Toggle (if developer mode)
+        val leaderboardToggleBtn = TextView(activity).apply {
+            textSize = 12f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            gravity = Gravity.CENTER
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 0, dp(10))
+            }
+            visibility = if (isDeveloperExtended) View.VISIBLE else View.GONE
+        }
+        fun updateLeaderboardToggleUI() {
+            if (syncLeaderboard) {
+                leaderboardToggleBtn.text = "🏆 Sync to Public Leaderboard: ENABLED"
+                leaderboardToggleBtn.setTextColor(Color.WHITE)
+                leaderboardToggleBtn.background = GradientDrawable().apply {
+                    cornerRadius = dp(12).toFloat()
+                    setColor(Color.parseColor("#10B981"))
+                }
+            } else {
+                leaderboardToggleBtn.text = "🏆 Sync to Public Leaderboard: DISABLED"
+                leaderboardToggleBtn.setTextColor(tintedColor(themeCoordinator.textColor, 160))
+                leaderboardToggleBtn.background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 25), 12f)
+            }
+        }
+        leaderboardToggleBtn.setOnClickListener {
+            syncLeaderboard = !syncLeaderboard
+            updateLeaderboardToggleUI()
+        }
+        updateLeaderboardToggleUI()
+        content.addView(leaderboardToggleBtn)
 
         // 1. Category Switcher: Focus vs Break
         val categoryRow = LinearLayout(activity).apply {
@@ -1594,14 +1886,51 @@ object DeveloperToolsHelper {
         if (isDeveloperExtended) modeToggleRow.addView(setBtn)
         content.addView(modeToggleRow)
 
-        // Preset Chips Container
+        // 3.5 Input Method Toggle: By Duration (Minutes) vs By Clock Wheel (Pick Time of Day)
+        var isClockWheelMode = false
+        val timeFmt = SimpleDateFormat("hh:mm a", Locale.getDefault())
+        val startCal = Calendar.getInstance()
+        val endCal = Calendar.getInstance().apply { add(Calendar.MINUTE, 30) }
+
+        val inputMethodRow = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 18), 12f)
+            setPadding(dp(3), dp(3), dp(3), dp(3))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 0, dp(8))
+            }
+        }
+
+        val byDurationTab = TextView(activity).apply {
+            text = "⏱️ By Duration"
+            textSize = 11.5f
+            gravity = Gravity.CENTER
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(dp(6), dp(7), dp(6), dp(7))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val byClockWheelTab = TextView(activity).apply {
+            text = "🕒 Clock Wheel (Time of Day)"
+            textSize = 11.5f
+            gravity = Gravity.CENTER
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(dp(6), dp(7), dp(6), dp(7))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        inputMethodRow.addView(byDurationTab)
+        inputMethodRow.addView(byClockWheelTab)
+        content.addView(inputMethodRow)
+
+        // Preset Chips Container (for Duration mode)
         val presetContainer = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
-            setPadding(0, 0, 0, dp(10))
+            setPadding(0, 0, 0, dp(8))
         }
         content.addView(presetContainer)
 
-        // Minutes Input Field
+        // Minutes Input Field (for Duration mode)
         val minutesInput = EditText(activity).apply {
             hint = "Enter minutes (e.g. 30)"
             inputType = android.text.InputType.TYPE_CLASS_NUMBER
@@ -1617,9 +1946,100 @@ object DeveloperToolsHelper {
         }
         content.addView(minutesInput)
 
+        // Clock Wheel Start & End Pickers Container (for Clock Wheel mode)
+        val clockWheelContainer = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            setPadding(0, 0, 0, dp(8))
+        }
+
+        val clockWheelRow = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+
+        val startTimeBtn = TextView(activity).apply {
+            text = "⏰ Start: ${timeFmt.format(startCal.time)}"
+            textSize = 12f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 50), 12f)
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                setMargins(0, 0, dp(4), 0)
+            }
+        }
+
+        val endTimeBtn = TextView(activity).apply {
+            text = "🏁 End: ${timeFmt.format(endCal.time)}"
+            textSize = 12f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 50), 12f)
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                setMargins(dp(4), 0, 0, 0)
+            }
+        }
+
+        clockWheelRow.addView(startTimeBtn)
+        clockWheelRow.addView(endTimeBtn)
+        clockWheelContainer.addView(clockWheelRow)
+        content.addView(clockWheelContainer)
+
+        fun recalculateFromClockWheel() {
+            var diffMs = endCal.timeInMillis - startCal.timeInMillis
+            if (diffMs <= 0) {
+                // If end is before or equal start, advance end by 30 mins
+                endCal.timeInMillis = startCal.timeInMillis + (30 * 60000L)
+                endTimeBtn.text = "🏁 End: ${timeFmt.format(endCal.time)}"
+                diffMs = 30 * 60000L
+            }
+            val mins = (diffMs / 60000L).coerceAtLeast(1L)
+            minutesInput.setText(mins.toString())
+        }
+
+        startTimeBtn.setOnClickListener {
+            TimePickerDialog(
+                activity,
+                getPickerThemeRes(),
+                { _, hourOfDay, minute ->
+                    startCal.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                    startCal.set(Calendar.MINUTE, minute)
+                    startCal.set(Calendar.SECOND, 0)
+                    startTimeBtn.text = "⏰ Start: ${timeFmt.format(startCal.time)}"
+                    recalculateFromClockWheel()
+                    updateUI()
+                },
+                startCal.get(Calendar.HOUR_OF_DAY),
+                startCal.get(Calendar.MINUTE),
+                false
+            ).show()
+        }
+
+        endTimeBtn.setOnClickListener {
+            TimePickerDialog(
+                activity,
+                getPickerThemeRes(),
+                { _, hourOfDay, minute ->
+                    endCal.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                    endCal.set(Calendar.MINUTE, minute)
+                    endCal.set(Calendar.SECOND, 0)
+                    endTimeBtn.text = "🏁 End: ${timeFmt.format(endCal.time)}"
+                    recalculateFromClockWheel()
+                    updateUI()
+                },
+                endCal.get(Calendar.HOUR_OF_DAY),
+                endCal.get(Calendar.MINUTE),
+                false
+            ).show()
+        }
+
         // Subject Selector (Only visible for Study Focus)
         val subjectPickerBtn = TextView(activity).apply {
-            text = "Subject Tag: ${selectedSubject?.iconEmoji ?: "⏱"} ${selectedSubject?.name ?: "General Focus"}"
+            text = "Subject Tag: ${selectedSubject?.iconEmoji ?: "📖"} ${selectedSubject?.name ?: "General Focus"}"
             setTextColor(themeCoordinator.textColor)
             textSize = 13f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
@@ -1631,21 +2051,22 @@ object DeveloperToolsHelper {
         }
 
         subjectPickerBtn.setOnClickListener {
-            val options = mutableListOf("⏱ General Focus (Untagged)")
-            options.addAll(subjects.map { "${it.iconEmoji} ${it.name}" })
-            AlertDialog.Builder(activity, getPickerThemeRes())
-                .setTitle("Attribute to Subject")
-                .setItems(options.toTypedArray()) { _, which ->
-                    if (which == 0) {
-                        selectedSubject = null
-                        subjectPickerBtn.text = "Subject Tag: ⏱ General Focus (Untagged)"
+            showThemedSubjectPickerModal(
+                activity = activity,
+                themeCoordinator = themeCoordinator,
+                title = "Attribute to Subject",
+                includeGeneral = true,
+                includeCreateOption = false,
+                onSelected = { sub ->
+                    selectedSubject = sub
+                    if (sub == null) {
+                        subjectPickerBtn.text = "Subject Tag: 📖 General Focus (Untagged)"
                     } else {
-                        selectedSubject = subjects[which - 1]
-                        subjectPickerBtn.text = "Subject Tag: ${selectedSubject?.iconEmoji} ${selectedSubject?.name}"
+                        subjectPickerBtn.text = "Subject Tag: ${sub.iconEmoji} ${sub.name}"
                     }
                     updateUI()
                 }
-                .show()
+            )
         }
         content.addView(subjectPickerBtn)
 
@@ -1738,6 +2159,29 @@ object DeveloperToolsHelper {
                 subjectPickerBtn.visibility = View.GONE
             }
 
+            // Input Method Tab Styles
+            if (isClockWheelMode) {
+                byClockWheelTab.setTextColor(Color.WHITE)
+                byClockWheelTab.background = GradientDrawable().apply {
+                    cornerRadius = dp(9).toFloat()
+                    setColor(Color.parseColor("#38BDF8"))
+                }
+                byDurationTab.setTextColor(tintedColor(themeCoordinator.textColor, 140))
+                byDurationTab.background = null
+                presetContainer.visibility = View.GONE
+                clockWheelContainer.visibility = View.VISIBLE
+            } else {
+                byDurationTab.setTextColor(Color.WHITE)
+                byDurationTab.background = GradientDrawable().apply {
+                    cornerRadius = dp(9).toFloat()
+                    setColor(themeCoordinator.primaryColor)
+                }
+                byClockWheelTab.setTextColor(tintedColor(themeCoordinator.textColor, 140))
+                byClockWheelTab.background = null
+                presetContainer.visibility = View.VISIBLE
+                clockWheelContainer.visibility = View.GONE
+            }
+
             // Action Mode Tab Styles
             val activeColor = when (actionMode) {
                 0 -> if (isFocusCategory) themeCoordinator.primaryColor else Color.parseColor("#F43F5E")
@@ -1796,6 +2240,8 @@ object DeveloperToolsHelper {
             val enteredMins = minutesInput.text.toString().toLongOrNull() ?: 0L
             val enteredSecs = enteredMins * 60L
 
+            val subName = selectedSubject?.name ?: "General Focus"
+
             if (isFocusCategory) {
                 val curH = effectiveFocusMins / 60L
                 val curM = effectiveFocusMins % 60L
@@ -1811,12 +2257,12 @@ object DeveloperToolsHelper {
 
                 when (actionMode) {
                     0 -> {
-                        summaryResultText.text = "✨ Will add ${enteredMins}m → New Focus Total: ${newH}h ${newM}m"
+                        summaryResultText.text = "✨ Will add ${enteredMins}m to $subName → New Focus Total: ${newH}h ${newM}m"
                         summaryResultText.setTextColor(themeCoordinator.primaryColor)
                         applyBtn.text = "ADD ${enteredMins}m TO FOCUS"
                     }
                     1 -> {
-                        summaryResultText.text = "⚠️ Will deduct ${enteredMins}m → New Focus Total: ${newH}h ${newM}m"
+                        summaryResultText.text = "⚠️ Will deduct ${enteredMins}m from $subName → New Focus Total: ${newH}h ${newM}m"
                         summaryResultText.setTextColor(Color.parseColor("#F59E0B"))
                         applyBtn.text = "DEDUCT ${enteredMins}m FROM FOCUS"
                     }
@@ -1865,6 +2311,17 @@ object DeveloperToolsHelper {
             }
         }
 
+        byDurationTab.setOnClickListener {
+            isClockWheelMode = false
+            updateUI()
+        }
+
+        byClockWheelTab.setOnClickListener {
+            isClockWheelMode = true
+            recalculateFromClockWheel()
+            updateUI()
+        }
+
         focusTab.setOnClickListener {
             isFocusCategory = true
             updateUI()
@@ -1903,6 +2360,7 @@ object DeveloperToolsHelper {
             val enteredSecs = enteredMins * 60L
             val isTargetToday = targetDateStr == todayStr
             val now = System.currentTimeMillis()
+            val effectiveSubId = selectedSubject?.id ?: "general"
 
             if (isFocusCategory) {
                 val currentStoredFocus = sharedPrefs.getLong("${targetDateStr}_focus_total", 0L)
@@ -1914,34 +2372,69 @@ object DeveloperToolsHelper {
                     1 -> (currentEffectiveFocus - enteredSecs).coerceAtLeast(0L)
                     else -> enteredSecs
                 }
-                val deltaSecs = newTotalFocus - currentEffectiveFocus
 
                 when (actionMode) {
-                    0 -> TimelineLogger.appendBlockForDay(
-                        context = activity,
-                        dateStr = targetDateStr,
-                        durationSecs = enteredSecs,
-                        state = "MANUAL_FOCUS",
-                        subId = selectedSubject?.id,
-                        subName = selectedSubject?.name,
-                        subColor = selectedSubject?.colorHex
-                    )
-                    1 -> TimelineLogger.deductDurationForDay(
-                        context = activity,
-                        dateStr = targetDateStr,
-                        deductSecs = enteredSecs,
-                        isBreak = false,
-                        adjustSubjects = (selectedSubject == null)
-                    )
-                    else -> TimelineLogger.setTotalDurationForDay(
-                        context = activity,
-                        dateStr = targetDateStr,
-                        targetSecs = enteredSecs,
-                        isBreak = false,
-                        subId = selectedSubject?.id,
-                        subName = selectedSubject?.name,
-                        subColor = selectedSubject?.colorHex
-                    )
+                    0 -> {
+                        if (isClockWheelMode) {
+                            // Construct exact start & end timestamps from the clock wheel on targetDateStr
+                            val parsedDate = try { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(targetDateStr) } catch (_: Exception) { null } ?: Date()
+                            val c1 = Calendar.getInstance().apply {
+                                time = parsedDate
+                                set(Calendar.HOUR_OF_DAY, startCal.get(Calendar.HOUR_OF_DAY))
+                                set(Calendar.MINUTE, startCal.get(Calendar.MINUTE))
+                                set(Calendar.SECOND, 0)
+                            }
+                            val c2 = Calendar.getInstance().apply {
+                                time = parsedDate
+                                set(Calendar.HOUR_OF_DAY, endCal.get(Calendar.HOUR_OF_DAY))
+                                set(Calendar.MINUTE, endCal.get(Calendar.MINUTE))
+                                set(Calendar.SECOND, 0)
+                            }
+                            val startMs = c1.timeInMillis
+                            val endMs = if (c2.timeInMillis > startMs) c2.timeInMillis else startMs + enteredSecs * 1000L
+                            TimelineLogger.addBlock(
+                                context = activity,
+                                startMs = startMs,
+                                endMs = endMs,
+                                state = "MANUAL_FOCUS",
+                                subId = selectedSubject?.id,
+                                subName = selectedSubject?.name,
+                                subColor = selectedSubject?.colorHex
+                            )
+                        } else {
+                            TimelineLogger.appendBlockForDay(
+                                context = activity,
+                                dateStr = targetDateStr,
+                                durationSecs = enteredSecs,
+                                state = "MANUAL_FOCUS",
+                                subId = selectedSubject?.id,
+                                subName = selectedSubject?.name,
+                                subColor = selectedSubject?.colorHex
+                            )
+                        }
+                        SubjectTagManager.adjustSubjectStudyTime(activity, effectiveSubId, enteredSecs, targetDateStr)
+                    }
+                    1 -> {
+                        TimelineLogger.deductDurationForDay(
+                            context = activity,
+                            dateStr = targetDateStr,
+                            deductSecs = enteredSecs,
+                            isBreak = false,
+                            adjustSubjects = true,
+                            targetSubId = selectedSubject?.id
+                        )
+                    }
+                    else -> {
+                        TimelineLogger.setTotalDurationForDay(
+                            context = activity,
+                            dateStr = targetDateStr,
+                            targetSecs = enteredSecs,
+                            isBreak = false,
+                            subId = selectedSubject?.id,
+                            subName = selectedSubject?.name,
+                            subColor = selectedSubject?.colorHex
+                        )
+                    }
                 }
 
                 sharedPrefs.edit()
@@ -1955,14 +2448,27 @@ object DeveloperToolsHelper {
                     sharedPrefs.edit().putLong("accumulatedStudy", 0L).apply()
                 }
 
-                if (selectedSubject != null && deltaSecs != 0L) {
-                    SubjectTagManager.adjustSubjectStudyTime(activity, selectedSubject!!.id, deltaSecs, targetDateStr)
+                if (isFocusCategory && syncLeaderboard) {
+                    val subName = selectedSubject?.name ?: "General Focus"
+                    val subColor = selectedSubject?.colorHex ?: "#3b82f6"
+                    Thread {
+                        kotlinx.coroutines.runBlocking {
+                            LeaderboardManager.overrideLeaderboardDailyTotal(
+                                context = activity,
+                                totalSeconds = newTotalFocus.toInt(),
+                                subject = subName,
+                                color = subColor
+                            )
+                        }
+                    }.start()
                 }
 
+                val subName = selectedSubject?.name ?: "General Focus"
+                val syncTag = if (syncLeaderboard) " 🏆 [Synced to Leaderboard]" else ""
                 val msg = when (actionMode) {
-                    0 -> "Added ${enteredMins}m to ${if (isTargetToday) "today's" else targetDateStr} focus!"
-                    1 -> "Deducted ${enteredMins}m from ${if (isTargetToday) "today's" else targetDateStr} focus!"
-                    else -> "Set ${if (isTargetToday) "today's" else targetDateStr} focus total to ${enteredMins}m!"
+                    0 -> "Added ${enteredMins}m to ${if (isTargetToday) "today's" else targetDateStr} focus ($subName)!$syncTag"
+                    1 -> "Deducted ${enteredMins}m from ${if (isTargetToday) "today's" else targetDateStr} focus ($subName)!$syncTag"
+                    else -> "Set ${if (isTargetToday) "today's" else targetDateStr} focus total to ${enteredMins}m!$syncTag"
                 }
                 Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show()
             } else {
@@ -2018,6 +2524,7 @@ object DeveloperToolsHelper {
             }
 
             TimelineLogger.invalidate()
+            TimelineLogger.reconcileSubjectDurationsFromTimeline(activity, targetDateStr)
             activity.statsEngine.forceReconcileDayTotals(targetDateStr)
             activity.invalidateStatsCache()
             activity.recalculateStreak()
@@ -2044,6 +2551,18 @@ object DeveloperToolsHelper {
             setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT)
         }
         dialog.show()
+    }
+
+    /**
+     * Developer Menu Dialog: Unified Add / Remove / Set Time with Automatic Public Leaderboard Sync.
+     */
+    fun showDevCustomLeaderboardTimeDialog(activity: MainActivity, themeCoordinator: ThemeCoordinator) {
+        showAdjustTodayTimeDialog(
+            activity = activity,
+            themeCoordinator = themeCoordinator,
+            isDeveloperExtended = true,
+            defaultSyncLeaderboard = true
+        )
     }
 
     private fun seedSampleGoals(activity: MainActivity) {
@@ -2342,25 +2861,74 @@ object DeveloperToolsHelper {
                 setMargins(0, dp(8), 0, dp(12))
             }
             setOnClickListener {
+                val inputDialog = Dialog(activity)
+                inputDialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+                val inputRoot = LinearLayout(activity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    background = themeCoordinator.createDialogBackground(24f)
+                    setPadding(dp(20), dp(18), dp(20), dp(18))
+                }
+                val titleView = TextView(activity).apply {
+                    text = "Add Habit to Snapshot"
+                    setTextColor(themeCoordinator.primaryColor)
+                    textSize = 15f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    setPadding(0, 0, 0, dp(12))
+                }
                 val inputEdit = EditText(activity).apply {
                     hint = "Habit title (e.g. 📝 Flashcards review)"
                     setTextColor(themeCoordinator.textColor)
                     setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
                     background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 10f)
                     setPadding(dp(12), dp(10), dp(12), dp(10))
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        setMargins(0, 0, 0, dp(14))
+                    }
                 }
-                AlertDialog.Builder(activity, getPickerThemeRes())
-                    .setTitle("Add Habit to Snapshot")
-                    .setView(inputEdit)
-                    .setPositiveButton("Add") { _, _ ->
+                val btnRow = LinearLayout(activity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.END
+                }
+                val cancelBtn = Button(activity).apply {
+                    text = "Cancel"
+                    setTextColor(tintedColor(themeCoordinator.textColor, 180))
+                    textSize = 12f
+                    background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 25), 10f)
+                    setOnClickListener { inputDialog.dismiss() }
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(38)).apply {
+                        setMargins(0, 0, dp(8), 0)
+                    }
+                }
+                val addBtn = Button(activity).apply {
+                    text = "Add Habit"
+                    setTextColor(Color.WHITE)
+                    textSize = 12f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    background = GradientDrawable().apply {
+                        cornerRadius = dp(10).toFloat()
+                        setColor(themeCoordinator.primaryColor)
+                    }
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(38))
+                    setOnClickListener {
                         val t = inputEdit.text.toString().trim()
                         if (t.isNotEmpty()) {
                             itemsList.add(EditableGoalItem("custom_${System.currentTimeMillis()}", t, 30, true, true, null))
                             renderGoalsList()
                         }
+                        inputDialog.dismiss()
                     }
-                    .setNegativeButton("Cancel", null)
-                    .show()
+                }
+                btnRow.addView(cancelBtn)
+                btnRow.addView(addBtn)
+                inputRoot.addView(titleView)
+                inputRoot.addView(inputEdit)
+                inputRoot.addView(btnRow)
+                inputDialog.setContentView(inputRoot)
+                inputDialog.window?.apply {
+                    setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+                    setLayout((activity.resources.displayMetrics.widthPixels * 0.88f).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
+                }
+                inputDialog.show()
             }
         }
         root.addView(addCustomHabitBtn)

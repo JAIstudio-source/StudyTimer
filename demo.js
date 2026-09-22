@@ -5659,7 +5659,7 @@ async function signInWithGoogle() {
   }
 
   try {
-    const redirectUrl = window.location.origin + window.location.pathname;
+    const redirectUrl = window.location.origin + (window.location.pathname.includes('demo') ? '/demo.html' : window.location.pathname);
     const sb = getSupabase();
 
     if (sb && sb.auth && typeof sb.auth.signInWithOAuth === 'function') {
@@ -5709,7 +5709,7 @@ async function signInWithEmail(e) {
     statusMsg.textContent = 'Sending sign-in link...';
     statusMsg.classList.remove('hidden');
 
-    const redirectUrl = window.location.origin + window.location.pathname;
+    const redirectUrl = window.location.origin + (window.location.pathname.includes('demo') ? '/demo.html' : window.location.pathname);
     const sb = getSupabase();
 
     if (sb) {

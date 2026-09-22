@@ -116,8 +116,13 @@
     })();
   </script>
 
-  <!-- Supabase JS Client (v2) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Supabase JS Client (Local Same-Origin Bundle with CDN Fallback) -->
+  <script src="assets/supabase.js"></script>
+  <script>
+    if (typeof window.supabase === 'undefined' && typeof supabase === 'undefined') {
+      document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>');
+    }
+  </script>
 </head>
 <body class="demo-page-body">
 

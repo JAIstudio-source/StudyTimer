@@ -228,8 +228,10 @@ function initUserSyncRealtime() {
           if (!newRecord) return;
 
           const rowUserId = (newRecord.user_id || '').trim().toLowerCase();
-          // Strict user ID matching (RLS compliant)
-          const isUserMatch = currentUserId && rowUserId === currentUserId;
+          const rowUserEmail = (newRecord.user_email || '').trim().toLowerCase();
+          // Strict user ID / email matching (RLS compliant)
+          const isUserMatch = (currentUserId && (rowUserId === currentUserId || (currentUserEmail && rowUserId === currentUserEmail))) ||
+                              (currentUserEmail && rowUserEmail === currentUserEmail);
           if (!isUserMatch) return;
 
           const remoteUpdatedAt = Number(newRecord.updated_at) || 0;
@@ -275,23 +277,41 @@ async function initAuth() {
       console.log(`🔐 Supabase Auth Event: ${event}`, session?.user?.email);
       if (session && session.user) {
         handleUserSignedIn(session.user);
+        cleanAuthParamsFromUrl();
       } else if (event === 'SIGNED_OUT') {
         handleUserSignedOut();
       }
     });
 
-    // 2. Check for OAuth Hash Errors (#error=...&error_description=...)
+    // 2. Check for OAuth Hash/Search Errors (#error=... or ?error=...)
+    let errorMsg = null;
     if (window.location.hash && window.location.hash.includes('error=')) {
       try {
         const hash = window.location.hash.substring(1);
         const params = new URLSearchParams(hash);
-        const errorMsg = params.get('error_description') || params.get('error') || 'Sign-in error';
-        showToast('Google Sign-In: ' + decodeURIComponent(errorMsg), 'error');
-        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        errorMsg = params.get('error_description') || params.get('error');
+      } catch (_) {}
+    } else if (window.location.search && window.location.search.includes('error=')) {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        errorMsg = params.get('error_description') || params.get('error');
       } catch (_) {}
     }
+    if (errorMsg) {
+      showToast('Google Sign-In: ' + decodeURIComponent(errorMsg), 'error');
+      cleanAuthParamsFromUrl();
+      return;
+    }
 
-    // 3. Check for OAuth Hash Tokens (#access_token=...&refresh_token=...)
+    // 3. Immediate Session Check (Supabase automatically detects token/code from URL or localStorage)
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+    if (session && session.user) {
+      handleUserSignedIn(session.user);
+      cleanAuthParamsFromUrl();
+      return;
+    }
+
+    // 4. Fallback: If getSession() didn't resolve yet, but URL contains hash access_token
     if (window.location.hash && window.location.hash.includes('access_token=')) {
       try {
         const hash = window.location.hash.substring(1);
@@ -305,16 +325,16 @@ async function initAuth() {
           });
           if (!error && data?.session?.user) {
             handleUserSignedIn(data.session.user);
-            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            cleanAuthParamsFromUrl();
             return;
           }
         }
       } catch (hashErr) {
-        console.warn('OAuth hash parse error:', hashErr);
+        console.warn('OAuth hash parse fallback error:', hashErr);
       }
     }
 
-    // 4. Check for OAuth PKCE Code (?code=...)
+    // 5. Fallback: If getSession() didn't resolve yet, but URL contains PKCE code
     if (window.location.search && window.location.search.includes('code=')) {
       try {
         const params = new URLSearchParams(window.location.search);
@@ -323,25 +343,27 @@ async function initAuth() {
           const { data, error } = await supabaseClient.auth.exchangeCodeForSession(code);
           if (!error && data?.session?.user) {
             handleUserSignedIn(data.session.user);
-            window.history.replaceState(null, '', window.location.pathname);
+            cleanAuthParamsFromUrl();
             return;
           }
         }
       } catch (codeErr) {
-        console.warn('OAuth code exchange error:', codeErr);
-      }
-    }
-
-    // 5. Existing Session Check (from localStorage / Supabase auto-detect)
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session && session.user) {
-      handleUserSignedIn(session.user);
-      if (window.location.hash.includes('access_token=') || window.location.search.includes('code=')) {
-        window.history.replaceState(null, '', window.location.pathname);
+        console.warn('OAuth code exchange fallback error:', codeErr);
       }
     }
   } catch (err) {
     console.error('Supabase auth initialization error:', err);
+  }
+}
+
+function cleanAuthParamsFromUrl() {
+  if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+    const hasHashTokens = window.location.hash && (window.location.hash.includes('access_token=') || window.location.hash.includes('error='));
+    const hasSearchTokens = window.location.search && (window.location.search.includes('code=') || window.location.search.includes('error='));
+    if (hasHashTokens || hasSearchTokens) {
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState(null, '', cleanUrl);
+    }
   }
 }
 
@@ -391,6 +413,7 @@ function handleUserSignedIn(user) {
   renderUserProfileUI();
 
   if (syncStatusPill) {
+    syncStatusPill.classList.remove('syncing');
     syncStatusPill.classList.add('synced');
     syncStatusText.textContent = 'Synced';
   }
@@ -430,7 +453,7 @@ function handleUserSignedOut() {
   const cleanGuest = getCleanInitialState(null);
   Object.assign(appState, cleanGuest);
 
-  saveLocalState();
+  loadLocalState(null);
   if (typeof renderSubjects === 'function') renderSubjects();
   if (typeof renderPlannerGoals === 'function') renderPlannerGoals();
   if (typeof renderTimeline === 'function') renderTimeline();
@@ -457,7 +480,7 @@ function handleUserSignedOut() {
   if (guestBanner) guestBanner.classList.remove('hidden');
 
   if (syncStatusPill) {
-    syncStatusPill.classList.remove('synced');
+    syncStatusPill.classList.remove('synced', 'syncing');
     syncStatusText.textContent = 'Local';
   }
 }
@@ -510,9 +533,15 @@ async function pullDataFromCloud(isUserTriggered = false) {
   try {
     const user = appState.currentUser;
     const userId = user.id;
+    const userEmail = (user.email || user.user_metadata?.email || '').trim().toLowerCase();
 
-    // Strict user ID query
-    const query = supabaseClient.from('user_sync_data').select('*').eq('user_id', userId);
+    // Strict user query: match exact user_id or user_email for this specific user
+    let query = supabaseClient.from('user_sync_data').select('*');
+    if (userEmail && userEmail !== userId) {
+      query = query.or(`user_id.eq.${userId},user_id.eq.${userEmail},user_email.eq.${userEmail}`);
+    } else {
+      query = query.eq('user_id', userId);
+    }
 
     const { data: rows, error } = await query.order('updated_at', { ascending: false });
 
@@ -4157,7 +4186,11 @@ function openProfileModal() {
   const publicToggle = document.getElementById('checkLeaderboardPublic');
 
   if (nameInput) {
-    nameInput.value = profile.displayName || (appState.currentUser?.user_metadata?.full_name || 'Student');
+    nameInput.value = profile.displayName || 
+                      appState.currentUser?.user_metadata?.full_name || 
+                      appState.currentUser?.user_metadata?.name || 
+                      appState.currentUser?.email?.split('@')[0] || 
+                      'Student';
   }
   if (mottoInput) {
     mottoInput.value = profile.motto || '';
@@ -4544,15 +4577,24 @@ function renderUserProfileUI() {
     isPublicLeaderboard: true
   };
 
-  const name = profile.displayName || (appState.currentUser?.user_metadata?.full_name || 'Student');
-  const avatar = profile.avatarPreset || '🐱';
+  const name = profile.displayName || 
+               appState.currentUser?.user_metadata?.full_name || 
+               appState.currentUser?.user_metadata?.name || 
+               appState.currentUser?.email?.split('@')[0] || 
+               'Student';
+  const avatar = profile.avatarPreset || 
+                 appState.currentUser?.user_metadata?.avatar_url || 
+                 appState.currentUser?.user_metadata?.picture || 
+                 '🐱';
 
   const userDisplayName = document.getElementById('userDisplayName');
   const dropdownUserName = document.getElementById('dropdownUserName');
+  const dropdownUserEmail = document.getElementById('dropdownUserEmail');
   const navUserAvatarWrap = document.getElementById('navUserAvatarWrap');
 
   if (userDisplayName) userDisplayName.textContent = name;
   if (dropdownUserName) dropdownUserName.textContent = name;
+  if (dropdownUserEmail && appState.currentUser) dropdownUserEmail.textContent = appState.currentUser.email || '';
   
   if (navUserAvatarWrap) {
     navUserAvatarWrap.innerHTML = getAvatarElementHtml(avatar, name, 'user-avatar');

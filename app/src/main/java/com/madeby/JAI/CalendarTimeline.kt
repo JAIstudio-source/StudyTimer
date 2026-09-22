@@ -648,6 +648,7 @@ class CalendarTimeline(private val host: MainActivity) {
                     }
 
                     val mainCountdownText = TextView(this).apply {
+                        tag = "exam_main_countdown_${exam.id}"
                         text = breakdown.mainHeadline
                         setTextColor(if (breakdown.isPast) Color.parseColor("#94A3B8") else examColor)
                         textSize = 21f
@@ -655,6 +656,7 @@ class CalendarTimeline(private val host: MainActivity) {
                     }
 
                     val readableSubText = TextView(this).apply {
+                        tag = "exam_sub_countdown_${exam.id}"
                         text = if (breakdown.readableSubtitle.isNotBlank()) breakdown.readableSubtitle else "Scheduled event"
                         setTextColor(themeCoordinator.textColor)
                         alpha = 0.7f
@@ -681,7 +683,7 @@ class CalendarTimeline(private val host: MainActivity) {
                     }
 
                     val dateText = TextView(this).apply {
-                        text = "Target Date: $dateFmt"
+                        text = "Exam Date: $dateFmt"
                         setTextColor(themeCoordinator.textColor)
                         alpha = 0.6f
                         textSize = 11.5f
@@ -768,7 +770,7 @@ class CalendarTimeline(private val host: MainActivity) {
         }
 
         val dateCard = TextView(activity).apply {
-            text = "Target Date: $dateDisplay"
+            text = "Exam Date: $dateDisplay"
             setTextColor(themeCoordinator.textColor)
             textSize = 12.5f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)

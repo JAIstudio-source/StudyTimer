@@ -331,6 +331,18 @@ object SubjectTagManager {
                 map[k] = json.optLong(k, 0L)
             }
         } catch (_: Exception) {}
+
+        val appPrefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val timerState = appPrefs.getString("timerState", "IDLE") ?: "IDLE"
+        if (timerState == "STUDYING") {
+            val runningSecs = appPrefs.getLong("accumulatedStudy", 0L)
+            if (runningSecs > 0L) {
+                val selectedSub = getSelectedSubject(context)
+                val subId = selectedSub?.id ?: "general"
+                map[subId] = (map[subId] ?: 0L) + runningSecs
+            }
+        }
+
         return map
     }
 
@@ -349,6 +361,20 @@ object SubjectTagManager {
                 }
             }
         } catch (_: Exception) {}
+
+        if (dateKey == getTodayKey()) {
+            val appPrefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+            val timerState = appPrefs.getString("timerState", "IDLE") ?: "IDLE"
+            if (timerState == "STUDYING") {
+                val runningSecs = appPrefs.getLong("accumulatedStudy", 0L)
+                if (runningSecs > 0L) {
+                    val selectedSub = getSelectedSubject(context)
+                    val subId = selectedSub?.id ?: "general"
+                    map[subId] = (map[subId] ?: 0L) + runningSecs
+                }
+            }
+        }
+
         return map
     }
 

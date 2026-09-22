@@ -49,10 +49,15 @@ CREATE OR REPLACE FUNCTION public.update_study_presence(
     p_avatar_url TEXT,
     p_is_studying BOOLEAN,
     p_current_subject TEXT DEFAULT '',
-    p_subject_color TEXT DEFAULT '#3b82f6'
+    p_subject_color TEXT DEFAULT '#3b82f6',
+    p_study_date DATE DEFAULT NULL
 )
 RETURNS VOID AS $$
+DECLARE
+    v_date DATE;
 BEGIN
+    v_date := COALESCE(p_study_date, CURRENT_DATE);
+
     INSERT INTO public.daily_leaderboard (
         user_id,
         user_name,
@@ -69,7 +74,7 @@ BEGIN
         p_user_id,
         COALESCE(NULLIF(p_user_name, ''), 'Student'),
         COALESCE(p_avatar_url, ''),
-        CURRENT_DATE,
+        v_date,
         0,
         p_is_studying,
         COALESCE(p_current_subject, ''),
@@ -97,14 +102,17 @@ CREATE OR REPLACE FUNCTION public.record_study_session_leaderboard(
     p_avatar_url TEXT,
     p_duration_seconds INT,
     p_subject TEXT DEFAULT '',
-    p_subject_color TEXT DEFAULT '#3b82f6'
+    p_subject_color TEXT DEFAULT '#3b82f6',
+    p_study_date DATE DEFAULT NULL
 )
 RETURNS VOID AS $$
 DECLARE
     v_clamped_duration INT;
+    v_date DATE;
 BEGIN
     -- Anti-cheat sanity check: max single session increment = 14 hours (50,400s)
     v_clamped_duration := LEAST(GREATEST(p_duration_seconds, 0), 50400);
+    v_date := COALESCE(p_study_date, CURRENT_DATE);
 
     INSERT INTO public.daily_leaderboard (
         user_id,
@@ -122,7 +130,7 @@ BEGIN
         p_user_id,
         COALESCE(NULLIF(p_user_name, ''), 'Student'),
         COALESCE(p_avatar_url, ''),
-        CURRENT_DATE,
+        v_date,
         v_clamped_duration,
         FALSE,
         COALESCE(p_subject, ''),
@@ -137,6 +145,63 @@ BEGIN
         is_studying = FALSE,
         current_subject = EXCLUDED.current_subject,
         subject_color = EXCLUDED.subject_color,
+        last_active_at = NOW(),
+        updated_at = NOW();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- =========================================================================
+-- 5B. RPC FUNCTION: Live Progress Sync (Real-time incremental seconds while studying)
+-- =========================================================================
+CREATE OR REPLACE FUNCTION public.sync_study_progress_leaderboard(
+    p_user_id TEXT,
+    p_user_name TEXT,
+    p_avatar_url TEXT,
+    p_incremental_seconds INT,
+    p_is_studying BOOLEAN,
+    p_subject TEXT DEFAULT '',
+    p_subject_color TEXT DEFAULT '#3b82f6',
+    p_study_date DATE DEFAULT NULL
+)
+RETURNS VOID AS $$
+DECLARE
+    v_clamped_seconds INT;
+    v_date DATE;
+BEGIN
+    v_clamped_seconds := LEAST(GREATEST(p_incremental_seconds, 0), 3600);
+    v_date := COALESCE(p_study_date, CURRENT_DATE);
+
+    INSERT INTO public.daily_leaderboard (
+        user_id,
+        user_name,
+        avatar_url,
+        study_date,
+        total_seconds,
+        is_studying,
+        current_subject,
+        subject_color,
+        last_active_at,
+        updated_at
+    )
+    VALUES (
+        p_user_id,
+        COALESCE(NULLIF(p_user_name, ''), 'Student'),
+        COALESCE(p_avatar_url, ''),
+        v_date,
+        v_clamped_seconds,
+        p_is_studying,
+        COALESCE(p_subject, ''),
+        COALESCE(p_subject_color, '#3b82f6'),
+        NOW(),
+        NOW()
+    )
+    ON CONFLICT (user_id, study_date) DO UPDATE SET
+        user_name = CASE WHEN EXCLUDED.user_name <> 'Student' THEN EXCLUDED.user_name ELSE daily_leaderboard.user_name END,
+        avatar_url = CASE WHEN EXCLUDED.avatar_url <> '' THEN EXCLUDED.avatar_url ELSE daily_leaderboard.avatar_url END,
+        total_seconds = LEAST(daily_leaderboard.total_seconds + v_clamped_seconds, 86400),
+        is_studying = EXCLUDED.is_studying,
+        current_subject = CASE WHEN EXCLUDED.current_subject <> '' THEN EXCLUDED.current_subject ELSE daily_leaderboard.current_subject END,
+        subject_color = CASE WHEN EXCLUDED.subject_color <> '' THEN EXCLUDED.subject_color ELSE daily_leaderboard.subject_color END,
         last_active_at = NOW(),
         updated_at = NOW();
 END;

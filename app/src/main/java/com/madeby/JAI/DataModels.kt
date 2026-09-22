@@ -2,9 +2,22 @@ package com.madeby.JAI
 
 import java.util.UUID
 
-enum class AppPanel { FOCUS, STATS, SETTINGS, HEATMAP }
+enum class AppPanel { FOCUS, STATS, SETTINGS, HEATMAP, LEADERBOARD }
 enum class TimerState { IDLE, STUDYING, BREAK, PAUSED, LECTURE_ENDED }
 enum class AppStatsTab { OVERVIEW, TIMELINE, PLANNER }
+enum class LeaderboardPeriod { DAILY, WEEKLY, MONTHLY }
+
+data class LeaderboardEntry(
+    val rank: Int,
+    val userId: String,
+    val userName: String,
+    val avatarUrl: String,
+    val totalSeconds: Int,
+    val isStudying: Boolean,
+    val currentSubject: String = "",
+    val subjectColor: String = "#3b82f6",
+    val lastActiveAt: String = ""
+)
 enum class AppSettingsTab { 
     HUB, 
     TIMER, 

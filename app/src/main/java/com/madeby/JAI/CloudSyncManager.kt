@@ -176,6 +176,11 @@ object CloudSyncManager {
             // Embed subject tags directly into prefs_data to ensure complete backup under schema
             prefsJson.put("__subject_tags_data__", subjectPrefsJson.toString())
 
+            // Embed exam countdowns directly into prefs_data
+            val examPrefs = context.getSharedPreferences("studytimer_exam_countdowns", Context.MODE_PRIVATE)
+            val examJsonStr = examPrefs.getString("exams_list_json", "[]") ?: "[]"
+            prefsJson.put("__exam_countdowns_data__", examJsonStr)
+
             val userName: String = AuthManager.getUserName(context) ?: ""
             val userEmail: String = AuthManager.getUserEmail(context) ?: ""
             val profileImg: String = AuthManager.getProfileImageUri(context) ?: ""
@@ -250,11 +255,10 @@ object CloudSyncManager {
                 BackupManager(context).markDataModified()
                 Log.i("CloudSyncManager", "Cloud sync successfully completed for user: $userId at $lastSyncTime")
 
-                // Auto-sync today's total study time to public.daily_leaderboard
+                // Auto-sync today's verified real study time to public.daily_leaderboard
                 try {
                     val todayKeyFmt = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
-                    val todayFocusTotalSec = sharedPrefs.getInt("${todayKeyFmt}_focus_total", sharedPrefs.getLong("${todayKeyFmt}_focus_total", 0L).toInt())
-                    val effectiveSecs = if (todayFocusTotalSec > 0) todayFocusTotalSec else sharedPrefs.getLong("accumulatedStudy", 0L).toInt()
+                    val effectiveSecs = LeaderboardManager.getRealTimerFocusSecondsForDate(context, todayKeyFmt).toInt()
                     
                     val lbPayload = JSONObject().apply {
                         put("user_id", userId as String)
@@ -479,7 +483,43 @@ object CloudSyncManager {
                 subEditor.apply()
             }
 
-            // 4. Mark modified and push merged result to cloud
+            // 4. Merge Exam Countdowns
+            val cloudExamsStr = if (cloudRecord.has("exam_countdowns_data") && cloudRecord.optString("exam_countdowns_data").isNotEmpty()) {
+                cloudRecord.optString("exam_countdowns_data")
+            } else if (cloudPrefsStr.isNotEmpty()) {
+                try {
+                    val pObj = JSONObject(cloudPrefsStr)
+                    pObj.optString("__exam_countdowns_data__", "")
+                } catch (_: Exception) { "" }
+            } else ""
+
+            if (cloudExamsStr.isNotEmpty() && cloudExamsStr != "[]") {
+                val examPrefs = context.getSharedPreferences("studytimer_exam_countdowns", Context.MODE_PRIVATE)
+                val localExamsStr = examPrefs.getString("exams_list_json", "[]") ?: "[]"
+                try {
+                    val localArr = JSONArray(localExamsStr)
+                    val cloudArr = JSONArray(cloudExamsStr)
+                    val seenIds = HashSet<String>()
+                    val mergedArr = JSONArray()
+                    for (i in 0 until localArr.length()) {
+                        val obj = localArr.getJSONObject(i)
+                        val id = obj.optString("id", "")
+                        if (id.isNotEmpty()) seenIds.add(id)
+                        mergedArr.put(obj)
+                    }
+                    for (i in 0 until cloudArr.length()) {
+                        val obj = cloudArr.getJSONObject(i)
+                        val id = obj.optString("id", "")
+                        if (id.isNotEmpty() && !seenIds.contains(id)) {
+                            seenIds.add(id)
+                            mergedArr.put(obj)
+                        }
+                    }
+                    examPrefs.edit().putString("exams_list_json", mergedArr.toString()).apply()
+                } catch (_: Exception) {}
+            }
+
+            // 5. Mark modified and push merged result to cloud
             BackupManager(context).markDataModified()
             syncDataToCloud(context, force = true)
             BackupManager(context).runSilentAutoBackup()
@@ -537,6 +577,8 @@ object CloudSyncManager {
                 sharedPrefs.edit().clear().commit()
                 val subPrefs = context.getSharedPreferences("studytimer_subject_tags", Context.MODE_PRIVATE)
                 subPrefs.edit().clear().commit()
+                val examPrefs = context.getSharedPreferences("studytimer_exam_countdowns", Context.MODE_PRIVATE)
+                examPrefs.edit().clear().commit()
 
                 if (prefsStr.isNotEmpty()) {
                     val editor = sharedPrefs.edit()
@@ -638,11 +680,24 @@ object CloudSyncManager {
                     subEditor.commit()
                 }
 
+                val cloudExamsStr = if (record.has("exam_countdowns_data") && record.optString("exam_countdowns_data").isNotEmpty()) {
+                    record.optString("exam_countdowns_data")
+                } else if (prefsStr.isNotEmpty()) {
+                    try {
+                        val pObj = JSONObject(prefsStr)
+                        pObj.optString("__exam_countdowns_data__", "")
+                    } catch (_: Exception) { "" }
+                } else ""
+
+                if (cloudExamsStr.isNotEmpty() && cloudExamsStr != "[]") {
+                    examPrefs.edit().putString("exams_list_json", cloudExamsStr).commit()
+                }
+
                 if (timelineStr.isNotEmpty()) {
                     TimelineLogger.importRaw(context, timelineStr)
                 }
 
-        BackupManager(context).runSilentAutoBackup()
+                BackupManager(context).runSilentAutoBackup()
                 return@withContext true
             }
         } catch (e: Exception) {

@@ -1,13 +1,20 @@
 package com.madeby.JAI
 
+import android.app.DatePickerDialog
+import android.app.Dialog
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
+import android.widget.Button
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -284,6 +291,9 @@ class CalendarTimeline(private val host: MainActivity) {
             calendarCard.addView(summaryRow)
 
             content.addView(calendarCard)
+
+            // Exam Countdown Section
+            buildExamCountdownSection(content)
         }
     }
 
@@ -478,4 +488,639 @@ class CalendarTimeline(private val host: MainActivity) {
             cell
         }
     }
+
+    private fun buildExamCountdownSection(content: LinearLayout) {
+        with(host) {
+            val exams = ExamCountdownManager.getExams(this)
+
+            val sectionContainer = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    setMargins(0, dp(16), 0, dp(14))
+                }
+            }
+
+            // Header Row
+            val headerRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(4), 0, dp(4), dp(10))
+            }
+
+            val titleText = TextView(this).apply {
+                text = "Upcoming Exams"
+                setTextColor(themeCoordinator.textColor)
+                textSize = 15.5f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+
+            val addBtn = TextView(this).apply {
+                text = "+ Add Exam"
+                setTextColor(Color.WHITE)
+                textSize = 12f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(12).toFloat()
+                    setColor(themeCoordinator.primaryColor)
+                }
+                setPadding(dp(12), dp(6), dp(12), dp(6))
+                setOnClickListener {
+                    showAddEditExamModal(null)
+                }
+            }
+
+            headerRow.addView(titleText)
+            headerRow.addView(addBtn)
+            sectionContainer.addView(headerRow)
+
+            if (exams.isEmpty()) {
+                // Empty state card
+                val emptyCard = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER_HORIZONTAL
+                    background = themeCoordinator.createCardBackground()
+                    setPadding(dp(20), dp(22), dp(20), dp(22))
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                    setOnClickListener {
+                        showAddEditExamModal(null)
+                    }
+                }
+
+                val emptyTitle = TextView(this).apply {
+                    text = "No Upcoming Exams"
+                    setTextColor(themeCoordinator.textColor)
+                    textSize = 14f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    gravity = Gravity.CENTER
+                }
+                val emptySub = TextView(this).apply {
+                    text = "Track your exam dates with live countdowns."
+                    setTextColor(themeCoordinator.textColor)
+                    alpha = 0.6f
+                    textSize = 12f
+                    gravity = Gravity.CENTER
+                    setPadding(0, dp(4), 0, dp(12))
+                }
+                val emptyAction = TextView(this).apply {
+                    text = "Set Exam Date"
+                    setTextColor(themeCoordinator.primaryColor)
+                    textSize = 12.5f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 35), 12f)
+                    setPadding(dp(16), dp(8), dp(16), dp(8))
+                }
+
+                emptyCard.addView(emptyTitle)
+                emptyCard.addView(emptySub)
+                emptyCard.addView(emptyAction)
+                sectionContainer.addView(emptyCard)
+            } else {
+                // List of exam countdown preview cards
+                for (exam in exams) {
+                    val allSubjects = SubjectTagManager.getAllSubjects(this)
+                    val linkedSubject = allSubjects.find { it.id == exam.subjectId }
+                    val examColor = if (exam.colorHex != null) {
+                        try { Color.parseColor(exam.colorHex) } catch (_: Exception) { themeCoordinator.primaryColor }
+                    } else if (linkedSubject != null) {
+                        try { Color.parseColor(linkedSubject.colorHex) } catch (_: Exception) { themeCoordinator.primaryColor }
+                    } else {
+                        themeCoordinator.primaryColor
+                    }
+
+                    val breakdown = ExamCountdownManager.getCountdownBreakdown(exam.targetTimestampMs)
+
+                    val examCard = LinearLayout(this).apply {
+                        orientation = LinearLayout.VERTICAL
+                        background = themeCoordinator.createCardBackground()
+                        setPadding(dp(16), dp(14), dp(16), dp(14))
+                        layoutParams = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT
+                        ).apply {
+                            setMargins(0, 0, 0, dp(10))
+                        }
+                        setOnClickListener {
+                            showExamDetailsModal(exam)
+                        }
+                    }
+
+                    // Top Row: Title + Subject Tag Pill
+                    val topRow = LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER_VERTICAL
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                    }
+
+                    val titleView = TextView(this).apply {
+                        text = exam.title
+                        setTextColor(themeCoordinator.textColor)
+                        textSize = 15f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    }
+
+                    topRow.addView(titleView)
+                    val hasCustomSubject = linkedSubject != null && !linkedSubject.name.equals("General", ignoreCase = true)
+                    if (hasCustomSubject) {
+                        val subjectTagPill = TextView(this).apply {
+                            text = linkedSubject!!.name
+                            setTextColor(examColor)
+                            textSize = 11.5f
+                            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                            background = themeCoordinator.createGlassChip(tintedColor(examColor, 35), 10f)
+                            setPadding(dp(10), dp(4), dp(10), dp(4))
+                        }
+                        topRow.addView(subjectTagPill)
+                    }
+                    examCard.addView(topRow)
+
+                    // Main Big Countdown Section (High prominence & instant clarity)
+                    val countdownContainer = LinearLayout(this).apply {
+                        orientation = LinearLayout.VERTICAL
+                        setPadding(0, dp(10), 0, dp(8))
+                    }
+
+                    val mainCountdownText = TextView(this).apply {
+                        text = breakdown.mainHeadline
+                        setTextColor(if (breakdown.isPast) Color.parseColor("#94A3B8") else examColor)
+                        textSize = 21f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    }
+
+                    val readableSubText = TextView(this).apply {
+                        text = if (breakdown.readableSubtitle.isNotBlank()) breakdown.readableSubtitle else "Scheduled event"
+                        setTextColor(themeCoordinator.textColor)
+                        alpha = 0.7f
+                        textSize = 12f
+                        setPadding(0, dp(2), 0, 0)
+                    }
+
+                    countdownContainer.addView(mainCountdownText)
+                    countdownContainer.addView(readableSubText)
+                    examCard.addView(countdownContainer)
+
+                    // Bottom Row: Target Date & Action hint
+                    val bottomRow = LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER_VERTICAL
+                        setPadding(0, dp(4), 0, 0)
+                    }
+
+                    val dateFmt = try {
+                        val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(exam.targetDateStr)
+                        SimpleDateFormat("EEEE, dd MMM yyyy", Locale.getDefault()).format(parsed ?: Date())
+                    } catch (_: Exception) {
+                        exam.targetDateStr
+                    }
+
+                    val dateText = TextView(this).apply {
+                        text = "Target Date: $dateFmt"
+                        setTextColor(themeCoordinator.textColor)
+                        alpha = 0.6f
+                        textSize = 11.5f
+                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    }
+
+                    val tapHint = TextView(this).apply {
+                        text = "Details ›"
+                        setTextColor(themeCoordinator.primaryColor)
+                        textSize = 11.5f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    }
+
+                    bottomRow.addView(dateText)
+                    bottomRow.addView(tapHint)
+                    examCard.addView(bottomRow)
+
+                    sectionContainer.addView(examCard)
+                }
+            }
+
+            content.addView(sectionContainer)
+        }
+    }
+
+    private fun showExamDetailsModal(exam: ExamCountdown) {
+        val activity = host
+        val themeCoordinator = activity.themeCoordinator
+        val dialog = Dialog(activity)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val dp = { v: Int -> (v * activity.resources.displayMetrics.density).toInt() }
+
+        val root = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            background = themeCoordinator.createDialogBackground(28f)
+            setPadding(dp(22), dp(20), dp(22), dp(20))
+        }
+
+        val allSubjects = SubjectTagManager.getAllSubjects(activity)
+        val linkedSubject = allSubjects.find { it.id == exam.subjectId }
+        val examColor = if (exam.colorHex != null) {
+            try { Color.parseColor(exam.colorHex) } catch (_: Exception) { themeCoordinator.primaryColor }
+        } else if (linkedSubject != null) {
+            try { Color.parseColor(linkedSubject.colorHex) } catch (_: Exception) { themeCoordinator.primaryColor }
+        } else {
+            themeCoordinator.primaryColor
+        }
+
+        val breakdown = ExamCountdownManager.getCountdownBreakdown(exam.targetTimestampMs)
+
+        // Title Bar
+        val titleBar = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, 0, 0, dp(14))
+        }
+
+        val titleView = TextView(activity).apply {
+            text = exam.title
+            setTextColor(examColor)
+            textSize = 17f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val closeBtn = TextView(activity).apply {
+            text = "✕"
+            textSize = 16f
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.6f
+            setPadding(dp(8), dp(4), dp(4), dp(4))
+            setOnClickListener { dialog.dismiss() }
+        }
+
+        titleBar.addView(titleView)
+        titleBar.addView(closeBtn)
+        root.addView(titleBar)
+
+        val dateDisplay = try {
+            val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(exam.targetDateStr)
+            SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault()).format(parsed ?: Date())
+        } catch (_: Exception) {
+            exam.targetDateStr
+        }
+
+        val dateCard = TextView(activity).apply {
+            text = "Target Date: $dateDisplay"
+            setTextColor(themeCoordinator.textColor)
+            textSize = 12.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = themeCoordinator.createGlassChip(host.tintedColor(themeCoordinator.textColor, 25), 12f)
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 0, dp(14))
+            }
+        }
+        root.addView(dateCard)
+
+        // Detailed Countdown Cards Row
+        if (!breakdown.isPast && !breakdown.isToday) {
+            val gridContainer = LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(0, 0, 0, dp(14))
+                }
+            }
+
+            fun createMetricPill(value: String, label: String): View {
+                return LinearLayout(activity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER
+                    background = themeCoordinator.createGlassChip(host.tintedColor(examColor, 35), 14f)
+                    setPadding(dp(6), dp(10), dp(6), dp(10))
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                        setMargins(dp(3), 0, dp(3), 0)
+                    }
+
+                    addView(TextView(activity).apply {
+                        text = value
+                        setTextColor(Color.WHITE)
+                        textSize = 17f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        gravity = Gravity.CENTER
+                    })
+
+                    addView(TextView(activity).apply {
+                        text = label
+                        setTextColor(host.tintedColor(themeCoordinator.textColor, 180))
+                        textSize = 10f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        gravity = Gravity.CENTER
+                        setPadding(0, dp(2), 0, 0)
+                    })
+                }
+            }
+
+            if (breakdown.monthsPart > 0) {
+                gridContainer.addView(createMetricPill(breakdown.monthsPart.toString(), "MONTHS"))
+            }
+            gridContainer.addView(createMetricPill(breakdown.daysPart.toString(), "DAYS"))
+            gridContainer.addView(createMetricPill(breakdown.hoursPart.toString(), "HOURS"))
+            gridContainer.addView(createMetricPill(breakdown.minsPart.toString(), "MINS"))
+            root.addView(gridContainer)
+        } else if (breakdown.isToday) {
+            val todayBanner = TextView(activity).apply {
+                text = "Exam is today! Good luck."
+                setTextColor(Color.parseColor("#10B981"))
+                textSize = 14f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setPadding(0, 0, 0, dp(14))
+            }
+            root.addView(todayBanner)
+        } else {
+            val passedBanner = TextView(activity).apply {
+                text = "Exam date passed ${breakdown.daysAgo} days ago"
+                setTextColor(Color.parseColor("#94A3B8"))
+                textSize = 13.5f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setPadding(0, 0, 0, dp(14))
+            }
+            root.addView(passedBanner)
+        }
+
+        if (!exam.notes.isNullOrBlank()) {
+            val notesCard = LinearLayout(activity).apply {
+                orientation = LinearLayout.VERTICAL
+                background = themeCoordinator.createGlassChip(host.tintedColor(themeCoordinator.textColor, 18), 12f)
+                setPadding(dp(12), dp(10), dp(12), dp(10))
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(0, 0, 0, dp(14))
+                }
+            }
+            notesCard.addView(TextView(activity).apply {
+                text = "Notes / Syllabus:"
+                setTextColor(themeCoordinator.primaryColor)
+                textSize = 11.5f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            })
+            notesCard.addView(TextView(activity).apply {
+                text = exam.notes
+                setTextColor(themeCoordinator.textColor)
+                textSize = 12.5f
+                setPadding(0, dp(4), 0, 0)
+            })
+            root.addView(notesCard)
+        }
+
+        // Action Buttons Row (Edit / Delete)
+        val actionRow = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+
+        val editBtn = Button(activity).apply {
+            text = "Edit / Rename"
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = themeCoordinator.createGlassChip(host.tintedColor(themeCoordinator.primaryColor, 50), 12f)
+            layoutParams = LinearLayout.LayoutParams(0, dp(42), 1f).apply {
+                setMargins(0, 0, dp(6), 0)
+            }
+            setOnClickListener {
+                dialog.dismiss()
+                showAddEditExamModal(exam)
+            }
+        }
+
+        val deleteBtn = Button(activity).apply {
+            text = "Delete"
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = GradientDrawable().apply {
+                cornerRadius = dp(12).toFloat()
+                setColor(Color.parseColor("#EF4444"))
+            }
+            layoutParams = LinearLayout.LayoutParams(0, dp(42), 1f).apply {
+                setMargins(dp(6), 0, 0, 0)
+            }
+            setOnClickListener {
+                DeveloperToolsHelper.showThemedConfirmDialog(
+                    activity = activity,
+                    themeCoordinator = themeCoordinator,
+                    title = "Delete Exam Countdown?",
+                    message = "Are you sure you want to delete '${exam.title}'?",
+                    confirmText = "DELETE EXAM",
+                    isDestructive = true
+                ) {
+                    ExamCountdownManager.deleteExam(activity, exam.id)
+                    dialog.dismiss()
+                    activity.tabPageCache.remove(activity.statsTabKey(AppStatsTab.TIMELINE))
+                    activity.refreshStatsPanel()
+                    activity.navigateToPanel(AppPanel.STATS)
+                    Toast.makeText(activity, "Exam countdown removed", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        actionRow.addView(editBtn)
+        actionRow.addView(deleteBtn)
+        root.addView(actionRow)
+
+        dialog.setContentView(root)
+        dialog.window?.apply {
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+            setGravity(Gravity.CENTER)
+            val width = (activity.resources.displayMetrics.widthPixels * 0.90f).toInt()
+            setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT)
+        }
+        dialog.show()
+    }
+
+    private fun showAddEditExamModal(existing: ExamCountdown?) {
+        val activity = host
+        val themeCoordinator = activity.themeCoordinator
+        val dialog = Dialog(activity)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val dp = { v: Int -> (v * activity.resources.displayMetrics.density).toInt() }
+
+        val root = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            background = themeCoordinator.createDialogBackground(28f)
+            setPadding(dp(22), dp(20), dp(22), dp(20))
+        }
+
+        val title = TextView(activity).apply {
+            text = if (existing != null) "Edit Exam" else "Add Exam Countdown"
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 16.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(0, 0, 0, dp(14))
+        }
+        root.addView(title)
+
+        // Exam Title Input
+        val titleInput = EditText(activity).apply {
+            hint = "Exam Name (e.g. Mathematics Final)"
+            setText(existing?.title ?: "")
+            setTextColor(themeCoordinator.textColor)
+            setHintTextColor(host.tintedColor(themeCoordinator.textColor, 100))
+            background = themeCoordinator.createGlassChip(host.tintedColor(themeCoordinator.textColor, 30), 12f)
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            textSize = 13.5f
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 0, dp(10))
+            }
+        }
+        root.addView(titleInput)
+
+        // Target Date Picker
+        val cal = Calendar.getInstance()
+        if (existing != null) {
+            cal.timeInMillis = existing.targetTimestampMs
+        } else {
+            cal.add(Calendar.DAY_OF_YEAR, 7) // default 1 week ahead
+        }
+
+        val dateBtn = TextView(activity).apply {
+            val sdf = SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault())
+            text = "Exam Date: ${sdf.format(cal.time)}"
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = themeCoordinator.createGlassChip(host.tintedColor(themeCoordinator.primaryColor, 50), 12f)
+            setPadding(dp(14), dp(11), dp(14), dp(11))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 0, dp(10))
+            }
+        }
+
+        dateBtn.setOnClickListener {
+            DatePickerDialog(
+                activity,
+                R.style.AmoledPickerDialogTheme,
+                { _, year, month, dayOfMonth ->
+                    cal.set(Calendar.YEAR, year)
+                    cal.set(Calendar.MONTH, month)
+                    cal.set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                    cal.set(Calendar.HOUR_OF_DAY, 9)
+                    cal.set(Calendar.MINUTE, 0)
+                    cal.set(Calendar.SECOND, 0)
+                    val sdf = SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault())
+                    dateBtn.text = "Exam Date: ${sdf.format(cal.time)}"
+                },
+                cal.get(Calendar.YEAR),
+                cal.get(Calendar.MONTH),
+                cal.get(Calendar.DAY_OF_MONTH)
+            ).show()
+        }
+        root.addView(dateBtn)
+
+        // Subject Link Picker
+        val allSubjects = SubjectTagManager.getAllSubjects(activity)
+        var selectedSubject: SubjectTag? = allSubjects.find { it.id == existing?.subjectId }
+
+        val subjectBtn = TextView(activity).apply {
+            text = "Subject: ${selectedSubject?.name ?: "General / No Subject"}"
+            setTextColor(themeCoordinator.textColor)
+            textSize = 13f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = themeCoordinator.createGlassChip(host.tintedColor(themeCoordinator.textColor, 30), 12f)
+            setPadding(dp(14), dp(11), dp(14), dp(11))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 0, dp(10))
+            }
+            setOnClickListener {
+                DeveloperToolsHelper.showThemedSubjectPickerModal(
+                    activity = activity,
+                    themeCoordinator = themeCoordinator,
+                    title = "Link to Subject Tag",
+                    includeGeneral = true,
+                    includeCreateOption = false,
+                    onSelected = { sub ->
+                        selectedSubject = sub
+                        text = "Subject: ${sub?.name ?: "General / No Subject"}"
+                    }
+                )
+            }
+        }
+        root.addView(subjectBtn)
+
+        // Notes Input
+        val notesInput = EditText(activity).apply {
+            hint = "Notes / Syllabus (optional)"
+            setText(existing?.notes ?: "")
+            setTextColor(themeCoordinator.textColor)
+            setHintTextColor(host.tintedColor(themeCoordinator.textColor, 100))
+            background = themeCoordinator.createGlassChip(host.tintedColor(themeCoordinator.textColor, 30), 12f)
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            textSize = 12.5f
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 0, dp(16))
+            }
+        }
+        root.addView(notesInput)
+
+        // Save Button
+        val saveBtn = Button(activity).apply {
+            text = if (existing != null) "Save Changes" else "Start Countdown"
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = GradientDrawable().apply {
+                cornerRadius = dp(14).toFloat()
+                setColor(themeCoordinator.primaryColor)
+            }
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(48))
+            setOnClickListener {
+                val enteredTitle = titleInput.text.toString().trim()
+                if (enteredTitle.isEmpty()) {
+                    Toast.makeText(activity, "Please enter an exam title", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+
+                val targetMs = cal.timeInMillis
+                val notesText = notesInput.text.toString().trim()
+                val colorHex = selectedSubject?.colorHex
+
+                if (existing != null) {
+                    val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                    val updated = existing.copy(
+                        title = enteredTitle,
+                        targetDateStr = sdf.format(Date(targetMs)),
+                        targetTimestampMs = targetMs,
+                        subjectId = selectedSubject?.id,
+                        colorHex = colorHex,
+                        notes = notesText.ifEmpty { null }
+                    )
+                    ExamCountdownManager.updateExam(activity, updated)
+                    Toast.makeText(activity, "Exam countdown updated", Toast.LENGTH_SHORT).show()
+                } else {
+                    ExamCountdownManager.addExam(
+                        context = activity,
+                        title = enteredTitle,
+                        targetTimestampMs = targetMs,
+                        subjectId = selectedSubject?.id,
+                        colorHex = colorHex,
+                        notes = notesText
+                    )
+                    Toast.makeText(activity, "Exam countdown created", Toast.LENGTH_SHORT).show()
+                }
+
+                dialog.dismiss()
+                activity.tabPageCache.remove(activity.statsTabKey(AppStatsTab.TIMELINE))
+                activity.refreshStatsPanel()
+                activity.navigateToPanel(AppPanel.STATS)
+            }
+        }
+        root.addView(saveBtn)
+
+        dialog.setContentView(root)
+        dialog.window?.apply {
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+            setGravity(Gravity.CENTER)
+            val width = (activity.resources.displayMetrics.widthPixels * 0.90f).toInt()
+            setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT)
+        }
+        dialog.show()
+    }
 }
+

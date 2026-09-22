@@ -236,19 +236,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     internal fun showSignOutConfirmDialog(onConfirmed: (() -> Unit)? = null) {
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Sign Out?")
-            .setMessage("Your local study records will remain on this device, but cloud sync will pause until you sign in again.")
-            .setPositiveButton("Sign Out") { _, _ ->
-                AuthManager.logout(this)
-                onConfirmed?.invoke() ?: run {
-                    Toast.makeText(this, "Signed out successfully", Toast.LENGTH_SHORT).show()
-                    navigateToPanel(AppPanel.SETTINGS)
-                }
+        DeveloperToolsHelper.showThemedConfirmDialog(
+            activity = this,
+            themeCoordinator = themeCoordinator,
+            title = "Sign Out?",
+            message = "Your local study records will remain on this device, but cloud sync will pause until you sign in again.",
+            confirmText = "Sign Out",
+            isDestructive = true
+        ) {
+            AuthManager.logout(this)
+            onConfirmed?.invoke() ?: run {
+                Toast.makeText(this, "Signed out successfully", Toast.LENGTH_SHORT).show()
+                navigateToPanel(AppPanel.SETTINGS)
             }
-            .setNegativeButton("Cancel", null)
-            .create()
-            .show()
+        }
     }
 
     internal var statsSnapshotCache: StatsSnapshot? = null
@@ -1879,9 +1880,14 @@ class MainActivity : AppCompatActivity() {
             AppPanel.STATS -> buildStatsPanel()
             AppPanel.SETTINGS -> buildSettingsPanel()
             AppPanel.HEATMAP -> buildHeatmapFullscreenPanel()
+            AppPanel.LEADERBOARD -> buildLeaderboardPanel()
         }
         prewarmTabPages()
         updateStatusBarIcons()
+    }
+
+    private fun buildLeaderboardPanel(target: android.view.ViewGroup = panelContainer) {
+        LeaderboardPanelBuilder(this).build(target)
     }
 
     internal fun navigateToPanel(targetPanel: AppPanel) {
@@ -2952,11 +2958,10 @@ class MainActivity : AppCompatActivity() {
                 // Group unified sessions by subject (aggregating duration + resolved SubjectTag)
                 val subjectMap = LinkedHashMap<String, Pair<SubjectTag, Long>>()
                 for (s in allDaySessions) {
-                    if (s.subjectId != null || (!s.subjectName.isNullOrBlank() && s.subjectName != "Focus")) {
-                        val subj = SubjectTagManager.resolveSubject(this@MainActivity, s.subjectId, s.subjectName, s.subjectColor)
-                        val currentSecs = subjectMap[subj.id]?.second ?: 0L
-                        subjectMap[subj.id] = subj to (currentSecs + s.secs)
-                    }
+                    val subId = s.subjectId ?: "general"
+                    val subj = SubjectTagManager.resolveSubject(this@MainActivity, subId, s.subjectName, s.subjectColor)
+                    val currentSecs = subjectMap[subj.id]?.second ?: 0L
+                    subjectMap[subj.id] = subj to (currentSecs + s.secs)
                 }
 
                 // If no unified timeline entries exist yet for today, fallback to SubjectTagManager durations for today specifically
@@ -5131,25 +5136,74 @@ class MainActivity : AppCompatActivity() {
             setPadding(dp(12), dp(8), dp(12), dp(8))
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             setOnClickListener {
+                val inputDialog = Dialog(this@MainActivity)
+                inputDialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+                val inputRoot = LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    background = themeCoordinator.createDialogBackground(24f)
+                    setPadding(dp(20), dp(18), dp(20), dp(18))
+                }
+                val titleView = TextView(this@MainActivity).apply {
+                    text = "Add Yesterday's Goal"
+                    setTextColor(themeCoordinator.primaryColor)
+                    textSize = 15f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    setPadding(0, 0, 0, dp(12))
+                }
                 val inputEdit = EditText(this@MainActivity).apply {
-                    hint = "Goal name"
+                    hint = "Goal name (e.g. Math homework)"
                     setTextColor(themeCoordinator.textColor)
                     setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
                     background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 10f)
                     setPadding(dp(12), dp(10), dp(12), dp(10))
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        setMargins(0, 0, 0, dp(14))
+                    }
                 }
-                android.app.AlertDialog.Builder(this@MainActivity)
-                    .setTitle("Add Yesterday's Goal")
-                    .setView(inputEdit)
-                    .setPositiveButton("Add") { _, _ ->
+                val btnRow = LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.END
+                }
+                val cancelBtn = Button(this@MainActivity).apply {
+                    text = "Cancel"
+                    setTextColor(tintedColor(themeCoordinator.textColor, 180))
+                    textSize = 12f
+                    background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 25), 10f)
+                    setOnClickListener { inputDialog.dismiss() }
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(38)).apply {
+                        setMargins(0, 0, dp(8), 0)
+                    }
+                }
+                val addBtn = Button(this@MainActivity).apply {
+                    text = "Add Goal"
+                    setTextColor(Color.WHITE)
+                    textSize = 12f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    background = GradientDrawable().apply {
+                        cornerRadius = dp(10).toFloat()
+                        setColor(themeCoordinator.primaryColor)
+                    }
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(38))
+                    setOnClickListener {
                         val t = inputEdit.text.toString().trim()
                         if (t.isNotEmpty()) {
                             itemsList.add(YesterdayGoalItem("custom_${System.currentTimeMillis()}", t, 30, true, true, null))
                             renderGoals()
                         }
+                        inputDialog.dismiss()
                     }
-                    .setNegativeButton("Cancel", null)
-                    .show()
+                }
+                btnRow.addView(cancelBtn)
+                btnRow.addView(addBtn)
+                inputRoot.addView(titleView)
+                inputRoot.addView(inputEdit)
+                inputRoot.addView(btnRow)
+                inputDialog.setContentView(inputRoot)
+                inputDialog.window?.apply {
+                    setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+                    setLayout((resources.displayMetrics.widthPixels * 0.88f).toInt(), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+                }
+                inputDialog.show()
             }
         }
         addRow.addView(addHabitBtn)

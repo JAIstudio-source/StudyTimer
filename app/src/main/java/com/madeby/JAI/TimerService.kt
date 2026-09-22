@@ -11,6 +11,9 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -43,6 +46,7 @@ class TimerService : Service() {
 
     private var lecturePromptTimestamp: Long = 0L
     private var lectureModeEnabled: Boolean = false
+    private var lastLeaderboardSyncStudySecs: Long = 0L
 
     companion object {
         const val ACTION_TOGGLE = "com.madeby.JAI.ACTION_TOGGLE"
@@ -297,8 +301,16 @@ class TimerService : Service() {
             } else {
                 TimelineLogger.record(this, currentTimerState)
             }
+            CoroutineScope(Dispatchers.IO).launch {
+                val sName = sub?.name ?: ""
+                val sColor = sub?.colorHex ?: "#3b82f6"
+                LeaderboardManager.updateStudyPresence(this@TimerService, true, sName, sColor)
+            }
         } else {
             TimelineLogger.record(this, currentTimerState)
+            CoroutineScope(Dispatchers.IO).launch {
+                LeaderboardManager.updateStudyPresence(this@TimerService, false)
+            }
         }
         saveState()
         updateForegroundNotification()
@@ -313,6 +325,18 @@ class TimerService : Service() {
         lastTimestamp = System.currentTimeMillis() / 1000
         AppAnalytics.trackSessionPause(this)
         TimelineLogger.record(this, TimerState.IDLE)
+        if (accumulatedStudy > lastLeaderboardSyncStudySecs) {
+            val chunk = (accumulatedStudy - lastLeaderboardSyncStudySecs).toInt()
+            lastLeaderboardSyncStudySecs = accumulatedStudy
+            val sub = SubjectTagManager.getSelectedSubject(this)
+            CoroutineScope(Dispatchers.IO).launch {
+                LeaderboardManager.syncStudyProgress(this@TimerService, chunk, isStudying = false, sub.name, sub.colorHex)
+            }
+        } else {
+            CoroutineScope(Dispatchers.IO).launch {
+                LeaderboardManager.updateStudyPresence(this@TimerService, false)
+            }
+        }
         saveState()
         updateForegroundNotification()
         StudyWidgetProvider.refresh(this)
@@ -325,6 +349,17 @@ class TimerService : Service() {
         val savedBreak = sharedPrefs.getLong("${todayStr}_break_total", 0L)
 
         AppAnalytics.trackSessionEnd(this, timerMode, accumulatedStudy, completed = false)
+
+        val remainingSecs = if (accumulatedStudy > lastLeaderboardSyncStudySecs) (accumulatedStudy - lastLeaderboardSyncStudySecs).toInt() else 0
+        lastLeaderboardSyncStudySecs = 0L
+        val currentSub = SubjectTagManager.getSelectedSubject(this)
+        CoroutineScope(Dispatchers.IO).launch {
+            if (remainingSecs > 0) {
+                LeaderboardManager.syncStudyProgress(this@TimerService, remainingSecs, isStudying = false, currentSub.name, currentSub.colorHex)
+            } else {
+                LeaderboardManager.updateStudyPresence(this@TimerService, false)
+            }
+        }
 
         sharedPrefs.edit().apply {
             putLong("${todayStr}_focus_total", savedFocus + accumulatedStudy)
@@ -556,6 +591,9 @@ class TimerService : Service() {
         val lid = sp.getString("active_lecture_subject_id", null)
         val sub = if (lid != null) SubjectTagManager.resolveSubject(this, lid) else SubjectTagManager.getSelectedSubject(this)
         TimelineLogger.record(this, TimerState.STUDYING, subId = sub.id, subName = sub.name, subColor = sub.colorHex)
+        CoroutineScope(Dispatchers.IO).launch {
+            LeaderboardManager.updateStudyPresence(this@TimerService, true, sub.name, sub.colorHex)
+        }
         saveState()
         updateForegroundNotification()
         postCountdownComplete()
@@ -567,6 +605,9 @@ class TimerService : Service() {
     private fun handleStartBreak(breakSecs: Long = 300L) {
         val now = System.currentTimeMillis() / 1000
         currentTimerState = TimerState.BREAK
+        CoroutineScope(Dispatchers.IO).launch {
+            LeaderboardManager.updateStudyPresence(this@TimerService, false)
+        }
         val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
         if (focusRemainingSecs <= 0L) {
             focusRemainingSecs = prefs.getLong("focus_remaining_secs", 0L)
@@ -620,6 +661,20 @@ class TimerService : Service() {
                                     SubjectTagManager.getSelectedSubject(this@TimerService).id
                                 }
                                 SubjectTagManager.recordSubjectStudyTime(this@TimerService, activeSubjId, gap)
+                            }
+                            if (accumulatedStudy - lastLeaderboardSyncStudySecs >= 30L) {
+                                val chunk = (accumulatedStudy - lastLeaderboardSyncStudySecs).toInt()
+                                lastLeaderboardSyncStudySecs = accumulatedStudy
+                                val sub = if (timerMode == "LECTURE") {
+                                    val sp = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+                                    val lid = sp.getString("active_lecture_subject_id", null)
+                                    if (lid != null) SubjectTagManager.resolveSubject(this@TimerService, lid) else SubjectTagManager.getSelectedSubject(this@TimerService)
+                                } else {
+                                    SubjectTagManager.getSelectedSubject(this@TimerService)
+                                }
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    LeaderboardManager.syncStudyProgress(this@TimerService, chunk, isStudying = true, sub.name, sub.colorHex)
+                                }
                             }
                             if (timerMode == "COUNTDOWN" || (timerMode == "LECTURE" && lectureModeEnabled)) {
                                 focusRemainingSecs -= gap

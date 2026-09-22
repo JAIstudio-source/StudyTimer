@@ -191,7 +191,8 @@ object TimelineLogger {
         dateStr: String,
         deductSecs: Long,
         isBreak: Boolean,
-        adjustSubjects: Boolean = true
+        adjustSubjects: Boolean = true,
+        targetSubId: String? = null
     ) {
         if (deductSecs <= 0L) return
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -210,7 +211,18 @@ object TimelineLogger {
             val allEntries = load(context).toMutableList()
             val parsedAll = parseDayBlocks(allEntries)
             val allBlocks = if (isBreak) parsedAll.breaks else parsedAll.sessions
-            val dayBlocks = allBlocks.filter { it.startMs in dayStartMs..dayEndMs }
+            
+            // Filter by target subject if specified (treating null subjectId and "general" interchangeably for General Focus)
+            val dayBlocks = allBlocks.filter { b ->
+                val inDay = b.startMs in dayStartMs..dayEndMs
+                if (!inDay) return@filter false
+                if (isBreak || targetSubId == null) return@filter true
+                if (targetSubId == "general") {
+                    b.subjectId == null || b.subjectId == "general"
+                } else {
+                    b.subjectId == targetSubId
+                }
+            }
 
             if (dayBlocks.isEmpty()) {
                 val prefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
@@ -219,7 +231,10 @@ object TimelineLogger {
                 val remaining = (currentStored - deductSecs).coerceAtLeast(0L)
                 if (remaining > 0L) {
                     val state = if (isBreak) "MANUAL_BREAK" else "MANUAL_FOCUS"
-                    appendBlockForDay(context, dateStr, remaining, state)
+                    appendBlockForDay(context, dateStr, remaining, state, subId = targetSubId)
+                }
+                if (!isBreak && adjustSubjects && targetSubId != null) {
+                    SubjectTagManager.adjustSubjectStudyTime(context, targetSubId, -deductSecs, dateStr)
                 }
                 return
             }
@@ -230,6 +245,7 @@ object TimelineLogger {
             for (block in dayBlocks.reversed()) {
                 if (remainingDeductSecs <= 0L) break
                 val blockSecs = block.secs
+                val effectiveSubId = block.subjectId ?: "general"
                 if (blockSecs <= remainingDeductSecs) {
                     val list = modifiedList.toMutableList()
                     list.removeAll { it.timestamp == block.startMs }
@@ -238,8 +254,8 @@ object TimelineLogger {
                         list.remove(atEnd)
                     }
                     modifiedList = list
-                    if (!isBreak && adjustSubjects && block.subjectId != null) {
-                        SubjectTagManager.adjustSubjectStudyTime(context, block.subjectId, -blockSecs, dateStr)
+                    if (!isBreak && adjustSubjects) {
+                        SubjectTagManager.adjustSubjectStudyTime(context, effectiveSubId, -blockSecs, dateStr)
                     }
                     remainingDeductSecs -= blockSecs
                 } else {
@@ -259,13 +275,58 @@ object TimelineLogger {
                     var updated = insertEntrySorted(list, TimelineEntry(block.startMs, state, subId = subId, subName = subName, subColor = subColor))
                     updated = insertEntrySorted(updated, TimelineEntry(newEndMs, "IDLE"))
                     modifiedList = updated
-                    if (!isBreak && adjustSubjects && subId != null) {
-                        SubjectTagManager.adjustSubjectStudyTime(context, subId, -remainingDeductSecs, dateStr)
+                    if (!isBreak && adjustSubjects) {
+                        SubjectTagManager.adjustSubjectStudyTime(context, effectiveSubId, -remainingDeductSecs, dateStr)
                     }
                     remainingDeductSecs = 0L
                 }
             }
             persist(context, modifiedList)
+        }
+    }
+
+    /**
+     * Reconciles SubjectTagManager daily and global durations strictly from timeline blocks for a given date
+     * to eliminate any drift or discrepancy.
+     */
+    fun reconcileSubjectDurationsFromTimeline(context: Context, dateStr: String) {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val parsed = runCatching { sdf.parse(dateStr) }.getOrNull() ?: Date()
+        val startCal = java.util.Calendar.getInstance().apply {
+            time = parsed
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        val dayStartMs = startCal.timeInMillis
+        val dayEndMs = dayStartMs + 24L * 3600_000L - 1000L
+
+        synchronized(this) {
+            val allEntries = load(context)
+            val parsedAll = parseDayBlocks(allEntries)
+            val daySessions = parsedAll.sessions.filter { it.startMs in dayStartMs..dayEndMs }
+            
+            val computedSubjectTotals = mutableMapOf<String, Long>()
+            for (s in daySessions) {
+                val subId = s.subjectId ?: "general"
+                computedSubjectTotals[subId] = (computedSubjectTotals[subId] ?: 0L) + s.secs
+            }
+            
+            // Set daily subject durations to match timeline truth
+            val subPrefs = context.getSharedPreferences("studytimer_subject_tags", Context.MODE_PRIVATE)
+            val dailyStr = subPrefs.getString("daily_subject_durations_json", "{}") ?: "{}"
+            try {
+                val dailyJson = org.json.JSONObject(dailyStr)
+                val dayObj = org.json.JSONObject()
+                for ((subId, secs) in computedSubjectTotals) {
+                    if (secs > 0L) {
+                        dayObj.put(subId, secs)
+                    }
+                }
+                dailyJson.put(dateStr, dayObj)
+                subPrefs.edit().putString("daily_subject_durations_json", dailyJson.toString()).apply()
+            } catch (_: Exception) {}
         }
     }
 

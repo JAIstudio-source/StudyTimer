@@ -175,3 +175,62 @@ CREATE POLICY "Users can manage own sync profile"
     ON public.user_sync_profiles FOR ALL
     USING (auth.uid()::text = user_id OR user_id = current_setting('request.jwt.claim.sub', true))
     WITH CHECK (auth.uid()::text = user_id OR user_id = current_setting('request.jwt.claim.sub', true));
+
+-- =========================================================================
+-- 5. RPC FUNCTION: Idempotent Batch Sync for Offline Delta Study Sessions
+-- =========================================================================
+CREATE OR REPLACE FUNCTION public.sync_offline_study_sessions(
+    p_user_id TEXT,
+    p_sessions JSONB
+)
+RETURNS JSONB AS $$
+DECLARE
+    v_item JSONB;
+    v_count INT := 0;
+BEGIN
+    IF p_user_id IS NULL OR p_sessions IS NULL OR jsonb_array_length(p_sessions) = 0 THEN
+        RETURN jsonb_build_object('success', false, 'processed', 0);
+    END IF;
+
+    FOR v_item IN SELECT * FROM jsonb_array_elements(p_sessions) LOOP
+        INSERT INTO public.user_study_sessions (
+            session_uuid,
+            user_id,
+            study_date,
+            start_time,
+            end_time,
+            duration_secs,
+            subject_id,
+            subject_name,
+            subject_color,
+            platform,
+            is_deleted,
+            updated_at
+        )
+        VALUES (
+            v_item->>'session_uuid',
+            p_user_id,
+            COALESCE(v_item->>'study_date', CURRENT_DATE::text),
+            COALESCE((v_item->>'start_time')::BIGINT, EXTRACT(EPOCH FROM NOW())::BIGINT * 1000),
+            COALESCE((v_item->>'end_time')::BIGINT, EXTRACT(EPOCH FROM NOW())::BIGINT * 1000),
+            LEAST(GREATEST(COALESCE((v_item->>'duration_secs')::INT, 0), 0), 50400),
+            COALESCE(v_item->>'subject_id', 'general'),
+            COALESCE(v_item->>'subject_name', 'General'),
+            COALESCE(v_item->>'subject_color', '#3b82f6'),
+            COALESCE(v_item->>'platform', 'android'),
+            COALESCE((v_item->>'is_deleted')::BOOLEAN, false),
+            COALESCE((v_item->>'updated_at')::BIGINT, EXTRACT(EPOCH FROM NOW())::BIGINT * 1000)
+        )
+        ON CONFLICT (session_uuid) DO UPDATE SET
+            is_deleted = EXCLUDED.is_deleted,
+            subject_name = EXCLUDED.subject_name,
+            subject_color = EXCLUDED.subject_color,
+            updated_at = EXCLUDED.updated_at
+        WHERE EXCLUDED.updated_at >= user_study_sessions.updated_at;
+
+        v_count := v_count + 1;
+    END LOOP;
+
+    RETURN jsonb_build_object('success', true, 'processed', v_count);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

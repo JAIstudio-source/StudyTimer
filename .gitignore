@@ -36,15 +36,12 @@ google-services.json
 # Android Source Subfolder (tracked in separate repo)
 /StudyTimer-android/
 
-# Node.js dependencies
-node_modules/
-
-# Private Admin Dashboard & Secrets (NEVER push to public GitHub)
-/admin/
+# Secrets and local config (NEVER push private secrets)
 *.env
-schema_analytics.sql
+*.env.local
+node_modules/
+.agents/
 mcp_config.json
-.agents/mcp_config.json
 skills-lock.json
 
 # Local backup & exports

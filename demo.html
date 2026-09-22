@@ -75,6 +75,39 @@
   }
   </script>
 
+  <!-- Instant OAuth Token Processor & Address Bar Cleaner (Strips tokens instantly in 0ms) -->
+  <script>
+    (function() {
+      try {
+        var hash = window.location.hash ? window.location.hash.substring(1) : '';
+        var search = window.location.search ? window.location.search.substring(1) : '';
+        if (hash.includes('access_token=') || hash.includes('refresh_token=') || search.includes('code=') || hash.includes('error=') || search.includes('error=')) {
+          var hashParams = new URLSearchParams(hash);
+          var searchParams = new URLSearchParams(search);
+          var authPayload = {
+            accessToken: hashParams.get('access_token') || searchParams.get('access_token'),
+            refreshToken: hashParams.get('refresh_token') || searchParams.get('refresh_token'),
+            expiresAt: hashParams.get('expires_at') || searchParams.get('expires_at'),
+            expiresIn: hashParams.get('expires_in') || searchParams.get('expires_in'),
+            code: searchParams.get('code') || hashParams.get('code'),
+            error: hashParams.get('error') || searchParams.get('error'),
+            errorDescription: hashParams.get('error_description') || searchParams.get('error_description')
+          };
+          window.__STUDYTIMER_PENDING_AUTH__ = authPayload;
+          try {
+            sessionStorage.setItem('studytimer_pending_auth', JSON.stringify(authPayload));
+          } catch (_) {}
+          // Immediately wipe the sensitive token/code from the address bar so nobody can view or copy it
+          if (window.history && window.history.replaceState) {
+            window.history.replaceState(null, '', window.location.pathname);
+          }
+        }
+      } catch (e) {
+        console.warn('OAuth sanitizer error:', e);
+      }
+    })();
+  </script>
+
   <!-- Anti-FOUC Theme Initializer -->
   <script>
     (function() {
@@ -1440,7 +1473,7 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- SCRIPT -->
-  <script src="demo.js?v=4.1.0"></script>
+  <script src="demo.js?v=4.2.0"></script>
   <!-- Service Worker Registration for 100% Offline Capability -->
   <script>
     if ('serviceWorker' in navigator) {

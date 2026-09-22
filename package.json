@@ -3,7 +3,6 @@
   "version": "2.9.6",
   "type": "module",
   "scripts": {
-    "build": "echo 'Build OK'",
     "test": "node test/agent-readiness.test.js",
     "generate:feature": "node scripts/generate_feature_graphic.mjs",
     "generate:showcase": "node scripts/generate_showcase.mjs",

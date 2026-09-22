@@ -131,9 +131,7 @@ function getCleanInitialState(user = null) {
 let appState = getCleanInitialState(null);
 
 // ============================================================================
-// 3. INITIALIZATION
-// ============================================================================
-document.addEventListener('DOMContentLoaded', async () => {
+async function initApp() {
   initTheme();
   loadLocalState();
   initDomElements();
@@ -151,7 +149,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderPlannerGoals();
 
   await initAuth();
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
 
 // Theme Management
 function initTheme() {
@@ -658,7 +662,9 @@ async function pullDataFromCloud(isUserTriggered = false) {
           const prefs = typeof data.prefs_data === 'string' ? JSON.parse(data.prefs_data) : data.prefs_data;
           
           // 1. Daily Goal & Timer Durations (Android & Web interop)
-          const goalMins = prefs.daily_goal_minutes || (prefs.daily_goal_secs ? Math.round(prefs.daily_goal_secs / 60) : null);
+          const todayKey = getLocalDateStr();
+          const todayGoalSecs = Number(prefs[`${todayKey}_goal_secs`]) || Number(prefs.daily_goal_secs) || 0;
+          const goalMins = prefs.daily_goal_minutes || (todayGoalSecs > 0 ? Math.round(todayGoalSecs / 60) : (prefs.daily_goal_secs ? Math.round(prefs.daily_goal_secs / 60) : null));
           if (goalMins) timerConfig.dailyGoalMinutes = Math.min(1440, Math.max(15, goalMins));
 
           appState.streakCount = Math.max(0, Number(prefs.current_streak || prefs.streak_count) || 0);
@@ -675,10 +681,12 @@ async function pullDataFromCloud(isUserTriggered = false) {
           if (typeof prefs.pomo_auto_switch_break === 'boolean') timerConfig.pomoAutoSwitchBreak = prefs.pomo_auto_switch_break;
           if (typeof prefs.pomo_auto_switch_focus === 'boolean') timerConfig.pomoAutoSwitchFocus = prefs.pomo_auto_switch_focus;
           if (prefs.custom_timer_minutes) timerConfig.customTimerMinutes = prefs.custom_timer_minutes;
+          if (prefs.focus_countdown_secs) {
+            const cdMins = Math.round(Number(prefs.focus_countdown_secs) / 60);
+            if (cdMins > 0) timerConfig.customTimerMinutes = cdMins;
+          }
 
           // 2. Extract all daily focus totals & subject durations from Android
-          const todayKey = getLocalDateStr();
-
           Object.keys(prefs).forEach(k => {
             const match = k.match(/^(\d{4}-\d{2}-\d{2})_focus_total$/);
             if (match) {
@@ -862,6 +870,28 @@ async function pullDataFromCloud(isUserTriggered = false) {
             } catch (e) {
               console.error('Failed to parse remote user_profile', e);
             }
+          } else {
+            const remoteName = prefs.auth_user_name || data.user_name;
+            if (remoteName) {
+              appState.userProfile.displayName = remoteName;
+            }
+          }
+
+          if ((!restoredSubDur || Object.keys(restoredSubDur).length === 0) && subjectPrefs?.subject_durations_json) {
+            try {
+              restoredSubDur = typeof subjectPrefs.subject_durations_json === 'string'
+                ? JSON.parse(subjectPrefs.subject_durations_json)
+                : subjectPrefs.subject_durations_json;
+              appState.subjectDurations = restoredSubDur;
+            } catch (_) {}
+          }
+          if ((!restoredDailySub || Object.keys(restoredDailySub).length === 0) && subjectPrefs?.daily_subject_durations_json) {
+            try {
+              restoredDailySub = typeof subjectPrefs.daily_subject_durations_json === 'string'
+                ? JSON.parse(subjectPrefs.daily_subject_durations_json)
+                : subjectPrefs.daily_subject_durations_json;
+              appState.dailySubjectDurations = restoredDailySub;
+            } catch (_) {}
           }
         } catch (e) {
           console.error('Failed to parse remote prefs_data', e);

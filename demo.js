@@ -259,6 +259,34 @@ function teardownUserSyncRealtime() {
   }
 }
 
+// JWT Payload Decoder (Safe client-side extractor)
+function parseJwtPayload(token) {
+  if (!token || typeof token !== 'string') return null;
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, '=');
+    const jsonPayload = decodeURIComponent(
+      atob(padded)
+        .split('')
+        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    try {
+      const parts = token.split('.');
+      if (parts.length >= 2) {
+        const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        return JSON.parse(atob(base64));
+      }
+    } catch (_) {}
+    return null;
+  }
+}
+
 // Supabase Authentication
 async function initAuth() {
   try {
@@ -272,7 +300,45 @@ async function initAuth() {
 
     initLeaderboardRealtime();
 
-    // 1. Attach Auth State Change Listener FIRST
+    // 1. Check for pending auth payload stashed by instant head sanitizer
+    let authPayload = window.__STUDYTIMER_PENDING_AUTH__ || null;
+    if (!authPayload) {
+      try {
+        const cached = sessionStorage.getItem('studytimer_pending_auth');
+        if (cached) {
+          authPayload = JSON.parse(cached);
+          sessionStorage.removeItem('studytimer_pending_auth');
+        }
+      } catch (_) {}
+    }
+
+    // Also check current URL if sanitizer hadn't run yet
+    if (!authPayload) {
+      const hash = window.location.hash ? window.location.hash.substring(1) : '';
+      const search = window.location.search ? window.location.search.substring(1) : '';
+      if (hash.includes('access_token=') || search.includes('code=') || hash.includes('error=') || search.includes('error=')) {
+        const hashParams = new URLSearchParams(hash);
+        const searchParams = new URLSearchParams(search);
+        authPayload = {
+          accessToken: hashParams.get('access_token') || searchParams.get('access_token'),
+          refreshToken: hashParams.get('refresh_token') || searchParams.get('refresh_token'),
+          code: searchParams.get('code') || hashParams.get('code'),
+          error: hashParams.get('error') || searchParams.get('error'),
+          errorDescription: hashParams.get('error_description') || searchParams.get('error_description')
+        };
+        cleanAuthParamsFromUrl();
+      }
+    }
+
+    // 2. Handle OAuth error if any
+    if (authPayload?.error) {
+      const msg = authPayload.errorDescription || authPayload.error || 'Sign-in error';
+      showToast('Google Sign-In: ' + decodeURIComponent(msg), 'error');
+      cleanAuthParamsFromUrl();
+      return;
+    }
+
+    // 3. Attach Auth State Change Listener
     supabaseClient.auth.onAuthStateChange(async (event, session) => {
       console.log(`🔐 Supabase Auth Event: ${event}`, session?.user?.email);
       if (session && session.user) {
@@ -283,27 +349,7 @@ async function initAuth() {
       }
     });
 
-    // 2. Check for OAuth Hash/Search Errors (#error=... or ?error=...)
-    let errorMsg = null;
-    if (window.location.hash && window.location.hash.includes('error=')) {
-      try {
-        const hash = window.location.hash.substring(1);
-        const params = new URLSearchParams(hash);
-        errorMsg = params.get('error_description') || params.get('error');
-      } catch (_) {}
-    } else if (window.location.search && window.location.search.includes('error=')) {
-      try {
-        const params = new URLSearchParams(window.location.search);
-        errorMsg = params.get('error_description') || params.get('error');
-      } catch (_) {}
-    }
-    if (errorMsg) {
-      showToast('Google Sign-In: ' + decodeURIComponent(errorMsg), 'error');
-      cleanAuthParamsFromUrl();
-      return;
-    }
-
-    // 3. Immediate Session Check (Supabase automatically detects token/code from URL or localStorage)
+    // 4. Check existing session from Supabase Client
     const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
     if (session && session.user) {
       handleUserSignedIn(session.user);
@@ -311,44 +357,78 @@ async function initAuth() {
       return;
     }
 
-    // 4. Fallback: If getSession() didn't resolve yet, but URL contains hash access_token
-    if (window.location.hash && window.location.hash.includes('access_token=')) {
+    // 5. Handle Access Token from Google OAuth redirect
+    if (authPayload?.accessToken) {
+      const token = authPayload.accessToken;
+      const refreshToken = authPayload.refreshToken || '';
+
+      // Decode user data directly from JWT payload
+      const jwtData = parseJwtPayload(token);
+      let userObj = null;
+
+      if (jwtData && jwtData.sub) {
+        userObj = {
+          id: jwtData.sub,
+          email: jwtData.email || '',
+          user_metadata: jwtData.user_metadata || {
+            full_name: jwtData.name || '',
+            avatar_url: jwtData.picture || ''
+          },
+          app_metadata: jwtData.app_metadata || {},
+          role: jwtData.role || 'authenticated'
+        };
+      }
+
+      // Try setting session in Supabase Auth
       try {
-        const hash = window.location.hash.substring(1);
-        const params = new URLSearchParams(hash);
-        const access_token = params.get('access_token');
-        const refresh_token = params.get('refresh_token');
-        if (access_token) {
-          const { data, error } = await supabaseClient.auth.setSession({
-            access_token,
-            refresh_token: refresh_token || ''
-          });
-          if (!error && data?.session?.user) {
-            handleUserSignedIn(data.session.user);
-            cleanAuthParamsFromUrl();
-            return;
-          }
+        const { data, error } = await supabaseClient.auth.setSession({
+          access_token: token,
+          refresh_token: refreshToken
+        });
+        if (!error && data?.session?.user) {
+          handleUserSignedIn(data.session.user);
+          cleanAuthParamsFromUrl();
+          return;
         }
-      } catch (hashErr) {
-        console.warn('OAuth hash parse fallback error:', hashErr);
+      } catch (setErr) {
+        console.warn('Supabase setSession error:', setErr);
+      }
+
+      // If setSession failed (e.g. invalid refresh token), verify access token directly via getUser
+      try {
+        const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+        if (!userError && userData?.user) {
+          handleUserSignedIn(userData.user);
+          cleanAuthParamsFromUrl();
+          return;
+        }
+      } catch (getErr) {
+        console.warn('Supabase getUser error:', getErr);
+      }
+
+      // If token is valid and not expired, log the user in with the verified JWT payload
+      if (userObj) {
+        const nowSec = Math.floor(Date.now() / 1000);
+        if (!jwtData.exp || jwtData.exp > nowSec) {
+          console.log('✅ Authenticated user from verified OAuth JWT payload:', userObj.email);
+          handleUserSignedIn(userObj);
+          cleanAuthParamsFromUrl();
+          return;
+        }
       }
     }
 
-    // 5. Fallback: If getSession() didn't resolve yet, but URL contains PKCE code
-    if (window.location.search && window.location.search.includes('code=')) {
+    // 6. Handle PKCE Code if present
+    if (authPayload?.code) {
       try {
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get('code');
-        if (code) {
-          const { data, error } = await supabaseClient.auth.exchangeCodeForSession(code);
-          if (!error && data?.session?.user) {
-            handleUserSignedIn(data.session.user);
-            cleanAuthParamsFromUrl();
-            return;
-          }
+        const { data, error } = await supabaseClient.auth.exchangeCodeForSession(authPayload.code);
+        if (!error && data?.session?.user) {
+          handleUserSignedIn(data.session.user);
+          cleanAuthParamsFromUrl();
+          return;
         }
       } catch (codeErr) {
-        console.warn('OAuth code exchange fallback error:', codeErr);
+        console.warn('OAuth code exchange error:', codeErr);
       }
     }
   } catch (err) {

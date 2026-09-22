@@ -2584,6 +2584,7 @@ class MainActivity : AppCompatActivity() {
 
         val timeRow = LinearLayout(this@MainActivity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM }
         timeRow.addView(TextView(this@MainActivity).apply {
+            tag = "overview_today_focus_time"
             text = getString(R.string.duration_h_m, todayH, todayM)
             setTextColor(themeCoordinator.textColor)
             textSize = 32f
@@ -2601,6 +2602,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val trendChip = TextView(this@MainActivity).apply {
+            tag = "overview_trend_chip"
             textSize = 11.5f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             setPadding(dp(7), dp(2), dp(7), dp(2))
@@ -2634,6 +2636,7 @@ class MainActivity : AppCompatActivity() {
         counterCol.addView(timeRow)
 
         val targetSubtext = TextView(this@MainActivity).apply {
+            tag = "overview_target_subtext"
             text = "Target: ${formatGoalLabel(heroGoalSecs)} · ${(heroGoalPctRaw).toInt()}% completed"
             setTextColor(themeCoordinator.textColor)
             alpha = 0.7f
@@ -2657,6 +2660,7 @@ class MainActivity : AppCompatActivity() {
             animate = !hasPlayedStatsEntranceAnimation
         ), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         goalRingWrap.addView(TextView(this@MainActivity).apply {
+            tag = "overview_ring_center_text"
             text = if (goalReached) "✓" else "${heroGoalPctRaw.toInt()}%"
             gravity = Gravity.CENTER
             setTextColor(goalRingColor)
@@ -2674,7 +2678,7 @@ class MainActivity : AppCompatActivity() {
             setPadding(0, dp(4), 0, 0)
         }
 
-        fun createPillBadge(emoji: String, textStr: String, isGreenAccent: Boolean = false): LinearLayout {
+        fun createPillBadge(emoji: String, textStr: String, isGreenAccent: Boolean = false, viewTag: String? = null): LinearLayout {
             return LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
@@ -2704,6 +2708,7 @@ class MainActivity : AppCompatActivity() {
                     })
                 }
                 addView(TextView(this@MainActivity).apply {
+                    if (viewTag != null) tag = viewTag
                     text = textStr
                     setTextColor(if (isGreenAccent) 0xFF43D36E.toInt() else themeCoordinator.textColor)
                     alpha = if (isGreenAccent) 1f else 0.9f
@@ -2719,8 +2724,8 @@ class MainActivity : AppCompatActivity() {
         val remainingSecs = (heroGoalSecs - todayFocus).coerceAtLeast(0L)
         val remainingLabel = if (goalReached) "Goal Reached!" else "${formatGoalLabel(remainingSecs)} left"
         val breakLabel = if (todayBH > 0) "${todayBH}h ${todayBM}m break" else "${todayBM}m break"
-        inlineBadgesRow.addView(createPillBadge("", remainingLabel, isGreenAccent = goalReached))
-        inlineBadgesRow.addView(createPillBadge("", breakLabel))
+        inlineBadgesRow.addView(createPillBadge("", remainingLabel, isGreenAccent = goalReached, viewTag = "overview_remaining_badge"))
+        inlineBadgesRow.addView(createPillBadge("", breakLabel, viewTag = "overview_break_badge"))
         inlineBadgesRow.addView(createPillBadge("", "${avgH}h ${avgM}m 7d avg"))
         heroCard.addView(inlineBadgesRow)
 
@@ -4185,6 +4190,7 @@ class MainActivity : AppCompatActivity() {
 
         val progressRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(12), 0, dp(6)) }
         progressRow.addView(TextView(this).apply {
+            tag = "planner_completed_text"
             text = "$completedCount of $totalCount completed"
             setTextColor(themeCoordinator.textColor)
             textSize = 16f
@@ -4192,6 +4198,7 @@ class MainActivity : AppCompatActivity() {
         })
         progressRow.addView(LinearLayout(this).apply { layoutParams = LinearLayout.LayoutParams(0, 0, 1f) })
         progressRow.addView(TextView(this).apply {
+            tag = "planner_pct_text"
             text = "$progressPct%"
             setTextColor(lineProgressColor)
             textSize = 17f
@@ -4200,6 +4207,7 @@ class MainActivity : AppCompatActivity() {
         summaryCard.addView(progressRow)
 
         val progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+            tag = "planner_progress_bar"
             max = 100
             progress = progressPct
             progressTintList = android.content.res.ColorStateList.valueOf(lineProgressColor)
@@ -4353,6 +4361,7 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 val checkBtn = TextView(this).apply {
+                    tag = "goal_check_${goal.id}"
                     text = if (isChecked) (if (info.isDeficit) "\u2715" else "\u2713") else ""
                     textSize = 14f
                     gravity = Gravity.CENTER
@@ -4411,6 +4420,7 @@ class MainActivity : AppCompatActivity() {
 
                 if (targetMins > 0) {
                     val chipView = TextView(this).apply {
+                        tag = "goal_chip_${goal.id}"
                         text = info.progressText
                         setTextColor(info.chipColor)
                         textSize = 13f
@@ -9727,10 +9737,139 @@ class MainActivity : AppCompatActivity() {
                 if (currentTimerState == TimerState.STUDYING && accumulatedStudy > 0L) {
                     checkCelebration()
                 }
+            } else if (currentPanel == AppPanel.STATS) {
+                updateStatsLiveViews()
             }
             handler.postDelayed(updateRunnable, 500)
         }
         handler.post(updateRunnable)
+    }
+
+    internal fun updateStatsLiveViews() {
+        if (currentPanel != AppPanel.STATS) return
+        val statsContainer = panelContainer
+        val snap = computeStatsSnapshot()
+        val todayStr = cachedTodayStr.ifEmpty { dateKeyFmt.format(Date()) }
+
+        when (currentStatsTab) {
+            AppStatsTab.PLANNER -> {
+                val dailySubjectDurations = SubjectTagManager.getSubjectDurationsForDate(this, todayStr)
+                val goalsJson = appPrefs.getString("session_goals_json", "[]") ?: "[]"
+                val goalsList = loadSessionGoalsFromJson(goalsJson)
+                val progressMap = PlannerHistoryManager.calculateGoalProgress(goalsList, snap.todayFocus, dailySubjectDurations)
+
+                val trulyAchievedIds = mutableSetOf<String>()
+                for (goal in goalsList) {
+                    val prog = progressMap[goal.id]
+                    val targetMins = goal.targetMinutes
+                    val actualMins = prog?.actualMinutes ?: 0
+                    if (targetMins > 0) {
+                        if (actualMins >= targetMins) trulyAchievedIds.add(goal.id)
+                    } else if (goal.completed) {
+                        trulyAchievedIds.add(goal.id)
+                    }
+                }
+                val completedCount = trulyAchievedIds.size
+                val totalCount = goalsList.size
+                val progressPct = if (totalCount > 0) (completedCount * 100) / totalCount else 0
+
+                val (plannerPrimary, _) = resolvePlannerColors()
+                val isGoalReached = progressPct >= 100 && totalCount > 0
+                val lineProgressColor = if (isGoalReached) 0xFF43D36E.toInt() else plannerPrimary
+
+                (statsContainer.findViewWithTag<TextView>("planner_completed_text"))?.let {
+                    it.text = "$completedCount of $totalCount completed"
+                }
+                (statsContainer.findViewWithTag<TextView>("planner_pct_text"))?.let {
+                    it.text = "$progressPct%"
+                    it.setTextColor(lineProgressColor)
+                }
+                (statsContainer.findViewWithTag<ProgressBar>("planner_progress_bar"))?.let {
+                    it.progress = progressPct
+                    it.progressTintList = android.content.res.ColorStateList.valueOf(lineProgressColor)
+                }
+
+                val greenColor = 0xFF22C55E.toInt()
+                val redColor = 0xFFEF4444.toInt()
+
+                for (goal in goalsList) {
+                    val targetMins = goal.targetMinutes
+                    val prog = progressMap[goal.id]
+                    val actualMins = prog?.actualMinutes ?: 0
+
+                    if (targetMins > 0) {
+                        val isDone = actualMins >= targetMins
+                        val progressText = if (isDone) {
+                            "${actualMins}/${targetMins}m"
+                        } else if (goal.completed) {
+                            val deficit = targetMins - actualMins
+                            "${actualMins}/${targetMins}m (${deficit}m left)"
+                        } else {
+                            "${actualMins}/${targetMins}m"
+                        }
+                        val chipColor = if (isDone) greenColor else if (goal.completed) redColor else themeCoordinator.primaryColor
+
+                        (statsContainer.findViewWithTag<TextView>("goal_chip_${goal.id}"))?.let { chip ->
+                            chip.text = progressText
+                            chip.setTextColor(chipColor)
+                            chip.background = themeCoordinator.createGlassChip(tintedColor(chipColor, 100), 10f)
+                        }
+
+                        (statsContainer.findViewWithTag<TextView>("goal_check_${goal.id}"))?.let { checkBtn ->
+                            val isChecked = isDone || goal.completed
+                            val isDeficit = !isDone && goal.completed
+                            checkBtn.text = if (isChecked) (if (isDeficit) "\u2715" else "\u2713") else ""
+                            checkBtn.background = GradientDrawable().apply {
+                                shape = GradientDrawable.OVAL
+                                setColor(if (isChecked) (if (isDeficit) redColor else greenColor) else Color.TRANSPARENT)
+                                setStroke(dp(2), if (isChecked) (if (isDeficit) redColor else greenColor) else themeCoordinator.textColor)
+                            }
+                        }
+                    }
+                }
+            }
+            AppStatsTab.OVERVIEW -> {
+                val todayFocus = snap.todayFocus
+                val todayH = todayFocus / 3600
+                val todayM = (todayFocus % 3600) / 60
+                val todayBH = snap.todayBreak / 3600
+                val todayBM = (snap.todayBreak % 3600) / 60
+                val heroGoalSecs = snap.heroGoalSecs
+                val heroGoalPctRaw = if (heroGoalSecs > 0) todayFocus.toFloat() / heroGoalSecs.toFloat() * 100f else 0f
+                val goalReached = todayFocus >= heroGoalSecs && heroGoalSecs > 0
+
+                (statsContainer.findViewWithTag<TextView>("overview_today_focus_time"))?.let {
+                    it.text = getString(R.string.duration_h_m, todayH, todayM)
+                }
+                (statsContainer.findViewWithTag<TextView>("overview_target_subtext"))?.let {
+                    it.text = "Target: ${formatGoalLabel(heroGoalSecs)} · ${(heroGoalPctRaw).toInt()}% completed"
+                }
+                (statsContainer.findViewWithTag<TextView>("overview_ring_center_text"))?.let {
+                    it.text = if (goalReached) "✓" else "${heroGoalPctRaw.toInt()}%"
+                }
+                val remainingSecs = (heroGoalSecs - todayFocus).coerceAtLeast(0L)
+                val remainingLabel = if (goalReached) "Goal Reached!" else "${formatGoalLabel(remainingSecs)} left"
+                (statsContainer.findViewWithTag<TextView>("overview_remaining_badge"))?.let {
+                    it.text = remainingLabel
+                }
+                val breakLabel = if (todayBH > 0) "${todayBH}h ${todayBM}m break" else "${todayBM}m break"
+                (statsContainer.findViewWithTag<TextView>("overview_break_badge"))?.let {
+                    it.text = breakLabel
+                }
+            }
+            AppStatsTab.TIMELINE -> {
+                val exams = ExamCountdownManager.getExams(this)
+                for (exam in exams) {
+                    val breakdown = ExamCountdownManager.getCountdownBreakdown(exam.targetTimestampMs)
+                    (statsContainer.findViewWithTag<TextView>("exam_main_countdown_${exam.id}"))?.let {
+                        it.text = breakdown.mainHeadline
+                    }
+                    (statsContainer.findViewWithTag<TextView>("exam_sub_countdown_${exam.id}"))?.let {
+                        it.text = if (breakdown.readableSubtitle.isNotBlank()) breakdown.readableSubtitle else "Scheduled event"
+                    }
+                }
+            }
+        }
     }
 
     internal fun resolveLectureCountdownSecs(context: Context): Long {

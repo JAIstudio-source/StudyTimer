@@ -2482,15 +2482,7 @@ html, body {
 
 .planner-empty-state span {
   font-size: 0.78rem;
-}
-
-  font-weight: 600;
-  font-size: 0.86rem;
   color: var(--text-secondary);
-}
-
-.planner-empty-state span {
-  font-size: 0.76rem;
 }
 
 .form-select-styled {

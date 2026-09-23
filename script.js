@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initSmoothScroll();
   initDynamicVersion();
   initServiceWorkerSync();
+  handleAutoDownloadParam();
 });
 
 /**
@@ -218,4 +219,24 @@ function initServiceWorkerSync() {
       });
     });
   }
+}
+
+/**
+ * Auto-Download Trigger for App Update Redirections
+ * When URL contains ?download=true or ?download=apk, immediately triggers the direct APK download prompt.
+ */
+function handleAutoDownloadParam() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('download') === 'true' || params.get('download') === 'apk') {
+      setTimeout(() => {
+        const link = document.createElement('a');
+        link.href = '/StudyTimer-release.apk';
+        link.download = 'StudyTimer-release.apk';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }, 300);
+    }
+  } catch (_) {}
 }

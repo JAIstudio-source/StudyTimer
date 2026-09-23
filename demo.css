@@ -5377,25 +5377,365 @@ body.has-custom-bg .planner-card {
   cursor: pointer;
 }
 
-/* Responsive Tweaks */
-@media (max-width: 640px) {
-  .status-metrics-grid {
-    grid-template-columns: repeat(2, 1fr);
+/* ==========================================================================
+   APP SIDEBAR & WORKSPACE CANVAS ARCHITECTURE
+   ========================================================================== */
+
+.studio-app-layout {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+  background: var(--bg-page);
+}
+
+/* 1. App Sidebar */
+.app-sidebar {
+  width: 260px;
+  min-width: 260px;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  box-sizing: border-box;
+  padding: 16px 14px;
+  gap: 14px;
+  overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  transition: transform var(--transition-normal), background-color 0.3s ease;
+}
+
+.app-sidebar::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+body.has-custom-bg .app-sidebar {
+  background: rgba(18, 18, 24, 0.85) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="light"] body.has-custom-bg .app-sidebar {
+  background: rgba(255, 255, 255, 0.88) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Sidebar Brand Header */
+.sidebar-brand-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.sidebar-brand-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--text-primary);
+}
+
+.sidebar-brand-img {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  object-fit: contain;
+}
+
+.sidebar-brand-names {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.sidebar-brand-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.sidebar-brand-subtitle {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-blue);
+}
+
+/* Sidebar Navigation Menu */
+.sidebar-nav-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.sidebar-nav-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  padding: 8px 10px 4px;
+}
+
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+  width: 100%;
+}
+
+.sidebar-nav-item:hover {
+  color: var(--text-primary);
+  background: var(--bg-subtle);
+  border-color: var(--border-subtle);
+}
+
+.sidebar-nav-item.active {
+  color: var(--accent-blue);
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.25);
+  font-weight: 700;
+}
+
+.nav-item-svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
+}
+
+.sidebar-nav-item:hover .nav-item-svg {
+  transform: scale(1.1);
+}
+
+.nav-item-text {
+  flex: 1;
+  white-space: nowrap;
+}
+
+/* Sidebar Focus Audio Widget */
+.sidebar-audio-widget {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-audio-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sidebar-audio-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sidebar-audio-controls .audio-preset-select {
+  flex: 1;
+  max-width: 100%;
+  font-size: 0.72rem;
+  padding: 4px 6px;
+}
+
+.sidebar-audio-controls .audio-vol-slider {
+  width: 50px;
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.sidebar-tools-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+
+.sidebar-tool-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 4px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.sidebar-tool-btn:hover {
+  border-color: var(--accent-blue);
+  color: var(--text-primary);
+  background: var(--bg-card);
+}
+
+.sidebar-tool-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.sidebar-user-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 2. Main Workspace Canvas */
+.studio-main-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.studio-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px clamp(14px, 3vw, 28px);
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(9, 9, 11, 0.4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+[data-theme="light"] .studio-topbar {
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.mobile-menu-btn {
+  display: none;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-menu-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Dynamic Workspace Views */
+.workspace-view {
+  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.workspace-view.hidden {
+  display: none !important;
+}
+
+.focus-studio-center-wrap {
+  max-width: 540px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: clamp(14px, 3vh, 28px) 16px 40px;
+  box-sizing: border-box;
+}
+
+.view-content-grid {
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: clamp(16px, 3vw, 28px) 16px 40px;
+  box-sizing: border-box;
+}
+
+/* Mobile Responsive Sidebar Drawer */
+@media (max-width: 980px) {
+  .app-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    transform: translateX(-100%);
+    box-shadow: none;
+    z-index: 10000;
   }
-  .focus-audio-bar {
-    flex-wrap: wrap;
-    gap: 8px;
+
+  .app-sidebar.open {
+    transform: translateX(0);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
   }
-  .audio-preset-select {
-    max-width: 130px;
-    font-size: 0.72rem;
+
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
   }
-  .audio-vol-slider {
-    width: 45px;
+
+  .mobile-menu-btn {
+    display: flex;
   }
-  .bg-sliders-row {
-    grid-template-columns: 1fr;
+
+  .topbar-actions .nav-leaderboard-btn {
+    display: none;
   }
 }
+
 
 

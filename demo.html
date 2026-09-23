@@ -141,111 +141,6 @@
   <div class="studio-bg-layer" id="studioBgLayer" aria-hidden="true"></div>
   <div class="studio-bg-dimmer" id="studioBgDimmer" aria-hidden="true"></div>
 
-  <!-- 1. CLEAN TOP WEB APP HEADER -->
-  <header class="header-nav demo-header" id="navbar">
-    <div class="nav-container demo-nav-container">
-      
-      <!-- Brand Logo -->
-      <div class="header-left-group">
-        <a href="index.html" class="logo" title="Back to StudyTimer Home">
-          <img src="assets/logo.png" alt="StudyTimer Logo" class="nav-logo-img">
-          <span class="logo-text">StudyTimer <span class="web-badge">Web</span></span>
-        </a>
-        <h1 style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;">Online Pomodoro Study Timer &amp; Habit Tracker</h1>
-      </div>
-
-      <!-- Right Header Actions (Clean & Minimal) -->
-      <div class="nav-actions demo-nav-actions">
-        <!-- Cloud Sync Status Pill -->
-        <div class="sync-status-pill" id="syncStatusPill" title="Cloud Sync Status with Android App">
-          <span class="sync-dot"></span>
-          <span class="sync-label" id="syncStatusText">Local</span>
-        </div>
-
-        <!-- Auth Button / User Profile -->
-        <div class="auth-wrapper" id="authWrapper">
-          <button class="btn btn-secondary btn-sm auth-btn-compact" id="btnOpenAuth" aria-label="Sign In or Sync">
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            <span class="auth-btn-label">Sign In</span>
-          </button>
-          
-          <div class="user-dropdown-container hidden" id="userDropdownContainer">
-            <button class="user-profile-btn" id="userProfileBtn" aria-label="User Menu" title="Click to customize profile or view account">
-              <span id="navUserAvatarWrap" class="nav-user-avatar-wrap"><img src="assets/logo.png" alt="User Avatar" class="user-avatar" id="userAvatarImg"></span>
-              <span class="user-name" id="userDisplayName">Student</span>
-              <svg class="dropdown-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </button>
-            <div class="user-menu-dropdown hidden" id="userMenuDropdown">
-              <div class="dropdown-header">
-                <p class="dropdown-user-name" id="dropdownUserName">Student</p>
-                <p class="dropdown-user-email" id="dropdownUserEmail">student@example.com</p>
-              </div>
-              <div class="dropdown-divider"></div>
-              <button class="dropdown-item dropdown-item-profile-cta" id="btnOpenProfileModal">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                <span>Customize Profile &amp; Avatar</span>
-                <span class="dropdown-badge-pill">Edit</span>
-              </button>
-              <button class="dropdown-item" id="btnMenuLeaderboard">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path></svg>
-                <span>Global Leaderboard</span>
-              </button>
-              <button class="dropdown-item" id="btnManualSync">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-                <span>Sync with App</span>
-              </button>
-              <button class="dropdown-item dropdown-item-danger" id="btnLogout">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                <span>Log Out</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Desktop & Tablet Direct Leaderboard Action -->
-        <button class="nav-leaderboard-btn" id="btnDesktopLeaderboard" title="Live Global Leaderboard" aria-label="Open Global Leaderboard">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-lb-trophy-svg"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path></svg>
-          <span class="nav-lb-label">Leaderboard</span>
-          <span class="live-pulse-dot"></span>
-        </button>
-
-        <!-- Studio Background Customizer Button -->
-        <button class="demo-icon-btn" id="btnOpenBackgroundModal" aria-label="Customize Studio Background" title="Studio Background & Themes">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
-            <circle cx="8.5" cy="8.5" r="1.5"></circle>
-            <path d="m21 15-5-5L5 21"></path>
-          </svg>
-        </button>
-
-        <!-- Fullscreen Browser Zen Mode Toggle -->
-        <button class="demo-icon-btn" id="btnBrowserFullscreen" aria-label="Toggle Fullscreen Focus" title="Full Screen Zen Focus">
-          <svg class="icon-expand-fs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
-          </svg>
-          <svg class="icon-compress-fs hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>
-          </svg>
-        </button>
-
-        <!-- Theme Toggle -->
-        <button class="theme-toggle-btn demo-icon-btn" id="themeToggleBtn" aria-label="Toggle theme" title="Toggle theme">
-          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-        </button>
-
-        <!-- Exit / Back to Home Link -->
-        <a href="index.html" class="nav-exit-btn demo-icon-btn" title="Back to StudyTimer Home">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        </a>
-      </div>
-
-    </div>
-  </header>
-
   <!-- GUEST SYNC NOTICE BANNER -->
   <div class="guest-banner" id="guestBanner">
     <div class="container guest-banner-container">
@@ -261,61 +156,213 @@
     </div>
   </div>
 
-  <!-- 2. FULL-FLEDGED WEB BROWSER WORKSPACE -->
-  <main class="demo-workspace-main">
-    <div class="container demo-grid-layout">
+  <!-- APP SHELL: SIDEBAR + MAIN WORKSPACE CANVAS -->
+  <div class="studio-app-layout" id="studioAppLayout">
+
+    <!-- 1. MODERN COLLAPSIBLE SIDEBAR -->
+    <aside class="app-sidebar" id="appSidebar" aria-label="Main Navigation">
       
-      <!-- LEFT / CENTER: MAIN FOCUS TIMER STUDIO -->
-      <section class="focus-timer-studio" aria-label="Study Timer Canvas">
-        
-        <div class="studio-card">
+      <!-- Brand Header -->
+      <div class="sidebar-brand-header">
+        <a href="index.html" class="sidebar-brand-link" title="StudyTimer Home">
+          <img src="assets/logo.png" alt="StudyTimer Logo" class="sidebar-brand-img">
+          <div class="sidebar-brand-names">
+            <span class="sidebar-brand-title">StudyTimer</span>
+            <span class="sidebar-brand-subtitle">Studio</span>
+          </div>
+        </a>
+      </div>
+
+      <!-- Navigation Links -->
+      <nav class="sidebar-nav-menu">
+        <div class="sidebar-nav-label">Workspace</div>
+
+        <button type="button" class="sidebar-nav-item active" data-view="timer" id="navItemTimer">
+          <svg class="nav-item-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          <span class="nav-item-text">Focus Studio</span>
+        </button>
+
+        <button type="button" class="sidebar-nav-item" data-view="overview" id="navItemOverview">
+          <svg class="nav-item-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          <span class="nav-item-text">Overview &amp; Stats</span>
+        </button>
+
+        <button type="button" class="sidebar-nav-item" data-view="calendar" id="navItemCalendar">
+          <svg class="nav-item-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          <span class="nav-item-text">Calendar &amp; Logs</span>
+        </button>
+
+        <button type="button" class="sidebar-nav-item" data-view="planner" id="navItemPlanner">
+          <svg class="nav-item-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          <span class="nav-item-text">Daily Planner</span>
+        </button>
+
+        <button type="button" class="sidebar-nav-item" data-view="leaderboard" id="navItemLeaderboard">
+          <svg class="nav-item-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path></svg>
+          <span class="nav-item-text">Leaderboard</span>
+          <span class="live-pulse-dot" style="margin-left: auto;"></span>
+        </button>
+      </nav>
+
+      <!-- Sidebar Focus Audio Player Widget -->
+      <div class="sidebar-audio-widget" id="sidebarAudioWidget">
+        <div class="sidebar-audio-header">
+          <div class="audio-equalizer-bars" id="audioEqualizerBars">
+            <span class="eq-bar"></span>
+            <span class="eq-bar"></span>
+            <span class="eq-bar"></span>
+          </div>
+          <span class="audio-current-name" id="audioCurrentName">Focus Lofi Chill</span>
+          <button type="button" class="audio-play-toggle-btn" id="btnAudioPlayToggle" aria-label="Play / Pause Ambience">
+            <svg class="audio-icon-play" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            <svg class="audio-icon-pause hidden" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+          </button>
+        </div>
+
+        <div class="sidebar-audio-controls">
+          <select class="audio-preset-select" id="audioPresetSelect" aria-label="Select Focus Ambience Track">
+            <option value="lofi">🎧 Lofi Beats</option>
+            <option value="piano">🎹 Peaceful Piano</option>
+            <option value="alpha">🧠 432Hz Alpha</option>
+            <option value="rain">🌧️ Rain Window</option>
+            <option value="cafe">☕ Cafe Ambience</option>
+            <option value="offline_brown">📻 Brown Noise (Offline)</option>
+            <option value="custom">🔗 Custom YouTube...</option>
+          </select>
           
-          <!-- Daily Motivational Quote Capsule -->
-          <div class="daily-quote-capsule" id="dailyQuoteContainer" title="Click for next quote">
-            <span class="quote-sparkle-icon">✨</span>
-            <span class="quote-text" id="dailyQuoteText">"Small daily improvements over time lead to stunning results."</span>
-            <button class="quote-refresh-btn" id="btnNextQuote" aria-label="Next quote" title="Next quote">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          <div class="audio-volume-wrap" title="Volume">
+            <svg class="audio-vol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+            <input type="range" id="audioVolumeSlider" min="0" max="100" value="60" class="audio-vol-slider" aria-label="Volume">
+          </div>
+        </div>
+        <div id="youtubePlayerAnchor" style="display:none; position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;"></div>
+      </div>
+
+      <!-- Sidebar Footer (Themes, Settings, Profile & Sync) -->
+      <div class="sidebar-footer">
+        
+        <div class="sidebar-tools-row">
+          <button type="button" class="sidebar-tool-btn" id="btnOpenBackgroundModal" title="Studio Ambience & Wallpapers">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>
+            <span>Themes</span>
+          </button>
+          <button type="button" class="sidebar-tool-btn" id="btnOpenTimerSettings" title="Timer Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            <span>Settings</span>
+          </button>
+          <button type="button" class="sidebar-tool-btn" id="themeToggleBtn" title="Toggle Light/Dark Theme">
+            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            <span>Theme</span>
+          </button>
+        </div>
+
+        <!-- Cloud Sync & User Profile Widget -->
+        <div class="sidebar-user-block">
+          <div class="sync-status-pill" id="syncStatusPill" title="Cloud Sync Status with Android App">
+            <span class="sync-dot"></span>
+            <span class="sync-label" id="syncStatusText">Local</span>
+          </div>
+
+          <div class="auth-wrapper" id="authWrapper" style="width: 100%;">
+            <button class="btn btn-secondary btn-sm auth-btn-compact" id="btnOpenAuth" style="width: 100%; justify-content: center;" aria-label="Sign In or Sync">
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              <span class="auth-btn-label">Sign In</span>
             </button>
-          </div>
-
-          <!-- Focus Audio & YouTube Ambience Player Bar -->
-          <div class="focus-audio-bar" id="focusAudioBar">
-            <div class="audio-track-info">
-              <div class="audio-equalizer-bars" id="audioEqualizerBars">
-                <span class="eq-bar"></span>
-                <span class="eq-bar"></span>
-                <span class="eq-bar"></span>
-              </div>
-              <span class="audio-current-name" id="audioCurrentName">Focus Lofi Chill</span>
-            </div>
             
-            <div class="audio-controls-group">
-              <select class="audio-preset-select" id="audioPresetSelect" aria-label="Select Focus Ambience Track">
-                <option value="lofi">🎧 Lofi Girl - Chill Beats</option>
-                <option value="piano">🎹 Peaceful Study Piano</option>
-                <option value="alpha">🧠 432Hz Alpha Waves (Focus)</option>
-                <option value="rain">🌧️ Rain on Window (Cozy)</option>
-                <option value="cafe">☕ Busy Library &amp; Cafe</option>
-                <option value="offline_brown">📻 Deep Brown Noise (Offline)</option>
-                <option value="custom">🔗 Custom YouTube Link...</option>
-              </select>
-              
-              <button class="audio-play-toggle-btn" id="btnAudioPlayToggle" aria-label="Play or Pause Ambience" title="Play / Pause Ambience">
-                <svg class="audio-icon-play" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                <svg class="audio-icon-pause hidden" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+            <div class="user-dropdown-container hidden" id="userDropdownContainer" style="width: 100%;">
+              <button class="user-profile-btn" id="userProfileBtn" style="width: 100%; justify-content: space-between;" aria-label="User Menu" title="Click to customize profile or view account">
+                <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                  <span id="navUserAvatarWrap" class="nav-user-avatar-wrap"><img src="assets/logo.png" alt="User Avatar" class="user-avatar" id="userAvatarImg"></span>
+                  <span class="user-name" id="userDisplayName" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Student</span>
+                </div>
+                <svg class="dropdown-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
               </button>
-
-              <div class="audio-volume-wrap" title="Volume Control">
-                <svg class="audio-vol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-                <input type="range" id="audioVolumeSlider" min="0" max="100" value="60" class="audio-vol-slider" aria-label="Ambience Volume">
+              <div class="user-menu-dropdown hidden" id="userMenuDropdown">
+                <div class="dropdown-header">
+                  <p class="dropdown-user-name" id="dropdownUserName">Student</p>
+                  <p class="dropdown-user-email" id="dropdownUserEmail">student@example.com</p>
+                </div>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item dropdown-item-profile-cta" id="btnOpenProfileModal">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                  <span>Customize Profile &amp; Avatar</span>
+                  <span class="dropdown-badge-pill">Edit</span>
+                </button>
+                <button class="dropdown-item" id="btnMenuLeaderboard">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path></svg>
+                  <span>Global Leaderboard</span>
+                </button>
+                <button class="dropdown-item" id="btnManualSync">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                  <span>Sync with App</span>
+                </button>
+                <button class="dropdown-item dropdown-item-danger" id="btnLogout">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                  <span>Log Out</span>
+                </button>
               </div>
             </div>
-            
-            <!-- Hidden YouTube IFrame Container -->
-            <div id="youtubePlayerAnchor" style="display:none; position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;"></div>
           </div>
+        </div>
 
+      </div>
+    </aside>
+
+    <!-- SIDEBAR BACKDROP FOR MOBILE -->
+    <div class="sidebar-backdrop hidden" id="sidebarBackdrop"></div>
+
+    <!-- 2. MAIN WORKSPACE CANVAS -->
+    <main class="studio-main-content" id="studioMainContent">
+      
+      <!-- Top App Bar -->
+      <header class="studio-topbar">
+        <button type="button" class="mobile-menu-btn" id="btnMobileMenuToggle" aria-label="Open Navigation">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+
+        <!-- Centered Daily Motivational Quote Capsule -->
+        <div class="daily-quote-capsule" id="dailyQuoteContainer" title="Click for next quote">
+          <span class="quote-sparkle-icon">✨</span>
+          <span class="quote-text" id="dailyQuoteText">"Small daily improvements over time lead to stunning results."</span>
+          <button type="button" class="quote-refresh-btn" id="btnNextQuote" aria-label="Next quote" title="Next quote">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          </button>
+        </div>
+
+        <div class="topbar-actions">
+          <button type="button" class="nav-leaderboard-btn" id="btnDesktopLeaderboard" title="Live Global Leaderboard" aria-label="Open Global Leaderboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-lb-trophy-svg"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path></svg>
+            <span class="nav-lb-label">Leaderboard</span>
+            <span class="live-pulse-dot"></span>
+          </button>
+
+          <!-- Fullscreen Browser Zen Mode -->
+          <button type="button" class="demo-icon-btn" id="btnBrowserFullscreen" aria-label="Toggle Fullscreen Focus" title="Full Screen Zen Focus">
+            <svg class="icon-expand-fs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+            </svg>
+            <svg class="icon-compress-fs hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>
+            </svg>
+          </button>
+
+          <a href="index.html" class="nav-exit-btn demo-icon-btn" title="Back to StudyTimer Home">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </a>
+        </div>
+      </header>
+
+      <!-- ========================================================
+           VIEW SECTION 1: FOCUS TIMER STUDIO (CLEAN & CENTERED)
+           ======================================================== -->
+      <section class="workspace-view active" id="viewFocusStudio" aria-label="Focus Timer Canvas">
+        
+        <div class="focus-studio-center-wrap">
+          
           <!-- 4 Glanceable Status Metrics Cards -->
           <div class="status-metrics-grid" id="statusMetricsGrid">
             <div class="metric-card">
@@ -336,161 +383,105 @@
             </div>
           </div>
 
-          <!-- Top Window Header with Settings & Reset -->
-          <div class="studio-header">
-            <div class="studio-header-title">
-              <span class="studio-heading-text">Focus Studio</span>
+          <!-- The Main Sleek Focus Card -->
+          <div class="studio-card">
+            
+            <!-- Mode Selector Tabs -->
+            <div class="timer-mode-selector" role="tablist" aria-label="Timer Mode Selection">
+              <button class="mode-btn active" role="tab" aria-selected="true" data-mode="timer" id="tabModeCountdown">
+                <svg class="mode-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <span>Countdown</span>
+              </button>
+              <button class="mode-btn" role="tab" aria-selected="false" data-mode="pomodoro" id="tabModePomodoro">
+                <svg class="mode-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 3v3m-3-1 2 2m4-2-2 2"></path></svg>
+                <span>Pomodoro</span>
+              </button>
+              <button class="mode-btn" role="tab" aria-selected="false" data-mode="stopwatch" id="tabModeStopwatch">
+                <svg class="mode-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                <span>Stopwatch</span>
+              </button>
+              <button class="mode-btn" role="tab" aria-selected="false" data-mode="break" id="tabModeBreak">
+                <svg class="mode-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="6" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>
+                <span>Break</span>
+              </button>
             </div>
 
-            <div class="studio-header-actions">
-              <button class="timer-tool-btn" id="btnOpenTimerSettings" title="Timer Settings" aria-label="Timer Settings">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="3"></circle>
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                </svg>
-                <span class="tool-btn-label">Settings</span>
+            <!-- Subject Dropdown Selector -->
+            <div class="subject-dropdown-wrapper" id="subjectDropdownWrapper">
+              <button class="subject-menu-trigger-btn" id="btnSubjectMenuTrigger" aria-label="Choose Subject" title="Click to change subject">
+                <span class="subject-color-dot" id="triggerSubjectDot" style="background-color: #3b82f6;"></span>
+                <span class="subject-trigger-name" id="triggerSubjectName">Mathematics</span>
+                <svg class="dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
               </button>
-              <button class="timer-tool-btn" id="btnQuickReset" title="Reset current timer" aria-label="Reset Timer">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
-                <span class="tool-btn-label">Reset</span>
-              </button>
+
+              <div class="subject-dropdown-menu hidden" id="subjectDropdownMenu">
+                <div class="subject-menu-header">
+                  <span class="subject-menu-title">Select Subject</span>
+                  <button class="subject-menu-add-btn" id="btnAddSubject" title="Add New Subject">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    <span>New Subject</span>
+                  </button>
+                </div>
+                <div class="subject-menu-items" id="subjectMenuItems"></div>
+              </div>
             </div>
-          </div>
 
-          <!-- Mode Selector Tabs -->
-          <div class="timer-mode-selector" role="tablist" aria-label="Timer Mode Selection">
-            <button class="mode-btn active" role="tab" aria-selected="true" data-mode="timer" id="tabModeCountdown">
-              <svg class="mode-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-              <span>Countdown</span>
-            </button>
-            <button class="mode-btn" role="tab" aria-selected="false" data-mode="pomodoro" id="tabModePomodoro">
-              <svg class="mode-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 3v3m-3-1 2 2m4-2-2 2"></path></svg>
-              <span>Pomodoro</span>
-            </button>
-            <button class="mode-btn" role="tab" aria-selected="false" data-mode="stopwatch" id="tabModeStopwatch">
-              <svg class="mode-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-              <span>Stopwatch</span>
-            </button>
-            <button class="mode-btn" role="tab" aria-selected="false" data-mode="break" id="tabModeBreak">
-              <svg class="mode-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>
-              <span>Break</span>
-            </button>
-          </div>
+            <!-- Central Circular Timer Ring -->
+            <div class="timer-ring-container">
+              <svg class="timer-svg" viewBox="0 0 320 320">
+                <defs>
+                  <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#3b82f6"/>
+                    <stop offset="100%" stop-color="#60a5fa"/>
+                  </linearGradient>
+                </defs>
+                <circle class="timer-track" cx="160" cy="160" r="138"></circle>
+                <circle class="timer-indicator" id="timerIndicator" cx="160" cy="160" r="138"></circle>
+              </svg>
 
-          <!-- Sleek Subject Dropdown Selector (Centered & Compact) -->
-          <div class="subject-dropdown-wrapper" id="subjectDropdownWrapper">
-            <button class="subject-menu-trigger-btn" id="btnSubjectMenuTrigger" aria-label="Choose Subject" title="Click to change subject">
-              <span class="subject-color-dot" id="triggerSubjectDot" style="background-color: #3b82f6;"></span>
-              <span class="subject-trigger-name" id="triggerSubjectName">Mathematics</span>
-              <svg class="dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </button>
-
-            <!-- Dropdown Menu Sheet -->
-            <div class="subject-dropdown-menu hidden" id="subjectDropdownMenu">
-              <div class="subject-menu-header">
-                <span class="subject-menu-title">Select Subject</span>
-                <button class="subject-menu-add-btn" id="btnAddSubject" title="Add New Subject">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                  <span>New Subject</span>
+              <!-- Central Content Display -->
+              <div class="timer-center-content">
+                <div class="timer-state-badge" id="timerStateBadge">READY TO FOCUS</div>
+                <div class="timer-digital-display" id="timerDisplay">25:00</div>
+                <button class="timer-current-subject-btn" id="timerSubjectDisplay" title="Click to change subject">
+                  <span class="subject-color-dot" id="currentSubjectDot" style="background-color: #3b82f6;"></span>
+                  <span class="subject-name-label" id="currentSubjectName">Mathematics</span>
+                  <svg class="subject-inline-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
                 </button>
               </div>
-              <div class="subject-menu-items" id="subjectMenuItems">
-                <!-- Dynamically rendered list -->
+            </div>
+
+            <!-- Timer Controls Action Center -->
+            <div class="timer-controls-area">
+              <button class="btn-timer-primary" id="btnToggleTimer">
+                <svg class="btn-ctrl-icon" id="playIcon" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                <svg class="btn-ctrl-icon hidden" id="pauseIcon" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                <span id="btnToggleLabel">Start Focus</span>
+              </button>
+
+              <div class="timer-secondary-actions">
+                <button class="btn-timer-subtle" id="btnResetTimer" title="Reset timer">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                  <span>Reset</span>
+                </button>
+                <button class="btn-timer-subtle btn-finish-session" id="btnFinishSession" title="Finish and log session">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>Finish &amp; Save</span>
+                </button>
               </div>
             </div>
-          </div>
 
-          <!-- Central Circular Timer Ring -->
-          <div class="timer-ring-container">
-            <svg class="timer-svg" viewBox="0 0 320 320">
-              <!-- Glow Defs -->
-              <defs>
-                <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#3b82f6"/>
-                  <stop offset="100%" stop-color="#60a5fa"/>
-                </linearGradient>
-              </defs>
-              <!-- Background Track -->
-              <circle class="timer-track" cx="160" cy="160" r="138"></circle>
-              <!-- Animated Glowing Progress Ring -->
-              <circle class="timer-indicator" id="timerIndicator" cx="160" cy="160" r="138"></circle>
-            </svg>
-
-            <!-- Central Content Display -->
-            <div class="timer-center-content">
-              <div class="timer-state-badge" id="timerStateBadge">READY TO FOCUS</div>
-              <div class="timer-digital-display" id="timerDisplay">25:00</div>
-              <button class="timer-current-subject-btn" id="timerSubjectDisplay" title="Click to change subject">
-                <span class="subject-color-dot" id="currentSubjectDot" style="background-color: #3b82f6;"></span>
-                <span class="subject-name-label" id="currentSubjectName">Mathematics</span>
-                <svg class="subject-inline-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- Timer Controls Action Center -->
-          <div class="timer-controls-area">
-            <button class="btn-timer-primary" id="btnToggleTimer">
-              <svg class="btn-ctrl-icon" id="playIcon" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-              <svg class="btn-ctrl-icon hidden" id="pauseIcon" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
-              <span id="btnToggleLabel">Start Focus</span>
-            </button>
-
-            <div class="timer-secondary-actions">
-              <button class="btn-timer-subtle" id="btnResetTimer" title="Reset timer">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
-                <span>Reset</span>
-              </button>
-              <button class="btn-timer-subtle btn-finish-session" id="btnFinishSession" title="Finish and log session">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span>Finish &amp; Save</span>
-              </button>
-            </div>
           </div>
 
         </div>
 
       </section>
 
-      <!-- RIGHT: PRODUCTIVITY HUB & LIVE ANALYTICS (DESKTOP SIDEBAR & MOBILE SLIDE-UP BOTTOM SHEET) -->
-      <div class="insights-drawer-backdrop hidden" id="insightsBackdrop"></div>
-
-      <aside class="productivity-hub" id="insightsHub" aria-label="Study Analytics and History">
-        
-        <!-- Mobile Drawer Drag Handle & Header -->
-        <div class="drawer-mobile-header">
-          <div class="drawer-drag-handle"></div>
-          <div class="drawer-mobile-title-row">
-            <div class="drawer-title-flex">
-              <div class="hub-icon-badge hub-icon-target" style="width: 26px; height: 26px;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-              </div>
-              <span class="drawer-mobile-title">Study Insights &amp; Analytics</span>
-            </div>
-            <button class="drawer-close-btn" id="btnCloseMobileInsights" aria-label="Close Insights">✕</button>
-          </div>
-        </div>
-
-        <!-- 3-Tab Pill Switcher (Overview, Calendar, Planner) -->
-        <nav class="insights-pill-navbar" id="insightsNavbar" aria-label="Analytics navigation">
-          <button class="insights-tab-btn active" data-tab="overview" id="tabBtnOverview">
-            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-            <span>Overview</span>
-          </button>
-          <button class="insights-tab-btn" data-tab="calendar" id="tabBtnCalendar">
-            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-            <span>Calendar</span>
-          </button>
-          <button class="insights-tab-btn" data-tab="planner" id="tabBtnPlanner">
-            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-            <span>Planner</span>
-          </button>
-        </nav>
-
-        <!-- ========================================================
-             TAB PANEL 1: OVERVIEW (Daily Goal, Donut Chart, 52-Week Heatmap)
-             ======================================================== -->
-        <div class="insights-tab-panel active" id="panelOverview">
+      <!-- ========================================================
+           VIEW SECTION 2: OVERVIEW & STATS (SPACIOUS & FULL-WIDTH)
+           ======================================================== -->
+      <section class="workspace-view hidden" id="viewOverview" aria-label="Study Overview and Analytics">
+        <div class="view-content-grid">
           
           <!-- 1. Daily Streak & Target Progress Card -->
           <div class="hub-card target-progress-card">
@@ -539,7 +530,7 @@
             </div>
           </div>
 
-          <!-- 2. Subject Distribution Donut Chart (Matches SubjectPieChartView.kt) -->
+          <!-- 2. Subject Distribution Donut Chart -->
           <div class="hub-card subject-donut-card">
             <div class="hub-card-header">
               <div class="hub-card-title-group">
@@ -561,7 +552,6 @@
               <div class="donut-chart-svg-wrap" id="donutSvgWrap" title="Click or hover a slice to inspect details">
                 <svg class="donut-chart-svg" viewBox="0 0 200 200" id="subjectDonutSvg">
                   <circle cx="100" cy="100" r="70" class="donut-bg-track"></circle>
-                  <!-- Slices dynamically rendered in JS -->
                 </svg>
                 <div class="donut-center-stat" id="donutCenterStat">
                   <span class="donut-center-sub" id="donutCenterSub">Today</span>
@@ -570,13 +560,11 @@
                 </div>
               </div>
 
-              <div class="donut-legend-list" id="donutLegendList">
-                <!-- Dynamically injected subject distribution items -->
-              </div>
+              <div class="donut-legend-list" id="donutLegendList"></div>
             </div>
           </div>
 
-          <!-- 3. 52-Week Study Activity Heatmap (Matches HeatmapView.kt) -->
+          <!-- 3. 52-Week Study Activity Heatmap -->
           <div class="hub-card activity-heatmap-card">
             <div class="hub-card-header">
               <div class="hub-card-title-group">
@@ -590,7 +578,6 @@
 
             <div class="heatmap-scroll-wrapper">
               <div class="heatmap-outer-flex" id="heatmapOuterFlex">
-                <!-- Weekday labels column on the left -->
                 <div class="heatmap-weekdays-col">
                   <span class="heatmap-weekday-label">M</span>
                   <span class="heatmap-weekday-label">T</span>
@@ -600,192 +587,102 @@
                   <span class="heatmap-weekday-label">S</span>
                   <span class="heatmap-weekday-label">S</span>
                 </div>
-                <!-- Months row on top + 52-week matrix below -->
-                <div class="heatmap-cols-container">
-                  <div class="heatmap-months-row" id="heatmapMonthsRow">
-                    <!-- Injected dynamically based on week positions -->
-                  </div>
-                  <div class="heatmap-matrix-grid" id="heatmapGrid">
-                    <!-- 52 weeks x 7 days injected dynamically -->
-                  </div>
-                </div>
+                <div class="heatmap-grid" id="activityHeatmapGrid"></div>
               </div>
             </div>
 
-            <div class="heatmap-footer-legend">
-              <span class="heatmap-legend-text">Less</span>
-              <span class="heatmap-sample-cell lvl-0"></span>
-              <span class="heatmap-sample-cell lvl-1"></span>
-              <span class="heatmap-sample-cell lvl-2"></span>
-              <span class="heatmap-sample-cell lvl-3"></span>
-              <span class="heatmap-sample-cell lvl-4"></span>
-              <span class="heatmap-legend-text">More</span>
-            </div>
-          </div>
-
-          <!-- 4. Sync & Android App Banner Card -->
-          <div class="hub-card app-companion-card">
-            <div class="companion-flex">
-              <div class="companion-text-block">
-                <h4 class="companion-title">Experience the Full Android App</h4>
-                <p class="companion-desc">
-                  Take your study habits further with lockscreen widgets, custom sound alarms, background notifications, and seamless offline tracking. 100% Free &amp; Ad-Free!
-                </p>
+            <div class="heatmap-footer">
+              <span class="heatmap-legend-label">Less</span>
+              <div class="heatmap-scale-row">
+                <span class="scale-box level-0" title="0 mins"></span>
+                <span class="scale-box level-1" title="1-30 mins"></span>
+                <span class="scale-box level-2" title="31-60 mins"></span>
+                <span class="scale-box level-3" title="61-120 mins"></span>
+                <span class="scale-box level-4" title="120+ mins"></span>
               </div>
-              <a href="https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk" class="btn btn-primary btn-sm companion-download-btn" download>
-                <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2a1 1 0 0 1 1 1v10.586l3.293-3.293a1 1 0 1 1 1.414 1.414l-5 5a1 1 0 0 1-1.414 0l-5-5a1 1 0 1 1 1.414-1.414L11 13.586V3a1 1 0 0 1 1-1zm-7 16a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1z"/>
-                </svg>
-                <span>Download Free Android APK</span>
-              </a>
+              <span class="heatmap-legend-label">More</span>
             </div>
           </div>
 
         </div>
+      </section>
 
-        <!-- ========================================================
-             TAB PANEL 2: CALENDAR & TIMELINE (Matches CalendarTimeline.kt)
-             ======================================================== -->
-        <div class="insights-tab-panel hidden" id="panelCalendar">
+      <!-- ========================================================
+           VIEW SECTION 3: CALENDAR & LOGS (SPACIOUS & FULL-WIDTH)
+           ======================================================== -->
+      <section class="workspace-view hidden" id="viewCalendar" aria-label="Study Calendar and History">
+        <div class="view-content-grid">
           
-          <!-- Month Calendar Card -->
-          <div class="hub-card calendar-picker-card">
-            <div class="calendar-header-nav">
-              <button class="cal-nav-btn" id="btnPrevMonth" title="Previous Month">‹</button>
-              <h3 class="cal-month-title" id="calMonthTitle">September 2026</h3>
-              <button class="cal-nav-btn" id="btnNextMonth" title="Next Month">›</button>
-            </div>
-
-            <!-- Day-of-week headers -->
-            <div class="cal-weekdays-grid">
-              <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
-            </div>
-
-            <!-- Calendar Days Matrix -->
-            <div class="cal-days-grid" id="calendarDaysGrid">
-              <!-- Injected dynamically with circular goal progress rings -->
-            </div>
-
-            <!-- Monthly Summary Row -->
-            <div class="cal-month-summary-row" id="calMonthSummaryRow">
-              <!-- Injected dynamically -->
-            </div>
-          </div>
-
-          <!-- Selected Past Day Subject Distribution Pie Chart (Matches Android App Day Details Modal) -->
-          <div class="hub-card calendar-day-pie-card" id="calDayPieCard">
-            <div class="hub-card-header">
-              <div class="hub-card-title-group">
-                <div class="hub-icon-badge hub-icon-pie">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
-                </div>
-                <h3 class="hub-card-title" id="calDayPieTitle">Day Subject Breakdown</h3>
-              </div>
-              <span class="donut-total-badge" id="calDayPieTotalBadge">0m total</span>
-            </div>
-
-            <div class="donut-chart-container">
-              <div class="donut-chart-svg-wrap" id="calDayDonutSvgWrap" title="Subject breakdown for selected day">
-                <svg class="donut-chart-svg" viewBox="0 0 200 200" id="calDaySubjectDonutSvg">
-                  <circle cx="100" cy="100" r="70" class="donut-bg-track"></circle>
-                </svg>
-                <div class="donut-center-stat" id="calDayDonutCenterStat">
-                  <span class="donut-center-sub" id="calDayDonutCenterSub">Studied</span>
-                  <span class="donut-center-val" id="calDayDonutCenterVal">0m</span>
-                  <span class="donut-center-pct hidden" id="calDayDonutCenterPct">100%</span>
-                </div>
-              </div>
-
-              <div class="donut-legend-list" id="calDayDonutLegendList">
-                <!-- Dynamically injected subject items for selected day -->
-              </div>
-            </div>
-          </div>
-
-          <!-- Day Session Timeline Drilldown -->
-          <div class="hub-card day-timeline-card">
-            <div class="hub-card-header">
-              <div class="hub-card-title-group">
-                <div class="hub-icon-badge hub-icon-history">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                </div>
-                <h3 class="hub-card-title" id="selectedDateTimelineTitle">Today's Sessions</h3>
-              </div>
-              <span class="sessions-count-badge" id="selectedDateSessionCount">0 sessions</span>
-            </div>
-
-            <div class="timeline-list-container" id="timelineList">
-              <div class="timeline-empty-state" id="timelineEmptyState">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-                <p>No study sessions recorded for this date.</p>
-                <span>Complete focus sessions to see your activity timeline.</span>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- ========================================================
-             TAB PANEL 3: PLANNER & GOALS (Matches PlannerHistoryManager.kt)
-             ======================================================== -->
-        <div class="insights-tab-panel hidden" id="panelPlanner">
-          
-          <!-- Planner Header & Add Goal Button -->
-          <div class="hub-card planner-intro-card">
-            <div class="planner-header-flex">
-              <div class="planner-title-group">
-                <div class="hub-icon-badge hub-icon-target" style="background: rgba(16, 185, 129, 0.12); color: #10b981; border-color: rgba(16, 185, 129, 0.25);">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                </div>
-                <div>
-                  <h3 class="planner-title">Daily Goals &amp; Study Plan</h3>
-                  <p class="planner-subtitle">Track, check off, and manage targets across app and web</p>
-                </div>
-              </div>
-              <button class="btn btn-primary btn-sm" id="btnOpenAddGoalModal" title="Create a new study goal">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px; margin-right: 4px;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                <span>New Goal</span>
+          <div class="hub-card calendar-card">
+            <div class="calendar-nav-row">
+              <button class="cal-nav-btn" id="btnPrevMonth" aria-label="Previous Month">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              </button>
+              <h3 class="calendar-month-title" id="calendarMonthYear">September 2026</h3>
+              <button class="cal-nav-btn" id="btnNextMonth" aria-label="Next Month">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
               </button>
             </div>
 
-            <!-- Planner Quick Stats Bar -->
-            <div class="planner-stats-bar" id="plannerStatsBar">
-              <div class="planner-stat-chip">
-                <span class="p-stat-label">Total Goals</span>
-                <strong class="p-stat-val" id="plannerTotalGoalsCount">0</strong>
-              </div>
-              <div class="planner-stat-chip">
-                <span class="p-stat-label">Completed</span>
-                <strong class="p-stat-val text-accent" id="plannerCompletedGoalsCount">0</strong>
-              </div>
-              <div class="planner-stat-chip">
-                <span class="p-stat-label">Planned Time</span>
-                <strong class="p-stat-val" id="plannerTotalPlannedTime">0h</strong>
-              </div>
+            <div class="calendar-weekdays-header">
+              <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+            </div>
+
+            <div class="calendar-days-grid" id="calendarDaysGrid"></div>
+
+            <div class="calendar-footer-summary">
+              <span class="cal-summary-chip chip-goals" id="calMonthGoalsCount">✓ 0 Goals Met</span>
+              <span class="cal-summary-chip chip-hours" id="calMonthTotalHours">⏱ 0h Total Study</span>
             </div>
           </div>
 
-          <!-- Active Goals Checklist & Table -->
-          <div class="planner-goals-container" id="plannerGoalsContainer">
-            <!-- Dynamically injected rich goal cards with checkboxes, edit/delete actions, and progress bars -->
+          <div class="hub-card timeline-card">
+            <div class="hub-card-header">
+              <div class="hub-card-title-group">
+                <div class="hub-icon-badge hub-icon-list">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                </div>
+                <h3 class="hub-card-title" id="timelineDateHeading">Today's Sessions</h3>
+              </div>
+              <span class="timeline-count-badge" id="timelineSessionCount">0 sessions</span>
+            </div>
+
+            <div class="timeline-list" id="timelineList"></div>
           </div>
 
         </div>
+      </section>
 
-      </aside>
+      <!-- ========================================================
+           VIEW SECTION 4: PLANNER (SPACIOUS & FULL-WIDTH)
+           ======================================================== -->
+      <section class="workspace-view hidden" id="viewPlanner" aria-label="Daily Planner and Targets">
+        <div class="view-content-grid">
+          
+          <div class="hub-card planner-card">
+            <div class="hub-card-header">
+              <div class="hub-card-title-group">
+                <div class="hub-icon-badge hub-icon-check">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                </div>
+                <h3 class="hub-card-title">Daily Subject Goals</h3>
+              </div>
+              <button class="btn btn-secondary btn-xs" id="btnAddPlannerGoal">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>Add Goal</span>
+              </button>
+            </div>
 
-      <!-- Floating Action Group (Insights on top, Leaderboard below) -->
+            <div class="planner-goals-container" id="plannerGoalsContainer">
+              <div class="planner-goals-list" id="plannerGoalsList"></div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Floating Action Group for Mobile (Leaderboard) -->
       <div class="mobile-fabs-group" id="mobileFabsGroup">
-        <!-- 1. Insights FAB -->
-        <button class="btn-mobile-insights-fab" id="btnMobileInsights" aria-label="Open Study Insights">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-          <span>Insights</span>
-        </button>
-
-        <!-- 2. Leaderboard FAB (Directly Below Insights) -->
         <button class="btn-mobile-leaderboard-fab" id="btnMobileLeaderboard" aria-label="Open Global Leaderboard">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="fab-icon-svg"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path></svg>
           <span>Leaderboard</span>
@@ -793,8 +690,9 @@
         </button>
       </div>
 
-    </div>
-  </main>
+    </main>
+
+  </div>
 
   <!-- SEMANTIC DEMO FOOTER & LEGAL REDIRECTS -->
   <footer class="demo-site-footer">

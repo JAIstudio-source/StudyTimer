@@ -1477,19 +1477,31 @@ function initDomElements() {
 }
 
 function setupEventListeners() {
-  // Main Controls
-  document.getElementById('btnToggleTimer').addEventListener('click', toggleTimer);
-  document.getElementById('btnResetTimer').addEventListener('click', handleUserResetTimer);
+  // Main Timer Controls
+  document.getElementById('btnToggleTimer')?.addEventListener('click', toggleTimer);
+  document.getElementById('btnResetTimer')?.addEventListener('click', handleUserResetTimer);
   document.getElementById('btnQuickReset')?.addEventListener('click', handleUserResetTimer);
-  document.getElementById('btnFinishSession').addEventListener('click', () => finishSession(false));
+  document.getElementById('btnFinishSession')?.addEventListener('click', () => finishSession(false));
+
+  // Sidebar Navigation View Switching
+  document.querySelectorAll('.sidebar-nav-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const view = btn.dataset.view;
+      if (view) switchWorkspaceView(view);
+    });
+  });
+
+  // Mobile Sidebar Drawer Controls
+  document.getElementById('btnMobileMenuToggle')?.addEventListener('click', openMobileSidebar);
+  document.getElementById('sidebarBackdrop')?.addEventListener('click', closeMobileSidebar);
 
   // Fullscreen Browser Zen Mode
   document.getElementById('btnBrowserFullscreen')?.addEventListener('click', toggleBrowserFullscreen);
 
-  // 3-Tab Pill Switcher Navbar
-  document.getElementById('tabBtnOverview')?.addEventListener('click', () => switchInsightsTab('overview'));
-  document.getElementById('tabBtnCalendar')?.addEventListener('click', () => switchInsightsTab('calendar'));
-  document.getElementById('tabBtnPlanner')?.addEventListener('click', () => switchInsightsTab('planner'));
+  // 3-Tab Pill Switcher Navbar (if present in sub-views)
+  document.getElementById('tabBtnOverview')?.addEventListener('click', () => switchWorkspaceView('overview'));
+  document.getElementById('tabBtnCalendar')?.addEventListener('click', () => switchWorkspaceView('calendar'));
+  document.getElementById('tabBtnPlanner')?.addEventListener('click', () => switchWorkspaceView('planner'));
 
   // Calendar Month Navigation
   document.getElementById('btnPrevMonth')?.addEventListener('click', () => changeCalendarMonth(-1));
@@ -2993,60 +3005,92 @@ function updateSelectedSubjectUI() {
 }
 
 // ============================================================================
-// 7. INSIGHTS HUB (3-TAB ARCHITECTURE & ANALYTICS SUITE)
+// 7. WORKSPACE VIEW SWITCHER & ANALYTICS SUITE
 // ============================================================================
 
-let currentInsightsTab = 'overview';
+let currentWorkspaceView = 'timer';
 
-function switchInsightsTab(tabName) {
-  currentInsightsTab = tabName;
-  
-  const tabs = ['overview', 'calendar', 'planner'];
-  tabs.forEach(t => {
-    const btn = document.getElementById(`tabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
-    const panel = document.getElementById(`panel${t.charAt(0).toUpperCase() + t.slice(1)}`);
-    if (t === tabName) {
-      btn?.classList.add('active');
-      panel?.classList.remove('hidden');
+function switchWorkspaceView(viewKey) {
+  if (viewKey === 'leaderboard') {
+    openLeaderboardModal();
+    return;
+  }
+
+  currentWorkspaceView = viewKey;
+
+  // Update sidebar active buttons
+  document.querySelectorAll('.sidebar-nav-item').forEach(btn => {
+    if (btn.dataset.view === viewKey) {
+      btn.classList.add('active');
     } else {
-      btn?.classList.remove('active');
-      panel?.classList.add('hidden');
+      btn.classList.remove('active');
     }
   });
 
-  if (tabName === 'overview') {
+  // Switch workspace view sections
+  const viewMap = {
+    timer: 'viewFocusStudio',
+    overview: 'viewOverview',
+    calendar: 'viewCalendar',
+    planner: 'viewPlanner'
+  };
+
+  Object.entries(viewMap).forEach(([k, id]) => {
+    const el = document.getElementById(id);
+    if (k === viewKey) {
+      el?.classList.remove('hidden');
+      el?.classList.add('active');
+    } else {
+      el?.classList.add('hidden');
+      el?.classList.remove('active');
+    }
+  });
+
+  // Close mobile drawer if open
+  closeMobileSidebar();
+
+  // Trigger render of view data
+  if (viewKey === 'timer') {
+    updateTimerDisplay();
+    updateProgressAndStreak();
+  } else if (viewKey === 'overview') {
     updateProgressAndStreak();
     renderSubjectDonutChart();
     renderActivityHeatmap();
-  } else if (tabName === 'calendar') {
+  } else if (viewKey === 'calendar') {
     renderMonthlyCalendar();
-  } else if (tabName === 'planner') {
+  } else if (viewKey === 'planner') {
     renderPlannerGoals();
   }
 }
 
-// Mobile Bottom Sheet Drawer Controls
-function openInsightsDrawer() {
-  const hub = document.getElementById('insightsHub');
-  const backdrop = document.getElementById('insightsBackdrop');
-  hub?.classList.add('open');
-  backdrop?.classList.add('open');
+function switchInsightsTab(tabName) {
+  switchWorkspaceView(tabName);
+}
+
+// Mobile Sidebar Drawer Controls
+function openMobileSidebar() {
+  const sidebar = document.getElementById('appSidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  sidebar?.classList.add('open');
   backdrop?.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
+}
 
-  // Trigger render of current active tab
-  switchInsightsTab(currentInsightsTab);
+function closeMobileSidebar() {
+  const sidebar = document.getElementById('appSidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  sidebar?.classList.remove('open');
+  backdrop?.classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function openInsightsDrawer() {
+  openMobileSidebar();
 }
 
 function closeInsightsDrawer() {
-  const hub = document.getElementById('insightsHub');
-  const backdrop = document.getElementById('insightsBackdrop');
-  hub?.classList.remove('open');
-  backdrop?.classList.remove('open');
-  setTimeout(() => {
-    backdrop?.classList.add('hidden');
-  }, 300);
-  document.body.style.overflow = '';
+  closeMobileSidebar();
 }
 
 // ----------------------------------------------------------------------------

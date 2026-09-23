@@ -24,7 +24,6 @@
 
 ```
 StudyTimer/
-├── admin/                         # Web admin & analytics dashboard scripts
 ├── assets/                        # App logo, featured images, branding screenshots
 ├── StudyTimer-android/            # Main Android application
 │   └── app/src/main/
@@ -223,16 +222,6 @@ enum class AppSettingsTab { HUB, TIMER, AMBIENCE, ANALYTICS, CLOUD, THEME, PROFI
   - IP-based rate limiting (5 minutes cooldown) returning `HTTP 429 Too Many Requests` with standard `Retry-After` header.
   - Persists directly into Supabase `feedback_reports` table (`id`, `type`, `status`, `user_contact`, `message`, `diagnostics`, `admin_notes`, `created_at`, `updated_at`).
   - Supports optional webhook notification dispatch (`FEEDBACK_ALERT_WEBHOOK` for Discord/Telegram/Email triggers) on new `BUG_REPORT` events.
-
-- **Admin Feedback Dashboard (`/admin/#tabFeedback`)**:
-  - Located in [admin/index.html](file:///d:/Download/My%20app/website/New%20folder/StudyTimer/admin/index.html).
-  - Dedicated navigation tab with real-time `NEW` reports unread badge counter.
-  - Category filters (`All`, `Bug Reports`, `Feature Requests`, `General Feedback`) and Status filters (`All`, `New`, `In Progress`, `Resolved`, `Archived`).
-  - Search bar integration across user messages, diagnostic metadata, and admin notes.
-  - Detailed Report Inspection Modal:
-    - Formatted user description readout.
-    - Diagnostic grid (App Version, Android OS, Device Model, Timer Mode, Sync State, Epoch).
-    - 1-Tap email response button (`mailto:{user_contact}?subject=Re: Your StudyTimer Feedback`).
 ### I. Subject Tagging & Stopwatch Mode Isolation
 - **Stopwatch Mode Untagged Rule**:
   - When running in standard **Stopwatch Mode** (`timerMode == "STOPWATCH"`), sessions are strictly logged without subject metadata (`subjectId = null`, `subjectName = null`, `subjectColor = null`).
@@ -483,7 +472,6 @@ enum class AppSettingsTab { HUB, TIMER, AMBIENCE, ANALYTICS, CLOUD, THEME, PROFI
 - [x] Feedback rate limiting with 5-minute local cooldown, live countdown, and urgent help fallback.
 - [x] Backend Feedback API (`POST /api/feedback`) with IP rate limiting and validation.
 - [x] Feedback Reports table in Supabase (`feedback_reports`) with RLS policies.
-- [x] Web Admin Feedback Dashboard (`/admin`) with filtering, inspection modal, 1-tap email replies, status transitions, and admin resolution notes.
 - [x] Pie Chart visibility preference (`show_subject_pie_chart`) reactive toggle binding.
 - [x] Complete Stopwatch mode isolation: raw focus time logging without subject tags or pie chart pollution.
 - [x] Standard bottom navigation backstack contract: Focus/Timer is root anchor, secondary tabs pop to Focus, nested sub-screens pop to parent.

@@ -122,7 +122,7 @@
   <!-- Anti-FOUC Theme Initializer -->
   <script>
     (function() {
-      const savedTheme = localStorage.getItem('studytimer-theme') || 'light';
+      const savedTheme = localStorage.getItem('studytimer-theme') || 'dark';
       document.documentElement.setAttribute('data-theme', savedTheme);
     })();
   </script>
@@ -134,6 +134,8 @@
       document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>');
     }
   </script>
+  <!-- YouTube IFrame Player API for Custom Music & Audio Streams -->
+  <script src="https://www.youtube.com/iframe_api"></script>
 </head>
 <body class="demo-page-body">
 
@@ -141,20 +143,7 @@
   <div class="studio-bg-layer" id="studioBgLayer" aria-hidden="true"></div>
   <div class="studio-bg-dimmer" id="studioBgDimmer" aria-hidden="true"></div>
 
-  <!-- GUEST SYNC NOTICE BANNER -->
-  <div class="guest-banner" id="guestBanner">
-    <div class="container guest-banner-container">
-      <div class="guest-banner-text">
-        <svg class="banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="16" x2="12" y2="12"></line>
-          <line x1="12" y1="8" x2="12.01" y2="8"></line>
-        </svg>
-        <span><strong>Guest Session:</strong> Saved locally. Sign in with Google to sync all study hours directly with your <strong>StudyTimer Android App</strong>!</span>
-      </div>
-      <button class="btn btn-primary btn-xs" id="btnBannerSignIn">Sign In with Google</button>
-    </div>
-  </div>
+
 
   <!-- APP SHELL: SIDEBAR + MAIN WORKSPACE CANVAS -->
   <div class="studio-app-layout" id="studioAppLayout">
@@ -162,7 +151,7 @@
     <!-- 1. MODERN COLLAPSIBLE SIDEBAR -->
     <aside class="app-sidebar" id="appSidebar" aria-label="Main Navigation">
       
-      <!-- Brand Header -->
+      <!-- Brand Header & Collapse Toggle Button -->
       <div class="sidebar-brand-header">
         <a href="index.html" class="sidebar-brand-link" title="StudyTimer Home">
           <img src="assets/logo.png" alt="StudyTimer Logo" class="sidebar-brand-img">
@@ -171,72 +160,41 @@
             <span class="sidebar-brand-subtitle">Studio</span>
           </div>
         </a>
+        <button type="button" class="sidebar-collapse-toggle-btn" id="btnToggleSidebarCollapse" aria-label="Collapse Sidebar" title="Collapse / Expand Sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
       </div>
 
       <!-- Navigation Links -->
       <nav class="sidebar-nav-menu">
         <div class="sidebar-nav-label">Workspace</div>
 
-        <button type="button" class="sidebar-nav-item active" data-view="timer" id="navItemTimer">
+        <button type="button" class="sidebar-nav-item active" data-view="timer" id="navItemTimer" title="Focus Studio">
           <svg class="nav-item-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
           <span class="nav-item-text">Focus Studio</span>
         </button>
 
-        <button type="button" class="sidebar-nav-item" data-view="overview" id="navItemOverview">
+        <button type="button" class="sidebar-nav-item" data-view="overview" id="navItemOverview" title="Overview & Stats">
           <svg class="nav-item-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
           <span class="nav-item-text">Overview &amp; Stats</span>
         </button>
 
-        <button type="button" class="sidebar-nav-item" data-view="calendar" id="navItemCalendar">
+        <button type="button" class="sidebar-nav-item" data-view="calendar" id="navItemCalendar" title="Calendar & Logs">
           <svg class="nav-item-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
           <span class="nav-item-text">Calendar &amp; Logs</span>
         </button>
 
-        <button type="button" class="sidebar-nav-item" data-view="planner" id="navItemPlanner">
+        <button type="button" class="sidebar-nav-item" data-view="planner" id="navItemPlanner" title="Daily Planner">
           <svg class="nav-item-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
           <span class="nav-item-text">Daily Planner</span>
         </button>
 
-        <button type="button" class="sidebar-nav-item" data-view="leaderboard" id="navItemLeaderboard">
+        <button type="button" class="sidebar-nav-item" data-view="leaderboard" id="navItemLeaderboard" title="Global Leaderboard">
           <svg class="nav-item-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path></svg>
           <span class="nav-item-text">Leaderboard</span>
           <span class="live-pulse-dot" style="margin-left: auto;"></span>
         </button>
       </nav>
-
-      <!-- Sidebar Focus Audio Player Widget -->
-      <div class="sidebar-audio-widget" id="sidebarAudioWidget">
-        <div class="sidebar-audio-header">
-          <div class="audio-equalizer-bars" id="audioEqualizerBars">
-            <span class="eq-bar"></span>
-            <span class="eq-bar"></span>
-            <span class="eq-bar"></span>
-          </div>
-          <span class="audio-current-name" id="audioCurrentName">Focus Lofi Chill</span>
-          <button type="button" class="audio-play-toggle-btn" id="btnAudioPlayToggle" aria-label="Play / Pause Ambience">
-            <svg class="audio-icon-play" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-            <svg class="audio-icon-pause hidden" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
-          </button>
-        </div>
-
-        <div class="sidebar-audio-controls">
-          <select class="audio-preset-select" id="audioPresetSelect" aria-label="Select Focus Ambience Track">
-            <option value="lofi">🎧 Lofi Beats</option>
-            <option value="piano">🎹 Peaceful Piano</option>
-            <option value="alpha">🧠 432Hz Alpha</option>
-            <option value="rain">🌧️ Rain Window</option>
-            <option value="cafe">☕ Cafe Ambience</option>
-            <option value="offline_brown">📻 Brown Noise (Offline)</option>
-            <option value="custom">🔗 Custom YouTube...</option>
-          </select>
-          
-          <div class="audio-volume-wrap" title="Volume">
-            <svg class="audio-vol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-            <input type="range" id="audioVolumeSlider" min="0" max="100" value="60" class="audio-vol-slider" aria-label="Volume">
-          </div>
-        </div>
-        <div id="youtubePlayerAnchor" style="display:none; position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;"></div>
-      </div>
 
       <!-- Sidebar Footer (Themes, Settings, Profile & Sync) -->
       <div class="sidebar-footer">
@@ -244,16 +202,16 @@
         <div class="sidebar-tools-row">
           <button type="button" class="sidebar-tool-btn" id="btnOpenBackgroundModal" title="Studio Ambience & Wallpapers">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>
-            <span>Themes</span>
+            <span class="sidebar-tool-label">Themes</span>
           </button>
           <button type="button" class="sidebar-tool-btn" id="btnOpenTimerSettings" title="Timer Settings">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-            <span>Settings</span>
+            <span class="sidebar-tool-label">Settings</span>
           </button>
           <button type="button" class="sidebar-tool-btn" id="themeToggleBtn" title="Toggle Light/Dark Theme">
             <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
             <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-            <span>Theme</span>
+            <span class="sidebar-tool-label">Theme</span>
           </button>
         </div>
 
@@ -318,11 +276,16 @@
     <!-- 2. MAIN WORKSPACE CANVAS -->
     <main class="studio-main-content" id="studioMainContent">
       
-      <!-- Top App Bar -->
-      <header class="studio-topbar">
-        <button type="button" class="mobile-menu-btn" id="btnMobileMenuToggle" aria-label="Open Navigation">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-        </button>
+      <!-- FLOATING TOP BAR (SLIM GLASS ISLAND) -->
+      <header class="studio-floating-topbar">
+        <div class="floating-topbar-left">
+          <button type="button" class="mobile-menu-btn" id="btnMobileMenuToggle" aria-label="Open Navigation">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          </button>
+          <button type="button" class="topbar-sidebar-toggle-btn" id="btnTopSidebarToggle" title="Toggle Sidebar (Expand/Collapse)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+          </button>
+        </div>
 
         <!-- Centered Daily Motivational Quote Capsule -->
         <div class="daily-quote-capsule" id="dailyQuoteContainer" title="Click for next quote">
@@ -333,26 +296,42 @@
           </button>
         </div>
 
+        <!-- Topbar Right Actions -->
         <div class="topbar-actions">
-          <button type="button" class="nav-leaderboard-btn" id="btnDesktopLeaderboard" title="Live Global Leaderboard" aria-label="Open Global Leaderboard">
+          <!-- Custom Music & Streams Menu -->
+          <button type="button" class="topbar-pill-btn" id="btnTopbarAudio" title="Custom Music &amp; Ambience" aria-label="Open Custom Music Menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;">
+              <path d="M9 18V5l12-2v13"></path>
+              <circle cx="6" cy="18" r="3"></circle>
+              <circle cx="18" cy="16" r="3"></circle>
+            </svg>
+            <span>Custom Music</span>
+          </button>
+
+          <!-- Studio Wallpaper & Themes -->
+          <button type="button" class="topbar-pill-btn" id="btnTopbarBackground" title="Wallpapers &amp; Studio Themes" aria-label="Open Studio Backgrounds">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;">
+              <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <path d="m21 15-5-5L5 21"></path>
+            </svg>
+            <span>Wallpapers</span>
+          </button>
+
+          <button type="button" class="topbar-pill-btn nav-leaderboard-btn" id="btnDesktopLeaderboard" title="Live Global Leaderboard" aria-label="Open Global Leaderboard">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-lb-trophy-svg"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path></svg>
             <span class="nav-lb-label">Leaderboard</span>
             <span class="live-pulse-dot"></span>
           </button>
 
-          <!-- Fullscreen Browser Zen Mode -->
-          <button type="button" class="demo-icon-btn" id="btnBrowserFullscreen" aria-label="Toggle Fullscreen Focus" title="Full Screen Zen Focus">
-            <svg class="icon-expand-fs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+          <!-- Dedicated Full Screen Timer Button -->
+          <button type="button" class="topbar-pill-btn zen-timer-trigger-btn" id="btnOpenZenTimer" aria-label="Open Full Screen Timer" title="Open Full Screen Focus Timer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
-            <svg class="icon-compress-fs hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>
-            </svg>
+            <span class="zen-btn-label">Full Screen</span>
           </button>
-
-          <a href="index.html" class="nav-exit-btn demo-icon-btn" title="Back to StudyTimer Home">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-          </a>
         </div>
       </header>
 
@@ -406,24 +385,16 @@
               </button>
             </div>
 
-            <!-- Subject Dropdown Selector -->
-            <div class="subject-dropdown-wrapper" id="subjectDropdownWrapper">
-              <button class="subject-menu-trigger-btn" id="btnSubjectMenuTrigger" aria-label="Choose Subject" title="Click to change subject">
-                <span class="subject-color-dot" id="triggerSubjectDot" style="background-color: #3b82f6;"></span>
-                <span class="subject-trigger-name" id="triggerSubjectName">Mathematics</span>
-                <svg class="dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
-              </button>
-
-              <div class="subject-dropdown-menu hidden" id="subjectDropdownMenu">
-                <div class="subject-menu-header">
-                  <span class="subject-menu-title">Select Subject</span>
-                  <button class="subject-menu-add-btn" id="btnAddSubject" title="Add New Subject">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                    <span>New Subject</span>
-                  </button>
-                </div>
-                <div class="subject-menu-items" id="subjectMenuItems"></div>
-              </div>
+            <!-- Quick 1-Tap Countdown Duration Presets (Visible in Countdown Mode) -->
+            <div class="countdown-presets-row" id="countdownPresetsRow" aria-label="Countdown Duration Presets">
+              <button type="button" class="cd-preset-chip" data-min="15">15m</button>
+              <button type="button" class="cd-preset-chip active" data-min="25">25m</button>
+              <button type="button" class="cd-preset-chip" data-min="30">30m</button>
+              <button type="button" class="cd-preset-chip" data-min="45">45m</button>
+              <button type="button" class="cd-preset-chip" data-min="60">60m</button>
+              <button type="button" class="cd-preset-chip" data-min="90">90m</button>
+              <button type="button" class="cd-preset-chip" data-min="120">2h</button>
+              <button type="button" class="cd-preset-chip btn-custom-time-gear" id="btnOpenTimerSettingsGear" title="Customize timer durations &amp; settings">⚙️</button>
             </div>
 
             <!-- Central Circular Timer Ring -->
@@ -443,11 +414,24 @@
               <div class="timer-center-content">
                 <div class="timer-state-badge" id="timerStateBadge">READY TO FOCUS</div>
                 <div class="timer-digital-display" id="timerDisplay">25:00</div>
-                <button class="timer-current-subject-btn" id="timerSubjectDisplay" title="Click to change subject">
-                  <span class="subject-color-dot" id="currentSubjectDot" style="background-color: #3b82f6;"></span>
-                  <span class="subject-name-label" id="currentSubjectName">Mathematics</span>
-                  <svg class="subject-inline-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                </button>
+                <div class="subject-dropdown-wrapper" id="subjectDropdownWrapper">
+                  <button class="timer-current-subject-btn" id="timerSubjectDisplay" title="Click to change subject">
+                    <span class="subject-color-dot" id="currentSubjectDot" style="background-color: #3b82f6;"></span>
+                    <span class="subject-name-label" id="currentSubjectName">Mathematics</span>
+                    <svg class="subject-inline-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  </button>
+
+                  <div class="subject-dropdown-menu hidden" id="subjectDropdownMenu">
+                    <div class="subject-menu-header">
+                      <span class="subject-menu-title">Select Subject</span>
+                      <button class="subject-menu-add-btn" id="btnAddSubject" title="Add New Subject">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        <span>New Subject</span>
+                      </button>
+                    </div>
+                    <div class="subject-menu-items" id="subjectMenuItems"></div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -463,6 +447,10 @@
                 <button class="btn-timer-subtle" id="btnResetTimer" title="Reset timer">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
                   <span>Reset</span>
+                </button>
+                <button class="btn-timer-subtle" id="btnStudioZenTimer" title="Open Full Screen Timer">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+                  <span>Full Screen</span>
                 </button>
                 <button class="btn-timer-subtle btn-finish-session" id="btnFinishSession" title="Finish and log session">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -578,7 +566,7 @@
 
             <div class="heatmap-scroll-wrapper">
               <div class="heatmap-outer-flex" id="heatmapOuterFlex">
-                <div class="heatmap-weekdays-col">
+                <div class="heatmap-weekdays-col" aria-hidden="true">
                   <span class="heatmap-weekday-label">M</span>
                   <span class="heatmap-weekday-label">T</span>
                   <span class="heatmap-weekday-label">W</span>
@@ -587,18 +575,21 @@
                   <span class="heatmap-weekday-label">S</span>
                   <span class="heatmap-weekday-label">S</span>
                 </div>
-                <div class="heatmap-grid" id="activityHeatmapGrid"></div>
+                <div class="heatmap-cols-container">
+                  <div class="heatmap-months-row" id="heatmapMonthsRow" aria-hidden="true"></div>
+                  <div class="heatmap-matrix-grid" id="activityHeatmapGrid" role="grid" aria-label="52-Week Activity Grid"></div>
+                </div>
               </div>
             </div>
 
-            <div class="heatmap-footer">
+            <div class="heatmap-footer-legend">
               <span class="heatmap-legend-label">Less</span>
-              <div class="heatmap-scale-row">
-                <span class="scale-box level-0" title="0 mins"></span>
-                <span class="scale-box level-1" title="1-30 mins"></span>
-                <span class="scale-box level-2" title="31-60 mins"></span>
-                <span class="scale-box level-3" title="61-120 mins"></span>
-                <span class="scale-box level-4" title="120+ mins"></span>
+              <div class="heatmap-scale-row" aria-label="Activity Intensity Scale">
+                <span class="scale-box level-0 lvl-0" title="0 mins"></span>
+                <span class="scale-box level-1 lvl-1" title="1-30 mins"></span>
+                <span class="scale-box level-2 lvl-2" title="31-60 mins"></span>
+                <span class="scale-box level-3 lvl-3" title="61-120 mins"></span>
+                <span class="scale-box level-4 lvl-4" title="120+ mins"></span>
               </div>
               <span class="heatmap-legend-label">More</span>
             </div>
@@ -614,25 +605,25 @@
         <div class="view-content-grid">
           
           <div class="hub-card calendar-card">
-            <div class="calendar-nav-row">
-              <button class="cal-nav-btn" id="btnPrevMonth" aria-label="Previous Month">
+            <div class="calendar-header-nav calendar-nav-row">
+              <button class="cal-nav-btn" id="btnPrevMonth" aria-label="Previous Month" title="Previous Month">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
               </button>
-              <h3 class="calendar-month-title" id="calendarMonthYear">September 2026</h3>
-              <button class="cal-nav-btn" id="btnNextMonth" aria-label="Next Month">
+              <h3 class="cal-month-title calendar-month-title" id="calendarMonthYear">September 2026</h3>
+              <button class="cal-nav-btn" id="btnNextMonth" aria-label="Next Month" title="Next Month">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
               </button>
             </div>
 
-            <div class="calendar-weekdays-header">
+            <div class="cal-weekdays-grid calendar-weekdays-header" aria-hidden="true">
               <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
             </div>
 
-            <div class="calendar-days-grid" id="calendarDaysGrid"></div>
+            <div class="cal-days-grid calendar-days-grid" id="calendarDaysGrid" role="grid" aria-label="Calendar Days"></div>
 
-            <div class="calendar-footer-summary">
-              <span class="cal-summary-chip chip-goals" id="calMonthGoalsCount">✓ 0 Goals Met</span>
-              <span class="cal-summary-chip chip-hours" id="calMonthTotalHours">⏱ 0h Total Study</span>
+            <div class="cal-month-summary-row calendar-footer-summary" id="calMonthSummaryRow">
+              <span class="cal-summary-chip goals-met chip-goals" id="calMonthGoalsCount">✓ 0 Goals Met</span>
+              <span class="cal-summary-chip total-study chip-hours" id="calMonthTotalHours">⏱ 0h Total Study</span>
             </div>
           </div>
 
@@ -665,12 +656,30 @@
                 <div class="hub-icon-badge hub-icon-check">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                 </div>
-                <h3 class="hub-card-title">Daily Subject Goals</h3>
+                <div>
+                  <h3 class="hub-card-title">Daily Subject Goals</h3>
+                </div>
               </div>
-              <button class="btn btn-secondary btn-xs" id="btnAddPlannerGoal">
+              <button class="btn btn-secondary btn-xs" id="btnAddPlannerGoal" title="Add a study goal">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                 <span>Add Goal</span>
               </button>
+            </div>
+
+            <!-- Planner Quick Stats Bar -->
+            <div class="planner-stats-bar">
+              <div class="planner-stat-chip">
+                <span class="stat-chip-label">Total Goals</span>
+                <strong class="stat-chip-val" id="plannerTotalGoalsCount">0</strong>
+              </div>
+              <div class="planner-stat-chip">
+                <span class="stat-chip-label">Completed</span>
+                <strong class="stat-chip-val text-accent" id="plannerCompletedGoalsCount">0</strong>
+              </div>
+              <div class="planner-stat-chip">
+                <span class="stat-chip-label">Planned Time</span>
+                <strong class="stat-chip-val" id="plannerTotalPlannedTime">0m</strong>
+              </div>
             </div>
 
             <div class="planner-goals-container" id="plannerGoalsContainer">
@@ -681,63 +690,79 @@
         </div>
       </section>
 
-      <!-- Floating Action Group for Mobile (Leaderboard) -->
-      <div class="mobile-fabs-group" id="mobileFabsGroup">
-        <button class="btn-mobile-leaderboard-fab" id="btnMobileLeaderboard" aria-label="Open Global Leaderboard">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="fab-icon-svg"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path></svg>
-          <span>Leaderboard</span>
-          <span class="live-pulse-dot" id="mobileLiveDot"></span>
+      <!-- 3. MINIMALIST CLEAN COMPACT FOOTER -->
+      <footer class="studio-compact-footer">
+        <div class="compact-footer-inner">
+          <span class="footer-copy">© 2026 StudyTimer</span>
+          <span class="footer-dot">•</span>
+          <a href="privacy.html" class="footer-link">Privacy</a>
+          <span class="footer-dot">•</span>
+          <a href="terms.html" class="footer-link">Terms</a>
+          <span class="footer-dot">•</span>
+          <a href="about.html" class="footer-link">About</a>
+          <span class="footer-dot">•</span>
+          <a href="contact.html" class="footer-link">Support</a>
+          <span class="footer-dot">•</span>
+          <button type="button" class="footer-link-btn" id="btnOpenDeleteAllDataModal">Wipe Local Data</button>
+        </div>
+      </footer>
+
+      <!-- FLOATING CUSTOM MUSIC & AUDIO DOCK (DRAGGABLE & COLLAPSIBLE) -->
+      <div class="floating-audio-dock" id="floatingAudioDock" title="Custom Music &amp; Ambience (Drag to Move)">
+        <div class="audio-drag-handle" id="audioDragHandle" title="Click &amp; drag to move audio player">
+          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+        </div>
+
+        <div class="audio-equalizer-bars" id="audioEqualizerBars">
+          <span class="eq-bar"></span>
+          <span class="eq-bar"></span>
+          <span class="eq-bar"></span>
+        </div>
+        <span class="audio-current-name" id="audioCurrentName">Focus Lofi Chill</span>
+        
+        <select class="audio-preset-select" id="audioPresetSelect" aria-label="Select Focus Ambience Track">
+          <optgroup label="🎧 Focus Ambience Tracks">
+            <option value="lofi">🎧 Lofi Chill Beats</option>
+            <option value="minecraft">⛏️ Minecraft Focus Ambience</option>
+            <option value="piano">🎹 Peaceful Study Piano</option>
+            <option value="synthwave">🌆 Synthwave Chill</option>
+            <option value="rain">🌧️ Rain &amp; Gentle Thunder</option>
+            <option value="cafe">☕ Cozy Cafe Ambience</option>
+            <option value="alpha">🧠 432Hz Alpha Waves</option>
+            <option value="classical">🎻 Baroque Focus Music</option>
+          </optgroup>
+          <optgroup label="🔗 Custom Stream">
+            <option value="custom">🔗 Custom Audio Stream / Link...</option>
+          </optgroup>
+        </select>
+        
+        <button type="button" class="audio-play-toggle-btn" id="btnAudioPlayToggle" aria-label="Play / Pause Ambience" title="Play / Pause">
+          <svg class="audio-icon-play" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          <svg class="audio-icon-pause hidden" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
         </button>
+
+        <div class="audio-volume-wrap" title="Volume">
+          <svg class="audio-vol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+          <input type="range" id="audioVolumeSlider" min="0" max="100" value="60" class="audio-vol-slider" aria-label="Volume">
+        </div>
+
+        <!-- Engine Mode Badge -->
+        <span class="audio-engine-badge" id="audioEngineBadge" title="Playback Engine Mode">Offline</span>
+
+        <button type="button" class="audio-collapse-btn" id="btnAudioCollapse" aria-label="Minimize Audio Dock" title="Minimize / Expand Player">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+
+        <!-- HTML5 Ad-Free Audio Stream Player -->
+        <audio id="customAdFreeAudio" preload="none" loop style="display:none;"></audio>
+
+        <!-- YouTube Audio Embed Anchor (Mounted safely for 100% active stream playback fallback) -->
+        <div id="youtubePlayerAnchor" aria-hidden="true" style="position:fixed; right:0; bottom:0; width:6px; height:6px; opacity:0.001; pointer-events:none; z-index:-1; overflow:hidden;"></div>
       </div>
 
     </main>
 
   </div>
-
-  <!-- SEMANTIC DEMO FOOTER & LEGAL REDIRECTS -->
-  <footer class="demo-site-footer">
-    <div class="demo-footer-container">
-      <div class="demo-footer-left">
-        <div class="demo-footer-brand">
-          <img src="assets/logo.png" alt="StudyTimer Logo" class="demo-footer-logo">
-          <span>StudyTimer Web Studio</span>
-        </div>
-        <p class="demo-footer-tagline">100% Free &amp; Ad-Free Focus Timer &amp; Habit Tracker for Students.</p>
-        <div class="demo-footer-legal-copy">© 2026 StudyTimer. Zero Ads, Pure Focus.</div>
-      </div>
-
-      <div class="demo-footer-nav">
-        <div class="demo-footer-links-group">
-          <span class="demo-footer-group-title">Legal &amp; Policies</span>
-          <div class="demo-footer-links">
-            <a href="privacy.html">Privacy Policy</a>
-            <a href="terms.html">Terms of Service</a>
-            <a href="delete-account.html">Account &amp; Data Deletion</a>
-          </div>
-        </div>
-
-        <div class="demo-footer-links-group">
-          <span class="demo-footer-group-title">Help &amp; Links</span>
-          <div class="demo-footer-links">
-            <a href="about.html">About StudyTimer</a>
-            <a href="contact.html">Contact Support</a>
-            <a href="/">Return to Main Website</a>
-          </div>
-        </div>
-
-        <div class="demo-footer-links-group">
-          <span class="demo-footer-group-title">Data Management</span>
-          <div class="demo-footer-links">
-            <button type="button" class="btn-footer-delete-data" id="btnOpenDeleteAllDataModal">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-              <span>Erase All Local Data</span>
-            </button>
-            <a href="delete-account.html" class="link-cloud-delete">Cloud Account Erasure Portal &rarr;</a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </footer>
 
   <!-- ========================================================
        DEDICATED LIVE GLOBAL LEADERBOARD MODAL
@@ -821,8 +846,20 @@
         </div>
       </div>
 
-      <!-- Sticky Personal Rank Bar -->
-      <div class="leaderboard-user-bar" id="leaderboardUserBar">
+      <!-- Sticky Bottom Bar: Guest CTA Card (when logged out) OR Personal Rank Bar (when logged in) -->
+      <div class="leaderboard-guest-cta-card" id="leaderboardGuestCta">
+        <div class="lb-guest-cta-left">
+          <span class="lb-guest-trophy">🏆</span>
+          <div class="lb-guest-cta-texts">
+            <span class="lb-guest-cta-title">Join the Leaderboard</span>
+            <span class="lb-guest-cta-desc">Log in to compete &amp; track your rank</span>
+          </div>
+        </div>
+        <button type="button" class="btn lb-guest-login-btn" id="btnLeaderboardLogin">LOG IN</button>
+      </div>
+
+      <!-- Sticky Personal Rank Bar (for Logged In Users) -->
+      <div class="leaderboard-user-bar hidden" id="leaderboardUserBar">
         <div class="user-bar-left">
           <span class="user-bar-rank" id="userBarRank">#--</span>
           <span id="userBarAvatarWrap" class="user-bar-avatar-wrap"><img src="assets/logo.png" alt="Avatar" class="user-bar-avatar" id="userBarAvatar"></span>
@@ -1459,6 +1496,8 @@
           <button type="button" class="btn btn-danger flex-1" id="btnOkCustomConfirm">Confirm</button>
         </div>
       </div>
+    </div>
+  </div>
   <!-- 11. STUDIO BACKGROUND CUSTOMIZER MODAL -->
   <div class="modal-overlay hidden" id="studioBgModalOverlay" style="z-index: 10000015;">
     <div class="modal-card modal-card-md">
@@ -1473,13 +1512,13 @@
         </div>
         <div>
           <h3 class="modal-title">Studio Ambience &amp; Background</h3>
-          <p class="modal-subtitle">Choose visual themes, upload custom wallpapers, or adjust glass dimming.</p>
+          <p class="modal-subtitle">Choose aesthetic themes, upload custom wallpapers, paste image links, or adjust glass dimming.</p>
         </div>
       </div>
       <div class="modal-body">
-        <div class="bg-section-label">Preset Aesthetic Themes</div>
+        <div class="bg-section-label">Preset Aesthetic Wallpapers</div>
         <div class="bg-preset-grid">
-          <button type="button" class="bg-preset-card active" data-bg="default">
+          <button type="button" class="bg-preset-card" data-bg="default">
             <div class="bg-preset-preview default-bg"></div>
             <span>Minimal Dark</span>
           </button>
@@ -1503,20 +1542,53 @@
             <div class="bg-preset-preview forest-bg"></div>
             <span>Misty Forest</span>
           </button>
+          <button type="button" class="bg-preset-card" data-bg="tokyo">
+            <div class="bg-preset-preview tokyo-bg"></div>
+            <span>Tokyo Neon</span>
+          </button>
+          <button type="button" class="bg-preset-card active" data-bg="sunset">
+            <div class="bg-preset-preview sunset-bg"></div>
+            <span>Sunset Clouds</span>
+          </button>
+          <button type="button" class="bg-preset-card" data-bg="cafe">
+            <div class="bg-preset-preview cafe-bg"></div>
+            <span>Warm Cafe</span>
+          </button>
           <button type="button" class="bg-preset-card" data-bg="amoled">
             <div class="bg-preset-preview amoled-bg"></div>
             <span>AMOLED Black</span>
           </button>
         </div>
 
-        <div class="bg-section-label" style="margin-top: 18px;">Custom Image or GIF Wallpaper</div>
+        <div class="bg-section-label" style="margin-top: 18px;">Custom Wallpaper Selector</div>
         <div class="bg-upload-zone" id="bgUploadZone">
-          <input type="file" id="bgImageFileInput" accept="image/png, image/jpeg, image/webp, image/gif" style="display:none;">
-          <button type="button" class="btn btn-secondary btn-sm" id="btnTriggerBgUpload">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;margin-right:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-            Upload Image / GIF
-          </button>
-          <button type="button" class="btn btn-ghost btn-xs text-muted" id="btnResetCustomBg" style="display:none;">Reset to Default</button>
+          <div class="bg-upload-options-row">
+            <input type="file" id="bgImageFileInput" accept="image/png, image/jpeg, image/webp, image/gif" style="display:none;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnTriggerBgUpload">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              <span>Upload Local Image / GIF</span>
+            </button>
+            <button type="button" class="btn btn-ghost btn-xs text-muted" id="btnResetCustomBg" style="display:none;">Reset to Default</button>
+          </div>
+          
+          <div class="bg-url-input-wrap">
+            <input type="url" id="bgUrlInput" class="form-input" placeholder="Or paste image / GIF URL (https://...)" style="font-size:0.82rem; padding: 7px 12px;">
+            <button type="button" class="btn btn-secondary btn-xs" id="btnApplyBgUrl" style="white-space:nowrap;">Apply URL</button>
+          </div>
+
+          <!-- Live Image / GIF URL Preview Card -->
+          <div class="bg-url-preview-card hidden" id="bgUrlPreviewCard">
+            <div class="bg-url-preview-thumb-wrap">
+              <img id="bgUrlPreviewImg" src="" alt="Wallpaper Preview" class="bg-url-preview-thumb hidden">
+              <div class="bg-url-preview-placeholder" id="bgUrlPreviewPlaceholder">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>
+              </div>
+            </div>
+            <div class="bg-url-preview-info">
+              <div class="bg-url-preview-status" id="bgUrlPreviewStatus">Checking format...</div>
+              <div class="bg-url-preview-msg" id="bgUrlPreviewMsg">Paste an image or animated GIF link</div>
+            </div>
+          </div>
         </div>
 
         <div class="bg-section-label" style="margin-top: 18px;">Atmosphere &amp; Glass Adjustments</div>
@@ -1560,7 +1632,49 @@
           <label for="customYoutubeUrlInput" class="input-label">YouTube URL or ID</label>
           <input type="text" id="customYoutubeUrlInput" class="form-input" placeholder="https://www.youtube.com/watch?v=...">
         </div>
-        <div class="modal-actions-row" style="display: flex; gap: 10px; margin-top: 14px;">
+
+        <!-- Quick 1-Tap Popular Suggestions -->
+        <div class="yt-suggestions-label">Popular Focus Streams</div>
+        <div class="yt-suggestions-grid">
+          <button type="button" class="yt-suggestion-chip" data-id="amfWIRasxtI">🎧 Lofi Chill</button>
+          <button type="button" class="yt-suggestion-chip" data-id="vCTRNKPJr40">⛏️ Minecraft</button>
+          <button type="button" class="yt-suggestion-chip" data-id="FjHGZj2IjBk">🎹 Study Piano</button>
+          <button type="button" class="yt-suggestion-chip" data-id="4xDzrJKXOOY">🌆 Synthwave</button>
+          <button type="button" class="yt-suggestion-chip" data-id="mPZkdNFkNps">🌧️ Rain Storm</button>
+          <button type="button" class="yt-suggestion-chip" data-id="e3L1I7i4Z40">☕ Coffee Shop</button>
+          <button type="button" class="yt-suggestion-chip" data-id="WPni755-Krg">🧠 432Hz Alpha</button>
+          <button type="button" class="yt-suggestion-chip" data-id="jgpJVI3tDbY">🎻 Classical</button>
+        </div>
+
+        <!-- Dedicated Audio Music Preview Card (Music Format with Cover Thumbnail, Click to Play) -->
+        <div class="custom-music-preview-card" id="customMusicPreviewCard" title="Click to Play this track">
+          <div class="music-preview-cover-wrap">
+            <img src="https://img.youtube.com/vi/amfWIRasxtI/hqdefault.jpg" alt="Music Cover" class="music-preview-thumb" id="customMusicPreviewThumb">
+            <div class="music-preview-vinyl-groove"></div>
+            <div class="music-preview-audio-icon">
+              <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
+            </div>
+          </div>
+          <div class="music-preview-meta">
+            <span class="music-preview-format-tag" id="customMusicPreviewBadge">▶ Click to Play Stream</span>
+            <h4 class="music-preview-title" id="customMusicPreviewTitle">Lofi Chill Beats — Focus & Study</h4>
+            <span class="music-preview-channel" id="customMusicPreviewChannel">Focus Ambience • Ad-Free Audio</span>
+          </div>
+        </div>
+
+        <!-- Small Compact Hybrid Toggle (Positioned Below Audio Preview) -->
+        <div class="yt-engine-compact-row">
+          <div class="yt-engine-compact-left">
+            <span class="engine-sparkle">⚡</span>
+            <span class="yt-engine-compact-label">Ad-Free Hybrid Audio</span>
+          </div>
+          <label class="switch-toggle-hybrid switch-toggle-sm" title="Toggle Ad-Free Hybrid Stream">
+            <input type="checkbox" id="chkPreferAdFreePiped" checked>
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+
+        <div class="modal-actions-row" style="display: flex; gap: 10px; margin-top: 16px;">
           <button type="button" class="btn btn-secondary flex-1" id="btnCancelCustomYoutube">Cancel</button>
           <button type="button" class="btn btn-primary flex-1" id="btnLoadCustomYoutube">Load &amp; Play</button>
         </div>

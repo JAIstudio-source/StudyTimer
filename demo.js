@@ -87,6 +87,7 @@ let isLongBreakActive = false;
 let pendingGoalIdToDelete = null;
 
 let currentMode = 'timer'; // 'timer', 'pomodoro', 'stopwatch', 'break'
+let lastFocusMode = 'timer'; // 'timer', 'pomodoro'
 let timerStatus = 'IDLE';  // 'IDLE', 'RUNNING', 'PAUSED'
 
 // Millisecond-Accurate Tracking Variables
@@ -134,6 +135,7 @@ let appState = getCleanInitialState(null);
 async function initApp() {
   initTheme();
   loadLocalState();
+  initSidebarState();
   initDomElements();
   setupEventListeners();
   initTimerWorker();
@@ -162,7 +164,7 @@ if (document.readyState === 'loading') {
 
 // Theme Management
 function initTheme() {
-  const savedTheme = localStorage.getItem('studytimer-theme') || 'light';
+  const savedTheme = localStorage.getItem('studytimer-theme') || 'dark';
   document.documentElement.setAttribute('data-theme', savedTheme);
   
   const themeToggle = document.getElementById('themeToggleBtn');
@@ -1453,6 +1455,46 @@ function getModeDurationSec() {
   }
 }
 
+function initCountdownPresets() {
+  document.querySelectorAll('#countdownPresetsRow .cd-preset-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      if (chip.id === 'btnOpenTimerSettingsGear') {
+        openTimerSettingsModal();
+        return;
+      }
+      const min = parseInt(chip.dataset.min, 10);
+      if (!isNaN(min) && min > 0) {
+        timerConfig.customTimerMinutes = min;
+        saveLocalState();
+        updateCountdownPresetsUI();
+        if (currentMode === 'timer') {
+          if (timerStatus === 'IDLE') {
+            resetTimer();
+          } else {
+            showToast(`Countdown set to ${min}m (will apply on reset)`, 'info');
+          }
+        }
+      }
+    });
+  });
+  updateCountdownPresetsUI();
+}
+
+function updateCountdownPresetsUI() {
+  const row = document.getElementById('countdownPresetsRow');
+  if (row) {
+    row.style.display = currentMode === 'timer' ? 'flex' : 'none';
+  }
+  document.querySelectorAll('#countdownPresetsRow .cd-preset-chip[data-min]').forEach(chip => {
+    const min = parseInt(chip.dataset.min, 10);
+    if (min === timerConfig.customTimerMinutes) {
+      chip.classList.add('active');
+    } else {
+      chip.classList.remove('active');
+    }
+  });
+}
+
 function initDomElements() {
   // Mode Tabs
   document.querySelectorAll('.mode-btn').forEach(btn => {
@@ -1474,6 +1516,9 @@ function initDomElements() {
       switchMode(btn.dataset.mode);
     });
   });
+
+  // Countdown duration presets
+  initCountdownPresets();
 }
 
 function setupEventListeners() {
@@ -1495,6 +1540,14 @@ function setupEventListeners() {
   document.getElementById('btnMobileMenuToggle')?.addEventListener('click', openMobileSidebar);
   document.getElementById('sidebarBackdrop')?.addEventListener('click', closeMobileSidebar);
 
+  // Desktop Sidebar Collapse / Expand Toggle
+  document.getElementById('btnToggleSidebarCollapse')?.addEventListener('click', toggleSidebarCollapse);
+  document.getElementById('btnTopSidebarToggle')?.addEventListener('click', toggleSidebarCollapse);
+
+  // Dedicated Full Screen Zen Timer Mode Triggers
+  document.getElementById('btnOpenZenTimer')?.addEventListener('click', openZenMode);
+  document.getElementById('btnStudioZenTimer')?.addEventListener('click', openZenMode);
+
   // Fullscreen Browser Zen Mode
   document.getElementById('btnBrowserFullscreen')?.addEventListener('click', toggleBrowserFullscreen);
 
@@ -1510,6 +1563,9 @@ function setupEventListeners() {
   // Dedicated Desktop & Mobile Leaderboard Triggers
   document.getElementById('btnDesktopLeaderboard')?.addEventListener('click', openLeaderboardModal);
   document.getElementById('btnMobileLeaderboard')?.addEventListener('click', openLeaderboardModal);
+  document.getElementById('btnLeaderboardLogin')?.addEventListener('click', () => {
+    openAuthModal();
+  });
   document.getElementById('btnMenuLeaderboard')?.addEventListener('click', () => {
     document.getElementById('userMenuDropdown')?.classList.add('hidden');
     openLeaderboardModal();
@@ -1614,6 +1670,7 @@ function setupEventListeners() {
   document.getElementById('insightsBackdrop')?.addEventListener('click', closeInsightsDrawer);
 
   // Planner Goals Modal Triggers (Add / Edit / Checkbox)
+  document.getElementById('btnAddPlannerGoal')?.addEventListener('click', openAddGoalModal);
   document.getElementById('btnOpenAddGoalModal')?.addEventListener('click', openAddGoalModal);
   document.getElementById('btnCloseGoalModal')?.addEventListener('click', closeAddGoalModal);
   document.getElementById('btnCancelGoalModal')?.addEventListener('click', closeAddGoalModal);
@@ -1688,7 +1745,6 @@ function setupEventListeners() {
 
   // Settings Modal Triggers
   document.getElementById('btnOpenTimerSettings')?.addEventListener('click', openTimerSettingsModal);
-  document.getElementById('btnEditGoal')?.addEventListener('click', openTimerSettingsModal);
   document.getElementById('btnCloseTimerSettingsModal')?.addEventListener('click', closeTimerSettingsModal);
   document.getElementById('timerSettingsModalOverlay')?.addEventListener('click', (e) => {
     if (e.target.id === 'timerSettingsModalOverlay') closeTimerSettingsModal();
@@ -1734,7 +1790,6 @@ function setupEventListeners() {
   document.getElementById('btnManualSync')?.addEventListener('click', pullDataFromCloud);
 
   // Subject Dropdown Menu Toggles (Main & Full Screen)
-  const btnSubjectTrigger = document.getElementById('btnSubjectMenuTrigger');
   const timerSubjectDisplay = document.getElementById('timerSubjectDisplay');
   const subjectDropdownMenu = document.getElementById('subjectDropdownMenu');
 
@@ -1757,12 +1812,11 @@ function setupEventListeners() {
     }
   }
 
-  btnSubjectTrigger?.addEventListener('click', toggleMainSubjectMenu);
   timerSubjectDisplay?.addEventListener('click', toggleMainSubjectMenu);
   zenSubjectDisplay?.addEventListener('click', toggleZenSubjectMenu);
 
   document.addEventListener('click', (e) => {
-    if (subjectDropdownMenu && !subjectDropdownMenu.contains(e.target) && !btnSubjectTrigger?.contains(e.target) && !timerSubjectDisplay?.contains(e.target)) {
+    if (subjectDropdownMenu && !subjectDropdownMenu.contains(e.target) && !timerSubjectDisplay?.contains(e.target)) {
       subjectDropdownMenu.classList.add('hidden');
     }
     if (zenSubjectDropdownMenu && !zenSubjectDropdownMenu.contains(e.target) && !zenSubjectDisplay?.contains(e.target)) {
@@ -1923,6 +1977,9 @@ document.addEventListener('fullscreenchange', () => {
 
 function switchMode(modeKey) {
   stopInterval();
+  if (modeKey === 'timer' || modeKey === 'pomodoro') {
+    lastFocusMode = modeKey;
+  }
   currentMode = modeKey;
   
   const modeBadge = document.getElementById('activeModeBadge');
@@ -1951,6 +2008,7 @@ function switchMode(modeKey) {
     }
   });
 
+  updateCountdownPresetsUI();
   resetTimer();
 }
 
@@ -1970,7 +2028,7 @@ let wakeLockSentinel = null;
 let lastAutoSavedMinute = 0;
 let defaultPageTitle = document.title || 'StudyTimer Web - Focus Timer & Habit Tracker for Students';
 
-// Native Offline Web Audio Synthesizer (Zero external mp3 dependencies)
+// Native Lightweight Focus Chime (Zero external audio file dependencies)
 function playAlarmChime() {
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -1993,6 +2051,10 @@ function playAlarmChime() {
       osc.start(ctx.currentTime + idx * 0.18);
       osc.stop(ctx.currentTime + idx * 0.18 + 1.25);
     });
+    // Immediately free audio context after playback
+    setTimeout(() => {
+      try { ctx.close(); } catch (_) {}
+    }, 1500);
   } catch (err) {
     console.warn('Audio chime warning:', err);
   }
@@ -2485,13 +2547,18 @@ function finishSession(isAutoFinished = false) {
   if (stateKey === 'BREAK') {
     showToast('Break finished! Ready to focus.', 'info');
 
-    // Automation: Auto-switch back to Pomodoro Focus after break
+    // Automation: Auto-switch back to previous focus mode (Countdown or Pomodoro) after break
     if (timerConfig.pomoAutoSwitchFocus !== false) {
       isLongBreakActive = false;
       setTimeout(() => {
-        switchMode('pomodoro');
-        const totalCycles = timerConfig.pomoTotalCycles || 4;
-        showToast(`Ready for Pomodoro Focus (Cycle ${pomoCurrentCycle}/${totalCycles})`, 'info');
+        const nextMode = lastFocusMode || 'pomodoro';
+        switchMode(nextMode);
+        if (nextMode === 'pomodoro') {
+          const totalCycles = timerConfig.pomoTotalCycles || 4;
+          showToast(`Ready for Pomodoro Focus (Cycle ${pomoCurrentCycle}/${totalCycles})`, 'info');
+        } else {
+          showToast(`Ready for Countdown Focus (${timerConfig.customTimerMinutes || 25}m)`, 'info');
+        }
       }, 500);
     }
   } else {
@@ -2505,7 +2572,7 @@ function finishSession(isAutoFinished = false) {
     // Give option to change subject after session ended
     openSessionCompleteModal(subject, minStr);
 
-    // Pomodoro Automation: Auto-switch to break
+    // Pomodoro Automation: Auto-switch to break ONLY when in Pomodoro mode
     if (prevMode === 'pomodoro' && timerConfig.pomoAutoSwitchBreak !== false) {
       const totalCycles = timerConfig.pomoTotalCycles || 4;
       if (pomoCurrentCycle >= totalCycles) {
@@ -3083,6 +3150,25 @@ function closeMobileSidebar() {
   sidebar?.classList.remove('open');
   backdrop?.classList.add('hidden');
   document.body.style.overflow = '';
+}
+
+function toggleSidebarCollapse() {
+  const sidebar = document.getElementById('appSidebar');
+  if (!sidebar) return;
+  const isCollapsed = sidebar.classList.toggle('collapsed');
+  try {
+    localStorage.setItem('studytimer_sidebar_collapsed', isCollapsed ? 'true' : 'false');
+  } catch (_) {}
+}
+
+function initSidebarState() {
+  try {
+    const isCollapsed = localStorage.getItem('studytimer_sidebar_collapsed') === 'true';
+    const sidebar = document.getElementById('appSidebar');
+    if (isCollapsed && sidebar && window.innerWidth > 980) {
+      sidebar.classList.add('collapsed');
+    }
+  } catch (_) {}
 }
 
 function openInsightsDrawer() {
@@ -3679,7 +3765,7 @@ function renderCalendarDayPieChart(dateStr) {
 
 // 52-Week Activity Heatmap (HeatmapView.kt)
 function renderActivityHeatmap() {
-  const container = document.getElementById('heatmapGrid');
+  const container = document.getElementById('activityHeatmapGrid') || document.getElementById('heatmapGrid');
   const monthsRow = document.getElementById('heatmapMonthsRow');
   const yearLabel = document.getElementById('heatmapYearLabel');
   if (!container) return;
@@ -3789,9 +3875,11 @@ let activeCalendarYear = new Date().getFullYear();
 let selectedCalendarDateStr = getLocalDateStr();
 
 function renderMonthlyCalendar() {
-  const monthTitle = document.getElementById('calMonthTitle');
-  const daysGrid = document.getElementById('calendarDaysGrid');
+  const monthTitle = document.getElementById('calendarMonthYear') || document.getElementById('calMonthTitle');
+  const daysGrid = document.getElementById('calendarDaysGrid') || document.getElementById('calDaysGrid');
   const summaryRow = document.getElementById('calMonthSummaryRow');
+  const goalsMetChip = document.getElementById('calMonthGoalsCount');
+  const totalHoursChip = document.getElementById('calMonthTotalHours');
   if (!monthTitle || !daysGrid) return;
 
   const monthNames = [
@@ -3913,18 +4001,19 @@ function renderMonthlyCalendar() {
     daysGrid.appendChild(cell);
   }
 
-  if (summaryRow) {
-    const totalHrs = Math.floor(monthTotalSecs / 3600);
-    const totalMins = Math.round((monthTotalSecs % 3600) / 60);
-    const formattedMonthStudy = totalHrs > 0 ? `${totalHrs}h ${totalMins}m` : `${totalMins}m`;
+  const totalHrs = Math.floor(monthTotalSecs / 3600);
+  const totalMins = Math.round((monthTotalSecs % 3600) / 60);
+  const formattedMonthStudy = totalHrs > 0 ? `${totalHrs}h ${totalMins}m` : `${totalMins}m`;
 
+  if (goalsMetChip) goalsMetChip.textContent = `✓ ${monthGoalsMet} ${monthGoalsMet === 1 ? 'Goal' : 'Goals'} Met`;
+  if (totalHoursChip) totalHoursChip.textContent = `⏱ ${formattedMonthStudy} Total Study`;
+  if (summaryRow && !goalsMetChip && !totalHoursChip) {
     summaryRow.innerHTML = `
-      <span class="cal-summary-chip goals-met">✓ ${monthGoalsMet} ${monthGoalsMet === 1 ? 'Goal' : 'Goals'} Met</span>
-      <span class="cal-summary-chip total-study">⏱️ ${formattedMonthStudy} Total Study</span>
+      <span class="cal-summary-chip goals-met chip-goals">✓ ${monthGoalsMet} ${monthGoalsMet === 1 ? 'Goal' : 'Goals'} Met</span>
+      <span class="cal-summary-chip total-study chip-hours">⏱ ${formattedMonthStudy} Total Study</span>
     `;
   }
 
-  renderCalendarDayPieChart(selectedCalendarDateStr);
   renderSelectedDateTimeline(selectedCalendarDateStr);
 }
 
@@ -3947,8 +4036,8 @@ function selectCalendarDate(dateStr) {
 
 // Precise Session Timeline with exact Start & End Time
 function renderSelectedDateTimeline(dateStr) {
-  const title = document.getElementById('selectedDateTimelineTitle');
-  const countBadge = document.getElementById('selectedDateSessionCount');
+  const title = document.getElementById('timelineDateHeading') || document.getElementById('selectedDateTimelineTitle');
+  const countBadge = document.getElementById('timelineSessionCount') || document.getElementById('selectedDateSessionCount');
   const container = document.getElementById('timelineList');
   if (!container) return;
 
@@ -5439,17 +5528,30 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
 }
 
 function updatePersonalUserBar(myEntry, localTotalSec) {
+  const guestCta = document.getElementById('leaderboardGuestCta');
+  const userBar = document.getElementById('leaderboardUserBar');
   const userBarRank = document.getElementById('userBarRank');
   const userBarAvatarWrap = document.getElementById('userBarAvatarWrap');
   const userBarName = document.getElementById('userBarName');
   const userBarStatus = document.getElementById('userBarStatus');
   const userBarTime = document.getElementById('userBarTime');
 
+  if (!appState.currentUser) {
+    // GUEST: Show Join the Leaderboard CTA Card
+    if (guestCta) guestCta.classList.remove('hidden');
+    if (userBar) userBar.classList.add('hidden');
+    return;
+  }
+
+  // LOGGED-IN: Show Personal Sticky Rank Card
+  if (guestCta) guestCta.classList.add('hidden');
+  if (userBar) userBar.classList.remove('hidden');
+
   const isStudyingNow = timerStatus === 'RUNNING' && currentMode !== 'break';
   const subName = appState.selectedSubject?.name || 'Focus';
   const profile = appState.userProfile || {};
-  const currentName = profile.displayName || (appState.currentUser ? (appState.currentUser.user_metadata?.full_name || 'You') : 'You (Guest)');
-  const avatar = profile.avatarPreset || appState.currentUser?.user_metadata?.avatar_url || '🐱';
+  const currentName = profile.displayName || appState.currentUser.user_metadata?.full_name || 'You';
+  const avatar = profile.avatarPreset || appState.currentUser.user_metadata?.avatar_url || '🐱';
 
   if (userBarName) {
     userBarName.textContent = currentName;
@@ -6029,33 +6131,76 @@ function initQuoteManager() {
 }
 
 // ============================================================================
-// 9. FOCUS AUDIO & AMBIENCE PLAYER (YouTube + Offline Synthesis)
+// 9. FOCUS AUDIO & AMBIENCE PLAYER (Lightweight & Crash-Proof)
 // ============================================================================
 const AUDIO_PRESETS = {
-  lofi: { name: 'Focus Lofi Beats', type: 'youtube', id: 'jfKfPfyJRdk' },
-  piano: { name: 'Peaceful Study Piano', type: 'youtube', id: 'DWcJFNfaw9c' },
-  alpha: { name: '432Hz Alpha Waves', type: 'youtube', id: 'WPni755-Krg' },
-  rain: { name: 'Rain on Window', type: 'youtube', id: 'mPZkdNFkNps' },
-  cafe: { name: 'Busy Cafe Ambience', type: 'youtube', id: 'e3L1I7i4Z40' },
-  offline_brown: { name: 'Deep Brown Noise (Offline)', type: 'offline_brown' },
-  custom: { name: 'Custom YouTube Stream', type: 'custom' }
+  lofi: { name: 'Focus Lofi Beats', id: 'amfWIRasxtI' },
+  minecraft: { name: 'Minecraft Focus Ambience', id: 'vCTRNKPJr40' },
+  piano: { name: 'Peaceful Study Piano', id: 'FjHGZj2IjBk' },
+  synthwave: { name: 'Synthwave Chill', id: '4xDzrJKXOOY' },
+  rain: { name: 'Rain & Gentle Thunder', id: 'mPZkdNFkNps' },
+  cafe: { name: 'Cozy Cafe Ambience', id: 'e3L1I7i4Z40' },
+  alpha: { name: '432Hz Alpha Waves', id: 'WPni755-Krg' },
+  classical: { name: 'Baroque Focus Music', id: 'jgpJVI3tDbY' },
+  custom: { name: 'Custom Audio Stream / URL', id: '' }
 };
 
 let activeAudioPresetKey = 'lofi';
 let isAudioPlaying = false;
 let audioVolume = parseInt(localStorage.getItem('studytimer_audio_vol') || '60', 10);
 let customYoutubeVideoId = localStorage.getItem('studytimer_custom_yt_id') || '';
+let customAudioUrl = localStorage.getItem('studytimer_custom_audio_url') || '';
 
+let adFreeAudioElement = null;
 let ytPlayerIframe = null;
-let webAudioCtx = null;
-let webAudioNoiseNode = null;
-let webAudioGainNode = null;
+
+function updateAudioEngineBadge(engine = 'ready') {
+  const badge = document.getElementById('audioEngineBadge');
+  if (!badge) return;
+  badge.className = 'audio-engine-badge';
+  if (engine === 'audio' || engine === 'direct') {
+    badge.classList.add('engine-piped');
+    badge.textContent = 'Audio';
+    badge.title = 'Direct HTML5 Audio Stream';
+  } else if (engine === 'youtube') {
+    badge.classList.add('engine-youtube');
+    badge.textContent = 'Stream';
+    badge.title = 'Online Ambient Stream';
+  } else {
+    badge.classList.add('engine-offline');
+    badge.textContent = 'Ready';
+    badge.title = 'Audio player ready';
+  }
+}
 
 function initFocusAudio() {
   const select = document.getElementById('audioPresetSelect');
   const playBtn = document.getElementById('btnAudioPlayToggle');
   const volSlider = document.getElementById('audioVolumeSlider');
   const trackName = document.getElementById('audioCurrentName');
+
+  adFreeAudioElement = document.getElementById('customAdFreeAudio');
+  if (adFreeAudioElement) {
+    adFreeAudioElement.volume = Math.max(0, Math.min(100, audioVolume)) / 100;
+    adFreeAudioElement.addEventListener('playing', () => {
+      setAudioPlayingUI(true);
+    });
+    adFreeAudioElement.addEventListener('pause', () => {
+      if (!ytPlayerIframe && activeAudioPresetKey === 'custom' && customAudioUrl) {
+        setAudioPlayingUI(false);
+      }
+    });
+    adFreeAudioElement.addEventListener('ended', () => {
+      if (!adFreeAudioElement.loop && !ytPlayerIframe) {
+        setAudioPlayingUI(false);
+      }
+    });
+    adFreeAudioElement.addEventListener('error', () => {
+      if (isAudioPlaying && !ytPlayerIframe && adFreeAudioElement.src && adFreeAudioElement.src !== window.location.href) {
+        setAudioPlayingUI(false);
+      }
+    });
+  }
 
   if (volSlider) {
     volSlider.value = audioVolume;
@@ -6082,37 +6227,281 @@ function initFocusAudio() {
     toggleAudioPlay();
   });
 
-  // Wire custom YouTube modal buttons
+  const POPULAR_STREAM_NAMES = {
+    'amfWIRasxtI': '🎧 Lofi Chill Beats — Focus & Study',
+    'vCTRNKPJr40': '⛏️ Minecraft Study Ambience — Peaceful Piano & Synth',
+    'lTRiuFIWV54': '🎧 Lofi Girl — 1 A.M. Study Session',
+    'jfKfPfyJRdk': '🎧 Lofi Girl — Beats to Relax/Study to',
+    '5qap5aO4i9A': '🎧 Lofi Girl — Beats to Relax/Study to',
+    'FjHGZj2IjBk': '🎹 Peaceful Study Piano — Relaxing Melodies',
+    'DWcJFNfaw9c': '🎹 Peaceful Study Piano — Relaxing Melodies',
+    '4xDzrJKXOOY': '🌆 Synthwave Chill Radio — Retro Focus Beats',
+    'mPZkdNFkNps': '🌧️ Gentle Rain & Thunder — Calming Soundscape',
+    'e3L1I7i4Z40': '☕ Cozy Coffee Shop Ambience — Focus Background',
+    'WPni755-Krg': '🧠 432Hz Deep Alpha Waves — Study & Concentration',
+    'jgpJVI3tDbY': '🎻 Baroque Classical Music — High Brain Focus'
+  };
+
+  function updateMusicCoverPreview(urlOrId) {
+    const thumb = document.getElementById('customMusicPreviewThumb');
+    const title = document.getElementById('customMusicPreviewTitle');
+    const channel = document.getElementById('customMusicPreviewChannel');
+    const badge = document.getElementById('customMusicPreviewBadge');
+    if (!thumb || !title) return;
+
+    const trimmed = (urlOrId || '').trim();
+    const vidId = extractYouTubeVideoId(trimmed) || (trimmed.length === 11 ? trimmed : (customYoutubeVideoId || 'amfWIRasxtI'));
+
+    if (vidId) {
+      thumb.src = `https://img.youtube.com/vi/${vidId}/hqdefault.jpg`;
+      thumb.onerror = () => { thumb.src = 'assets/logo.png'; };
+      const knownName = POPULAR_STREAM_NAMES[vidId];
+      title.textContent = knownName || `YouTube Stream (${vidId})`;
+      if (channel) channel.textContent = 'Focus Ambience • Ad-Free Audio Stream';
+      if (badge) badge.textContent = '▶ Click to Play Stream';
+    } else if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      thumb.src = 'assets/logo.png';
+      title.textContent = 'Custom Direct Audio Stream';
+      if (channel) channel.textContent = 'Web Stream • Direct Audio Format';
+      if (badge) badge.textContent = '▶ Click to Play Stream';
+    }
+  }
+
+  // Real-time input listener for URL cover preview
+  document.getElementById('customYoutubeUrlInput')?.addEventListener('input', (e) => {
+    updateMusicCoverPreview(e.target.value);
+  });
+
+  // Wire suggestion chips in modal (Selects & Updates Preview without auto-playing)
+  document.querySelectorAll('.yt-suggestion-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.yt-suggestion-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      const vidId = chip.dataset.id;
+      const input = document.getElementById('customYoutubeUrlInput');
+      if (input && vidId) {
+        input.value = `https://www.youtube.com/watch?v=${vidId}`;
+        customYoutubeVideoId = vidId;
+        customAudioUrl = '';
+        updateMusicCoverPreview(vidId);
+        localStorage.setItem('studytimer_custom_yt_id', vidId);
+        showToast(`Selected ${chip.textContent.trim()} — Click Preview to Play`, 'info');
+      }
+    });
+  });
+
+  // Dedicated function to commit and start playback
+  function loadAndPlayCustomYoutube() {
+    const input = document.getElementById('customYoutubeUrlInput');
+    const val = input?.value.trim() || customYoutubeVideoId || 'amfWIRasxtI';
+    if (val) {
+      if (val.startsWith('http://') || val.startsWith('https://')) {
+        const parsedId = extractYouTubeVideoId(val);
+        if (parsedId) {
+          customYoutubeVideoId = parsedId;
+          customAudioUrl = '';
+          localStorage.setItem('studytimer_custom_yt_id', parsedId);
+        } else {
+          customAudioUrl = val;
+          customYoutubeVideoId = '';
+          localStorage.setItem('studytimer_custom_audio_url', val);
+        }
+      } else {
+        customYoutubeVideoId = val;
+        customAudioUrl = '';
+        localStorage.setItem('studytimer_custom_yt_id', val);
+      }
+      closeCustomYoutubeModal();
+      switchAudioTrack('custom');
+      startCurrentAudio();
+      setAudioPlayingUI(true);
+      showToast('Now Playing Custom Stream 🎧', 'success');
+    }
+  }
+
+  // Play when clicking "Load & Play" button
+  document.getElementById('btnLoadCustomYoutube')?.addEventListener('click', loadAndPlayCustomYoutube);
+
+  // Play when clicking directly on the Preview Card
+  document.getElementById('customMusicPreviewCard')?.addEventListener('click', loadAndPlayCustomYoutube);
+
+  // Initialize Draggable & Collapsible Audio Dock
+  initDraggableAudioDock();
+
+  // Wire topbar audio trigger (Opens modal, does NOT autoplay)
+  document.getElementById('btnTopbarAudio')?.addEventListener('click', openCustomYoutubeModal);
+
+  // Wire custom modal buttons
   document.getElementById('btnCloseCustomYoutubeModal')?.addEventListener('click', closeCustomYoutubeModal);
   document.getElementById('btnCancelCustomYoutube')?.addEventListener('click', closeCustomYoutubeModal);
   document.getElementById('customYoutubeModalOverlay')?.addEventListener('click', (e) => {
     if (e.target.id === 'customYoutubeModalOverlay') closeCustomYoutubeModal();
   });
-  document.getElementById('btnLoadCustomYoutube')?.addEventListener('click', () => {
-    const input = document.getElementById('customYoutubeUrlInput');
-    const val = input?.value.trim();
-    if (val) {
-      const parsedId = extractYouTubeVideoId(val);
-      if (parsedId) {
-        customYoutubeVideoId = parsedId;
-        localStorage.setItem('studytimer_custom_yt_id', parsedId);
-        closeCustomYoutubeModal();
-        switchAudioTrack('custom');
-        if (!isAudioPlaying) toggleAudioPlay();
-        showToast('Custom YouTube stream loaded!', 'success');
-      } else {
-        showToast('Invalid YouTube URL or Video ID.', 'warning');
-      }
-    }
-  });
+
+  updateAudioEngineBadge('ready');
 }
 
 function extractYouTubeVideoId(urlOrId) {
-  if (!urlOrId) return null;
-  if (/^[a-zA-Z0-9_-]{11}$/.test(urlOrId)) return urlOrId;
-  const regExp = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|live\/))([\w-]{11})/;
-  const match = urlOrId.match(regExp);
+  if (!urlOrId || typeof urlOrId !== 'string') return null;
+  const trimmed = urlOrId.trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) return trimmed;
+  const regExp = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|live\/|shorts\/)|music\.youtube\.com\/watch\?v=)([\w-]{11})/;
+  const match = trimmed.match(regExp);
   return match ? match[1] : null;
+}
+
+function initDraggableAudioDock() {
+  const dock = document.getElementById('floatingAudioDock');
+  const handle = document.getElementById('audioDragHandle');
+  const collapseBtn = document.getElementById('btnAudioCollapse');
+  if (!dock) return;
+
+  function clampDockPosition() {
+    // Only clamp if the user has custom-positioned the dock with inline styles
+    if (!dock.style.left && !dock.style.top) return;
+
+    const rect = dock.getBoundingClientRect();
+    const dockW = dock.offsetWidth || rect.width || 200;
+    const dockH = dock.offsetHeight || rect.height || 44;
+    const maxX = Math.max(10, window.innerWidth - dockW - 12);
+    const maxY = Math.max(10, window.innerHeight - dockH - 12);
+
+    let currentLeft = parseFloat(dock.style.left) || rect.left;
+    let currentTop = parseFloat(dock.style.top) || rect.top;
+
+    const clampedX = Math.max(10, Math.min(currentLeft, maxX));
+    const clampedY = Math.max(10, Math.min(currentTop, maxY));
+
+    dock.style.left = `${clampedX}px`;
+    dock.style.top = `${clampedY}px`;
+    dock.style.bottom = 'auto';
+    dock.style.right = 'auto';
+
+    try {
+      localStorage.setItem('studytimer_audio_dock_pos', JSON.stringify({ x: clampedX, y: clampedY }));
+    } catch (_) {}
+  }
+
+  function resetDockToDefaultPosition() {
+    dock.style.left = '';
+    dock.style.top = '';
+    dock.style.bottom = '';
+    dock.style.right = '';
+    try {
+      localStorage.removeItem('studytimer_audio_dock_pos');
+    } catch (_) {}
+  }
+
+  // Restore collapsed state
+  const isCollapsed = localStorage.getItem('studytimer_audio_dock_collapsed') === 'true';
+  if (isCollapsed) {
+    dock.classList.add('dock-collapsed');
+  }
+
+  collapseBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const collapsed = dock.classList.toggle('dock-collapsed');
+    try {
+      localStorage.setItem('studytimer_audio_dock_collapsed', collapsed ? 'true' : 'false');
+    } catch (_) {}
+    if (dock.style.left || dock.style.top) {
+      setTimeout(clampDockPosition, 60);
+    }
+  });
+
+  // Restore saved position ONLY if it is a genuine user-dragged position (not corrupted top-left 0..80)
+  try {
+    const rawPos = localStorage.getItem('studytimer_audio_dock_pos');
+    if (rawPos) {
+      const savedPos = JSON.parse(rawPos);
+      if (savedPos && typeof savedPos.x === 'number' && typeof savedPos.y === 'number') {
+        // Discard legacy bugged top-left coordinates (< 80px)
+        if (savedPos.x <= 80 && savedPos.y <= 80) {
+          resetDockToDefaultPosition();
+        } else {
+          const maxX = Math.max(10, window.innerWidth - (dock.offsetWidth || 300) - 12);
+          const maxY = Math.max(10, window.innerHeight - (dock.offsetHeight || 44) - 12);
+          const x = Math.max(10, Math.min(savedPos.x, maxX));
+          const y = Math.max(10, Math.min(savedPos.y, maxY));
+          dock.style.left = `${x}px`;
+          dock.style.top = `${y}px`;
+          dock.style.bottom = 'auto';
+          dock.style.right = 'auto';
+        }
+      }
+    }
+  } catch (_) {}
+
+  // Double click drag handle to reset dock to natural bottom-right corner
+  handle?.addEventListener('dblclick', (e) => {
+    e.stopPropagation();
+    resetDockToDefaultPosition();
+  });
+
+  window.addEventListener('resize', () => {
+    if (dock.style.left || dock.style.top) {
+      clampDockPosition();
+    }
+  });
+
+  // Drag listeners
+  let isDragging = false;
+  let startX = 0;
+  let startY = 0;
+  let initialLeft = 0;
+  let initialTop = 0;
+
+  const dragTarget = handle || dock;
+
+  function onPointerDown(e) {
+    if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) {
+      return;
+    }
+    isDragging = true;
+    const rect = dock.getBoundingClientRect();
+    initialLeft = rect.left;
+    initialTop = rect.top;
+    startX = e.clientX || 0;
+    startY = e.clientY || 0;
+    dock.style.transition = 'none';
+
+    document.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('pointerup', onPointerUp);
+  }
+
+  function onPointerMove(e) {
+    if (!isDragging) return;
+    const curX = e.clientX || 0;
+    const curY = e.clientY || 0;
+    const dx = curX - startX;
+    const dy = curY - startY;
+
+    let nextX = initialLeft + dx;
+    let nextY = initialTop + dy;
+
+    const maxX = Math.max(10, window.innerWidth - dock.offsetWidth - 12);
+    const maxY = Math.max(10, window.innerHeight - dock.offsetHeight - 12);
+
+    nextX = Math.max(10, Math.min(nextX, maxX));
+    nextY = Math.max(10, Math.min(nextY, maxY));
+
+    dock.style.left = `${nextX}px`;
+    dock.style.top = `${nextY}px`;
+    dock.style.bottom = 'auto';
+    dock.style.right = 'auto';
+  }
+
+  function onPointerUp() {
+    if (!isDragging) return;
+    isDragging = false;
+    dock.style.transition = '';
+    document.removeEventListener('pointermove', onPointerMove);
+    document.removeEventListener('pointerup', onPointerUp);
+
+    clampDockPosition();
+  }
+
+  dragTarget.addEventListener('pointerdown', onPointerDown);
 }
 
 function switchAudioTrack(presetKey) {
@@ -6122,8 +6511,27 @@ function switchAudioTrack(presetKey) {
 
   const trackName = document.getElementById('audioCurrentName');
   const preset = AUDIO_PRESETS[presetKey];
-  if (trackName && preset) {
-    trackName.textContent = preset.name;
+  if (trackName) {
+    if (presetKey === 'custom') {
+      const knownNames = {
+        'amfWIRasxtI': '🎧 Lofi Chill',
+        'vCTRNKPJr40': '⛏️ Minecraft Focus',
+        'lTRiuFIWV54': '🎧 Lofi Girl',
+        'jfKfPfyJRdk': '🎧 Lofi Girl',
+        '5qap5aO4i9A': '🎧 Lofi Girl',
+        'FjHGZj2IjBk': '🎹 Study Piano',
+        'DWcJFNfaw9c': '🎹 Study Piano',
+        '4xDzrJKXOOY': '🌆 Synthwave',
+        'mPZkdNFkNps': '🌧️ Rain Storm',
+        'e3L1I7i4Z40': '☕ Coffee Shop',
+        'WPni755-Krg': '🧠 432Hz Alpha',
+        'jgpJVI3tDbY': '🎻 Classical'
+      };
+      const known = knownNames[customYoutubeVideoId];
+      trackName.textContent = known || (customYoutubeVideoId ? `Stream (${customYoutubeVideoId.substring(0, 8)}...)` : 'Custom Focus Stream');
+    } else if (preset) {
+      trackName.textContent = preset.name;
+    }
   }
 
   if (isAudioPlaying) {
@@ -6132,14 +6540,65 @@ function switchAudioTrack(presetKey) {
   }
 }
 
+let currentPlayingVideoId = '';
+
 function toggleAudioPlay() {
   if (isAudioPlaying) {
-    stopCurrentAudio();
+    pauseCurrentAudio();
     setAudioPlayingUI(false);
   } else {
-    startCurrentAudio();
+    resumeCurrentAudio();
     setAudioPlayingUI(true);
   }
+}
+
+function pauseCurrentAudio() {
+  if (adFreeAudioElement && !adFreeAudioElement.paused) {
+    try {
+      adFreeAudioElement.pause();
+    } catch (_) {}
+  }
+  if (ytPlayerIframe && ytPlayerIframe.contentWindow) {
+    try {
+      ytPlayerIframe.contentWindow.postMessage(JSON.stringify({
+        event: 'command',
+        func: 'pauseVideo',
+        args: []
+      }), '*');
+    } catch (_) {}
+  }
+}
+
+function resumeCurrentAudio() {
+  if (activeAudioPresetKey === 'custom' && customAudioUrl) {
+    if (adFreeAudioElement) {
+      stopYouTubeAudio();
+      adFreeAudioElement.src = customAudioUrl;
+      adFreeAudioElement.volume = Math.max(0, Math.min(100, audioVolume)) / 100;
+      adFreeAudioElement.play().catch(() => {});
+      updateAudioEngineBadge('audio');
+      setAudioPlayingUI(true);
+      return;
+    }
+  }
+
+  const preset = AUDIO_PRESETS[activeAudioPresetKey];
+  const videoId = activeAudioPresetKey === 'custom' ? (customYoutubeVideoId || 'amfWIRasxtI') : (preset ? preset.id : 'amfWIRasxtI');
+
+  if (currentPlayingVideoId === videoId && ytPlayerIframe && ytPlayerIframe.contentWindow) {
+    try {
+      ytPlayerIframe.contentWindow.postMessage(JSON.stringify({
+        event: 'command',
+        func: 'playVideo',
+        args: []
+      }), '*');
+      updateAudioEngineBadge('youtube');
+      setAudioPlayingUI(true);
+      return;
+    } catch (_) {}
+  }
+
+  startCurrentAudio();
 }
 
 function setAudioPlayingUI(playing) {
@@ -6164,106 +6623,120 @@ function startCurrentAudio() {
   const preset = AUDIO_PRESETS[activeAudioPresetKey];
   if (!preset) return;
 
-  if (preset.type === 'offline_brown') {
-    startOfflineBrownNoise();
-  } else if (preset.type === 'youtube' || preset.type === 'custom') {
-    const videoId = preset.type === 'custom' ? (customYoutubeVideoId || 'jfKfPfyJRdk') : preset.id;
-    startYouTubeAudio(videoId);
+  if (activeAudioPresetKey === 'custom' && customAudioUrl) {
+    if (adFreeAudioElement) {
+      stopYouTubeAudio();
+      adFreeAudioElement.src = customAudioUrl;
+      adFreeAudioElement.volume = Math.max(0, Math.min(100, audioVolume)) / 100;
+      adFreeAudioElement.play().catch(() => {});
+      updateAudioEngineBadge('audio');
+      setAudioPlayingUI(true);
+      return;
+    }
+  }
+
+  const videoId = activeAudioPresetKey === 'custom' ? (customYoutubeVideoId || 'amfWIRasxtI') : preset.id;
+  if (videoId) {
+    startYouTubeEmbedPlayer(videoId);
+    setAudioPlayingUI(true);
+  } else {
+    setAudioPlayingUI(false);
   }
 }
 
 function stopCurrentAudio() {
-  stopOfflineBrownNoise();
+  pauseCurrentAudio();
   stopYouTubeAudio();
+  if (adFreeAudioElement) {
+    try {
+      adFreeAudioElement.pause();
+      adFreeAudioElement.removeAttribute('src');
+      adFreeAudioElement.load();
+    } catch (_) {}
+  }
+  updateAudioEngineBadge('ready');
 }
 
 function setAudioVolume(vol) {
-  const normVol = Math.max(0, Math.min(100, vol)) / 100;
-  if (webAudioGainNode) {
-    webAudioGainNode.gain.setValueAtTime(normVol, webAudioCtx ? webAudioCtx.currentTime : 0);
+  const normVol = Math.max(0, Math.min(100, vol));
+  if (adFreeAudioElement) {
+    adFreeAudioElement.volume = normVol / 100;
   }
   if (ytPlayerIframe && ytPlayerIframe.contentWindow) {
     try {
       ytPlayerIframe.contentWindow.postMessage(JSON.stringify({
         event: 'command',
         func: 'setVolume',
-        args: [vol]
+        args: [normVol]
       }), '*');
+      if (normVol > 0) {
+        ytPlayerIframe.contentWindow.postMessage(JSON.stringify({
+          event: 'command',
+          func: 'unMute',
+          args: []
+        }), '*');
+      } else {
+        ytPlayerIframe.contentWindow.postMessage(JSON.stringify({
+          event: 'command',
+          func: 'mute',
+          args: []
+        }), '*');
+      }
     } catch (_) {}
   }
 }
 
-function startOfflineBrownNoise() {
-  try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    if (!webAudioCtx) webAudioCtx = new AudioContext();
-    if (webAudioCtx.state === 'suspended') {
-      webAudioCtx.resume();
-    }
+function startYouTubeEmbedPlayer(videoId) {
+  if (!videoId) return;
+  currentPlayingVideoId = videoId;
+  updateAudioEngineBadge('youtube');
 
-    const bufferSize = webAudioCtx.sampleRate * 2;
-    const noiseBuffer = webAudioCtx.createBuffer(1, bufferSize, webAudioCtx.sampleRate);
-    const output = noiseBuffer.getChannelData(0);
-    let lastOut = 0.0;
-    for (let i = 0; i < bufferSize; i++) {
-      const white = Math.random() * 2 - 1;
-      output[i] = (lastOut + (0.02 * white)) / 1.02;
-      lastOut = output[i];
-      output[i] *= 3.5;
-    }
-
-    webAudioNoiseNode = webAudioCtx.createBufferSource();
-    webAudioNoiseNode.buffer = noiseBuffer;
-    webAudioNoiseNode.loop = true;
-
-    webAudioGainNode = webAudioCtx.createGain();
-    webAudioGainNode.gain.setValueAtTime(audioVolume / 100, webAudioCtx.currentTime);
-
-    webAudioNoiseNode.connect(webAudioGainNode);
-    webAudioGainNode.connect(webAudioCtx.destination);
-    webAudioNoiseNode.start(0);
-  } catch (err) {
-    console.warn('Web Audio Brown Noise error:', err);
+  if (adFreeAudioElement) {
+    try {
+      adFreeAudioElement.pause();
+      adFreeAudioElement.removeAttribute('src');
+    } catch (_) {}
   }
-}
 
-function stopOfflineBrownNoise() {
-  try {
-    if (webAudioNoiseNode) {
-      webAudioNoiseNode.stop();
-      webAudioNoiseNode.disconnect();
-      webAudioNoiseNode = null;
-    }
-  } catch (_) {}
-}
-
-function startYouTubeAudio(videoId) {
   const container = document.getElementById('youtubePlayerAnchor');
   if (!container) return;
 
-  const originUrl = window.location.origin && window.location.origin !== 'null' ? window.location.origin : 'https://get-studytimer.vercel.app';
-  const embedUrl = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&autoplay=1&controls=0&loop=1&playlist=${videoId}&origin=${encodeURIComponent(originUrl)}`;
-  
-  container.innerHTML = `<iframe id="ytIframePlayer" width="200" height="200" src="${embedUrl}" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
+  const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&autoplay=1&controls=0&loop=1&playlist=${videoId}&playsinline=1&modestbranding=1&rel=0`;
+  container.innerHTML = `<iframe id="ytIframePlayer" width="100" height="100" src="${embedUrl}" title="Custom Focus Audio" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture"></iframe>`;
   ytPlayerIframe = document.getElementById('ytIframePlayer');
+
+  setAudioPlayingUI(true);
 
   setTimeout(() => {
     setAudioVolume(audioVolume);
-  }, 1000);
+  }, 400);
 }
 
 function stopYouTubeAudio() {
   const container = document.getElementById('youtubePlayerAnchor');
-  if (container) container.innerHTML = '';
-  ytPlayerIframe = null;
+  if (container) {
+    container.innerHTML = '';
+    ytPlayerIframe = null;
+    currentPlayingVideoId = '';
+  }
 }
 
 function openCustomYoutubeModal() {
   const modal = document.getElementById('customYoutubeModalOverlay');
   const input = document.getElementById('customYoutubeUrlInput');
-  if (input && customYoutubeVideoId) {
-    input.value = `https://www.youtube.com/watch?v=${customYoutubeVideoId}`;
+  const currentVal = customAudioUrl || (customYoutubeVideoId ? `https://www.youtube.com/watch?v=${customYoutubeVideoId}` : '');
+
+  if (input) {
+    input.value = currentVal;
+  }
+  if (typeof updateMusicCoverPreview === 'function') {
+    updateMusicCoverPreview(currentVal || customYoutubeVideoId || 'amfWIRasxtI');
+  } else {
+    const thumb = document.getElementById('customMusicPreviewThumb');
+    if (thumb) {
+      const vidId = extractYouTubeVideoId(currentVal) || customYoutubeVideoId || 'amfWIRasxtI';
+      thumb.src = `https://img.youtube.com/vi/${vidId}/hqdefault.jpg`;
+    }
   }
   if (modal) {
     lockBodyScroll();
@@ -6287,10 +6760,13 @@ const BG_PRESETS = {
   library: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=1920&auto=format&fit=crop',
   space: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?q=80&w=1920&auto=format&fit=crop',
   forest: 'https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=1920&auto=format&fit=crop',
+  tokyo: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?q=80&w=1920&auto=format&fit=crop',
+  sunset: 'https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?q=80&w=1920&auto=format&fit=crop',
+  cafe: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?q=80&w=1920&auto=format&fit=crop',
   amoled: '#000000'
 };
 
-let currentBgKey = localStorage.getItem('studytimer_bg_preset') || 'default';
+let currentBgKey = localStorage.getItem('studytimer_bg_preset') || 'sunset';
 let customBgDataUrl = localStorage.getItem('studytimer_custom_bg') || '';
 let bgDimmerVal = parseInt(localStorage.getItem('studytimer_bg_dimmer') || '30', 10);
 let bgBlurVal = parseInt(localStorage.getItem('studytimer_bg_blur') || '0', 10);
@@ -6338,6 +6814,95 @@ function initBackgroundManager() {
   const uploadInput = document.getElementById('bgImageFileInput');
   const triggerBtn = document.getElementById('btnTriggerBgUpload');
   const resetBtn = document.getElementById('btnResetCustomBg');
+  const bgUrlInput = document.getElementById('bgUrlInput');
+  const btnApplyBgUrl = document.getElementById('btnApplyBgUrl');
+
+  let previewDebounceTimer = null;
+
+  function testAndPreviewImageUrl(url, callback) {
+    const card = document.getElementById('bgUrlPreviewCard');
+    const img = document.getElementById('bgUrlPreviewImg');
+    const placeholder = document.getElementById('bgUrlPreviewPlaceholder');
+    const status = document.getElementById('bgUrlPreviewStatus');
+    const msg = document.getElementById('bgUrlPreviewMsg');
+
+    if (!card || !status || !msg) {
+      if (typeof callback === 'function') callback(false);
+      return;
+    }
+
+    const trimmed = (url || '').trim();
+    if (!trimmed) {
+      card.classList.add('hidden');
+      card.classList.remove('is-valid', 'is-error');
+      if (img) { img.src = ''; img.classList.add('hidden'); }
+      if (placeholder) placeholder.classList.remove('hidden');
+      if (typeof callback === 'function') callback(false);
+      return;
+    }
+
+    card.classList.remove('hidden', 'is-valid', 'is-error');
+    status.textContent = 'Verifying image/GIF format...';
+    msg.textContent = trimmed.length > 55 ? trimmed.substring(0, 52) + '...' : trimmed;
+
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://') && !trimmed.startsWith('data:image/')) {
+      card.classList.add('is-error');
+      status.textContent = '❌ Not supported format';
+      msg.textContent = 'Link must start with https:// or http://';
+      if (img) { img.src = ''; img.classList.add('hidden'); }
+      if (placeholder) placeholder.classList.remove('hidden');
+      if (typeof callback === 'function') callback(false);
+      return;
+    }
+
+    const testImg = new Image();
+    testImg.onload = () => {
+      card.classList.remove('is-error');
+      card.classList.add('is-valid');
+      status.textContent = '✓ Supported Image/GIF Preview';
+      const isGif = trimmed.toLowerCase().includes('.gif') || (testImg.src && testImg.src.toLowerCase().includes('.gif'));
+      msg.textContent = `${isGif ? 'Animated GIF' : 'Image format'} (${testImg.naturalWidth || 0}×${testImg.naturalHeight || 0}px)`;
+      if (img) {
+        img.src = trimmed;
+        img.classList.remove('hidden');
+      }
+      if (placeholder) placeholder.classList.add('hidden');
+      if (typeof callback === 'function') callback(true);
+    };
+
+    testImg.onerror = () => {
+      card.classList.remove('is-valid');
+      card.classList.add('is-error');
+      status.textContent = '❌ Not supported format';
+      msg.textContent = 'Could not load image or GIF. Link is broken or format unsupported.';
+      if (img) {
+        img.src = '';
+        img.classList.add('hidden');
+      }
+      if (placeholder) placeholder.classList.remove('hidden');
+      if (typeof callback === 'function') callback(false);
+    };
+
+    testImg.src = trimmed;
+  }
+
+  bgUrlInput?.addEventListener('input', (e) => {
+    clearTimeout(previewDebounceTimer);
+    const val = e.target.value;
+    if (!val || (!val.startsWith('http://') && !val.startsWith('https://') && !val.startsWith('data:image/'))) {
+      testAndPreviewImageUrl(val);
+    } else {
+      previewDebounceTimer = setTimeout(() => {
+        testAndPreviewImageUrl(val);
+      }, 200);
+    }
+  });
+
+  bgUrlInput?.addEventListener('paste', () => {
+    setTimeout(() => {
+      testAndPreviewImageUrl(bgUrlInput.value);
+    }, 50);
+  });
 
   triggerBtn?.addEventListener('click', () => uploadInput?.click());
 
@@ -6360,6 +6925,7 @@ function initBackgroundManager() {
           currentBgKey = 'custom';
           localStorage.setItem('studytimer_bg_preset', 'custom');
           applyStudioBackground();
+          testAndPreviewImageUrl(result);
           if (resetBtn) resetBtn.style.display = 'inline-block';
           showToast('Custom wallpaper applied!', 'success');
         } catch (err) {
@@ -6370,12 +6936,46 @@ function initBackgroundManager() {
     reader.readAsDataURL(file);
   });
 
+  // Apply custom URL wallpaper
+  btnApplyBgUrl?.addEventListener('click', () => {
+    const url = bgUrlInput?.value.trim();
+    if (!url) {
+      showToast('Please enter an image or GIF URL.', 'warning');
+      return;
+    }
+    if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('data:image/')) {
+      testAndPreviewImageUrl(url);
+      showToast('Please enter a valid URL starting with https://', 'warning');
+      return;
+    }
+
+    testAndPreviewImageUrl(url, (isValid) => {
+      if (isValid) {
+        try {
+          localStorage.setItem('studytimer_custom_bg', url);
+          customBgDataUrl = url;
+          currentBgKey = 'custom';
+          localStorage.setItem('studytimer_bg_preset', 'custom');
+          applyStudioBackground();
+          if (resetBtn) resetBtn.style.display = 'inline-block';
+          showToast('Custom wallpaper URL applied! ✨', 'success');
+        } catch (err) {
+          showToast('Failed to apply wallpaper URL.', 'danger');
+        }
+      } else {
+        showToast('Not supported format or unable to load image/GIF.', 'danger');
+      }
+    });
+  });
+
   resetBtn?.addEventListener('click', () => {
     localStorage.removeItem('studytimer_custom_bg');
     customBgDataUrl = '';
-    setStudioBackgroundPreset('default');
+    if (bgUrlInput) bgUrlInput.value = '';
+    testAndPreviewImageUrl('');
+    setStudioBackgroundPreset('sunset');
     if (resetBtn) resetBtn.style.display = 'none';
-    showToast('Reset to default theme.', 'info');
+    showToast('Reset to default Sunset Clouds wallpaper.', 'info');
   });
 
   if (customBgDataUrl && resetBtn) {
@@ -6383,6 +6983,7 @@ function initBackgroundManager() {
   }
 
   // Modal open / close
+  document.getElementById('btnTopbarBackground')?.addEventListener('click', openStudioBgModal);
   document.getElementById('btnOpenBackgroundModal')?.addEventListener('click', openStudioBgModal);
   document.getElementById('btnCloseStudioBgModal')?.addEventListener('click', closeStudioBgModal);
   document.getElementById('studioBgModalOverlay')?.addEventListener('click', (e) => {
@@ -6447,6 +7048,28 @@ function applyStudioBackground() {
 
 function openStudioBgModal() {
   const modal = document.getElementById('studioBgModalOverlay');
+  const bgUrlInput = document.getElementById('bgUrlInput');
+  if (customBgDataUrl && bgUrlInput && (!bgUrlInput.value || bgUrlInput.value === customBgDataUrl)) {
+    if (customBgDataUrl.startsWith('http://') || customBgDataUrl.startsWith('https://')) {
+      bgUrlInput.value = customBgDataUrl;
+    }
+    const card = document.getElementById('bgUrlPreviewCard');
+    const img = document.getElementById('bgUrlPreviewImg');
+    const placeholder = document.getElementById('bgUrlPreviewPlaceholder');
+    const status = document.getElementById('bgUrlPreviewStatus');
+    const msg = document.getElementById('bgUrlPreviewMsg');
+    if (card && status) {
+      card.classList.remove('hidden', 'is-error');
+      card.classList.add('is-valid');
+      status.textContent = '✓ Active Custom Wallpaper';
+      if (msg) msg.textContent = customBgDataUrl.startsWith('data:') ? 'Custom local uploaded image / GIF' : customBgDataUrl;
+      if (img) {
+        img.src = customBgDataUrl;
+        img.classList.remove('hidden');
+      }
+      if (placeholder) placeholder.classList.add('hidden');
+    }
+  }
   if (modal) {
     lockBodyScroll();
     modal.classList.remove('hidden');
@@ -6458,4 +7081,5 @@ function closeStudioBgModal() {
   if (modal) modal.classList.add('hidden');
   unlockBodyScroll();
 }
+
 

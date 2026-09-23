@@ -137,6 +137,23 @@ class LeaderboardPanelBuilder(private val host: MainActivity) {
             layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
         }
         header.addView(refreshBtn)
+
+        val settingsBtn = ImageView(host).apply {
+            setImageResource(R.drawable.ic_settings)
+            setColorFilter(host.themeCoordinator.textColor)
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+            background = host.themeCoordinator.createGlassIconBackground(
+                host.tintedColor(host.themeCoordinator.textColor, 25)
+            )
+            contentDescription = "Leaderboard Settings"
+            setOnClickListener {
+                showLeaderboardSettingsDialog(root)
+            }
+            layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)).apply {
+                setMargins(dp(6), 0, 0, 0)
+            }
+        }
+        header.addView(settingsBtn)
         root.addView(header)
 
         // 2. PERIOD SELECTOR TABS (Today | This Week | This Month)
@@ -228,6 +245,66 @@ class LeaderboardPanelBuilder(private val host: MainActivity) {
             val scrollContent = LinearLayout(host).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(0, 0, 0, dp(16))
+            }
+
+            // Optional: Show paused participation banner if user has opted out
+            if (!LeaderboardManager.isParticipating(host)) {
+                val pausedCard = LinearLayout(host).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    background = GradientDrawable().apply {
+                        cornerRadius = dp(16).toFloat()
+                        setColor(Color.argb(30, 239, 68, 68))
+                        setStroke(dp(1), Color.argb(90, 239, 68, 68))
+                    }
+                    setPadding(dp(14), dp(12), dp(14), dp(12))
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply { setMargins(0, 0, 0, dp(12)) }
+                }
+                val pauseIcon = TextView(host).apply {
+                    text = "⏸️"
+                    textSize = 18f
+                    setPadding(0, 0, dp(10), 0)
+                }
+                val pauseTextCol = LinearLayout(host).apply {
+                    orientation = LinearLayout.VERTICAL
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                }
+                pauseTextCol.addView(TextView(host).apply {
+                    text = "Leaderboard Participation Paused"
+                    setTextColor(Color.parseColor("#EF4444"))
+                    textSize = 13.5f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                })
+                pauseTextCol.addView(TextView(host).apply {
+                    text = "Your study hours are not being shared to global rankings."
+                    setTextColor(host.themeCoordinator.textColor)
+                    alpha = 0.7f
+                    textSize = 11.5f
+                    setPadding(0, 2, 0, 0)
+                })
+                val resumeBtn = TextView(host).apply {
+                    text = "Resume"
+                    textSize = 12f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    setTextColor(Color.WHITE)
+                    background = GradientDrawable().apply {
+                        cornerRadius = dp(12).toFloat()
+                        setColor(Color.parseColor("#10B981"))
+                    }
+                    setPadding(dp(12), dp(6), dp(12), dp(6))
+                    setOnClickListener {
+                        LeaderboardManager.setParticipating(host, true)
+                        android.widget.Toast.makeText(host, "Leaderboard participation enabled! 🚀", android.widget.Toast.LENGTH_SHORT).show()
+                        loadLeaderboardData(root, forceRefresh = true)
+                    }
+                }
+                pausedCard.addView(pauseIcon)
+                pausedCard.addView(pauseTextCol)
+                pausedCard.addView(resumeBtn)
+                scrollContent.addView(pausedCard)
             }
 
             // A. Top 3 Podium
@@ -725,5 +802,211 @@ class LeaderboardPanelBuilder(private val host: MainActivity) {
 
             return myCard
         }
+    }
+
+    private fun showLeaderboardSettingsDialog(root: LinearLayout) {
+        val dialog = android.app.Dialog(host)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val sharedPrefs = host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+
+        val dialogRoot = LinearLayout(host).apply {
+            orientation = LinearLayout.VERTICAL
+            background = host.themeCoordinator.createDialogBackground(28f)
+            setPadding(dp(22), dp(20), dp(22), dp(20))
+        }
+
+        val titleView = TextView(host).apply {
+            text = "Leaderboard Settings"
+            setTextColor(host.themeCoordinator.primaryColor)
+            textSize = 18f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(0, 0, 0, dp(4))
+        }
+        val subView = TextView(host).apply {
+            text = "Manage your global leaderboard participation and live visibility."
+            setTextColor(host.themeCoordinator.textColor)
+            alpha = 0.7f
+            textSize = 12.5f
+            setPadding(0, 0, 0, dp(16))
+        }
+        dialogRoot.addView(titleView)
+        dialogRoot.addView(subView)
+
+        val isParticipating = sharedPrefs.getBoolean("leaderboard_participate", true)
+        val isShareLive = sharedPrefs.getBoolean("leaderboard_share_live_status", true)
+
+        var participateSwitchRef: com.google.android.material.switchmaterial.SwitchMaterial? = null
+
+        fun promptTurnOffLeaderboard() {
+            DeveloperToolsHelper.showThemedConfirmDialog(
+                activity = host,
+                themeCoordinator = host.themeCoordinator,
+                title = "Pause Leaderboard Participation?",
+                message = "Turning this off stops your focus sessions from syncing to global student rankings and removes your live study presence.\n\nYour personal statistics, study logs, and streaks remain completely safe on your device.\n\nAre you sure you want to stop participating?",
+                confirmText = "Pause Participation",
+                isDestructive = true,
+                onCancel = {
+                    participateSwitchRef?.isChecked = true
+                }
+            ) {
+                sharedPrefs.edit().putBoolean("leaderboard_participate", false).apply()
+                participateSwitchRef?.isChecked = false
+                CoroutineScope(Dispatchers.IO).launch {
+                    LeaderboardManager.updateStudyPresence(host, false)
+                }
+                Toast.makeText(host, "Leaderboard participation paused", Toast.LENGTH_SHORT).show()
+                loadLeaderboardData(root, forceRefresh = true)
+            }
+        }
+
+        // Row 1: Participate
+        val partSwitch = com.google.android.material.switchmaterial.SwitchMaterial(host).apply {
+            isChecked = isParticipating
+            setOnClickListener {
+                if (!isChecked) {
+                    isChecked = true
+                    promptTurnOffLeaderboard()
+                } else {
+                    sharedPrefs.edit().putBoolean("leaderboard_participate", true).apply()
+                    Toast.makeText(host, "Participating in Leaderboard! 🚀", Toast.LENGTH_SHORT).show()
+                    loadLeaderboardData(root, forceRefresh = true)
+                }
+            }
+        }
+        participateSwitchRef = partSwitch
+
+        val partRow = LinearLayout(host).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(10), 0, dp(10))
+            setOnClickListener {
+                val cur = sharedPrefs.getBoolean("leaderboard_participate", true)
+                if (cur) {
+                    promptTurnOffLeaderboard()
+                } else {
+                    sharedPrefs.edit().putBoolean("leaderboard_participate", true).apply()
+                    partSwitch.isChecked = true
+                    Toast.makeText(host, "Participating in Leaderboard! 🚀", Toast.LENGTH_SHORT).show()
+                    loadLeaderboardData(root, forceRefresh = true)
+                }
+            }
+        }
+        val partIcon = TextView(host).apply { text = "🏆"; textSize = 20f; setPadding(0, 0, dp(12), 0) }
+        val partTextCol = LinearLayout(host).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        partTextCol.addView(TextView(host).apply {
+            text = "Participate in Leaderboard"
+            setTextColor(host.themeCoordinator.textColor)
+            textSize = 14.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        })
+        partTextCol.addView(TextView(host).apply {
+            text = "Sync focus hours and appear on global rankings (On by default)"
+            setTextColor(host.themeCoordinator.textColor)
+            alpha = 0.55f
+            textSize = 11.5f
+            setPadding(0, 2, 0, 0)
+        })
+        partRow.addView(partIcon)
+        partRow.addView(partTextCol)
+        partRow.addView(partSwitch)
+        dialogRoot.addView(partRow)
+
+        // Divider
+        dialogRoot.addView(View(host).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply {
+                setMargins(0, dp(6), 0, dp(6))
+            }
+            background = GradientDrawable().apply {
+                setColor(if (host.themeCoordinator.isDarkMode()) Color.parseColor("#22232B") else host.tintedColor(host.themeCoordinator.textColor, 25))
+            }
+        })
+
+        // Row 2: Live Status
+        val liveSwitch = com.google.android.material.switchmaterial.SwitchMaterial(host).apply {
+            isChecked = isShareLive
+            setOnClickListener {
+                val newState = isChecked
+                sharedPrefs.edit().putBoolean("leaderboard_share_live_status", newState).apply()
+                if (!newState) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        LeaderboardManager.updateStudyPresence(host, false)
+                    }
+                    Toast.makeText(host, "Live study status hidden", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(host, "Live study status visible", Toast.LENGTH_SHORT).show()
+                }
+                loadLeaderboardData(root, forceRefresh = true)
+            }
+        }
+        val liveRow = LinearLayout(host).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(10), 0, dp(10))
+            setOnClickListener {
+                val cur = sharedPrefs.getBoolean("leaderboard_share_live_status", true)
+                val next = !cur
+                sharedPrefs.edit().putBoolean("leaderboard_share_live_status", next).apply()
+                liveSwitch.isChecked = next
+                if (!next) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        LeaderboardManager.updateStudyPresence(host, false)
+                    }
+                    Toast.makeText(host, "Live study status hidden", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(host, "Live study status visible", Toast.LENGTH_SHORT).show()
+                }
+                loadLeaderboardData(root, forceRefresh = true)
+            }
+        }
+        val liveIcon = TextView(host).apply { text = "🟢"; textSize = 20f; setPadding(0, 0, dp(12), 0) }
+        val liveTextCol = LinearLayout(host).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        liveTextCol.addView(TextView(host).apply {
+            text = "Share Live Study Status"
+            setTextColor(host.themeCoordinator.textColor)
+            textSize = 14.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        })
+        liveTextCol.addView(TextView(host).apply {
+            text = "Show green live indicator & active subject to others (On by default)"
+            setTextColor(host.themeCoordinator.textColor)
+            alpha = 0.55f
+            textSize = 11.5f
+            setPadding(0, 2, 0, 0)
+        })
+        liveRow.addView(liveIcon)
+        liveRow.addView(liveTextCol)
+        liveRow.addView(liveSwitch)
+        dialogRoot.addView(liveRow)
+
+        // Close button
+        val closeBtn = Button(host).apply {
+            text = "Done"
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = GradientDrawable().apply {
+                cornerRadius = dp(14).toFloat()
+                setColor(host.themeCoordinator.primaryColor)
+            }
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44)).apply {
+                setMargins(0, dp(16), 0, 0)
+            }
+            setOnClickListener { dialog.dismiss() }
+        }
+        dialogRoot.addView(closeBtn)
+
+        dialog.setContentView(dialogRoot)
+        dialog.window?.apply {
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+            setGravity(Gravity.CENTER)
+            setLayout((host.resources.displayMetrics.widthPixels * 0.90f).toInt(), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+        }
+        dialog.show()
     }
 }

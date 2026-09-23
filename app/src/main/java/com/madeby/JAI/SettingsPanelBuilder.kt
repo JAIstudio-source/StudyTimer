@@ -24,6 +24,9 @@ import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import com.google.android.material.switchmaterial.SwitchMaterial
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -468,7 +471,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 prefsCard.addView(createDivider())
                 addHubRowToCard(prefsCard, "☁️", "Cloud, Sync & Backups", cloudSub, AppSettingsTab.CLOUD)
 
-                if (isDevModeUnlocked) {
+                if (BuildConfig.DEBUG && isDevModeUnlocked) {
                     prefsCard.addView(createDivider())
                     addHubRowToCard(prefsCard, "🛠️", "Developer Tools", "Diagnostic tools & debug settings", AppSettingsTab.DEVELOPER)
                 }
@@ -608,13 +611,15 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                     gravity = Gravity.CENTER
                     setOnClickListener {
-                        devClickCount++
-                        if (devClickCount >= 5) {
-                            devClickCount = 0
-                            isDevModeUnlocked = true
-                            Toast.makeText(context, "Developer Mode Activated", Toast.LENGTH_SHORT).show()
-                            currentSettingsTab = AppSettingsTab.DEVELOPER
-                            navigateToPanel(AppPanel.SETTINGS)
+                        if (BuildConfig.DEBUG) {
+                            devClickCount++
+                            if (devClickCount >= 5) {
+                                devClickCount = 0
+                                isDevModeUnlocked = true
+                                Toast.makeText(context, "Developer Mode Activated", Toast.LENGTH_SHORT).show()
+                                currentSettingsTab = AppSettingsTab.DEVELOPER
+                                navigateToPanel(AppPanel.SETTINGS)
+                            }
                         }
                     }
                 }
@@ -1409,6 +1414,109 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 }
                 chartsCard.addView(createSettingsRow("🕒", getString(R.string.focus_pattern_setting), getString(R.string.focus_pattern_setting_sub), patternSwitch))
                 layout.addView(chartsCard)
+
+                layout.addView(createSectionLabel("LEADERBOARD & PRIVACY"))
+                val leaderboardCard = createSettingsCard()
+
+                val isParticipating = sharedPrefs.getBoolean("leaderboard_participate", true)
+                val isShareLive = sharedPrefs.getBoolean("leaderboard_share_live_status", true)
+
+                var participateSwitchRef: SwitchMaterial? = null
+
+                fun promptTurnOffLeaderboard() {
+                    DeveloperToolsHelper.showThemedConfirmDialog(
+                        activity = host,
+                        themeCoordinator = themeCoordinator,
+                        title = "Pause Leaderboard Participation?",
+                        message = "Turning this off stops your focus sessions from syncing to global student rankings and removes your live study presence.\n\nYour personal statistics, study logs, and streaks remain completely safe on your device.\n\nAre you sure you want to stop participating?",
+                        confirmText = "Pause Participation",
+                        isDestructive = true,
+                        onCancel = {
+                            participateSwitchRef?.isChecked = true
+                        }
+                    ) {
+                        sharedPrefs.edit().putBoolean("leaderboard_participate", false).apply()
+                        participateSwitchRef?.isChecked = false
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                            LeaderboardManager.updateStudyPresence(host, false)
+                        }
+                        android.widget.Toast.makeText(host, "Leaderboard participation paused", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+
+                val participateSwitch = SwitchMaterial(this).apply {
+                    isChecked = isParticipating
+                    setOnClickListener {
+                        val currentlyChecked = isChecked
+                        if (!currentlyChecked) {
+                            // User clicked to turn OFF -> keep switch checked until confirmed
+                            isChecked = true
+                            promptTurnOffLeaderboard()
+                        } else {
+                            // User turned ON
+                            sharedPrefs.edit().putBoolean("leaderboard_participate", true).apply()
+                            android.widget.Toast.makeText(host, "Participating in Leaderboard! 🚀", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                participateSwitchRef = participateSwitch
+
+                val participateRow = createSettingsRow(
+                    "🏆",
+                    "Participate in Leaderboard",
+                    "Sync study hours and compete on the global student rankings (On by default)",
+                    participateSwitch
+                )
+                participateRow.setOnClickListener {
+                    val currentVal = sharedPrefs.getBoolean("leaderboard_participate", true)
+                    if (currentVal) {
+                        promptTurnOffLeaderboard()
+                    } else {
+                        sharedPrefs.edit().putBoolean("leaderboard_participate", true).apply()
+                        participateSwitch.isChecked = true
+                        android.widget.Toast.makeText(host, "Participating in Leaderboard! 🚀", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+                leaderboardCard.addView(participateRow)
+                leaderboardCard.addView(createDivider())
+
+                val liveStatusSwitch = SwitchMaterial(this).apply {
+                    isChecked = isShareLive
+                    setOnClickListener {
+                        val newState = isChecked
+                        sharedPrefs.edit().putBoolean("leaderboard_share_live_status", newState).apply()
+                        if (!newState) {
+                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                LeaderboardManager.updateStudyPresence(host, false)
+                            }
+                            android.widget.Toast.makeText(host, "Live study status hidden", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            android.widget.Toast.makeText(host, "Live study status visible", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                val liveStatusRow = createSettingsRow(
+                    "🟢",
+                    "Share Live Study Status",
+                    "Show a live studying badge and current subject to others while focusing (On by default)",
+                    liveStatusSwitch
+                )
+                liveStatusRow.setOnClickListener {
+                    val cur = sharedPrefs.getBoolean("leaderboard_share_live_status", true)
+                    val next = !cur
+                    sharedPrefs.edit().putBoolean("leaderboard_share_live_status", next).apply()
+                    liveStatusSwitch.isChecked = next
+                    if (!next) {
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                            LeaderboardManager.updateStudyPresence(host, false)
+                        }
+                        android.widget.Toast.makeText(host, "Live study status hidden", android.widget.Toast.LENGTH_SHORT).show()
+                    } else {
+                        android.widget.Toast.makeText(host, "Live study status visible", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+                leaderboardCard.addView(liveStatusRow)
+                layout.addView(leaderboardCard)
             }
 
             // ==========================================
@@ -1853,9 +1961,14 @@ class SettingsPanelBuilder(private val host: MainActivity) {
             // 8. DEVELOPER & ADVANCED SUB-SCREEN
             // ==========================================
             else if (currentSettingsTab == AppSettingsTab.DEVELOPER) {
-                layout.addView(createSectionLabel("ADVANCED TOOLS"))
-                val devCard = DeveloperToolsHelper.buildDevCard(host, themeCoordinator)
-                layout.addView(devCard)
+                if (BuildConfig.DEBUG && isDevModeUnlocked) {
+                    layout.addView(createSectionLabel("ADVANCED TOOLS"))
+                    val devCard = DeveloperToolsHelper.buildDevCard(host, themeCoordinator)
+                    layout.addView(devCard)
+                } else {
+                    currentSettingsTab = AppSettingsTab.HUB
+                    navigateToPanel(AppPanel.SETTINGS)
+                }
             }
 
             settingsRootLayout.addView(settingsScrollView)

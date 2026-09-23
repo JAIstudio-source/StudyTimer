@@ -1,4 +1,4 @@
-﻿package com.madeby.JAI
+package com.madeby.JAI
 
 import android.content.Context
 import android.os.Build
@@ -69,7 +69,7 @@ object CrashReporter {
         val pw = PrintWriter(sw)
         throwable.printStackTrace(pw)
         val rawTrace = sw.toString()
-        val sanitizedTrace = sanitizeStackTrace(rawTrace)
+        val sanitizedTrace = sanitizeStackTrace(rawTrace).take(4000)
 
         val anonId = AppAnalytics.getAnonymousId(context)
         val userId = AuthManager.getUserId(context)
@@ -77,16 +77,17 @@ object CrashReporter {
 
         return JSONObject().apply {
             put("anonymous_id", anonId)
+            put("device_hardware_id", AppAnalytics.getHardwareDeviceId(context))
             put("user_id", if (isAuth) userId else JSONObject.NULL)
             put("is_authenticated", isAuth)
-            put("exception_type", throwable.javaClass.name)
-            put("message", sanitizeMessage(throwable.message ?: "No message"))
+            put("exception_type", throwable.javaClass.name.take(120))
+            put("message", sanitizeMessage(throwable.message ?: "No message").take(500))
             put("stack_trace", sanitizedTrace)
-            put("thread_info", threadInfo)
-            put("app_version", BuildConfig.VERSION_NAME)
+            put("thread_info", threadInfo.take(80))
+            put("app_version", BuildConfig.VERSION_NAME.take(30))
             put("version_code", BuildConfig.VERSION_CODE)
             put("android_sdk", Build.VERSION.SDK_INT)
-            put("device_model", "${Build.MANUFACTURER} ${Build.MODEL}".trim())
+            put("device_model", "${Build.MANUFACTURER} ${Build.MODEL}".trim().take(80))
             put("timestamp", System.currentTimeMillis())
         }
     }
@@ -104,9 +105,30 @@ object CrashReporter {
             .replace(Regex("(?i)bearer\\s+[a-z0-9._-]+"), "Bearer [TOKEN_REDACTED]")
     }
 
+    private fun isCrashRateLimited(prefs: android.content.SharedPreferences): Boolean {
+        val now = System.currentTimeMillis()
+        val windowStart = now - 3600_000L // 1 hour
+        val timestampsStr = prefs.getString("crash_report_timestamps", "[]") ?: "[]"
+        val arr = try { JSONArray(timestampsStr) } catch (_: Exception) { JSONArray() }
+        val recentList = mutableListOf<Long>()
+        for (i in 0 until arr.length()) {
+            val ts = arr.optLong(i, 0L)
+            if (ts > windowStart) recentList.add(ts)
+        }
+        if (recentList.size >= 10) return true
+        recentList.add(now)
+        val newArr = JSONArray()
+        recentList.forEach { newArr.put(it) }
+        prefs.edit().putString("crash_report_timestamps", newArr.toString()).apply()
+        return false
+    }
+
     private fun enqueueCrash(context: Context, crash: JSONObject) {
         synchronized(this) {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            if (isCrashRateLimited(prefs)) {
+                return // Rate-limited: max 10 crashes per hour
+            }
             val existingStr = prefs.getString(KEY_CRASH_QUEUE, "[]") ?: "[]"
             val array = try { JSONArray(existingStr) } catch (_: Exception) { JSONArray() }
             if (array.length() >= 50) {

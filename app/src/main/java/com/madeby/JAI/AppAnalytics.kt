@@ -58,6 +58,28 @@ object AppAnalytics {
         }
     }
 
+    fun getHardwareDeviceId(context: Context): String {
+        return try {
+            val raw = android.provider.Settings.Secure.getString(
+                context.contentResolver,
+                android.provider.Settings.Secure.ANDROID_ID
+            )
+            if (raw.isNullOrBlank() || raw.equals("9774d56d682e549c", ignoreCase = true)) {
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                var fallback = prefs.getString("fallback_hw_id", null)
+                if (fallback.isNullOrBlank()) {
+                    fallback = "dev_" + UUID.randomUUID().toString().replace("-", "").take(16)
+                    prefs.edit().putString("fallback_hw_id", fallback).apply()
+                }
+                fallback
+            } else {
+                raw.trim()
+            }
+        } catch (_: Exception) {
+            "unknown_device"
+        }
+    }
+
     fun getAnonymousId(context: Context): String {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         var id = prefs.getString(KEY_ANON_ID, null)
@@ -85,7 +107,17 @@ object AppAnalytics {
     fun associateUser(context: Context, userId: String?) {
         scope.launch {
             if (userId.isNullOrBlank()) return@launch
-            trackEvent(context, "user_identified", mapOf("user_id" to userId))
+            val anonId = getAnonymousId(context)
+            val hwId = getHardwareDeviceId(context)
+            trackEvent(context, "account_linked", mapOf(
+                "previous_anonymous_id" to anonId,
+                "user_id" to userId,
+                "device_hardware_id" to hwId
+            ))
+            trackEvent(context, "user_identified", mapOf(
+                "user_id" to userId,
+                "device_hardware_id" to hwId
+            ))
             syncUserCohort(context, force = true)
             flushEvents(context, force = true)
         }
@@ -179,6 +211,7 @@ object AppAnalytics {
             val eventJson = JSONObject().apply {
                 put("event_id", eventId)
                 put("anonymous_id", anonId)
+                put("device_hardware_id", getHardwareDeviceId(context))
                 put("user_id", if (!currentUserId.isNullOrBlank()) currentUserId else JSONObject.NULL)
                 put("user_name", if (!currentUserName.isNullOrBlank()) currentUserName else JSONObject.NULL)
                 put("user_email", if (!currentUserEmail.isNullOrBlank()) currentUserEmail else JSONObject.NULL)
@@ -319,6 +352,7 @@ object AppAnalytics {
 
                 val payload = JSONObject().apply {
                     put("anonymous_id", anonId)
+                    put("device_hardware_id", getHardwareDeviceId(context))
                     put("user_id", if (!currentUserId.isNullOrBlank()) currentUserId else JSONObject.NULL)
                     put("user_name", if (!currentUserName.isNullOrBlank()) currentUserName else JSONObject.NULL)
                     put("user_email", if (!currentUserEmail.isNullOrBlank()) currentUserEmail else JSONObject.NULL)

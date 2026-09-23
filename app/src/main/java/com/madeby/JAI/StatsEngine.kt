@@ -209,11 +209,13 @@ class StatsEngine(private val context: Context) {
         val breakSum = breaks.filter { !it.running }.sumOf { it.secs }
         val focusKey = "${dateStr}_focus_total"
         val breakKey = "${dateStr}_break_total"
-        if (prefs.getLong(focusKey, 0L) == focusSum && prefs.getLong(breakKey, 0L) == breakSum) return
-        prefs.edit()
-            .putLong(focusKey, focusSum)
-            .putLong(breakKey, breakSum)
-            .apply()
+        if (prefs.getLong(focusKey, 0L) != focusSum || prefs.getLong(breakKey, 0L) != breakSum) {
+            prefs.edit()
+                .putLong(focusKey, focusSum)
+                .putLong(breakKey, breakSum)
+                .apply()
+        }
+        TimelineLogger.reconcileSubjectDurationsFromTimeline(context, dateStr)
     }
 
     fun forceReconcileDayTotals(dateStr: String) {
@@ -226,6 +228,7 @@ class StatsEngine(private val context: Context) {
             .putLong(focusKey, focusSum)
             .putLong(breakKey, breakSum)
             .apply()
+        TimelineLogger.reconcileSubjectDurationsFromTimeline(context, dateStr)
     }
 
     fun computeStatsSnapshot(currentBreakSecs: Long = 0L): StatsSnapshot {

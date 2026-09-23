@@ -189,17 +189,23 @@ function unlockBodyScroll() {
 
 // Supabase Realtime Leaderboard Listener
 let leaderboardRealtimeChannel = null;
+let leaderboardRealtimeDebounce = null;
 function initLeaderboardRealtime() {
   if (!supabaseClient || leaderboardRealtimeChannel) return;
   try {
     leaderboardRealtimeChannel = supabaseClient
       .channel('realtime_daily_leaderboard')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_leaderboard' }, () => {
-        leaderboardCache.timestamp = 0;
-        const modal = document.getElementById('leaderboardModalOverlay');
-        if (modal && !modal.classList.contains('hidden')) {
-          fetchLeaderboard(true);
-        }
+        if (leaderboardRealtimeDebounce) clearTimeout(leaderboardRealtimeDebounce);
+        leaderboardRealtimeDebounce = setTimeout(() => {
+          leaderboardTimeframeCache.daily = { data: null, timestamp: 0 };
+          leaderboardTimeframeCache.weekly = { data: null, timestamp: 0 };
+          leaderboardTimeframeCache.monthly = { data: null, timestamp: 0 };
+          const modal = document.getElementById('leaderboardModalOverlay');
+          if (modal && !modal.classList.contains('hidden')) {
+            fetchLeaderboard(false, false);
+          }
+        }, 1200);
       })
       .subscribe();
   } catch (err) {
@@ -1497,7 +1503,12 @@ function setupEventListeners() {
   document.getElementById('leaderboardModalOverlay')?.addEventListener('click', (e) => {
     if (e.target.id === 'leaderboardModalOverlay') closeLeaderboardModal();
   });
-  document.getElementById('btnRefreshLeaderboard')?.addEventListener('click', () => fetchLeaderboard(true));
+  document.getElementById('btnRefreshLeaderboard')?.addEventListener('click', () => {
+    leaderboardTimeframeCache.daily = { data: null, timestamp: 0 };
+    leaderboardTimeframeCache.weekly = { data: null, timestamp: 0 };
+    leaderboardTimeframeCache.monthly = { data: null, timestamp: 0 };
+    fetchLeaderboard(true, true);
+  });
 
   // Leaderboard Period Timeframe Tabs (Daily / Weekly / Monthly)
   document.querySelectorAll('.lb-timeframe-tab').forEach(tabBtn => {
@@ -4950,8 +4961,8 @@ async function openLeaderboardModal() {
     lockBodyScroll();
     modal.classList.remove('hidden');
     switchLeaderboardTimeframe(currentLeaderboardPeriod || 'daily');
-    await syncStudyProgressToLeaderboard(0);
-    fetchLeaderboard(true);
+    syncStudyProgressToLeaderboard(0);
+    fetchLeaderboard(true, true);
   }
 }
 
@@ -4974,14 +4985,10 @@ function getStartOfMonthDateStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }
 
-async function fetchLeaderboard(forceRefresh = false) {
+async function fetchLeaderboard(forceRefresh = false, showSpinning = false) {
   const now = Date.now();
   const period = currentLeaderboardPeriod || 'daily';
   startResetCountdownTimer();
-
-  if (forceRefresh) {
-    await syncStudyProgressToLeaderboard(0);
-  }
 
   const cached = leaderboardTimeframeCache[period];
   if (!forceRefresh && cached && cached.data && (now - cached.timestamp < LEADERBOARD_CACHE_TTL_MS)) {
@@ -4990,7 +4997,9 @@ async function fetchLeaderboard(forceRefresh = false) {
   }
 
   const refreshBtn = document.getElementById('btnRefreshLeaderboard');
-  refreshBtn?.classList.add('spinning');
+  if (showSpinning) {
+    refreshBtn?.classList.add('spinning');
+  }
 
   try {
     if (supabaseClient) {
@@ -5064,7 +5073,9 @@ async function fetchLeaderboard(forceRefresh = false) {
     console.warn('Leaderboard fetch exception:', err);
     fallbackLocalLeaderboard(period);
   } finally {
-    setTimeout(() => refreshBtn?.classList.remove('spinning'), 400);
+    if (showSpinning) {
+      setTimeout(() => refreshBtn?.classList.remove('spinning'), 400);
+    }
   }
 }
 

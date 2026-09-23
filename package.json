@@ -1,9 +1,10 @@
 {
   "name": "studytimer-web",
-  "version": "2.9.6",
+  "version": "2.9.7",
   "type": "module",
   "scripts": {
     "test": "node test/agent-readiness.test.js",
+    "sync:release": "node scripts/sync_release.mjs",
     "generate:feature": "node scripts/generate_feature_graphic.mjs",
     "generate:showcase": "node scripts/generate_showcase.mjs",
     "generate:screenshots": "node scripts/generate_plain_screenshots.mjs"

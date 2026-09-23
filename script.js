@@ -8,6 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initUseCaseTabs();
   initMobileMenu();
   initSmoothScroll();
+  initDynamicVersion();
+  initServiceWorkerSync();
 });
 
 /**
@@ -162,4 +164,58 @@ function initSmoothScroll() {
       }
     });
   });
+}
+
+/**
+ * Dynamic Version & Latest Release Loader
+ * Always fetches the fresh version.json bypassing caches so website is 100% up-to-date.
+ */
+function initDynamicVersion() {
+  fetch('/version.json?_t=' + Date.now(), { cache: 'no-store' })
+    .then(res => res.json())
+    .then(data => {
+      if (data && data.versionName) {
+        const vTag = 'v' + data.versionName;
+        // Update all version badges
+        document.querySelectorAll('.apk-version-badge, .version-text, [data-version-badge]').forEach(el => {
+          el.textContent = vTag;
+        });
+        // Update download buttons
+        document.querySelectorAll('.btn-apk-download, .apk-download-nav').forEach(btn => {
+          btn.setAttribute('title', `Download StudyTimer ${vTag} (Latest Release)`);
+        });
+      }
+    })
+    .catch(() => {});
+}
+
+/**
+ * Service Worker Update & Refresh Detector
+ */
+function initServiceWorkerSync() {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').then(reg => {
+        reg.update();
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+              }
+            });
+          }
+        });
+      }).catch(() => {});
+
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
+    });
+  }
 }

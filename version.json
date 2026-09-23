@@ -1,7 +1,7 @@
 {
     "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
     "url": "https://get-studytimer.vercel.app/?download=true",
-    "versionCode": 28,
-    "versionName": "2.9.6",
-    "releaseNotes": "What's New in Version 2.9.6 🚀\n• New Exam Countdown System in Calendar tab (Exam Date)\n• Real-Time Live UI updates for Goals, Subjects, Overview Focus & Exam Countdowns\n• Bug Fixes for subject durations, time calculations, and total focus sync\n• Themed custom submenus and modals\n• Automatic backup and cloud sync integration"
+    "versionCode": 29,
+    "versionName": "2.9.7",
+    "releaseNotes": "What's New in Version 2.9.7 🚀\n• New Leaderboard Updates: Privacy controls & live status toggles\n• New Exam Countdown System on home screen\n• Bug Fixes for planner goals, time calculations, and data sync"
 }

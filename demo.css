@@ -4923,3 +4923,479 @@ input:checked + .toggle-slider:before {
   }
 }
 
+/* ==========================================================================
+   IMMERSIVE FOCUS STUDIO ENHANCEMENTS (GroupStudyTimer-Inspired)
+   ========================================================================== */
+
+/* 1. Dynamic Studio Background & Glass Dimmer */
+.studio-bg-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transition: background-image 0.5s ease, filter 0.3s ease;
+  pointer-events: none;
+}
+
+.studio-bg-dimmer {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  transition: background-color 0.3s ease;
+}
+
+/* Glassmorphism elevation when background is active */
+body.has-custom-bg .studio-card,
+body.has-custom-bg .demo-header,
+body.has-custom-bg .timer-stats-card,
+body.has-custom-bg .timeline-card,
+body.has-custom-bg .leaderboard-card,
+body.has-custom-bg .planner-card {
+  background: rgba(18, 18, 24, 0.78) !important;
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="light"] body.has-custom-bg .studio-card,
+[data-theme="light"] body.has-custom-bg .demo-header,
+[data-theme="light"] body.has-custom-bg .timer-stats-card,
+[data-theme="light"] body.has-custom-bg .timeline-card,
+[data-theme="light"] body.has-custom-bg .leaderboard-card,
+[data-theme="light"] body.has-custom-bg .planner-card {
+  background: rgba(255, 255, 255, 0.82) !important;
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+}
+
+/* 2. Daily Motivational Quote Capsule */
+.daily-quote-capsule {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  margin-bottom: 14px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  backdrop-filter: blur(8px);
+  transition: all var(--transition-fast);
+}
+
+.daily-quote-capsule:hover {
+  border-color: var(--border-default);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.quote-sparkle-icon {
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.quote-text {
+  font-style: italic;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  flex: 1;
+  text-align: center;
+}
+
+.quote-refresh-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: color var(--transition-fast), transform var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.quote-refresh-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.quote-refresh-btn:hover {
+  color: var(--accent-blue);
+  transform: rotate(90deg);
+}
+
+/* 3. Focus Audio & Ambience Player Bar */
+.focus-audio-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  margin-bottom: 16px;
+  backdrop-filter: blur(10px);
+  transition: border-color var(--transition-fast);
+}
+
+.focus-audio-bar:hover {
+  border-color: var(--border-default);
+}
+
+.audio-track-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.audio-equalizer-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2.5px;
+  height: 14px;
+  width: 14px;
+  flex-shrink: 0;
+}
+
+.eq-bar {
+  width: 3px;
+  background: var(--text-muted);
+  border-radius: 1px;
+  height: 4px;
+  transition: height 0.2s ease, background-color 0.2s ease;
+}
+
+.audio-equalizer-bars.is-playing .eq-bar {
+  background: var(--accent-blue);
+  animation: eq-bounce 1.2s infinite ease-in-out alternate;
+}
+
+.audio-equalizer-bars.is-playing .eq-bar:nth-child(1) {
+  animation-delay: 0s;
+}
+.audio-equalizer-bars.is-playing .eq-bar:nth-child(2) {
+  animation-delay: 0.3s;
+}
+.audio-equalizer-bars.is-playing .eq-bar:nth-child(3) {
+  animation-delay: 0.6s;
+}
+
+@keyframes eq-bounce {
+  0% { height: 3px; }
+  50% { height: 14px; }
+  100% { height: 6px; }
+}
+
+.audio-current-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.audio-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.audio-preset-select {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 5px 10px;
+  outline: none;
+  cursor: pointer;
+  max-width: 170px;
+  transition: border-color var(--transition-fast);
+}
+
+.audio-preset-select:hover, .audio-preset-select:focus {
+  border-color: var(--accent-blue);
+  color: var(--text-primary);
+}
+
+.audio-play-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.audio-play-toggle-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.45);
+}
+
+.audio-play-toggle-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.audio-volume-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.audio-vol-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+}
+
+.audio-vol-slider {
+  width: 65px;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border-subtle);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.audio-vol-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.audio-vol-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.3);
+}
+
+/* 4. 4-Card Glanceable Status Metrics Grid */
+.status-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.metric-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  text-align: center;
+  backdrop-filter: blur(8px);
+  transition: border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.metric-card:hover {
+  border-color: var(--border-default);
+  transform: translateY(-1px);
+}
+
+.metric-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.metric-value {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metric-value.highlight-fire {
+  color: #f59e0b;
+}
+
+/* 5. Studio Background Customizer Modal & Presets */
+.bg-section-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.bg-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
+  gap: 10px;
+}
+
+.bg-preset-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  background: var(--bg-subtle);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.bg-preset-card:hover {
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+.bg-preset-card.active {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+  color: var(--accent-blue);
+}
+
+.bg-preset-preview {
+  width: 100%;
+  height: 52px;
+  border-radius: var(--radius-sm);
+  background-size: cover;
+  background-position: center;
+}
+
+.bg-preset-preview.default-bg {
+  background: radial-gradient(circle at top right, #1f2438, #09090b);
+}
+
+.bg-preset-preview.lofi-bg {
+  background: linear-gradient(135deg, #3a1c71, #d76d77, #ffaf7b);
+}
+
+.bg-preset-preview.rain-bg {
+  background: linear-gradient(135deg, #1e3c72, #2a5298);
+}
+
+.bg-preset-preview.library-bg {
+  background: linear-gradient(135deg, #2c3e50, #4ca1af);
+}
+
+.bg-preset-preview.space-bg {
+  background: radial-gradient(circle at center, #1b2735 0%, #090a0f 100%);
+}
+
+.bg-preset-preview.forest-bg {
+  background: linear-gradient(135deg, #134e5e, #71b280);
+}
+
+.bg-preset-preview.amoled-bg {
+  background: #000000;
+  border: 1px solid #222222;
+}
+
+.bg-upload-zone {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-subtle);
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.bg-sliders-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.bg-slider-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bg-slider-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.modal-slider {
+  width: 100%;
+  height: 5px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border-subtle);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+.modal-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  cursor: pointer;
+}
+
+/* Responsive Tweaks */
+@media (max-width: 640px) {
+  .status-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .focus-audio-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .audio-preset-select {
+    max-width: 130px;
+    font-size: 0.72rem;
+  }
+  .audio-vol-slider {
+    width: 45px;
+  }
+  .bg-sliders-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+

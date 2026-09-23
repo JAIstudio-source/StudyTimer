@@ -138,6 +138,9 @@ async function initApp() {
   setupEventListeners();
   initTimerWorker();
   initBackgroundSyncListeners();
+  initQuoteManager();
+  initFocusAudio();
+  initBackgroundManager();
   renderSubjects();
   if (!restoreActiveSessionIfAny()) {
     resetTimer();
@@ -2982,6 +2985,10 @@ function updateSelectedSubjectUI() {
     if (currentSubjectName) currentSubjectName.textContent = appState.selectedSubject.name;
     if (zenSubjectDot) zenSubjectDot.style.backgroundColor = appState.selectedSubject.color;
     if (zenSubjectName) zenSubjectName.textContent = appState.selectedSubject.name;
+    const metricSubjectVal = document.getElementById('metricSubjectVal');
+    if (metricSubjectVal && appState.selectedSubject) {
+      metricSubjectVal.textContent = appState.selectedSubject.name;
+    }
   }
 }
 
@@ -3112,6 +3119,39 @@ function updateProgressAndStreak() {
 
   if (statGoalPercent) statGoalPercent.textContent = `${percent}%`;
   if (largeGoalProgressBar) largeGoalProgressBar.style.width = `${percent}%`;
+
+  // 4-Card Glanceable Status Bar Update
+  const metricTodayVal = document.getElementById('metricTodayVal');
+  const metricStreakVal = document.getElementById('metricStreakVal');
+  const metricGoalVal = document.getElementById('metricGoalVal');
+  const metricSubjectVal = document.getElementById('metricSubjectVal');
+
+  if (metricTodayVal) {
+    if (totalSecToday === 0) {
+      metricTodayVal.textContent = '0m';
+    } else if (totalMinToday >= 60) {
+      const h = Math.floor(totalMinToday / 60);
+      const m = totalMinToday % 60;
+      metricTodayVal.textContent = `${h}h ${m > 0 ? m + 'm' : ''}`;
+    } else if (totalMinToday === 0 && totalSecToday > 0) {
+      metricTodayVal.textContent = `${totalSecToday}s`;
+    } else {
+      metricTodayVal.textContent = `${totalMinToday}m`;
+    }
+  }
+
+  if (metricStreakVal) {
+    metricStreakVal.textContent = `🔥 ${appState.streakCount || 0} ${appState.streakCount === 1 ? 'Day' : 'Days'}`;
+  }
+
+  if (metricGoalVal) {
+    metricGoalVal.textContent = `${percent}%`;
+  }
+
+  if (metricSubjectVal) {
+    const activeSub = (appState.subjects || []).find(s => s.id === appState.selectedSubject?.id) || appState.selectedSubject || DEFAULT_SUBJECTS[0];
+    metricSubjectVal.textContent = activeSub ? activeSub.name : 'Mathematics';
+  }
 }
 
 // Interactive Subject Distribution Donut / Pie Chart (SubjectPieChartView.kt)
@@ -5878,3 +5918,500 @@ function showToast(message, type = 'info') {
     setTimeout(() => toast.remove(), 300);
   }, 3500);
 }
+
+// ============================================================================
+// 8. MOTIVATIONAL DAILY QUOTE ENGINE
+// ============================================================================
+const MOTIVATIONAL_QUOTES = [
+  "Small daily improvements over time lead to stunning results.",
+  "Focus on being productive instead of busy.",
+  "The secret of getting ahead is getting started.",
+  "Discipline is choosing between what you want now and what you want most.",
+  "Deep work is the superpower of the 21st century.",
+  "Action is the foundational key to all success.",
+  "You don't have to be extreme, just consistent.",
+  "Success is the sum of small efforts, repeated day in and day out.",
+  "It always seems impossible until it's done.",
+  "Your future is created by what you do today, not tomorrow.",
+  "Energy flows where attention goes.",
+  "Fall in love with the process and the results will come.",
+  "Don't wish it were easier, wish you were better.",
+  "Continuous learning is the minimum requirement for success in any field.",
+  "Push yourself, because no one else is going to do it for you.",
+  "Great things never come from comfort zones.",
+  "Dream big. Start small. Act now.",
+  "Stay focused, go after your dreams, and keep moving toward your goals."
+];
+
+function initQuoteManager() {
+  const quoteText = document.getElementById('dailyQuoteText');
+  const nextBtn = document.getElementById('btnNextQuote');
+  const quoteContainer = document.getElementById('dailyQuoteContainer');
+
+  let currentQuoteIndex = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
+
+  function displayQuote(index) {
+    if (quoteText) {
+      quoteText.style.opacity = '0';
+      quoteText.style.transform = 'translateY(-4px)';
+      quoteText.style.transition = 'all 0.2s ease';
+      setTimeout(() => {
+        quoteText.textContent = `"${MOTIVATIONAL_QUOTES[index]}"`;
+        quoteText.style.opacity = '1';
+        quoteText.style.transform = 'translateY(0)';
+      }, 200);
+    }
+  }
+
+  function nextQuote() {
+    currentQuoteIndex = (currentQuoteIndex + 1) % MOTIVATIONAL_QUOTES.length;
+    displayQuote(currentQuoteIndex);
+  }
+
+  if (quoteText) {
+    quoteText.textContent = `"${MOTIVATIONAL_QUOTES[currentQuoteIndex]}"`;
+  }
+
+  nextBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    nextQuote();
+  });
+
+  quoteContainer?.addEventListener('click', (e) => {
+    if (e.target !== nextBtn && !nextBtn?.contains(e.target)) {
+      nextQuote();
+    }
+  });
+}
+
+// ============================================================================
+// 9. FOCUS AUDIO & AMBIENCE PLAYER (YouTube + Offline Synthesis)
+// ============================================================================
+const AUDIO_PRESETS = {
+  lofi: { name: 'Focus Lofi Beats', type: 'youtube', id: 'jfKfPfyJRdk' },
+  piano: { name: 'Peaceful Study Piano', type: 'youtube', id: 'DWcJFNfaw9c' },
+  alpha: { name: '432Hz Alpha Waves', type: 'youtube', id: 'WPni755-Krg' },
+  rain: { name: 'Rain on Window', type: 'youtube', id: 'mPZkdNFkNps' },
+  cafe: { name: 'Busy Cafe Ambience', type: 'youtube', id: 'e3L1I7i4Z40' },
+  offline_brown: { name: 'Deep Brown Noise (Offline)', type: 'offline_brown' },
+  custom: { name: 'Custom YouTube Stream', type: 'custom' }
+};
+
+let activeAudioPresetKey = 'lofi';
+let isAudioPlaying = false;
+let audioVolume = parseInt(localStorage.getItem('studytimer_audio_vol') || '60', 10);
+let customYoutubeVideoId = localStorage.getItem('studytimer_custom_yt_id') || '';
+
+let ytPlayerIframe = null;
+let webAudioCtx = null;
+let webAudioNoiseNode = null;
+let webAudioGainNode = null;
+
+function initFocusAudio() {
+  const select = document.getElementById('audioPresetSelect');
+  const playBtn = document.getElementById('btnAudioPlayToggle');
+  const volSlider = document.getElementById('audioVolumeSlider');
+  const trackName = document.getElementById('audioCurrentName');
+
+  if (volSlider) {
+    volSlider.value = audioVolume;
+    volSlider.addEventListener('input', (e) => {
+      audioVolume = parseInt(e.target.value, 10);
+      localStorage.setItem('studytimer_audio_vol', audioVolume);
+      setAudioVolume(audioVolume);
+    });
+  }
+
+  if (select) {
+    select.value = activeAudioPresetKey;
+    select.addEventListener('change', (e) => {
+      const val = e.target.value;
+      if (val === 'custom') {
+        openCustomYoutubeModal();
+      } else {
+        switchAudioTrack(val);
+      }
+    });
+  }
+
+  playBtn?.addEventListener('click', () => {
+    toggleAudioPlay();
+  });
+
+  // Wire custom YouTube modal buttons
+  document.getElementById('btnCloseCustomYoutubeModal')?.addEventListener('click', closeCustomYoutubeModal);
+  document.getElementById('btnCancelCustomYoutube')?.addEventListener('click', closeCustomYoutubeModal);
+  document.getElementById('customYoutubeModalOverlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'customYoutubeModalOverlay') closeCustomYoutubeModal();
+  });
+  document.getElementById('btnLoadCustomYoutube')?.addEventListener('click', () => {
+    const input = document.getElementById('customYoutubeUrlInput');
+    const val = input?.value.trim();
+    if (val) {
+      const parsedId = extractYouTubeVideoId(val);
+      if (parsedId) {
+        customYoutubeVideoId = parsedId;
+        localStorage.setItem('studytimer_custom_yt_id', parsedId);
+        closeCustomYoutubeModal();
+        switchAudioTrack('custom');
+        if (!isAudioPlaying) toggleAudioPlay();
+        showToast('Custom YouTube stream loaded!', 'success');
+      } else {
+        showToast('Invalid YouTube URL or Video ID.', 'warning');
+      }
+    }
+  });
+}
+
+function extractYouTubeVideoId(urlOrId) {
+  if (!urlOrId) return null;
+  if (/^[a-zA-Z0-9_-]{11}$/.test(urlOrId)) return urlOrId;
+  const regExp = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|live\/))([\w-]{11})/;
+  const match = urlOrId.match(regExp);
+  return match ? match[1] : null;
+}
+
+function switchAudioTrack(presetKey) {
+  activeAudioPresetKey = presetKey;
+  const select = document.getElementById('audioPresetSelect');
+  if (select && select.value !== presetKey) select.value = presetKey;
+
+  const trackName = document.getElementById('audioCurrentName');
+  const preset = AUDIO_PRESETS[presetKey];
+  if (trackName && preset) {
+    trackName.textContent = preset.name;
+  }
+
+  if (isAudioPlaying) {
+    stopCurrentAudio();
+    startCurrentAudio();
+  }
+}
+
+function toggleAudioPlay() {
+  if (isAudioPlaying) {
+    stopCurrentAudio();
+    setAudioPlayingUI(false);
+  } else {
+    startCurrentAudio();
+    setAudioPlayingUI(true);
+  }
+}
+
+function setAudioPlayingUI(playing) {
+  isAudioPlaying = playing;
+  const playBtn = document.getElementById('btnAudioPlayToggle');
+  const eqBars = document.getElementById('audioEqualizerBars');
+  const playIcon = playBtn?.querySelector('.audio-icon-play');
+  const pauseIcon = playBtn?.querySelector('.audio-icon-pause');
+
+  if (playing) {
+    playIcon?.classList.add('hidden');
+    pauseIcon?.classList.remove('hidden');
+    eqBars?.classList.add('is-playing');
+  } else {
+    playIcon?.classList.remove('hidden');
+    pauseIcon?.classList.add('hidden');
+    eqBars?.classList.remove('is-playing');
+  }
+}
+
+function startCurrentAudio() {
+  const preset = AUDIO_PRESETS[activeAudioPresetKey];
+  if (!preset) return;
+
+  if (preset.type === 'offline_brown') {
+    startOfflineBrownNoise();
+  } else if (preset.type === 'youtube' || preset.type === 'custom') {
+    const videoId = preset.type === 'custom' ? (customYoutubeVideoId || 'jfKfPfyJRdk') : preset.id;
+    startYouTubeAudio(videoId);
+  }
+}
+
+function stopCurrentAudio() {
+  stopOfflineBrownNoise();
+  stopYouTubeAudio();
+}
+
+function setAudioVolume(vol) {
+  const normVol = Math.max(0, Math.min(100, vol)) / 100;
+  if (webAudioGainNode) {
+    webAudioGainNode.gain.setValueAtTime(normVol, webAudioCtx ? webAudioCtx.currentTime : 0);
+  }
+  if (ytPlayerIframe && ytPlayerIframe.contentWindow) {
+    try {
+      ytPlayerIframe.contentWindow.postMessage(JSON.stringify({
+        event: 'command',
+        func: 'setVolume',
+        args: [vol]
+      }), '*');
+    } catch (_) {}
+  }
+}
+
+function startOfflineBrownNoise() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    if (!webAudioCtx) webAudioCtx = new AudioContext();
+    if (webAudioCtx.state === 'suspended') {
+      webAudioCtx.resume();
+    }
+
+    const bufferSize = webAudioCtx.sampleRate * 2;
+    const noiseBuffer = webAudioCtx.createBuffer(1, bufferSize, webAudioCtx.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    let lastOut = 0.0;
+    for (let i = 0; i < bufferSize; i++) {
+      const white = Math.random() * 2 - 1;
+      output[i] = (lastOut + (0.02 * white)) / 1.02;
+      lastOut = output[i];
+      output[i] *= 3.5;
+    }
+
+    webAudioNoiseNode = webAudioCtx.createBufferSource();
+    webAudioNoiseNode.buffer = noiseBuffer;
+    webAudioNoiseNode.loop = true;
+
+    webAudioGainNode = webAudioCtx.createGain();
+    webAudioGainNode.gain.setValueAtTime(audioVolume / 100, webAudioCtx.currentTime);
+
+    webAudioNoiseNode.connect(webAudioGainNode);
+    webAudioGainNode.connect(webAudioCtx.destination);
+    webAudioNoiseNode.start(0);
+  } catch (err) {
+    console.warn('Web Audio Brown Noise error:', err);
+  }
+}
+
+function stopOfflineBrownNoise() {
+  try {
+    if (webAudioNoiseNode) {
+      webAudioNoiseNode.stop();
+      webAudioNoiseNode.disconnect();
+      webAudioNoiseNode = null;
+    }
+  } catch (_) {}
+}
+
+function startYouTubeAudio(videoId) {
+  const container = document.getElementById('youtubePlayerAnchor');
+  if (!container) return;
+
+  const originUrl = window.location.origin && window.location.origin !== 'null' ? window.location.origin : 'https://get-studytimer.vercel.app';
+  const embedUrl = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&autoplay=1&controls=0&loop=1&playlist=${videoId}&origin=${encodeURIComponent(originUrl)}`;
+  
+  container.innerHTML = `<iframe id="ytIframePlayer" width="200" height="200" src="${embedUrl}" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
+  ytPlayerIframe = document.getElementById('ytIframePlayer');
+
+  setTimeout(() => {
+    setAudioVolume(audioVolume);
+  }, 1000);
+}
+
+function stopYouTubeAudio() {
+  const container = document.getElementById('youtubePlayerAnchor');
+  if (container) container.innerHTML = '';
+  ytPlayerIframe = null;
+}
+
+function openCustomYoutubeModal() {
+  const modal = document.getElementById('customYoutubeModalOverlay');
+  const input = document.getElementById('customYoutubeUrlInput');
+  if (input && customYoutubeVideoId) {
+    input.value = `https://www.youtube.com/watch?v=${customYoutubeVideoId}`;
+  }
+  if (modal) {
+    lockBodyScroll();
+    modal.classList.remove('hidden');
+  }
+}
+
+function closeCustomYoutubeModal() {
+  const modal = document.getElementById('customYoutubeModalOverlay');
+  if (modal) modal.classList.add('hidden');
+  unlockBodyScroll();
+}
+
+// ============================================================================
+// 10. STUDIO BACKGROUND & ATMOSPHERE MANAGER
+// ============================================================================
+const BG_PRESETS = {
+  default: '',
+  lofi: 'https://images.unsplash.com/photo-1518495973542-4542c06a5843?q=80&w=1920&auto=format&fit=crop',
+  rain: 'https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?q=80&w=1920&auto=format&fit=crop',
+  library: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=1920&auto=format&fit=crop',
+  space: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?q=80&w=1920&auto=format&fit=crop',
+  forest: 'https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=1920&auto=format&fit=crop',
+  amoled: '#000000'
+};
+
+let currentBgKey = localStorage.getItem('studytimer_bg_preset') || 'default';
+let customBgDataUrl = localStorage.getItem('studytimer_custom_bg') || '';
+let bgDimmerVal = parseInt(localStorage.getItem('studytimer_bg_dimmer') || '30', 10);
+let bgBlurVal = parseInt(localStorage.getItem('studytimer_bg_blur') || '0', 10);
+
+function initBackgroundManager() {
+  applyStudioBackground();
+
+  // Dimmer & Blur slider handlers
+  const dimmerSlider = document.getElementById('bgDimmerSlider');
+  const dimmerText = document.getElementById('bgDimmerValText');
+  const blurSlider = document.getElementById('bgBlurSlider');
+  const blurText = document.getElementById('bgBlurValText');
+
+  if (dimmerSlider) {
+    dimmerSlider.value = bgDimmerVal;
+    if (dimmerText) dimmerText.textContent = `${bgDimmerVal}%`;
+    dimmerSlider.addEventListener('input', (e) => {
+      bgDimmerVal = parseInt(e.target.value, 10);
+      if (dimmerText) dimmerText.textContent = `${bgDimmerVal}%`;
+      localStorage.setItem('studytimer_bg_dimmer', bgDimmerVal);
+      applyStudioBackground();
+    });
+  }
+
+  if (blurSlider) {
+    blurSlider.value = bgBlurVal;
+    if (blurText) blurText.textContent = `${bgBlurVal}px`;
+    blurSlider.addEventListener('input', (e) => {
+      bgBlurVal = parseInt(e.target.value, 10);
+      if (blurText) blurText.textContent = `${bgBlurVal}px`;
+      localStorage.setItem('studytimer_bg_blur', bgBlurVal);
+      applyStudioBackground();
+    });
+  }
+
+  // Preset Card click handlers
+  document.querySelectorAll('.bg-preset-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const bgKey = card.dataset.bg;
+      setStudioBackgroundPreset(bgKey);
+    });
+  });
+
+  // Custom upload zone
+  const uploadInput = document.getElementById('bgImageFileInput');
+  const triggerBtn = document.getElementById('btnTriggerBgUpload');
+  const resetBtn = document.getElementById('btnResetCustomBg');
+
+  triggerBtn?.addEventListener('click', () => uploadInput?.click());
+
+  uploadInput?.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Image is too large (max 5MB).', 'warning');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result;
+      if (typeof result === 'string') {
+        try {
+          localStorage.setItem('studytimer_custom_bg', result);
+          customBgDataUrl = result;
+          currentBgKey = 'custom';
+          localStorage.setItem('studytimer_bg_preset', 'custom');
+          applyStudioBackground();
+          if (resetBtn) resetBtn.style.display = 'inline-block';
+          showToast('Custom wallpaper applied!', 'success');
+        } catch (err) {
+          showToast('Failed to save wallpaper: browser storage full.', 'danger');
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+
+  resetBtn?.addEventListener('click', () => {
+    localStorage.removeItem('studytimer_custom_bg');
+    customBgDataUrl = '';
+    setStudioBackgroundPreset('default');
+    if (resetBtn) resetBtn.style.display = 'none';
+    showToast('Reset to default theme.', 'info');
+  });
+
+  if (customBgDataUrl && resetBtn) {
+    resetBtn.style.display = 'inline-block';
+  }
+
+  // Modal open / close
+  document.getElementById('btnOpenBackgroundModal')?.addEventListener('click', openStudioBgModal);
+  document.getElementById('btnCloseStudioBgModal')?.addEventListener('click', closeStudioBgModal);
+  document.getElementById('studioBgModalOverlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'studioBgModalOverlay') closeStudioBgModal();
+  });
+}
+
+function setStudioBackgroundPreset(bgKey) {
+  currentBgKey = bgKey;
+  localStorage.setItem('studytimer_bg_preset', bgKey);
+  
+  document.querySelectorAll('.bg-preset-card').forEach(c => {
+    if (c.dataset.bg === bgKey) {
+      c.classList.add('active');
+    } else {
+      c.classList.remove('active');
+    }
+  });
+
+  applyStudioBackground();
+}
+
+function applyStudioBackground() {
+  const bgLayer = document.getElementById('studioBgLayer');
+  const bgDimmer = document.getElementById('studioBgDimmer');
+
+  if (bgDimmer) {
+    bgDimmer.style.backgroundColor = `rgba(0, 0, 0, ${bgDimmerVal / 100})`;
+  }
+
+  if (bgLayer) {
+    bgLayer.style.filter = bgBlurVal > 0 ? `blur(${bgBlurVal}px)` : 'none';
+
+    if (currentBgKey === 'custom' && customBgDataUrl) {
+      bgLayer.style.backgroundImage = `url("${customBgDataUrl}")`;
+      bgLayer.style.backgroundColor = 'transparent';
+      document.body.classList.add('has-custom-bg');
+    } else if (currentBgKey === 'amoled') {
+      bgLayer.style.backgroundImage = 'none';
+      bgLayer.style.backgroundColor = '#000000';
+      document.body.classList.add('has-custom-bg');
+    } else if (BG_PRESETS[currentBgKey]) {
+      bgLayer.style.backgroundImage = `url("${BG_PRESETS[currentBgKey]}")`;
+      bgLayer.style.backgroundColor = 'transparent';
+      document.body.classList.add('has-custom-bg');
+    } else {
+      bgLayer.style.backgroundImage = 'none';
+      bgLayer.style.backgroundColor = 'transparent';
+      document.body.classList.remove('has-custom-bg');
+    }
+  }
+
+  // Update active preset UI cards
+  document.querySelectorAll('.bg-preset-card').forEach(c => {
+    if (c.dataset.bg === currentBgKey) {
+      c.classList.add('active');
+    } else {
+      c.classList.remove('active');
+    }
+  });
+}
+
+function openStudioBgModal() {
+  const modal = document.getElementById('studioBgModalOverlay');
+  if (modal) {
+    lockBodyScroll();
+    modal.classList.remove('hidden');
+  }
+}
+
+function closeStudioBgModal() {
+  const modal = document.getElementById('studioBgModalOverlay');
+  if (modal) modal.classList.add('hidden');
+  unlockBodyScroll();
+}
+

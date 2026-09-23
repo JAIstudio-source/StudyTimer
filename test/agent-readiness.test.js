@@ -168,7 +168,7 @@ assert(privacyContent.includes('Data Safety'), 'Privacy page includes data safet
 // ---------------------------------------------------------------------------
 // TEST 8: SoftwareApplication JSON-LD Completeness
 // ---------------------------------------------------------------------------
-console.log('\n[8/8] Testing SoftwareApplication JSON-LD Completeness...');
+console.log('\n[8/9] Testing SoftwareApplication JSON-LD Completeness...');
 const appSchema = jsonLd['@graph']?.find(item => item['@type'] === 'SoftwareApplication');
 assert(Boolean(appSchema), 'SoftwareApplication schema found in @graph');
 assert(appSchema.name === 'StudyTimer', 'SoftwareApplication name is StudyTimer');
@@ -178,6 +178,50 @@ assert(Boolean(appSchema.offers), 'SoftwareApplication includes offers');
 assert(appSchema.offers.price === '0', 'SoftwareApplication price is 0');
 assert(Boolean(appSchema.downloadUrl), 'SoftwareApplication includes downloadUrl');
 assert(Boolean(appSchema.featureList && appSchema.featureList.length > 0), 'SoftwareApplication includes featureList');
+
+// ---------------------------------------------------------------------------
+// TEST 9: Repository Security & Admin Policy Safeguards
+// ---------------------------------------------------------------------------
+console.log('\n[9/9] Testing Repository Security & Admin Policy Safeguards...');
+const adminDir = path.join(rootDir, 'admin');
+assert(!fs.existsSync(adminDir), 'Admin dashboard directory is completely absent from repository');
+
+// Verify no .har or debug network capture dumps exist
+function checkNoHarFiles(dir) {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.name === 'node_modules' || entry.name === '.git') continue;
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      checkNoHarFiles(full);
+    } else if (entry.name.endsWith('.har') || entry.name.endsWith('.dump')) {
+      assert(false, `No debug HAR/dump files allowed: ${entry.name}`, full);
+    }
+  }
+}
+checkNoHarFiles(rootDir);
+assert(true, 'Zero HAR/network debug dumps exist in repository');
+
+// Verify database files do not contain insecure RLS disable directives
+const dbDir = path.join(rootDir, 'database');
+if (fs.existsSync(dbDir)) {
+  const sqlFiles = fs.readdirSync(dbDir).filter(f => f.endsWith('.sql'));
+  let insecureRlsFound = false;
+  for (const sqlFile of sqlFiles) {
+    const sqlContent = fs.readFileSync(path.join(dbDir, sqlFile), 'utf8');
+    if (/DISABLE\s+ROW\s+LEVEL\s+SECURITY/i.test(sqlContent)) {
+      insecureRlsFound = true;
+      assert(false, `Insecure DISABLE ROW LEVEL SECURITY found in ${sqlFile}`);
+    }
+  }
+  if (!insecureRlsFound) {
+    assert(true, 'All database SQL schemas enforce Row Level Security (zero RLS disables)');
+  }
+}
+
+// Verify robots.txt does not advertise admin routes
+const robotsTxt = fs.readFileSync(path.join(rootDir, 'robots.txt'), 'utf8');
+assert(!robotsTxt.toLowerCase().includes('admin'), 'robots.txt contains no leaked /admin/ routes');
 
 // ---------------------------------------------------------------------------
 // FINAL SUMMARY
@@ -194,3 +238,4 @@ if (failedTests.length === 0) {
 }
 console.log('======================================================\n');
 process.exit(0);
+

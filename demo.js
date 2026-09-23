@@ -6135,7 +6135,7 @@ function initQuoteManager() {
 // ============================================================================
 const AUDIO_PRESETS = {
   lofi: { name: 'Focus Lofi Beats', id: 'amfWIRasxtI' },
-  minecraft: { name: 'Minecraft Focus Ambience', id: 'vCTRNKPJr40' },
+  minecraft: { name: 'Minecraft Tracks', id: 'vCTRNKPJr40' },
   piano: { name: 'Peaceful Study Piano', id: 'FjHGZj2IjBk' },
   synthwave: { name: 'Synthwave Chill', id: '4xDzrJKXOOY' },
   rain: { name: 'Rain & Gentle Thunder', id: 'mPZkdNFkNps' },
@@ -6229,7 +6229,7 @@ function initFocusAudio() {
 
   const POPULAR_STREAM_NAMES = {
     'amfWIRasxtI': '🎧 Lofi Chill Beats — Focus & Study',
-    'vCTRNKPJr40': '⛏️ Minecraft Study Ambience — Peaceful Piano & Synth',
+    'vCTRNKPJr40': '⛏️ Minecraft Tracks — Peaceful Piano & Synth',
     'lTRiuFIWV54': '🎧 Lofi Girl — 1 A.M. Study Session',
     'jfKfPfyJRdk': '🎧 Lofi Girl — Beats to Relax/Study to',
     '5qap5aO4i9A': '🎧 Lofi Girl — Beats to Relax/Study to',
@@ -6548,7 +6548,7 @@ function switchAudioTrack(presetKey) {
     if (presetKey === 'custom') {
       const knownNames = {
         'amfWIRasxtI': '🎧 Lofi Chill',
-        'vCTRNKPJr40': '⛏️ Minecraft Focus',
+        'vCTRNKPJr40': '⛏️ Minecraft Tracks',
         'lTRiuFIWV54': '🎧 Lofi Girl',
         'jfKfPfyJRdk': '🎧 Lofi Girl',
         '5qap5aO4i9A': '🎧 Lofi Girl',
@@ -6734,9 +6734,26 @@ function startYouTubeEmbedPlayer(videoId) {
   const container = document.getElementById('youtubePlayerAnchor');
   if (!container) return;
 
-  const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&autoplay=1&controls=0&loop=1&playlist=${videoId}&playsinline=1&modestbranding=1&rel=0`;
-  container.innerHTML = `<iframe id="ytIframePlayer" width="100" height="100" src="${embedUrl}" title="Custom Focus Audio" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture"></iframe>`;
+  const originHost = typeof window !== 'undefined' && window.location && window.location.origin ? window.location.origin : 'https://get-studytimer.vercel.app';
+  const originParam = `&origin=${encodeURIComponent(originHost)}`;
+  const embedUrl = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&autoplay=1&controls=0&loop=1&playlist=${videoId}&playsinline=1&modestbranding=1&rel=0${originParam}`;
+  container.innerHTML = `<iframe id="ytIframePlayer" width="200" height="120" src="${embedUrl}" title="Custom Focus Audio" frameborder="0" allow="accelerometer; autoplay *; clipboard-write; encrypted-media *; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
   ytPlayerIframe = document.getElementById('ytIframePlayer');
+
+  if (ytPlayerIframe) {
+    ytPlayerIframe.addEventListener('load', () => {
+      setTimeout(() => {
+        try {
+          ytPlayerIframe.contentWindow.postMessage(JSON.stringify({
+            event: 'command',
+            func: 'playVideo',
+            args: []
+          }), '*');
+          setAudioVolume(audioVolume);
+        } catch (_) {}
+      }, 300);
+    });
+  }
 
   setAudioPlayingUI(true);
 

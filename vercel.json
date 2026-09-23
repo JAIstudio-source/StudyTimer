@@ -1,6 +1,7 @@
 {
   "cleanUrls": true,
   "rewrites": [
+    { "source": "/download", "destination": "/StudyTimer-release.apk" },
     { "source": "/about", "destination": "/about.html" },
     { "source": "/contact", "destination": "/contact.html" }
   ],

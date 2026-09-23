@@ -230,6 +230,7 @@ object DeveloperToolsHelper {
         message: String,
         confirmText: String = "Confirm",
         isDestructive: Boolean = false,
+        onCancel: (() -> Unit)? = null,
         onConfirm: () -> Unit
     ) {
         val dialog = Dialog(activity)
@@ -272,7 +273,10 @@ object DeveloperToolsHelper {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(40)).apply {
                 setMargins(0, 0, dp(8), 0)
             }
-            setOnClickListener { dialog.dismiss() }
+            setOnClickListener {
+                dialog.dismiss()
+                onCancel?.invoke()
+            }
         }
 
         val confirmBtn = Button(activity).apply {
@@ -300,6 +304,7 @@ object DeveloperToolsHelper {
         root.addView(btnRow)
 
         dialog.setContentView(root)
+        dialog.setOnCancelListener { onCancel?.invoke() }
         dialog.window?.apply {
             setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
             setGravity(Gravity.CENTER)

@@ -6,6 +6,14 @@
 /.idea/caches/build_file_checksums.ser
 /.idea/libraries
 /.idea/modules.xml
+*.iml
+.gradle
+/local.properties
+/.env
+/app/keystore.p12
+/.idea/caches/build_file_checksums.ser
+/.idea/libraries
+/.idea/modules.xml
 /.idea/workspace.xml
 .DS_Store
 /build
@@ -15,3 +23,5 @@
 /cardtest/out/
 /cardtest/classes/
 /cardtest/tools/classes/
+*debug*.apk
+StudyTimer-debug.apk

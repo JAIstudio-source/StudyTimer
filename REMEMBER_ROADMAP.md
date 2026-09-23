@@ -5,38 +5,15 @@
 
 ---
 
-## 1. 📱 Device Identity & Guest Re-install Deduplication
+## 1. 📱 Device Identity & Guest Re-install Deduplication (Implemented & Integrated)
 
-### 🎯 Problem Statement
-- Android creates a fresh random UUID in `SharedPreferences` on every fresh install or data wipe.
-- Multiple uninstalls/re-installs by the same user appear as multiple disconnected "Guest" entries in the Admin Panel and Supabase database.
-
-### 💡 Proposed Solutions
-
-#### A. Persistent Hardware Device ID (Android App)
-Use a hardware-tied identifier in `StudyTimer-app` that survives uninstalls and data clears:
-- **Option 1 (`Settings.Secure.ANDROID_ID`):**
-  ```kotlin
-  val persistentDeviceId = Settings.Secure.getString(
-      context.contentResolver,
-      Settings.Secure.ANDROID_ID
-  ) ?: UUID.randomUUID().toString()
-  ```
-- **Option 2 (Widevine DRM Hardware UUID):**
-  A stable hardware UUID generated via Android's MediaDrm API (unique to the physical silicon, 100% persistent across uninstalls).
-
-#### B. Admin Panel "Ghost Install" Filters & Cleaner
-- **Smart Filter:** Add a toggle in the Admin Console: `[Hide 0-Study Installs]` (filters out installs with `< 60s` total study time or `0` sessions).
-- **Merge by Hardware ID:** Group guest records by `device_hardware_id` so all 5 re-installs of the same phone merge into 1 single physical timeline.
-- **Orphan Cleanup Tool:** 1-click purge in Admin Console to delete guest records older than 14 days with zero study time.
-
-#### C. Guest-to-Google Account Linking
-- When an anonymous user signs in with Google, send a `link_account` event with both `anonymous_id` and `user_id`.
-- Automatically re-assign previous guest sessions to the authenticated account in Supabase.
+- [x] **A. Persistent Hardware Device ID (Android App):** `AppAnalytics.getHardwareDeviceId(context)` using `Settings.Secure.ANDROID_ID` with fallback. Included in `app_user_cohorts`, `app_analytics_events`, `app_crash_reports`, and feedback diagnostics.
+- [x] **B. Admin Panel "Ghost Install" Filters & Cleaner:** Added `[Hide 0-Study (<60s)]` toggle, hardware ID coalescing to merge multiple reinstalls on the same phone into a unified profile, and a 1-click `[Purge Ghosts (>14d, 0s)]` tool in the Admin Console.
+- [x] **C. Guest-to-Google Account Linking:** Automatic `account_linked` event emission tracking `previous_anonymous_id`, `user_id`, and `device_hardware_id` when guest signs in with Google.
 
 ---
 
-## 2. 🤖 Telegram Bot Integration & Admin Mobile Management
+## 2. 🤖 Telegram Bot Integration & Admin Mobile Management (Optional / Future)
 
 ### 🎯 Goal
 Manage the StudyTimer platform, view live stats, inspect users, and receive instant crash/feedback alerts directly inside Telegram.
@@ -46,14 +23,6 @@ Manage the StudyTimer platform, view live stats, inspect users, and receive inst
 #### A. Telegram WebApp (Mini App inside Telegram)
 - Embed the Admin Console URL (`https://your-domain.vercel.app/admin/`) directly into a Telegram Bot.
 - Tapping a button in Telegram opens the full admin dashboard in a native-feeling mobile sheet with charts, user reports, and cloud rescue downloads.
-- **Bot Setup Example:**
-  ```python
-  from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
-  
-  keyboard = [[
-      InlineKeyboardButton("📊 Open Admin Console", web_app=WebAppInfo(url="https://your-site.vercel.app/admin/"))
-  ]]
-  ```
 
 #### B. Bot Chat Commands (Direct Supabase API Interaction)
 A lightweight Node.js or Python Telegram Bot communicating with Supabase REST API:
@@ -84,11 +53,14 @@ A lightweight Node.js or Python Telegram Bot communicating with Supabase REST AP
 ## 4. 🗄️ Cloud Sync & Backup Enhancements
 
 - [x] **Idempotent Offline Delta Sync RPC (`sync_offline_study_sessions`):** Safe multi-session batching with Last-Write-Wins (LWW) conflict resolution and `session_uuid` deduplication.
-- [ ] **Automated 30-Day Backup Pruning:** Scheduled Supabase Cron (`pg_cron`) to keep database storage lightweight on free tier while safeguarding the latest backup snapshot.
+- [x] **Automated 30-Day Backup Pruning:** `prune_old_user_snapshots(retention_days)` PL/pgSQL function and trigger keeping storage lightweight on free tier while safeguarding the latest backup snapshot.
 
 ---
 
 ## 5. ✅ Completed in Previous Updates
+- [x] Persistent Hardware Device ID (`Settings.Secure.ANDROID_ID`) across all telemetry and crash logs.
+- [x] Admin Panel Ghost Install filter (`[Hide 0-Study (<60s)]`) and 1-click orphan cleaner (`Purge Ghosts >14d`).
+- [x] Guest-to-Google account linking event and cohort reconciliation.
 - [x] Fixed REST API DELETE permissions with `Prefer: return=representation` and `fix_admin_permissions.sql`.
 - [x] Added Full User Report & Data Audit Modal with date-wise study breakdowns and today's focus time on Backup/Restore page.
 - [x] Added multi-source user coalescing across cohorts, sync data, snapshots, delta sessions, and leaderboard.

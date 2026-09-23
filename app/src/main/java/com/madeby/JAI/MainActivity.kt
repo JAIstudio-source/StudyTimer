@@ -5888,12 +5888,13 @@ class MainActivity : AppCompatActivity() {
         updateChipStyles()
         content.addView(chipContainer)
 
-        // Description Text Field
+        // Description Text Field (Max 2,000 characters)
         val inputField = android.widget.EditText(this).apply {
-            hint = "Describe what happened or what you'd like to see..."
+            hint = "Describe what happened or what you'd like to see (max 2,000 chars)..."
             setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
             setTextColor(themeCoordinator.textColor)
             textSize = 13.5f
+            filters = arrayOf(android.text.InputFilter.LengthFilter(2000))
             gravity = Gravity.TOP or Gravity.START
             minLines = 4
             maxLines = 7
@@ -5909,7 +5910,7 @@ class MainActivity : AppCompatActivity() {
         }
         content.addView(inputField)
 
-        // Contact Email Input Field (Optional)
+        // Contact Email Input Field (Optional, Max 100 characters)
         val contactField = android.widget.EditText(this).apply {
             hint = "Your email for reply (optional)..."
             val userEmail = AuthManager.getUserEmail(this@MainActivity)
@@ -5918,6 +5919,7 @@ class MainActivity : AppCompatActivity() {
             setTextColor(themeCoordinator.textColor)
             textSize = 13f
             isSingleLine = true
+            filters = arrayOf(android.text.InputFilter.LengthFilter(100))
             background = GradientDrawable().apply {
                 cornerRadius = dp(14).toFloat()
                 setColor(if (themeCoordinator.isDarkMode()) 0xFF141414.toInt() else tintedColor(themeCoordinator.textColor, 18))
@@ -6056,23 +6058,61 @@ class MainActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            val userFeedbackText = inputField.text.toString().trim()
+            // Daily rate limit check (max 10 submissions / 24 hours)
+            val todayDateKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+            val dailyCount = feedbackPrefs.getInt("submissions_count_$todayDateKey", 0)
+            if (!isDevBypass && dailyCount >= 10) {
+                Toast.makeText(this@MainActivity, "Daily submission limit reached (10/day). Please try again tomorrow.", Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+
+            val userFeedbackText = inputField.text.toString().trim().take(2000)
             if (userFeedbackText.length < 5) {
                 Toast.makeText(this@MainActivity, "Please enter at least 5 characters.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            val userContactText = contactField.text.toString().trim()
+            val userContactText = contactField.text.toString().trim().take(100)
             sendBtn.isEnabled = false
             sendBtn.text = "⏳ Submitting..."
 
-            // Build Diagnostic Object
+            val isBatteryOptIgnored = try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    val pm = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+                    pm?.isIgnoringBatteryOptimizations(packageName) ?: false
+                } else true
+            } catch (_: Exception) { false }
+
+            val notifsEnabled = try {
+                androidx.core.app.NotificationManagerCompat.from(this@MainActivity).areNotificationsEnabled()
+            } catch (_: Exception) { true }
+
+            val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+            val currentTimerState = prefs.getString("timerState", "IDLE") ?: "IDLE"
+            val selectedSub = try { SubjectTagManager.getSelectedSubject(this@MainActivity).name } catch (_: Exception) { "General" }
+            val dm = resources.displayMetrics
+            val freeRamMb = Runtime.getRuntime().freeMemory() / (1024 * 1024)
+            val maxRamMb = Runtime.getRuntime().maxMemory() / (1024 * 1024)
+            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            val todayFocusSecs = prefs.getLong("${todayStr}_focus_total", 0L)
+
+            // Build Comprehensive Privacy-Safe Diagnostic Object
             val diagJson = org.json.JSONObject().apply {
                 put("app_version", "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
-                put("android_os", "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+                put("android_os", "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
                 put("device", "${Build.MANUFACTURER} ${Build.MODEL}".trim())
+                put("brand", Build.BRAND)
                 put("timer_mode", timerMode)
+                put("timer_state", currentTimerState)
+                put("active_subject", selectedSub)
                 put("sync_status", if (AuthManager.isLoggedIn(this@MainActivity)) "ONLINE_SYNCED" else "GUEST_OFFLINE")
+                put("notifications_enabled", notifsEnabled)
+                put("battery_opt_ignored", isBatteryOptIgnored)
+                put("leaderboard_participating", LeaderboardManager.isParticipating(this@MainActivity))
+                put("live_status_sharing", LeaderboardManager.isLiveStatusSharingEnabled(this@MainActivity))
+                put("today_focus_secs", todayFocusSecs)
+                put("screen_resolution", "${dm.widthPixels}x${dm.heightPixels} (${dm.densityDpi}dpi)")
+                put("memory_mb", "$freeRamMb / $maxRamMb MB")
                 put("timestamp_epoch", System.currentTimeMillis() / 1000)
             }
 
@@ -6152,7 +6192,10 @@ class MainActivity : AppCompatActivity() {
                 // Handle on Main Thread
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                     if (isSuccess) {
-                        feedbackPrefs.edit().putLong("last_feedback_submission_epoch", System.currentTimeMillis()).apply()
+                        feedbackPrefs.edit()
+                            .putLong("last_feedback_submission_epoch", System.currentTimeMillis())
+                            .putInt("submissions_count_$todayDateKey", dailyCount + 1)
+                            .apply()
                         Toast.makeText(this@MainActivity, "🎉 Report submitted successfully to database!", Toast.LENGTH_LONG).show()
                         dialog.dismiss()
                     } else {

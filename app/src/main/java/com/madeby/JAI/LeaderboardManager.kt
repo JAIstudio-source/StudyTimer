@@ -153,6 +153,30 @@ object LeaderboardManager {
         }
     }
 
+    fun isParticipating(context: Context): Boolean {
+        return context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+            .getBoolean("leaderboard_participate", true)
+    }
+
+    fun isLiveStatusSharingEnabled(context: Context): Boolean {
+        return context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+            .getBoolean("leaderboard_share_live_status", true)
+    }
+
+    fun setParticipating(context: Context, enabled: Boolean) {
+        context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("leaderboard_participate", enabled)
+            .apply()
+    }
+
+    fun setLiveStatusSharingEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("leaderboard_share_live_status", enabled)
+            .apply()
+    }
+
     suspend fun updateStudyPresence(
         context: Context,
         isStudying: Boolean,
@@ -163,11 +187,17 @@ object LeaderboardManager {
             return@withContext false // Gated: Guests do not publish presence
         }
 
+        val shareLive = isLiveStatusSharingEnabled(context)
+        val participating = isParticipating(context)
+        val effectiveIsStudying = if (shareLive && participating) isStudying else false
+        val effectiveSubject = if (shareLive && participating && effectiveIsStudying) subject else ""
+        val effectiveColor = if (shareLive && participating && effectiveIsStudying) color else "#3b82f6"
+
         val supabaseUrl = BuildConfig.SUPABASE_URL
         val anonKey = BuildConfig.SUPABASE_ANON_KEY
         val userId = AuthManager.getUserId(context)
-        val userName = AuthManager.getUserName(context) ?: "Student"
-        val avatarUrl = AuthManager.getProfileImageUri(context) ?: ""
+        val userName = (AuthManager.getUserName(context) ?: "Student").trim().take(30)
+        val avatarUrl = (AuthManager.getProfileImageUri(context) ?: "").take(250)
         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
 
         if (supabaseUrl.isBlank() || anonKey.isBlank() || userId.isNullOrBlank()) {
@@ -189,9 +219,9 @@ object LeaderboardManager {
                 put("p_user_id", userId)
                 put("p_user_name", userName)
                 put("p_avatar_url", avatarUrl)
-                put("p_is_studying", isStudying)
-                put("p_current_subject", subject)
-                put("p_subject_color", color)
+                put("p_is_studying", effectiveIsStudying)
+                put("p_current_subject", effectiveSubject.trim().take(40))
+                put("p_subject_color", effectiveColor.trim().take(10))
                 put("p_study_date", todayStr)
             }
 
@@ -223,17 +253,27 @@ object LeaderboardManager {
         if (!AuthManager.isLoggedIn(context)) {
             return@withContext false
         }
+        if (!isParticipating(context)) {
+            return@withContext false // Gated: Leaderboard participation disabled
+        }
+
+        val shareLive = isLiveStatusSharingEnabled(context)
+        val effectiveIsStudying = if (shareLive) isStudying else false
+        val effectiveSubject = (if (shareLive) subject else "").trim().take(40)
+        val effectiveColor = (if (shareLive) color else "#3b82f6").trim().take(10)
 
         val supabaseUrl = BuildConfig.SUPABASE_URL
         val anonKey = BuildConfig.SUPABASE_ANON_KEY
         val userId = AuthManager.getUserId(context)
-        val userName = AuthManager.getUserName(context) ?: "Student"
-        val avatarUrl = AuthManager.getProfileImageUri(context) ?: ""
+        val userName = (AuthManager.getUserName(context) ?: "Student").trim().take(30)
+        val avatarUrl = (AuthManager.getProfileImageUri(context) ?: "").take(250)
         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
 
         if (supabaseUrl.isBlank() || anonKey.isBlank() || userId.isNullOrBlank()) {
             return@withContext false
         }
+
+        val clampedSeconds = incrementalSeconds.coerceIn(0, 14400) // Max 4 hours in a single increment
 
         try {
             val url = URL("$supabaseUrl/rest/v1/rpc/sync_study_progress_leaderboard")
@@ -250,10 +290,10 @@ object LeaderboardManager {
                 put("p_user_id", userId)
                 put("p_user_name", userName)
                 put("p_avatar_url", avatarUrl)
-                put("p_incremental_seconds", incrementalSeconds.coerceAtLeast(0))
-                put("p_is_studying", isStudying)
-                put("p_current_subject", subject)
-                put("p_subject_color", color)
+                put("p_incremental_seconds", clampedSeconds)
+                put("p_is_studying", effectiveIsStudying)
+                put("p_current_subject", effectiveSubject)
+                put("p_subject_color", effectiveColor)
                 put("p_study_date", todayStr)
             }
 
@@ -266,10 +306,10 @@ object LeaderboardManager {
                 clearCache()
                 true
             } else if (code == 404 || code == 400) {
-                if (incrementalSeconds > 0) {
-                    recordStudySession(context, incrementalSeconds, subject, color)
+                if (clampedSeconds > 0) {
+                    recordStudySession(context, clampedSeconds, effectiveSubject, effectiveColor)
                 }
-                updateStudyPresence(context, isStudying, subject, color)
+                updateStudyPresence(context, effectiveIsStudying, effectiveSubject, effectiveColor)
             } else {
                 Log.w(TAG, "syncStudyProgress failed with code $code")
                 false
@@ -289,12 +329,20 @@ object LeaderboardManager {
         if (!AuthManager.isLoggedIn(context) || durationSeconds <= 0) {
             return@withContext false // Gated: Only authenticated sessions are published
         }
+        if (!isParticipating(context)) {
+            return@withContext false // Gated: Leaderboard participation disabled
+        }
+
+        val shareLive = isLiveStatusSharingEnabled(context)
+        val effectiveSubject = (if (shareLive) subject else "").trim().take(40)
+        val effectiveColor = (if (shareLive) color else "#3b82f6").trim().take(10)
+        val clampedDuration = durationSeconds.coerceIn(1, 86400) // Max 24 hours per session
 
         val supabaseUrl = BuildConfig.SUPABASE_URL
         val anonKey = BuildConfig.SUPABASE_ANON_KEY
         val userId = AuthManager.getUserId(context)
-        val userName = AuthManager.getUserName(context) ?: "Student"
-        val avatarUrl = AuthManager.getProfileImageUri(context) ?: ""
+        val userName = (AuthManager.getUserName(context) ?: "Student").trim().take(30)
+        val avatarUrl = (AuthManager.getProfileImageUri(context) ?: "").take(250)
         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
 
         if (supabaseUrl.isBlank() || anonKey.isBlank() || userId.isNullOrBlank()) {
@@ -316,9 +364,9 @@ object LeaderboardManager {
                 put("p_user_id", userId)
                 put("p_user_name", userName)
                 put("p_avatar_url", avatarUrl)
-                put("p_duration_seconds", durationSeconds)
-                put("p_subject", subject)
-                put("p_subject_color", color)
+                put("p_duration_seconds", clampedDuration)
+                put("p_subject", effectiveSubject)
+                put("p_subject_color", effectiveColor)
                 put("p_study_date", todayStr)
             }
 
@@ -350,6 +398,13 @@ object LeaderboardManager {
         if (!AuthManager.isLoggedIn(context)) {
             return@withContext false
         }
+        if (!isParticipating(context)) {
+            return@withContext false // Gated: Leaderboard participation disabled
+        }
+
+        val shareLive = isLiveStatusSharingEnabled(context)
+        val effectiveSubject = if (shareLive) subject else ""
+        val effectiveColor = if (shareLive) color else "#3b82f6"
 
         val supabaseUrl = BuildConfig.SUPABASE_URL
         val anonKey = BuildConfig.SUPABASE_ANON_KEY
@@ -386,8 +441,8 @@ object LeaderboardManager {
                 put("study_date", todayStr)
                 put("total_seconds", totalSeconds.coerceIn(0, 86400))
                 put("is_studying", false)
-                put("current_subject", subject)
-                put("subject_color", color)
+                put("current_subject", effectiveSubject)
+                put("subject_color", effectiveColor)
                 put("last_active_at", nowIso)
                 put("updated_at", nowIso)
             }

@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS public.app_analytics_events (
     id BIGSERIAL PRIMARY KEY,
     event_id TEXT UNIQUE,
     anonymous_id TEXT NOT NULL,
+    device_hardware_id TEXT,
     user_id TEXT,
     user_name TEXT,
     user_email TEXT,
@@ -23,6 +24,7 @@ CREATE TABLE IF NOT EXISTS public.app_analytics_events (
 );
 
 ALTER TABLE public.app_analytics_events ADD COLUMN IF NOT EXISTS event_id TEXT;
+ALTER TABLE public.app_analytics_events ADD COLUMN IF NOT EXISTS device_hardware_id TEXT;
 ALTER TABLE public.app_analytics_events ADD COLUMN IF NOT EXISTS user_name TEXT;
 ALTER TABLE public.app_analytics_events ADD COLUMN IF NOT EXISTS user_email TEXT;
 ALTER TABLE public.app_analytics_events ADD COLUMN IF NOT EXISTS platform TEXT DEFAULT 'android';
@@ -33,6 +35,7 @@ ALTER TABLE public.app_analytics_events ADD COLUMN IF NOT EXISTS android_sdk INT
 
 CREATE INDEX IF NOT EXISTS idx_analytics_event_id ON public.app_analytics_events(event_id);
 CREATE INDEX IF NOT EXISTS idx_analytics_anon_id ON public.app_analytics_events(anonymous_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_hardware_id ON public.app_analytics_events(device_hardware_id);
 CREATE INDEX IF NOT EXISTS idx_analytics_user_id ON public.app_analytics_events(user_id);
 CREATE INDEX IF NOT EXISTS idx_analytics_event_name ON public.app_analytics_events(event_name);
 CREATE INDEX IF NOT EXISTS idx_analytics_timestamp ON public.app_analytics_events(timestamp);
@@ -40,6 +43,7 @@ CREATE INDEX IF NOT EXISTS idx_analytics_timestamp ON public.app_analytics_event
 -- 2. User Cohorts / Lifecycle Table
 CREATE TABLE IF NOT EXISTS public.app_user_cohorts (
     anonymous_id TEXT PRIMARY KEY,
+    device_hardware_id TEXT,
     user_id TEXT,
     user_name TEXT,
     user_email TEXT,
@@ -57,6 +61,7 @@ CREATE TABLE IF NOT EXISTS public.app_user_cohorts (
     updated_at BIGINT DEFAULT 0
 );
 
+ALTER TABLE public.app_user_cohorts ADD COLUMN IF NOT EXISTS device_hardware_id TEXT;
 ALTER TABLE public.app_user_cohorts ADD COLUMN IF NOT EXISTS user_name TEXT;
 ALTER TABLE public.app_user_cohorts ADD COLUMN IF NOT EXISTS user_email TEXT;
 ALTER TABLE public.app_user_cohorts ADD COLUMN IF NOT EXISTS platform TEXT DEFAULT 'android';
@@ -66,12 +71,14 @@ ALTER TABLE public.app_user_cohorts ADD COLUMN IF NOT EXISTS version_code INT;
 ALTER TABLE public.app_user_cohorts ADD COLUMN IF NOT EXISTS android_sdk INT;
 
 CREATE INDEX IF NOT EXISTS idx_cohorts_user_id ON public.app_user_cohorts(user_id);
+CREATE INDEX IF NOT EXISTS idx_cohorts_hardware_id ON public.app_user_cohorts(device_hardware_id);
 CREATE INDEX IF NOT EXISTS idx_cohorts_last_date ON public.app_user_cohorts(last_active_date);
 
 -- 3. Crash & Exception Reports Table
 CREATE TABLE IF NOT EXISTS public.app_crash_reports (
     id BIGSERIAL PRIMARY KEY,
     anonymous_id TEXT NOT NULL,
+    device_hardware_id TEXT,
     user_id TEXT,
     user_name TEXT,
     user_email TEXT,
@@ -89,11 +96,13 @@ CREATE TABLE IF NOT EXISTS public.app_crash_reports (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.app_crash_reports ADD COLUMN IF NOT EXISTS device_hardware_id TEXT;
 ALTER TABLE public.app_crash_reports ADD COLUMN IF NOT EXISTS user_name TEXT;
 ALTER TABLE public.app_crash_reports ADD COLUMN IF NOT EXISTS user_email TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_crashes_exception ON public.app_crash_reports(exception_type);
 CREATE INDEX IF NOT EXISTS idx_crashes_user_id ON public.app_crash_reports(user_id);
+CREATE INDEX IF NOT EXISTS idx_crashes_hardware_id ON public.app_crash_reports(device_hardware_id);
 CREATE INDEX IF NOT EXISTS idx_crashes_version ON public.app_crash_reports(app_version);
 
 -- 4. User Sync Data Table (Cloud Sync / Profile Data)
@@ -191,6 +200,20 @@ CREATE INDEX IF NOT EXISTS idx_feedback_created_at ON public.feedback_reports(cr
 
 -- Enable RLS for Feedback Reports
 ALTER TABLE public.feedback_reports ENABLE ROW LEVEL SECURITY;
+
+-- Security & Anti-Abuse Length Constraints
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_feedback_msg_len') THEN
+        ALTER TABLE public.feedback_reports ADD CONSTRAINT chk_feedback_msg_len CHECK (length(message) <= 3000);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_feedback_contact_len') THEN
+        ALTER TABLE public.feedback_reports ADD CONSTRAINT chk_feedback_contact_len CHECK (user_contact IS NULL OR length(user_contact) <= 150);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_feedback_type_len') THEN
+        ALTER TABLE public.feedback_reports ADD CONSTRAINT chk_feedback_type_len CHECK (length(type) <= 50);
+    END IF;
+END $$;
 
 DROP POLICY IF EXISTS "Allow anon inserts for feedback" ON public.feedback_reports;
 DROP POLICY IF EXISTS "Allow anon read for feedback" ON public.feedback_reports;

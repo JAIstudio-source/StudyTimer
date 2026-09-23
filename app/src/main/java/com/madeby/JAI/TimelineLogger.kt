@@ -325,7 +325,30 @@ object TimelineLogger {
                     }
                 }
                 dailyJson.put(dateStr, dayObj)
-                subPrefs.edit().putString("daily_subject_durations_json", dailyJson.toString()).apply()
+
+                // Recompute global subject_durations_json across all days
+                val allDailyKeys = dailyJson.keys()
+                val globalTotals = mutableMapOf<String, Long>()
+                while (allDailyKeys.hasNext()) {
+                    val dKey = allDailyKeys.next()
+                    val dObj = dailyJson.optJSONObject(dKey)
+                    if (dObj != null) {
+                        val subKeys = dObj.keys()
+                        while (subKeys.hasNext()) {
+                            val sk = subKeys.next()
+                            globalTotals[sk] = (globalTotals[sk] ?: 0L) + dObj.optLong(sk, 0L)
+                        }
+                    }
+                }
+                val globalJson = org.json.JSONObject()
+                for ((subId, secs) in globalTotals) {
+                    if (secs > 0L) globalJson.put(subId, secs)
+                }
+
+                subPrefs.edit()
+                    .putString("daily_subject_durations_json", dailyJson.toString())
+                    .putString("subject_durations_json", globalJson.toString())
+                    .apply()
             } catch (_: Exception) {}
         }
     }

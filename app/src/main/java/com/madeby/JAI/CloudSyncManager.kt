@@ -181,9 +181,9 @@ object CloudSyncManager {
             val examJsonStr = examPrefs.getString("exams_list_json", "[]") ?: "[]"
             prefsJson.put("__exam_countdowns_data__", examJsonStr)
 
-            val userName: String = AuthManager.getUserName(context) ?: ""
-            val userEmail: String = AuthManager.getUserEmail(context) ?: ""
-            val profileImg: String = AuthManager.getProfileImageUri(context) ?: ""
+            val userName: String = (AuthManager.getUserName(context) ?: "").trim().take(50)
+            val userEmail: String = (AuthManager.getUserEmail(context) ?: "").trim().take(100)
+            val profileImg: String = (AuthManager.getProfileImageUri(context) ?: "").trim().take(300)
             val now = System.currentTimeMillis()
             val localLastMod = BackupManager(context).getLastModifiedTimestamp()
 
@@ -198,6 +198,10 @@ object CloudSyncManager {
             payload.put("updated_at", maxOf(localLastMod, now))
 
             val payloadString = payload.toString()
+            if (payloadString.length > 5 * 1024 * 1024) {
+                Log.w("CloudSyncManager", "Cloud sync payload exceeds 5MB safety limit (${payloadString.length} bytes), skipping upload.")
+                return@withContext SyncResult(isSuccess = false, errorMessage = "Cloud backup payload exceeds 5MB safety limit.")
+            }
             Log.d("CloudSyncManager", "Outgoing Cloud Sync Payload (${payloadString.length} bytes): timeline_entries=${entries.size}, updated_at=${maxOf(localLastMod, now)}")
 
             // Try Upsert POST

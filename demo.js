@@ -6461,26 +6461,34 @@ function initDraggableAudioDock() {
     const rect = dock.getBoundingClientRect();
     initialLeft = rect.left;
     initialTop = rect.top;
-    startX = e.clientX || 0;
-    startY = e.clientY || 0;
+    const clientX = e.clientX ?? (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+    const clientY = e.clientY ?? (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+    startX = clientX;
+    startY = clientY;
     dock.style.transition = 'none';
 
-    document.addEventListener('pointermove', onPointerMove);
+    try {
+      if (e.pointerId && typeof dragTarget.setPointerCapture === 'function') {
+        dragTarget.setPointerCapture(e.pointerId);
+      }
+    } catch (_) {}
+
+    document.addEventListener('pointermove', onPointerMove, { passive: false });
     document.addEventListener('pointerup', onPointerUp);
+    document.addEventListener('pointercancel', onPointerUp);
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchend', onPointerUp);
   }
 
-  function onPointerMove(e) {
-    if (!isDragging) return;
-    const curX = e.clientX || 0;
-    const curY = e.clientY || 0;
+  function updateDockPosition(curX, curY) {
     const dx = curX - startX;
     const dy = curY - startY;
 
     let nextX = initialLeft + dx;
     let nextY = initialTop + dy;
 
-    const maxX = Math.max(10, window.innerWidth - dock.offsetWidth - 12);
-    const maxY = Math.max(10, window.innerHeight - dock.offsetHeight - 12);
+    const maxX = Math.max(10, window.innerWidth - (dock.offsetWidth || 200) - 12);
+    const maxY = Math.max(10, window.innerHeight - (dock.offsetHeight || 44) - 12);
 
     nextX = Math.max(10, Math.min(nextX, maxX));
     nextY = Math.max(10, Math.min(nextY, maxY));
@@ -6491,17 +6499,42 @@ function initDraggableAudioDock() {
     dock.style.right = 'auto';
   }
 
-  function onPointerUp() {
+  function onPointerMove(e) {
+    if (!isDragging) return;
+    if (e.cancelable) e.preventDefault();
+    const curX = e.clientX ?? 0;
+    const curY = e.clientY ?? 0;
+    updateDockPosition(curX, curY);
+  }
+
+  function onTouchMove(e) {
+    if (!isDragging) return;
+    if (e.cancelable) e.preventDefault();
+    if (e.touches && e.touches[0]) {
+      updateDockPosition(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }
+
+  function onPointerUp(e) {
     if (!isDragging) return;
     isDragging = false;
     dock.style.transition = '';
+    try {
+      if (e && e.pointerId && typeof dragTarget.releasePointerCapture === 'function') {
+        dragTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch (_) {}
     document.removeEventListener('pointermove', onPointerMove);
     document.removeEventListener('pointerup', onPointerUp);
+    document.removeEventListener('pointercancel', onPointerUp);
+    document.removeEventListener('touchmove', onTouchMove);
+    document.removeEventListener('touchend', onPointerUp);
 
     clampDockPosition();
   }
 
   dragTarget.addEventListener('pointerdown', onPointerDown);
+  dragTarget.addEventListener('touchstart', onPointerDown, { passive: true });
 }
 
 function switchAudioTrack(presetKey) {

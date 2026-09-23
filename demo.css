@@ -5279,7 +5279,14 @@ input:checked + .toggle-slider:before {
 /* 1. Dynamic Studio Background & Glass Dimmer */
 .studio-bg-layer {
   position: fixed;
-  inset: 0;
+  top: -10vh;
+  left: -5vw;
+  right: -5vw;
+  bottom: -15vh;
+  width: 110vw;
+  height: 125vh;
+  height: 125dvh;
+  min-height: 125%;
   z-index: 0;
   background-size: cover;
   background-position: center;
@@ -5287,15 +5294,28 @@ input:checked + .toggle-slider:before {
   transition: background-image 0.4s ease, filter 0.3s ease;
   pointer-events: none;
   opacity: 1;
+  will-change: transform;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 .studio-bg-dimmer {
   position: fixed;
-  inset: 0;
+  top: -10vh;
+  left: -5vw;
+  right: -5vw;
+  bottom: -15vh;
+  width: 110vw;
+  height: 125vh;
+  height: 125dvh;
+  min-height: 125%;
   z-index: 1;
   background: rgba(0, 0, 0, 0.3);
   pointer-events: none;
   transition: background-color 0.3s ease;
+  will-change: transform;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 body.has-custom-bg,
@@ -6988,13 +7008,41 @@ body.has-custom-bg .app-sidebar {
     bottom: 16px;
     left: 16px;
     right: auto;
-    max-width: calc(100vw - 90px);
-    padding: 6px 10px;
-    touch-action: manipulation;
+    max-width: calc(100vw - 32px);
+    padding: 5px 8px;
+    gap: 5px;
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+    touch-action: none !important;
+    box-sizing: border-box;
+  }
+
+  .audio-drag-handle {
+    touch-action: none !important;
+    padding: 4px 2px;
   }
 
   .audio-current-name {
-    display: none;
+    display: none !important;
+  }
+
+  .audio-volume-wrap {
+    display: none !important;
+  }
+
+  .audio-preset-select {
+    max-width: 105px !important;
+    min-width: 60px !important;
+    font-size: 0.70rem !important;
+    padding: 3px 4px !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+  }
+
+  .audio-engine-badge {
+    font-size: 0.62rem !important;
+    padding: 2px 5px !important;
   }
 
   .focus-studio-center-wrap {

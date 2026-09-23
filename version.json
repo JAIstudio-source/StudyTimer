@@ -1,0 +1,7 @@
+{
+    "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
+    "url": "https://get-studytimer.vercel.app/?download=true",
+    "versionCode": 29,
+    "versionName": "2.9.7",
+    "releaseNotes": "What's New in Version 2.9.7 🚀\n• New Leaderboard Updates: Privacy controls & live status toggles\n• New Exam Countdown System on home screen\n• Bug Fixes for planner goals, time calculations, and data sync"
+}

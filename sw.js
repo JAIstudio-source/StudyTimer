@@ -4,7 +4,7 @@
  * Guarantees 100% offline functionality for the Pomodoro Web Studio & App Landing.
  */
 
-var CACHE_NAME = 'studytimer-web-v9';
+var CACHE_NAME = 'studytimer-web-v29';
 
 var CORE_ASSETS = [
     './',
@@ -15,7 +15,6 @@ var CORE_ASSETS = [
     './assets/supabase.js',
     './style.css',
     './script.js',
-    './version.json',
     './assets/logo.png',
     './assets/Featured.webp',
     './privacy.html',
@@ -60,14 +59,22 @@ self.addEventListener('activate', function (event) {
     );
 });
 
+self.addEventListener('message', function (event) {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+});
+
 self.addEventListener('fetch', function (event) {
     var request = event.request;
     if (request.method !== 'GET') return;
 
     var url = new URL(request.url);
 
-    // Never cache binary APK download
-    if (url.pathname.endsWith('.apk')) return;
+    // Never cache binary APK download or dynamic version.json metadata
+    if (url.pathname.endsWith('.apk') || url.pathname.endsWith('version.json')) {
+        return;
+    }
 
     var isSameOrigin = url.origin === location.origin;
     var isCachableCdn = CACHABLE_CDN_HOSTS.some(function (host) { return url.hostname.includes(host); });

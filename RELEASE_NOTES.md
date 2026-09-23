@@ -1,25 +1,21 @@
-# StudyTimer 2.9.6 (versionCode 28)
+# StudyTimer 2.9.7 (versionCode 29)
 
-## 🎯 New Features
-- **Exam Countdown System**:
-  - Track upcoming exams with clean countdown timers decomposed into Months, Days, Hours, and Minutes.
-  - Set specific Exam Dates, link subjects, rename, edit, or remove countdowns.
-  - Dedicated upcoming exam card integrated directly below the Calendar tab with a detailed breakdown modal.
-- **Real-Time Live UI Updates**:
-  - Live in-place updates for Goal progress (minutes, percentages, progress bars, checkmarks), active Subject durations, Total Focus time, and Exam countdowns without page reloads or screen flashes.
-- **Themed Modals & Pickers**:
-  - Submenus, subject pickers, and confirmation dialogs now seamlessly match the app's dark theme.
-- **Cloud Sync & Safety Backups**:
-  - Full automatic backup and cloud sync integration for exam countdowns, study history, and custom presets.
+### What's New in Version 2.9.7 🚀
+1. **New Leaderboard Updates & Fixes**:
+   - Added privacy and participation controls: Leaderboard participation and live status sharing toggles.
+   - Enhanced real-time sync with improved stability and anti-cheat protections.
 
-## 🐛 Bug Fixes & Improvements
-- **Time Calculation & Subject Tracking**: Fixed duration accumulation discrepancies during manual adjustment and active sessions so total focus accurately reflects the true sum of all subjects and general focus.
-- **Exam Date Labels**: Updated all labels to "Exam Date" across upcoming exam summaries and details.
-- **Smooth Real-Time UI Performance**: Eliminated layout flicker and scroll resets on Stats and Planner screens while study timer is running.
+2. **New Exam Countdown**:
+   - Track upcoming exam targets and daily study targets right from your home screen.
+
+3. **Bug Fixes & Improvements**:
+   - Fixed goal calculation in planner and goals overview.
+   - General performance improvements and UI polish.
+
+---
 
 ## Compatibility
 - Android 9 (API 28) through Android 16 (API 36)
 
 ## Installation
-Install `StudyTimer-release.apk` (v2.9.6). Updating preserves all your study logs, streaks, and settings.
-
+Install `StudyTimer-release.apk` (v2.9.7). Updating preserves all your study logs, streaks, and settings.

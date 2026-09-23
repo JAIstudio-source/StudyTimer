@@ -120,13 +120,12 @@ pages.forEach(page => {
     content = content.replace(/<link rel="apple-touch-icon"[^>]*>/i, match => `${match}\n  <meta name="theme-color" content="#09090b">`);
   }
 
-  // Remove existing Schema/Reddit microdata if present
+  // Remove existing Schema/Reddit microdata and comments if present
+  content = content.replace(/\s*<!--\s*(Open Graph|Twitter|Social|Schema)[^>]*?-->/gi, '');
   content = content.replace(/\s*<meta\s+itemprop=["'][^"']*["'][^>]*>/gi, '');
   content = content.replace(/\s*<link\s+rel=["']image_src["'][^>]*>/gi, '');
 
   // Remove existing OpenGraph and Twitter meta blocks
-  // Regex to match existing OG / Twitter meta tags
-  content = content.replace(/\s*<!--\s*(Open Graph|Twitter|Social)[^>]*?-->/gi, '');
   content = content.replace(/\s*<meta\s+(property|name)=["'](og:|twitter:)[^"']*["'][^>]*>/gi, '');
 
   const newSocialBlock = generateSocialMetaBlock(page);

@@ -1806,6 +1806,31 @@ function setupEventListeners() {
       toggleTimer();
     }
   });
+
+  // Guard against accidental navigation when timer is running or paused with progress
+  document.addEventListener('click', async (e) => {
+    const anchor = e.target.closest('a');
+    if (!anchor) return;
+    const href = anchor.getAttribute('href');
+    if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+
+    if (timerStatus === 'RUNNING' || (timerStatus === 'PAUSED' && accumulatedElapsedSec > 0)) {
+      e.preventDefault();
+      const confirmed = await showCustomConfirmDialog({
+        title: 'Leave Focus Studio?',
+        subtitle: 'Unsaved focus session in progress',
+        message: 'You have an active or paused study session. Are you sure you want to leave this page?',
+        confirmText: 'Leave Page',
+        cancelText: 'Stay & Focus',
+        isDanger: true
+      });
+      if (confirmed) {
+        saveActiveSessionState();
+        saveLocalState();
+        window.location.href = href;
+      }
+    }
+  });
 }
 
 function openZenMode() {
@@ -2004,9 +2029,10 @@ function initBackgroundSyncListeners() {
       if (timerStatus === 'RUNNING') {
         tickTimer();
         requestWakeLock();
+        if (timerWorker) timerWorker.postMessage('start');
       }
     } else {
-      if (timerStatus === 'RUNNING') {
+      if (timerStatus === 'RUNNING' || timerStatus === 'PAUSED') {
         saveActiveSessionState();
         saveLocalState();
       }
@@ -2051,15 +2077,18 @@ function initBackgroundSyncListeners() {
     }
   });
 
-  window.addEventListener('beforeunload', () => {
-    if (timerStatus === 'RUNNING') {
+  window.addEventListener('beforeunload', (e) => {
+    if (timerStatus === 'RUNNING' || timerStatus === 'PAUSED' || accumulatedElapsedSec > 0) {
       saveActiveSessionState();
       saveLocalState();
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
     }
   });
 
   window.addEventListener('pagehide', () => {
-    if (timerStatus === 'RUNNING') {
+    if (timerStatus === 'RUNNING' || timerStatus === 'PAUSED') {
       saveActiveSessionState();
       saveLocalState();
     }
@@ -2221,10 +2250,10 @@ function tickTimer() {
 
       saveLocalState();
 
-      // If user is logged in, auto-save to cloud
+      // If user is logged in, auto-save to cloud & leaderboard progress
       if (appState.currentUser && supabaseClient && navigator.onLine) {
         pushDataToCloud(true);
-        syncLeaderboardScore();
+        syncStudyProgressToLeaderboard(60);
 
         const syncStatusPill = document.getElementById('syncStatusPill');
         const syncStatusText = document.getElementById('syncStatusText');
@@ -2341,7 +2370,7 @@ function finishSession(isAutoFinished = false) {
 
   const now = Date.now();
   const startMs = now - (studiedDurationSec * 1000);
-  const subject = appState.selectedSubject;
+  const subject = appState.selectedSubject || DEFAULT_SUBJECTS[0];
   const prevMode = currentMode;
 
   let stateKey = 'STUDYING';
@@ -2360,6 +2389,20 @@ function finishSession(isAutoFinished = false) {
   }
 
   if (stateKey !== 'BREAK') {
+    const todayKey = getLocalDateStr();
+    // Add any remaining seconds that were not auto-saved on the minute tick
+    const autoSavedSec = (lastAutoSavedMinute || 0) * 60;
+    const remainderSec = Math.max(0, studiedDurationSec - autoSavedSec);
+    if (remainderSec > 0) {
+      appState.dailyFocusTotals[todayKey] = (appState.dailyFocusTotals[todayKey] || 0) + remainderSec;
+      const subId = subject.id || 'general';
+      appState.subjectDurations[subId] = (appState.subjectDurations[subId] || 0) + remainderSec;
+      if (!appState.dailySubjectDurations[todayKey]) {
+        appState.dailySubjectDurations[todayKey] = {};
+      }
+      appState.dailySubjectDurations[todayKey][subId] = (appState.dailySubjectDurations[todayKey][subId] || 0) + remainderSec;
+    }
+
     const startEntry = {
       t: startMs,
       s: stateKey,
@@ -4728,15 +4771,15 @@ async function updateStudyPresence(isStudying = false) {
   }
 
   const currentSub = appState.selectedSubject || { name: 'Focus Study', color: '#3b82f6' };
-  const userName = profile.displayName || 
+  const userName = (profile.displayName || 
                    appState.currentUser.user_metadata?.full_name || 
                    appState.currentUser.user_metadata?.name || 
                    appState.currentUser.email?.split('@')[0] || 
-                   'Student';
+                   'Student').slice(0, 50);
   const avatarUrl = profile.avatarPreset || 
                     appState.currentUser.user_metadata?.avatar_url || 
                     appState.currentUser.user_metadata?.picture || 
-                    '🐱';
+                    'assets/logo.png';
 
   const shouldBeStudying = isStudying && currentMode !== 'break' && timerStatus === 'RUNNING';
 
@@ -4755,58 +4798,51 @@ async function updateStudyPresence(isStudying = false) {
   }
 }
 
-async function syncLeaderboardScore() {
+async function syncStudyProgressToLeaderboard(incrementalSeconds = 0) {
   if (!supabaseClient || !appState.currentUser) return;
   const profile = appState.userProfile || {};
   if (profile.isPublicLeaderboard === false) return;
 
-  const todayKey = getLocalDateStr();
-  let totalSecToday = 0;
-  (appState.todaySessions || []).forEach(s => {
-    if (s && typeof s.durationSec === 'number' && s.durationSec > 0) {
-      totalSecToday += s.durationSec;
-    }
-  });
-
-  if (appState.dailyFocusTotals && appState.dailyFocusTotals[todayKey]) {
-    totalSecToday = Math.max(totalSecToday, Number(appState.dailyFocusTotals[todayKey]) || 0);
-  }
-
-  const isStudyingNow = timerStatus === 'RUNNING' && currentMode !== 'break';
   const currentSub = appState.selectedSubject || { name: 'Focus Study', color: '#3b82f6' };
   const userName = (profile.displayName || 
                     appState.currentUser.user_metadata?.full_name || 
                     appState.currentUser.user_metadata?.name || 
                     appState.currentUser.email?.split('@')[0] || 
-                    'Student').slice(0, 100);
+                    'Student').slice(0, 50);
   const avatarUrl = profile.avatarPreset || 
                     appState.currentUser.user_metadata?.avatar_url || 
                     appState.currentUser.user_metadata?.picture || 
-                    '🐱';
+                    'assets/logo.png';
 
-  const canonicalUserId = appState.currentUser?.id;
-  if (!canonicalUserId) return;
-
-  const payload = {
-    user_id: canonicalUserId,
-    user_name: userName,
-    avatar_url: avatarUrl,
-    study_date: todayKey,
-    total_seconds: totalSecToday,
-    is_studying: isStudyingNow,
-    current_subject: isStudyingNow ? (currentSub.name || 'Focus Study') : '',
-    subject_color: isStudyingNow ? (currentSub.color || '#3b82f6') : '#3b82f6',
-    last_active_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
+  const isStudying = timerStatus === 'RUNNING' && currentMode !== 'break';
+  const clampedSeconds = Math.min(Math.max(incrementalSeconds, 0), 600);
 
   try {
-    await supabaseClient.from('daily_leaderboard').upsert(payload, { onConflict: 'user_id,study_date' });
-  } catch (e) {
-    console.warn('Leaderboard score sync error:', e);
+    if (clampedSeconds > 0) {
+      await supabaseClient.rpc('sync_study_progress_leaderboard', {
+        p_user_id: appState.currentUser.id,
+        p_user_name: userName,
+        p_avatar_url: avatarUrl,
+        p_incremental_seconds: clampedSeconds,
+        p_is_studying: isStudying,
+        p_subject: isStudying ? (currentSub.name || 'Focus Study') : '',
+        p_subject_color: isStudying ? (currentSub.color || '#3b82f6') : '#3b82f6',
+        p_study_date: getLocalDateStr()
+      });
+    } else {
+      await supabaseClient.rpc('update_study_presence', {
+        p_user_id: appState.currentUser.id,
+        p_user_name: userName,
+        p_avatar_url: avatarUrl,
+        p_is_studying: isStudying,
+        p_current_subject: isStudying ? (currentSub.name || 'Focus Study') : '',
+        p_subject_color: isStudying ? (currentSub.color || '#3b82f6') : '#3b82f6',
+        p_study_date: getLocalDateStr()
+      });
+    }
+  } catch (err) {
+    console.warn('Leaderboard progress sync error:', err);
   }
-
-  leaderboardCache.timestamp = 0;
 }
 
 function startPresenceHeartbeat() {
@@ -4814,12 +4850,12 @@ function startPresenceHeartbeat() {
     clearInterval(presenceHeartbeatInterval);
   }
   updateStudyPresence(true);
-  syncLeaderboardScore();
-  // Send active heartbeat every 60 seconds while timer is actively running
+  syncStudyProgressToLeaderboard(0);
+  // Send active heartbeat and incremental sync every 60 seconds while timer is actively running
   presenceHeartbeatInterval = setInterval(() => {
     if (timerStatus === 'RUNNING' && currentMode !== 'break') {
       updateStudyPresence(true);
-      syncLeaderboardScore();
+      syncStudyProgressToLeaderboard(60);
     }
   }, 60000);
 }
@@ -4830,7 +4866,6 @@ function stopPresenceHeartbeat() {
     presenceHeartbeatInterval = null;
   }
   updateStudyPresence(false);
-  syncLeaderboardScore();
 }
 
 async function logSessionToLeaderboard(durationSec, subject) {
@@ -4841,27 +4876,32 @@ async function logSessionToLeaderboard(durationSec, subject) {
     return;
   }
 
-  const userName = profile.displayName || 
+  const userName = (profile.displayName || 
                    appState.currentUser.user_metadata?.full_name || 
                    appState.currentUser.user_metadata?.name || 
                    appState.currentUser.email?.split('@')[0] || 
-                   'Student';
+                   'Student').slice(0, 50);
   const avatarUrl = profile.avatarPreset || 
                     appState.currentUser.user_metadata?.avatar_url || 
                     appState.currentUser.user_metadata?.picture || 
-                    '🐱';
+                    'assets/logo.png';
 
   try {
     await supabaseClient.rpc('record_study_session_leaderboard', {
       p_user_id: appState.currentUser.id,
       p_user_name: userName,
       p_avatar_url: avatarUrl,
-      p_duration_seconds: durationSec,
+      p_duration_seconds: Math.min(Math.max(durationSec, 1), 50400),
       p_subject: subject?.name || 'Focus Study',
       p_subject_color: subject?.color || '#3b82f6',
       p_study_date: getLocalDateStr()
     });
-    await syncLeaderboardScore();
+
+    // Invalidate local cache and refresh leaderboard view
+    leaderboardTimeframeCache.daily = { data: null, timestamp: 0 };
+    leaderboardTimeframeCache.weekly = { data: null, timestamp: 0 };
+    leaderboardTimeframeCache.monthly = { data: null, timestamp: 0 };
+
     const modal = document.getElementById('leaderboardModalOverlay');
     if (modal && !modal.classList.contains('hidden')) {
       fetchLeaderboard(true);
@@ -4910,7 +4950,7 @@ async function openLeaderboardModal() {
     lockBodyScroll();
     modal.classList.remove('hidden');
     switchLeaderboardTimeframe(currentLeaderboardPeriod || 'daily');
-    await syncLeaderboardScore();
+    await syncStudyProgressToLeaderboard(0);
     fetchLeaderboard(true);
   }
 }
@@ -4940,7 +4980,7 @@ async function fetchLeaderboard(forceRefresh = false) {
   startResetCountdownTimer();
 
   if (forceRefresh) {
-    await syncLeaderboardScore();
+    await syncStudyProgressToLeaderboard(0);
   }
 
   const cached = leaderboardTimeframeCache[period];
@@ -4960,7 +5000,7 @@ async function fetchLeaderboard(forceRefresh = false) {
       if (period === 'daily') {
         const { data, error } = await supabaseClient.rpc('get_daily_leaderboard', {
           p_date: todayStr,
-          p_limit: 25
+          p_limit: 50
         });
         if (!error && data) rankings = data;
       } else if (period === 'weekly') {
@@ -4969,7 +5009,7 @@ async function fetchLeaderboard(forceRefresh = false) {
         const { data: rpcData, error: rpcErr } = await supabaseClient.rpc('get_weekly_leaderboard', {
           p_start_date: startWeekStr,
           p_end_date: todayStr,
-          p_limit: 25
+          p_limit: 50
         });
 
         if (!rpcErr && rpcData) {
@@ -4992,7 +5032,7 @@ async function fetchLeaderboard(forceRefresh = false) {
         const { data: rpcData, error: rpcErr } = await supabaseClient.rpc('get_monthly_leaderboard', {
           p_start_date: startMonthStr,
           p_end_date: todayStr,
-          p_limit: 25
+          p_limit: 50
         });
 
         if (!rpcErr && rpcData) {

@@ -723,7 +723,7 @@
         <select class="audio-preset-select" id="audioPresetSelect" aria-label="Select Focus Ambience Track">
           <optgroup label="🎧 Focus Ambience Tracks">
             <option value="lofi">🎧 Lofi Chill Beats</option>
-            <option value="minecraft">⛏️ Minecraft Focus Ambience</option>
+            <option value="minecraft">⛏️ Minecraft Tracks</option>
             <option value="piano">🎹 Peaceful Study Piano</option>
             <option value="synthwave">🌆 Synthwave Chill</option>
             <option value="rain">🌧️ Rain &amp; Gentle Thunder</option>
@@ -756,8 +756,8 @@
         <!-- HTML5 Ad-Free Audio Stream Player -->
         <audio id="customAdFreeAudio" preload="none" loop style="display:none;"></audio>
 
-        <!-- YouTube Audio Embed Anchor (Mounted safely for 100% active stream playback fallback) -->
-        <div id="youtubePlayerAnchor" aria-hidden="true" style="position:fixed; right:0; bottom:0; width:6px; height:6px; opacity:0.001; pointer-events:none; z-index:-1; overflow:hidden;"></div>
+        <!-- YouTube Audio Embed Anchor (In-viewport dimensions to ensure mobile & deployed browser audio playback) -->
+        <div id="youtubePlayerAnchor" aria-hidden="true" style="position:fixed; right:12px; bottom:12px; width:200px; height:120px; opacity:0.02; pointer-events:none; z-index:1; overflow:hidden;"></div>
       </div>
 
     </main>
@@ -1637,7 +1637,7 @@
         <div class="yt-suggestions-label">Popular Focus Streams</div>
         <div class="yt-suggestions-grid">
           <button type="button" class="yt-suggestion-chip" data-id="amfWIRasxtI">🎧 Lofi Chill</button>
-          <button type="button" class="yt-suggestion-chip" data-id="vCTRNKPJr40">⛏️ Minecraft</button>
+          <button type="button" class="yt-suggestion-chip" data-id="vCTRNKPJr40">⛏️ Minecraft Tracks</button>
           <button type="button" class="yt-suggestion-chip" data-id="FjHGZj2IjBk">🎹 Study Piano</button>
           <button type="button" class="yt-suggestion-chip" data-id="4xDzrJKXOOY">🌆 Synthwave</button>
           <button type="button" class="yt-suggestion-chip" data-id="mPZkdNFkNps">🌧️ Rain Storm</button>

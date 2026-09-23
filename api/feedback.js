@@ -76,13 +76,18 @@ function sanitizeHtmlString(str) {
 
 function sanitizeDiagnostics(diag) {
   if (typeof diag !== 'object' || diag === null || Array.isArray(diag)) return {};
-  const allowedKeys = ['app_version', 'android_os', 'device', 'timer_mode', 'is_logged_in', 'build_code', 'locale'];
+  const allowedKeys = [
+    'app_version', 'android_os', 'device', 'brand', 'timer_mode', 'timer_state',
+    'active_subject', 'sync_status', 'notifications_enabled', 'battery_opt_ignored',
+    'leaderboard_participating', 'live_status_sharing', 'today_focus_secs',
+    'screen_resolution', 'memory_mb', 'is_logged_in', 'build_code', 'locale', 'timestamp_epoch'
+  ];
   const clean = {};
   for (const key of allowedKeys) {
     if (Object.prototype.hasOwnProperty.call(diag, key)) {
       const val = diag[key];
       if (typeof val === 'string') {
-        clean[key] = sanitizeHtmlString(val.substring(0, 100));
+        clean[key] = sanitizeHtmlString(val.substring(0, 150));
       } else if (typeof val === 'number' || typeof val === 'boolean') {
         clean[key] = val;
       }

@@ -4493,6 +4493,11 @@ function handleSaveGoal(e) {
   const subjectId = (subjectSelect?.value && subjectSelect.value !== 'all') ? subjectSelect.value : null;
   const targetMinutes = Math.min(1440, Math.max(0, parseInt(minutesInput?.value, 10) || 0));
 
+  if (hasProfanity(title) || hasProfanity(note)) {
+    showToast('Please keep study goals and notes respectful & friendly 🛡️', 'error');
+    return;
+  }
+
   if (!appState.plannerGoals) appState.plannerGoals = [];
 
   if (editingId) {
@@ -4608,12 +4613,89 @@ let selectedAvatarRing = 'glow-gold';
 let selectedBannerTheme = 'banner-midnight';
 let selectedCountryFlag = '🌐';
 
-// Client-Side Profanity Defense Filter
-const PROFANITY_REGEX = /\b(f+[u*@_.-]*c+k+|s+h+[i*@_.-]*t+|b+[i*@_.-]*t+c+h+|a+s+s+h+o+l+e+|d+[i*@_.-]*c+k+|p+u+s+s+y+|c+u+n+t+|w+h+o+r+e+|s+l+u+t+|n+[i*@_.-]*g+g+[a*e*r*]*|f+a+g+g*o*t*|r+e+t+a+r+d+)\b/i;
+// ============================================================================
+// MULTI-TIER COMMUNITY SAFETY & PROFANITY FILTER (English + Hindi + Hinglish)
+// ============================================================================
+const VULGAR_HINDI_WORDS = [
+  "आंड़","आंड","आँड","बहनचोद","बेहेनचोद","भेनचोद","बकचोद","बकचोदी","बेवड़ा","बेवड़े",
+  "बेवकूफ","भड़ुआ","भड़वा","भोसड़ा","भोसड़ीके","भोसड़ीकी","भोसड़ीवाला","भोसड़ीवाले",
+  "भोसरचोदल","भोसदचोद","भोसड़ाचोदल","भोसड़ाचोद","बब्बे","बूबे","बुर","चरसी","चूचे",
+  "चूची","चुची","चोद","चुदने","चुदवा","चुदवाने","चूत","चूतिया","चुटिया","चूतिये",
+  "चुत्तड़","चूत्तड़","दलाल","दलले","फट्टू","गधा","गधे","गधालंड","गांड","गांडू",
+  "गंडफट","गंडिया","गंडिये","गू","गोटे","हग","हग्गू","हगने","हरामी","हरामजादा",
+  "हरामज़ादा","हरामजादे","हरामज़ादे","हरामखोर","झाट","झाटू","कुत्ता","कुत्ते","कुतिया",
+  "कुत्ती","लेंडी","लोड़े","लौड़े","लौड़ा","लोड़ा","लौडा","लिंग","लोडा","लोडे","लंड",
+  "लौंडा","लौंडे","लौंडी","लौंडिया","लुल्ली","मार","मारो","मारूंगा","मादरचोद","मादरचूत",
+  "मादरचुत","मम्मे","मूत","मुत","मूतने","मुतने","मूठ","मुठ","नुननी","नुननु","पाजी",
+  "पेसाब","पेशाब","पिल्ला","पिल्ले","पिसाब","पोरकिस्तान","रांड","रंडी","सुअर","सूअर",
+  "टट्टे","टट्टी","उल्लू"
+];
+
+const VULGAR_HINGLISH_WORDS = [
+  "aad","aand","bahenchod","behenchod","bhenchod","bhenchodd","bc","bakchod","bakchodd",
+  "bakchodi","bevda","bewda","bevdey","bewday","bevakoof","bevkoof","bevkuf","bewakoof",
+  "bewkoof","bewkuf","bhadua","bhaduaa","bhadva","bhadvaa","bhadwa","bhadwaa","bhosada",
+  "bhosda","bhosdaa","bhosdike","bhonsdike","bsdk","bhosdiki","bhosdiwala","bhosdiwale",
+  "bhosadchodal","bhosadchod","babbe","babbey","bube","bubey","bur","burr","buurr","buur",
+  "charsi","chooche","choochi","chuchi","chhod","chod","chodd","chudne","chudney","chudwa",
+  "chudwaa","chudwane","chudwaane","choot","chut","chute","chutia","chutiya","chutiye",
+  "chuttad","chutad","dalaal","dalal","dalle","dalley","fattu","gadha","gadhe","gadhalund",
+  "gaand","gand","gandu","gandfat","gandfut","gandiya","gandiye","goo","gu","gote","gotey",
+  "gotte","hag","haggu","hagne","hagney","harami","haramjada","haraamjaada","haramzyada",
+  "haraamzyaada","haraamjaade","haraamzaade","haraamkhor","haramkhor","jhat","jhaat","jhaatu",
+  "jhatu","kutta","kutte","kuttey","kutia","kutiya","kuttiya","kutti","landi","landy",
+  "laude","laudey","laura","lora","lauda","ling","loda","lode","lund","launda","lounde",
+  "laundey","laundi","loundi","laundiya","loundiya","lulli","maar","maro","marunga","madarchod",
+  "madarchodd","madarchood","madarchoot","madarchut","mc","mamme","mammey","moot","mut",
+  "mootne","mutne","mooth","muth","nunni","nunnu","paaji","paji","pesaab","pesab","peshaab",
+  "peshab","pilla","pillay","pille","pilley","pisaab","pisab","pkmkb","porkistan","raand",
+  "rand","randi","randy","suar","tatte","tatti","tatty","ullu"
+];
+
+const VULGAR_ENGLISH_REGEX = /\b(f+[u*@_.-]*c+k+|s+h+[i*@_.-]*t+|b+[i*@_.-]*t+c+h+|a+s+s+h+o+l+e+|d+[i*@_.-]*c+k+|p+u+s+s+y+|c+u+n+t+|w+h+o+r+e+|s+l+u+t+|n+[i*@_.-]*g+g+[a*e*r*]*|f+a+g+g*o*t*|r+e+t+a+r+d+|b+a+s+t+a+r+d+|p+o+r+n+|b+o+o+b+s+|t+i+t+s+|d+i+l+d+o+)\b/i;
+const HINGLISH_SET = new Set(VULGAR_HINGLISH_WORDS);
 
 function hasProfanity(text) {
   if (!text || typeof text !== 'string') return false;
-  return PROFANITY_REGEX.test(text);
+  const raw = text.trim();
+  if (!raw) return false;
+
+  // 1. Direct Devanagari Match
+  for (const w of VULGAR_HINDI_WORDS) {
+    if (raw.includes(w)) return true;
+  }
+
+  // 2. Leetspeak Normalization
+  const normalized = raw.toLowerCase()
+    .replace(/[@]/g, 'a')
+    .replace(/[$]/g, 's')
+    .replace(/[0]/g, 'o')
+    .replace(/[1!|]/g, 'i')
+    .replace(/[3]/g, 'e');
+
+  const cleanNoPunct = normalized.replace(/[*_.-]/g, '');
+
+  // 3. English Regex Check
+  if (VULGAR_ENGLISH_REGEX.test(raw) || VULGAR_ENGLISH_REGEX.test(normalized) || VULGAR_ENGLISH_REGEX.test(cleanNoPunct)) {
+    return true;
+  }
+
+  // 4. Token Check for Hinglish Slurs
+  const tokens = normalized.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
+  const cleanTokens = cleanNoPunct.split(/\s+/).filter(Boolean);
+
+  for (const t of tokens.concat(cleanTokens)) {
+    if (HINGLISH_SET.has(t)) return true;
+  }
+
+  // 5. Compact Acronym / Compound Phrase Check
+  const compactStr = cleanNoPunct.replace(/\s+/g, '');
+  const acronyms = ['bsdk', 'pkmkb', 'madarchod', 'bhenchod', 'behenchod', 'gandu'];
+  for (const acr of acronyms) {
+    if (compactStr.includes(acr)) return true;
+  }
+
+  return false;
 }
 
 function formatLeaderboardTime(totalSec) {

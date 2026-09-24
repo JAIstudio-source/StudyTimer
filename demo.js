@@ -4946,16 +4946,17 @@ function getCountryFlagEmoji(codeOrFlag) {
 }
 
 function getAvatarElementHtml(avatarVal, userName, className = 'row-avatar-img', ringClass = '') {
-  if (!avatarVal || avatarVal.trim() === '') {
+  if (!avatarVal || (typeof avatarVal === 'string' && avatarVal.trim() === '')) {
     avatarVal = '🐱';
   }
   const normalizedRing = ringClass ? normalizeRingClass(ringClass) : '';
   const ringCls = normalizedRing ? ` ${normalizedRing}` : '';
-  const isUrl = /^(http|https|data:|assets\/|\/|blob:)/i.test(avatarVal.trim());
+  const trimmed = typeof avatarVal === 'string' ? avatarVal.trim() : '🐱';
+  const isUrl = /^(http|https|data:|assets\/|\/|blob:)/i.test(trimmed);
   if (isUrl) {
-    return `<img src="${avatarVal}" width="48" height="48" alt="${userName || 'Student'}" class="${className}${ringCls}" loading="eager" decoding="sync" onerror="this.outerHTML='<span class=\\'avatar-sticker ${className}${ringCls}\\'>🐱</span>'">`;
+    return `<img src="${trimmed}" alt="${userName || 'Student'}" class="${className}${ringCls}" loading="eager" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null; this.style.display='none'; if(this.nextElementSibling){this.nextElementSibling.style.display='inline-flex';}"><span class="avatar-sticker ${className}${ringCls}" style="display:none;">🐱</span>`;
   } else {
-    return `<span class="avatar-sticker ${className}${ringCls}">${avatarVal}</span>`;
+    return `<span class="avatar-sticker ${className}${ringCls}">${trimmed}</span>`;
   }
 }
 

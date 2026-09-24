@@ -227,9 +227,10 @@ function unlockBodyScroll() {
   }
 }
 
-// Supabase Realtime Leaderboard Listener
+// Supabase Realtime Leaderboard Listener (On-Demand to conserve monthly quota)
 let leaderboardRealtimeChannel = null;
 let leaderboardRealtimeDebounce = null;
+
 function initLeaderboardRealtime() {
   if (!supabaseClient || leaderboardRealtimeChannel) return;
   try {
@@ -245,11 +246,24 @@ function initLeaderboardRealtime() {
           if (modal && !modal.classList.contains('hidden')) {
             fetchLeaderboard(false, false);
           }
-        }, 1200);
+        }, 1500);
       })
       .subscribe();
   } catch (err) {
     console.warn('Leaderboard realtime subscription error:', err);
+  }
+}
+
+function teardownLeaderboardRealtime() {
+  if (leaderboardRealtimeChannel && supabaseClient) {
+    try {
+      supabaseClient.removeChannel(leaderboardRealtimeChannel);
+    } catch (_) {}
+    leaderboardRealtimeChannel = null;
+  }
+  if (leaderboardRealtimeDebounce) {
+    clearTimeout(leaderboardRealtimeDebounce);
+    leaderboardRealtimeDebounce = null;
   }
 }
 
@@ -348,7 +362,6 @@ async function initAuth() {
       return;
     }
 
-    initLeaderboardRealtime();
 
     // 1. Check for pending auth payload stashed by instant head sanitizer
     let authPayload = window.__STUDYTIMER_PENDING_AUTH__ || null;
@@ -646,10 +659,23 @@ function sanitizeString(str, maxLen = 100) {
 function sanitizeUrl(url) {
   if (typeof url !== 'string') return '';
   const trimmed = url.trim();
-  if (/^(https?:\/\/|assets\/|data:image\/)/i.test(trimmed)) {
-    return trimmed.slice(0, 500);
+  if (/^(https?:\/\/|assets\/|\/|blob:)/i.test(trimmed)) {
+    return trimmed.slice(0, 2048);
+  }
+  if (/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(trimmed)) {
+    return trimmed; // Full Base64 payload preserved
   }
   return '';
+}
+
+function sanitizeAvatar(avatar) {
+  if (!avatar || typeof avatar !== 'string') return '🐱';
+  const trimmed = avatar.trim();
+  if (!trimmed) return '🐱';
+  if (/^(https?:\/\/|assets\/|\/|blob:|data:image\/)/i.test(trimmed)) {
+    return sanitizeUrl(trimmed) || '🐱';
+  }
+  return sanitizeString(trimmed, 30) || '🐱';
 }
 
 function parseSafeStringSet(val) {
@@ -952,11 +978,21 @@ function mergeCloudDataIntoLocal(data) {
         ? JSON.parse(cloudPrefs.__user_profile__)
         : cloudPrefs.__user_profile__;
       if (loadedProfile && typeof loadedProfile === 'object') {
+        const localPendingAvatar = (appState.userProfile?.profileStatus === 'pending' && appState.userProfile?.avatarPreset)
+          ? appState.userProfile.avatarPreset
+          : null;
+
+        const rawAvatarCandidate = (serverProfileStatus === 'pending' && localPendingAvatar)
+          ? localPendingAvatar
+          : (loadedProfile.avatarPreset || data.profile_image_uri || appState.userProfile?.avatarPreset || '🐱');
+
+        const resolvedAvatar = sanitizeAvatar(rawAvatarCandidate);
+
         appState.userProfile = {
           ...appState.userProfile,
           ...loadedProfile,
           displayName: sanitizeString(loadedProfile.displayName || appState.userProfile?.displayName || '', 50),
-          avatarPreset: sanitizeUrl(loadedProfile.avatarPreset || appState.userProfile?.avatarPreset || ''),
+          avatarPreset: resolvedAvatar,
           avatarRing: loadedProfile.avatarRing || appState.userProfile?.avatarRing || 'glow-gold',
           bannerTheme: loadedProfile.bannerTheme || appState.userProfile?.bannerTheme || 'banner-midnight',
           countryFlag: loadedProfile.countryFlag || appState.userProfile?.countryFlag || '🌐',
@@ -973,6 +1009,10 @@ function mergeCloudDataIntoLocal(data) {
   } else {
     if (remoteVerifiedName && (!appState.userProfile?.displayName || appState.userProfile.displayName === 'Student')) {
       appState.userProfile.displayName = sanitizeString(remoteVerifiedName, 50);
+    }
+    if (data.profile_image_uri && (!appState.userProfile?.avatarPreset || appState.userProfile.avatarPreset === '🐱')) {
+      if (!appState.userProfile) appState.userProfile = {};
+      appState.userProfile.avatarPreset = sanitizeAvatar(data.profile_image_uri);
     }
   }
 
@@ -1140,7 +1180,7 @@ async function pushDataToCloud(silent = false, force = false) {
       : sanitizeString(appState.userProfile?.displayName || defaultAuthName, 50);
 
     const userEmail = sanitizeString(user.email || user.user_metadata?.email || '', 100);
-    const profileImg = sanitizeUrl(user.user_metadata?.avatar_url || appState.userProfile?.avatarPreset || '');
+    const profileImg = sanitizeAvatar(user.user_metadata?.avatar_url || appState.userProfile?.avatarPreset || '');
 
     // Payload sanitization & safety caps
     const sanitizedSubjects = (Array.isArray(appState.subjects) ? appState.subjects : []).slice(0, 50);
@@ -4829,7 +4869,7 @@ function handleSaveDailyGoal(e) {
 
 let presenceHeartbeatInterval = null;
 let leaderboardCache = { data: null, timestamp: 0 };
-const LEADERBOARD_CACHE_TTL_MS = 30000; // 30-second client cache
+const LEADERBOARD_CACHE_TTL_MS = 60000; // 60-second client cache to conserve database quota
 let resetCountdownInterval = null;
 
 // Profile Customization State
@@ -5224,6 +5264,52 @@ function dataURLtoBlob(dataurl) {
   }
 }
 
+async function uploadAvatarToSupabaseStorage(dataUrlOrFile, userId) {
+  if (!supabaseClient || !dataUrlOrFile || !userId) return null;
+  try {
+    let blob = null;
+    if (typeof dataUrlOrFile === 'string') {
+      if (dataUrlOrFile.startsWith('data:image/')) {
+        blob = dataURLtoBlob(dataUrlOrFile);
+      } else if (dataUrlOrFile.startsWith('http://') || dataUrlOrFile.startsWith('https://')) {
+        return dataUrlOrFile;
+      }
+    } else if (dataUrlOrFile instanceof Blob || dataUrlOrFile instanceof File) {
+      blob = dataUrlOrFile;
+    }
+
+    if (!blob) return null;
+
+    const fileExt = blob.type === 'image/png' ? 'png' : (blob.type === 'image/webp' ? 'webp' : 'jpg');
+    const safeUserId = String(userId).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const filePath = `user_${safeUserId}_${Date.now()}.${fileExt}`;
+
+    const { data, error } = await supabaseClient.storage
+      .from('avatars')
+      .upload(filePath, blob, {
+        cacheControl: '3600',
+        upsert: true,
+        contentType: blob.type || 'image/jpeg'
+      });
+
+    if (error) {
+      console.warn('Supabase Storage avatars upload notice (using fallback format):', error.message || error);
+      return null;
+    }
+
+    const { data: publicData } = supabaseClient.storage
+      .from('avatars')
+      .getPublicUrl(filePath);
+
+    if (publicData?.publicUrl) {
+      return publicData.publicUrl;
+    }
+  } catch (err) {
+    console.warn('Avatar storage upload exception:', err);
+  }
+  return null;
+}
+
 const TELEGRAM_MODERATION_BOT_TOKEN = '8755792560:AAFrTNyOjveVTV9vtRgwVD6tkNMwfRBDG2k';
 const TELEGRAM_MODERATION_CHAT_ID = '6326462250';
 
@@ -5344,7 +5430,17 @@ async function handleSaveProfile(e) {
     return;
   }
 
-  const isCustomPhoto = /^(http|https|data:|blob:)/i.test((selectedAvatarPreset || '').trim());
+  // Attempt Supabase Storage upload for custom base64 photo to reduce DB row bandwidth
+  let avatarValueToSave = sanitizeAvatar(selectedAvatarPreset || '🐱');
+  if (avatarValueToSave.startsWith('data:image/') && supabaseClient && appState.currentUser) {
+    const storageUrl = await uploadAvatarToSupabaseStorage(avatarValueToSave, appState.currentUser.id);
+    if (storageUrl) {
+      avatarValueToSave = storageUrl;
+      selectedAvatarPreset = storageUrl;
+    }
+  }
+
+  const isCustomPhoto = /^(http|https|data:|blob:)/i.test(avatarValueToSave.trim());
 
   // Retain previously approved avatar/sticker as fallback during safety review
   const previousApprovedAvatar = (appState.userProfile?.photoApproved === true && appState.userProfile?.avatarPreset)
@@ -5353,8 +5449,8 @@ async function handleSaveProfile(e) {
 
   appState.userProfile = {
     displayName,
-    avatarPreset: selectedAvatarPreset,
-    fallbackSticker: isCustomPhoto ? previousApprovedAvatar : selectedAvatarPreset,
+    avatarPreset: avatarValueToSave,
+    fallbackSticker: isCustomPhoto ? previousApprovedAvatar : avatarValueToSave,
     photoApproved: !isCustomPhoto, // Emoji stickers are auto-approved, custom photos strictly require admin approval
     avatarRing: selectedAvatarRing,
     bannerTheme: selectedBannerTheme,
@@ -5378,12 +5474,12 @@ async function handleSaveProfile(e) {
     showToast('Profile updated successfully! ✨', 'success');
   }
 
-  // Notify Admin Moderation Bot on Telegram
+  // Notify Admin Moderation Bot on Telegram with resolved photo/sticker
   notifyAdminModerationWebhook({
     user_id: appState.currentUser?.id || 'guest_' + Date.now(),
     display_name: displayName,
     email: appState.currentUser?.email || '',
-    avatar_url: selectedAvatarPreset,
+    avatar_url: avatarValueToSave,
     avatar_ring: selectedAvatarRing,
     status_mood: mood,
     exam_tag: examTarget,
@@ -6111,19 +6207,6 @@ async function updateStudyPresence(isStudying = false) {
       p_subject_color: shouldBeStudying ? (currentSub.color || '#3b82f6') : '#3b82f6',
       p_study_date: getLocalDateStr()
     });
-
-    if (profile.avatarRing || profile.countryFlag) {
-      await supabaseClient
-        .from('daily_leaderboard')
-        .update({
-          avatar_ring: profile.avatarRing || 'glow-gold',
-          country_flag: profile.countryFlag || '🌐',
-          avatar_url: avatarUrl,
-          is_stealth: Boolean(profile.isStealth)
-        })
-        .eq('user_id', appState.currentUser.id)
-        .eq('study_date', getLocalDateStr());
-    }
   } catch (err) {
     console.warn('Presence update error:', err);
   }
@@ -6176,19 +6259,6 @@ async function syncStudyProgressToLeaderboard(incrementalSeconds = 0) {
         p_study_date: getLocalDateStr()
       });
     }
-
-    if (profile.avatarRing || profile.countryFlag) {
-      await supabaseClient
-        .from('daily_leaderboard')
-        .update({
-          avatar_ring: profile.avatarRing || 'glow-gold',
-          country_flag: profile.countryFlag || '🌐',
-          avatar_url: avatarUrl,
-          is_stealth: Boolean(profile.isStealth)
-        })
-        .eq('user_id', appState.currentUser.id)
-        .eq('study_date', getLocalDateStr());
-    }
   } catch (err) {
     console.warn('Leaderboard progress sync error:', err);
   }
@@ -6198,12 +6268,10 @@ function startPresenceHeartbeat() {
   if (presenceHeartbeatInterval) {
     clearInterval(presenceHeartbeatInterval);
   }
-  updateStudyPresence(true);
   syncStudyProgressToLeaderboard(0);
-  // Send active heartbeat and incremental sync every 60 seconds while timer is actively running
+  // Send single aggregated heartbeat and incremental sync every 60 seconds while timer is actively running
   presenceHeartbeatInterval = setInterval(() => {
     if (timerStatus === 'RUNNING' && currentMode !== 'break') {
-      updateStudyPresence(true);
       syncStudyProgressToLeaderboard(60);
     }
   }, 60000);
@@ -6244,20 +6312,7 @@ async function logSessionToLeaderboard(durationSec, subject) {
       p_study_date: getLocalDateStr()
     });
 
-    if (profile.avatarRing || profile.countryFlag) {
-      await supabaseClient
-        .from('daily_leaderboard')
-        .update({
-          avatar_ring: profile.avatarRing || 'glow-gold',
-          country_flag: profile.countryFlag || '🌐',
-          avatar_url: avatarUrl,
-          is_stealth: Boolean(profile.isStealth)
-        })
-        .eq('user_id', appState.currentUser.id)
-        .eq('study_date', getLocalDateStr());
-    }
-
-    // Invalidate local cache and refresh leaderboard view
+    // Invalidate local cache and refresh leaderboard view if open
     leaderboardTimeframeCache.daily = { data: null, timestamp: 0 };
     leaderboardTimeframeCache.weekly = { data: null, timestamp: 0 };
     leaderboardTimeframeCache.monthly = { data: null, timestamp: 0 };
@@ -6309,6 +6364,7 @@ async function openLeaderboardModal() {
   if (modal) {
     lockBodyScroll();
     modal.classList.remove('hidden');
+    initLeaderboardRealtime();
     switchLeaderboardTimeframe(currentLeaderboardPeriod || 'daily');
     syncStudyProgressToLeaderboard(0);
     fetchLeaderboard(true, true);
@@ -6317,6 +6373,7 @@ async function openLeaderboardModal() {
 
 function closeLeaderboardModal() {
   document.getElementById('leaderboardModalOverlay')?.classList.add('hidden');
+  teardownLeaderboardRealtime();
   unlockBodyScroll();
 }
 

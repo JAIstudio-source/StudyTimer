@@ -10919,6 +10919,9 @@ class MainActivity : AppCompatActivity() {
         checkOngoingScheduledLecturePrompt()
         checkCelebration()
         triggerAutoSyncIfEligible()
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            ProfileSyncService.refreshProfileStatus(this@MainActivity)
+        }
     }
 
     override fun onPause() {

@@ -37,7 +37,6 @@ object ProfileSyncService {
 
         val currentProfile = ProfileManager.getProfile(context)
         val isNameChanged = displayName.trim() != currentProfile.displayName.trim()
-        val isNewPending = isNameChanged && displayName.trim() != currentProfile.pendingDisplayName
 
         val newStatus = if (isNameChanged) ModerationStatus.PENDING_APPROVAL else currentProfile.moderationStatus
         val pendingName = if (isNameChanged) displayName.trim() else null
@@ -72,10 +71,14 @@ object ProfileSyncService {
             val supabaseUrl = BuildConfig.SUPABASE_URL
             val anonKey = BuildConfig.SUPABASE_ANON_KEY
 
+            val isBioChanged = bio.trim() != currentProfile.bio.trim()
+            val isAvatarChanged = avatarUrl.trim() != currentProfile.avatarUrl.trim()
+
             if (supabaseUrl.isNotBlank() && anonKey.isNotBlank()) {
                 val pendingJson = JSONObject().apply {
                     put("display_name", displayName.trim())
                     put("mood", bio.trim())
+                    put("bio", bio.trim())
                     put("exam_target", targetExam.trim())
                     put("avatar_preset", avatarPresetId)
                     put("avatarPreset", avatarPresetId)
@@ -87,7 +90,7 @@ object ProfileSyncService {
                         put("profile_status", "pending")
                         put("pending_profile_json", pendingJson.toString())
                     }
-                    put("profile_image_uri", avatarUrl)
+                    put("profile_image_uri", avatarUrl.ifBlank { avatarPresetId })
                     put("updated_at", System.currentTimeMillis())
                 }
 
@@ -112,26 +115,33 @@ object ProfileSyncService {
                 // Step 3: Trigger sync to embed full prefs_data
                 CloudSyncManager.syncDataToCloud(context, force = true)
 
-                // Step 4: Optional notify to approval worker
-                if (isNameChanged) {
+                // Step 4: Automatic push notification to Approval Bot (Worker & Telegram Direct)
+                val requiresModeration = isNameChanged || isBioChanged || isAvatarChanged
+                if (requiresModeration) {
                     try {
                         val notifyUrl = URL(APPROVAL_WORKER_URL)
                         val notifyConn = notifyUrl.openConnection() as HttpURLConnection
                         notifyConn.requestMethod = "POST"
                         notifyConn.setRequestProperty("Content-Type", "application/json")
-                        notifyConn.connectTimeout = 4000
-                        notifyConn.readTimeout = 4000
+                        notifyConn.connectTimeout = 5000
+                        notifyConn.readTimeout = 5000
                         notifyConn.doOutput = true
                         val notifyPayload = JSONObject().apply {
                             put("user_id", userId)
                             put("display_name", displayName.trim())
                             put("previous_name", currentProfile.displayName)
-                            put("target_exam", targetExam.trim())
-                            put("source", "android_app")
+                            put("bio", bio.trim())
+                            put("previous_bio", currentProfile.bio)
+                            put("avatar_url", avatarUrl.ifBlank { avatarPresetId })
+                            put("previous_avatar", currentProfile.avatarUrl.ifBlank { currentProfile.avatarPresetId })
+                            put("email", AuthManager.getUserEmail(context) ?: "")
+                            put("source", "Android App")
                         }
                         notifyConn.outputStream.use { it.write(notifyPayload.toString().toByteArray(Charsets.UTF_8)) }
-                        notifyConn.responseCode // Fire and forget
-                    } catch (_: Exception) {}
+                        notifyConn.responseCode
+                    } catch (netEx: Exception) {
+                        Log.w(TAG, "Approval worker notify skipped: ${netEx.message}")
+                    }
                 }
             }
 

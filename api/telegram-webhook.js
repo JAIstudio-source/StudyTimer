@@ -106,32 +106,34 @@ export default async function handler(req, res) {
                   : (syncRow.prefs_data || {});
               } catch (_) {}
             }
-            updatedPrefs.__user_profile__ = profile;
+            profile.photoApproved = true;
+            profile.profileStatus = 'approved';
+            updatedPrefs.__user_profile__ = JSON.stringify(profile);
 
-            await supabase
-              .from('user_sync_data')
-              .update({
-                profile_status: 'approved',
-                user_name: targetName,
-                profile_image_uri: targetAvatarUrl,
-                pending_profile_json: null,
-                prefs_data: JSON.stringify(updatedPrefs),
-                updated_at: Date.now()
-              })
-              .eq('user_id', userId);
+            await Promise.all([
+              supabase
+                .from('user_sync_data')
+                .update({
+                  profile_status: 'approved',
+                  user_name: targetName,
+                  profile_image_uri: targetAvatarUrl,
+                  pending_profile_json: null,
+                  prefs_data: JSON.stringify(updatedPrefs),
+                  updated_at: Date.now()
+                })
+                .eq('user_id', userId),
+              supabase
+                .from('daily_leaderboard')
+                .update({
+                  user_name: targetName,
+                  avatar_url: targetAvatarUrl,
+                  avatar_ring: targetRing,
+                  country_flag: targetFlag,
+                  is_stealth: Boolean(profile.isStealth)
+                })
+                .eq('user_id', userId)
+            ]);
           }
-
-          // Direct sync to daily_leaderboard table
-          await supabase
-            .from('daily_leaderboard')
-            .update({
-              user_name: targetName,
-              avatar_url: targetAvatarUrl,
-              avatar_ring: targetRing,
-              country_flag: targetFlag,
-              is_stealth: Boolean(profile.isStealth)
-            })
-            .eq('user_id', userId);
 
           // Update message in-place and remove action buttons
           if (chatId && messageId) {
@@ -164,19 +166,48 @@ export default async function handler(req, res) {
             }).catch(() => {});
           }
         } else {
-          // Reject action
-          await supabase
+          // Reject action: Keep existing display name, only reject the photo and fallback to default sticker
+          const { data: existingUser } = await supabase
             .from('user_sync_data')
-            .update({ profile_status: 'rejected', updated_at: Date.now() })
-            .eq('user_id', userId);
+            .select('prefs_data, user_name')
+            .eq('user_id', userId)
+            .maybeSingle();
 
-          await supabase
-            .from('daily_leaderboard')
-            .update({ avatar_url: '🐱', is_stealth: false })
-            .eq('user_id', userId);
+          let userPrefs = {};
+          let profileObj = {};
+          if (existingUser && existingUser.prefs_data) {
+            try {
+              userPrefs = typeof existingUser.prefs_data === 'string' ? JSON.parse(existingUser.prefs_data) : existingUser.prefs_data;
+              if (userPrefs.__user_profile__) {
+                profileObj = typeof userPrefs.__user_profile__ === 'string' ? JSON.parse(userPrefs.__user_profile__) : userPrefs.__user_profile__;
+              }
+            } catch (_) {}
+          }
+
+          profileObj.photoApproved = false;
+          profileObj.profileStatus = 'rejected';
+          profileObj.avatarPreset = profileObj.fallbackSticker || '🐱';
+          userPrefs.__user_profile__ = JSON.stringify(profileObj);
+
+          await Promise.all([
+            supabase
+              .from('user_sync_data')
+              .update({
+                profile_status: 'rejected',
+                pending_profile_json: null,
+                profile_image_uri: profileObj.avatarPreset,
+                prefs_data: JSON.stringify(userPrefs),
+                updated_at: Date.now()
+              })
+              .eq('user_id', userId),
+            supabase
+              .from('daily_leaderboard')
+              .update({ avatar_url: profileObj.avatarPreset })
+              .eq('user_id', userId)
+          ]);
 
           if (chatId && messageId) {
-            const rejectText = `❌ <b>REJECTED BY ADMIN</b>\n🆔 <b>ID:</b> <code>${userId}</code>\n⚠️ <i>Profile photo reset to default sticker.</i>`;
+            const rejectText = `❌ <b>REJECTED BY ADMIN</b>\n🆔 <b>ID:</b> <code>${userId}</code>\n⚠️ <i>Profile photo reset to default sticker. Display name preserved.</i>`;
             
             fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/editMessageCaption`, {
               method: 'POST',

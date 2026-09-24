@@ -416,6 +416,203 @@ class LeaderboardPanelBuilder(private val host: MainActivity) {
         return podiumContainer
     }
 
+    private fun createAvatarView(entry: LeaderboardEntry?, sizePx: Int, accentColor: Int = host.themeCoordinator.primaryColor): View {
+        val isCurrent = entry != null && LeaderboardManager.isCurrentUser(entry, host)
+        if (isCurrent && LocalAvatarManager.hasCustomAvatar(host)) {
+            val customBitmap = LocalAvatarManager.getCircularAvatarBitmap(host, sizePx)
+            if (customBitmap != null) {
+                return ImageView(host).apply {
+                    setImageBitmap(customBitmap)
+                    layoutParams = FrameLayout.LayoutParams(sizePx, sizePx, Gravity.CENTER)
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setStroke(dp(1), accentColor)
+                    }
+                }
+            }
+        }
+
+        val initial = entry?.userName?.trim()?.take(1)?.uppercase() ?: "-"
+        val label = if (entry != null && entry.avatarUrl.isNotBlank() && entry.avatarUrl.length <= 4) {
+            entry.avatarUrl
+        } else initial
+
+        return TextView(host).apply {
+            text = label
+            textSize = (sizePx / density * 0.38f).coerceAtLeast(11f)
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(accentColor)
+            }
+            layoutParams = FrameLayout.LayoutParams(sizePx, sizePx, Gravity.CENTER)
+        }
+    }
+
+    private fun showStudentProfileDialog(entry: LeaderboardEntry) {
+        val dialog = android.app.Dialog(host)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+
+        val isCurrent = LeaderboardManager.isCurrentUser(entry, host)
+        val dialogRoot = LinearLayout(host).apply {
+            orientation = LinearLayout.VERTICAL
+            background = host.themeCoordinator.createDialogBackground(26f)
+            setPadding(dp(22), dp(22), dp(22), dp(20))
+            gravity = Gravity.CENTER_HORIZONTAL
+        }
+
+        // Centered Avatar Frame
+        val avatarBox = FrameLayout(host).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(72), dp(72)).apply {
+                setMargins(0, 0, 0, dp(12))
+            }
+        }
+        val avatarView = createAvatarView(entry, dp(72), host.themeCoordinator.primaryColor)
+        avatarBox.addView(avatarView)
+        dialogRoot.addView(avatarBox)
+
+        // Student Display Name
+        val nameView = TextView(host).apply {
+            text = if (isCurrent) "${entry.userName} (You)" else entry.userName
+            textSize = 18f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setTextColor(host.themeCoordinator.textColor)
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, dp(4))
+        }
+        dialogRoot.addView(nameView)
+
+        // Target Exam / Focus Track Badge
+        val targetExam = if (isCurrent) {
+            ProfileManager.getProfile(host).targetExam.ifBlank { "Self-Study" }
+        } else {
+            entry.examTarget.ifBlank { "Self-Study" }
+        }
+
+        val trackPill = TextView(host).apply {
+            text = "🎯 $targetExam"
+            textSize = 12f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setTextColor(host.themeCoordinator.primaryColor)
+            background = host.themeCoordinator.createGlassChip(host.tintedColor(host.themeCoordinator.primaryColor, 35), 12f)
+            setPadding(dp(12), dp(4), dp(12), dp(4))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 0, dp(10))
+            }
+        }
+        dialogRoot.addView(trackPill)
+
+        // Student Bio / Motto (if present)
+        val bioText = if (isCurrent) {
+            ProfileManager.getProfile(host).bio
+        } else {
+            entry.bio
+        }
+        if (bioText.isNotBlank()) {
+            val mottoView = TextView(host).apply {
+                text = "\"$bioText\""
+                textSize = 12.5f
+                alpha = 0.8f
+                setTextColor(host.themeCoordinator.textColor)
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, dp(12))
+            }
+            dialogRoot.addView(mottoView)
+        }
+
+        // Stats Summary Grid
+        val statsCard = LinearLayout(host).apply {
+            orientation = LinearLayout.HORIZONTAL
+            background = host.themeCoordinator.createGlassChip(host.tintedColor(host.themeCoordinator.textColor, 20), 14f)
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 0, dp(16))
+            }
+        }
+
+        val colRank = LinearLayout(host).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        colRank.addView(TextView(host).apply {
+            text = "RANK"
+            textSize = 10f
+            alpha = 0.6f
+            setTextColor(host.themeCoordinator.textColor)
+        })
+        colRank.addView(TextView(host).apply {
+            text = "#${entry.rank}"
+            textSize = 16f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setTextColor(host.themeCoordinator.primaryColor)
+        })
+        statsCard.addView(colRank)
+
+        val colTime = LinearLayout(host).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        colTime.addView(TextView(host).apply {
+            text = "STUDY TIME"
+            textSize = 10f
+            alpha = 0.6f
+            setTextColor(host.themeCoordinator.textColor)
+        })
+        colTime.addView(TextView(host).apply {
+            text = LeaderboardManager.formatDuration(entry.totalSeconds)
+            textSize = 16f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setTextColor(host.themeCoordinator.textColor)
+        })
+        statsCard.addView(colTime)
+
+        val colStatus = LinearLayout(host).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        colStatus.addView(TextView(host).apply {
+            text = "STATUS"
+            textSize = 10f
+            alpha = 0.6f
+            setTextColor(host.themeCoordinator.textColor)
+        })
+        colStatus.addView(TextView(host).apply {
+            text = if (entry.isStudying) {
+                if (entry.currentSubject.isNotBlank()) "🟢 ${entry.currentSubject}" else "🟢 Live"
+            } else "Resting"
+            textSize = 13f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setTextColor(if (entry.isStudying) Color.parseColor("#4ADE80") else host.themeCoordinator.textColor)
+        })
+        statsCard.addView(colStatus)
+        dialogRoot.addView(statsCard)
+
+        // Dismiss Button
+        val closeBtn = Button(host).apply {
+            text = "Close"
+            setTextColor(Color.WHITE)
+            textSize = 12.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = host.themeCoordinator.createButtonBackground(host.themeCoordinator.primaryColor)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(42))
+            setOnClickListener { dialog.dismiss() }
+        }
+        dialogRoot.addView(closeBtn)
+
+        dialog.setContentView(dialogRoot)
+        dialog.window?.apply {
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+            setGravity(Gravity.CENTER)
+            setLayout((host.resources.displayMetrics.widthPixels * 0.88f).toInt(), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+        }
+        dialog.show()
+    }
+
     private fun buildPodiumPedestal(entry: LeaderboardEntry?, rank: Int, accentColor: Int, minHeightPx: Int): View {
         val isCurrent = entry != null && LeaderboardManager.isCurrentUser(entry, host)
 
@@ -440,6 +637,11 @@ class LeaderboardPanelBuilder(private val host: MainActivity) {
             minimumHeight = minHeightPx
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
                 setMargins(dp(4), 0, dp(4), 0)
+            }
+            if (entry != null) {
+                isClickable = true
+                isFocusable = true
+                setOnClickListener { showStudentProfileDialog(entry) }
             }
         }
 
@@ -468,20 +670,8 @@ class LeaderboardPanelBuilder(private val host: MainActivity) {
             }
         }
 
-        val avatarCircle = TextView(host).apply {
-            val initial = entry?.userName?.trim()?.take(1)?.uppercase() ?: "-"
-            text = if (entry != null && entry.avatarUrl.isNotEmpty() && entry.avatarUrl.length <= 4) entry.avatarUrl else initial
-            textSize = if (rank == 1) 16f else 14f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(if (entry != null) accentColor else Color.DKGRAY)
-            }
-            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
-        }
-        avatarFrame.addView(avatarCircle)
+        val avatarView = createAvatarView(entry, avatarSize, if (entry != null) accentColor else Color.DKGRAY)
+        avatarFrame.addView(avatarView)
 
         // Rank Pill Badge
         val rankPill = TextView(host).apply {
@@ -575,6 +765,9 @@ class LeaderboardPanelBuilder(private val host: MainActivity) {
             ).apply {
                 setMargins(0, 0, 0, dp(8))
             }
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { showStudentProfileDialog(entry) }
         }
 
         // Rank Number
@@ -584,29 +777,22 @@ class LeaderboardPanelBuilder(private val host: MainActivity) {
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             setTextColor(if (isCurrent) host.themeCoordinator.primaryColor else host.themeCoordinator.textColor)
             alpha = if (isCurrent) 1f else 0.7f
-            setPadding(0, 0, dp(12), 0)
+            setPadding(0, 0, dp(10), 0)
         }
         row.addView(rankView)
 
-        // Avatar
-        val avatarCircle = TextView(host).apply {
-            val initial = entry.userName.trim().take(1).uppercase()
-            text = if (entry.avatarUrl.isNotEmpty() && entry.avatarUrl.length <= 4) entry.avatarUrl else initial
-            textSize = 13f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(host.themeCoordinator.primaryColor)
-            }
-            layoutParams = LinearLayout.LayoutParams(dp(34), dp(34)).apply {
+        // Avatar Frame
+        val avatarSize = dp(36)
+        val avatarFrame = FrameLayout(host).apply {
+            layoutParams = LinearLayout.LayoutParams(avatarSize, avatarSize).apply {
                 setMargins(0, 0, dp(12), 0)
             }
         }
-        row.addView(avatarCircle)
+        val avatarView = createAvatarView(entry, avatarSize, host.themeCoordinator.primaryColor)
+        avatarFrame.addView(avatarView)
+        row.addView(avatarFrame)
 
-        // User Info (Name + Subject)
+        // User Info (Name + Subject + Target)
         val userCol = LinearLayout(host).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -643,6 +829,23 @@ class LeaderboardPanelBuilder(private val host: MainActivity) {
             }
             nameRow.addView(youTag)
         }
+
+        if (entry.examTarget.isNotBlank() && entry.examTarget != "Self-Study") {
+            val examTag = TextView(host).apply {
+                text = "🎯 ${entry.examTarget}"
+                textSize = 9f
+                typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+                setTextColor(host.themeCoordinator.primaryColor)
+                background = host.themeCoordinator.createGlassChip(host.tintedColor(host.themeCoordinator.primaryColor, 25), 6f)
+                setPadding(dp(5), dp(1), dp(5), dp(1))
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { setMargins(dp(6), 0, 0, 0) }
+            }
+            nameRow.addView(examTag)
+        }
+
         userCol.addView(nameRow)
 
         val statusView = TextView(host).apply {
@@ -747,44 +950,92 @@ class LeaderboardPanelBuilder(private val host: MainActivity) {
         } else {
             // LOGGED-IN: Sticky Personal Ranking Card
             val myEntry = currentEntries.find { LeaderboardManager.isCurrentUser(it, host) }
+            val currentProfile = ProfileManager.getProfile(host)
+            val effectiveName = ProfileManager.getEffectiveDisplayName(host)
+
+            val todayFmt = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+            val todayRealSecs = LeaderboardManager.getRealTimerFocusSecondsForDate(host, todayFmt).toInt()
+            val finalDurationSecs = if (myEntry != null && myEntry.totalSeconds > 0) myEntry.totalSeconds else todayRealSecs
 
             val myCard = LinearLayout(host).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
                 background = host.themeCoordinator.createCardBackground(18f)
-                setPadding(dp(14), dp(10), dp(14), dp(10))
+                setPadding(dp(12), dp(10), dp(14), dp(10))
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply {
                     setMargins(0, dp(8), 0, dp(12))
                 }
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    if (myEntry != null) {
+                        showStudentProfileDialog(myEntry)
+                    } else {
+                        val dummyEntry = LeaderboardEntry(
+                            rank = 0,
+                            userId = AuthManager.getUserId(host) ?: "",
+                            userName = effectiveName,
+                            avatarUrl = ProfileManager.getEffectiveAvatarUrl(host),
+                            totalSeconds = finalDurationSecs,
+                            isStudying = false,
+                            examTarget = currentProfile.targetExam,
+                            bio = currentProfile.bio
+                        )
+                        showStudentProfileDialog(dummyEntry)
+                    }
+                }
             }
 
-            val myRankBadge = TextView(host).apply {
-                text = if (myEntry != null) "#${myEntry.rank}" else "--"
-                textSize = 14f
-                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                setTextColor(host.themeCoordinator.primaryColor)
-                setPadding(0, 0, dp(12), 0)
+            // Avatar Frame
+            val avatarSize = dp(38)
+            val avatarFrame = FrameLayout(host).apply {
+                layoutParams = LinearLayout.LayoutParams(avatarSize, avatarSize).apply {
+                    setMargins(0, 0, dp(10), 0)
+                }
             }
-            myCard.addView(myRankBadge)
+            val avatarView = createAvatarView(myEntry, avatarSize, host.themeCoordinator.primaryColor)
+            avatarFrame.addView(avatarView)
+            myCard.addView(avatarFrame)
 
             val myInfoCol = LinearLayout(host).apply {
                 orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
 
+            val nameRow = LinearLayout(host).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+
             val myName = TextView(host).apply {
-                text = AuthManager.getUserName(host) ?: "You"
+                text = effectiveName
                 textSize = 13.5f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                 setTextColor(host.themeCoordinator.textColor)
             }
-            myInfoCol.addView(myName)
+            nameRow.addView(myName)
+
+            if (currentProfile.targetExam.isNotBlank() && currentProfile.targetExam != "Self-Study") {
+                val targetBadge = TextView(host).apply {
+                    text = "🎯 ${currentProfile.targetExam}"
+                    textSize = 9f
+                    setTextColor(host.themeCoordinator.primaryColor)
+                    background = host.themeCoordinator.createGlassChip(host.tintedColor(host.themeCoordinator.primaryColor, 25), 6f)
+                    setPadding(dp(5), dp(1), dp(5), dp(1))
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply { setMargins(dp(6), 0, 0, 0) }
+                }
+                nameRow.addView(targetBadge)
+            }
+            myInfoCol.addView(nameRow)
 
             val myStatus = TextView(host).apply {
-                text = if (myEntry != null) "Ranked in top 50" else "Start studying to get ranked!"
+                text = if (myEntry != null) "Ranked #${myEntry.rank} • Tap to view profile" else "Active today • Tap to view profile"
                 textSize = 11f
                 setTextColor(host.themeCoordinator.textColor)
                 alpha = 0.65f
@@ -793,7 +1044,7 @@ class LeaderboardPanelBuilder(private val host: MainActivity) {
             myCard.addView(myInfoCol)
 
             val myTime = TextView(host).apply {
-                text = if (myEntry != null) LeaderboardManager.formatDuration(myEntry.totalSeconds) else "0m"
+                text = LeaderboardManager.formatDuration(finalDurationSecs)
                 textSize = 14f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                 setTextColor(host.themeCoordinator.primaryColor)

@@ -132,7 +132,9 @@ object LeaderboardManager {
                                 isStudying = isStudying,
                                 currentSubject = currentSubject,
                                 subjectColor = subjectColor,
-                                lastActiveAt = lastActiveAt
+                                lastActiveAt = lastActiveAt,
+                                examTarget = obj.optString("exam_target", obj.optString("target_exam", "")),
+                                bio = obj.optString("bio", obj.optString("mood", ""))
                             )
                         )
                     }

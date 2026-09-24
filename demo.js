@@ -1789,6 +1789,7 @@ function setupEventListeners() {
   // Desktop Sidebar Collapse / Expand Toggle
   document.getElementById('btnToggleSidebarCollapse')?.addEventListener('click', toggleSidebarCollapse);
   document.getElementById('btnTopSidebarToggle')?.addEventListener('click', toggleSidebarCollapse);
+  document.getElementById('sidebarBrandHeader')?.addEventListener('click', toggleSidebarCollapse);
 
   // Dedicated Full Screen Zen Timer Mode Triggers
   document.getElementById('btnOpenZenTimer')?.addEventListener('click', openZenMode);
@@ -5566,21 +5567,26 @@ async function handleSaveProfile(e) {
     showToast('Profile updated successfully! ✨', 'success');
   }
 
-  // Notify Admin Moderation Bot on Telegram with resolved photo/sticker
-  notifyAdminModerationWebhook({
-    user_id: appState.currentUser?.id || 'guest_' + Date.now(),
-    display_name: displayName,
-    email: appState.currentUser?.email || '',
-    avatar_url: avatarValueToSave,
-    avatar_ring: selectedAvatarRing,
-    status_mood: mood,
-    exam_tag: examTarget,
-    country_flag: countryFlag,
-    subjects: appState.subjects.map(s => s.name),
-    photo_changed: photoChanged,
-    details_changed: detailsChanged,
-    diffs: diffs
-  });
+  // Predetermined options (emoji stickers, flags, rings, numbers) apply instantly without Telegram moderation.
+  // Telegram moderation is strictly reserved for custom photo safety review & profanity flags.
+  const requiresModeration = photoChanged || hasProfanity(displayName) || hasProfanity(mood) || hasProfanity(examTarget);
+
+  if (requiresModeration) {
+    notifyAdminModerationWebhook({
+      user_id: appState.currentUser?.id || 'guest_' + Date.now(),
+      display_name: displayName,
+      email: appState.currentUser?.email || '',
+      avatar_url: avatarValueToSave,
+      avatar_ring: selectedAvatarRing,
+      status_mood: mood,
+      exam_tag: examTarget,
+      country_flag: countryFlag,
+      subjects: appState.subjects.map(s => s.name),
+      photo_changed: photoChanged,
+      details_changed: detailsChanged,
+      diffs: diffs
+    });
+  }
 
   // Direct cosmetic update to daily_leaderboard using strict approved avatar helper
   const publicAvatarUrl = getPublicLeaderboardAvatarUrl(appState.userProfile);

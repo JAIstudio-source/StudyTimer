@@ -4825,50 +4825,103 @@ body.has-custom-bg .zen-timer-overlay {
 }
 
 /* Live Profile Card Preview */
-.profile-preview-card {
+/* Moderation Notice Banner */
+.moderation-notice-banner {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, var(--bg-subtle) 100%);
-  border: 1px solid rgba(139, 92, 246, 0.25);
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.25);
   border-radius: var(--radius-md);
-  margin-bottom: 4px;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.moderation-notice-banner .notice-shield-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: #10b981;
+}
+
+/* Live Profile Card Preview */
+.profile-preview-card {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  transition: all var(--transition-normal);
+}
+
+.preview-card-header-bg {
+  height: 52px;
+  width: 100%;
+  transition: background 0.3s ease;
+}
+
+.preview-card-body-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 0 16px 14px 16px;
+  margin-top: -24px;
 }
 
 .preview-avatar-wrap {
   flex-shrink: 0;
 }
 
-.preview-avatar-badge {
-  width: 54px;
-  height: 54px;
+.preview-avatar-ring {
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
+  padding: 3px;
   background: var(--bg-card);
-  border: 2px solid #8b5cf6;
-  box-shadow: 0 0 14px rgba(139, 92, 246, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.7rem;
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.preview-avatar-badge {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--bg-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
   transition: transform 0.2s ease;
 }
 
 .preview-info-wrap {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   min-width: 0;
+  padding-top: 26px;
+  flex: 1;
 }
 
 .preview-name-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.preview-flag {
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .preview-name {
-  font-size: 0.95rem;
+  font-size: 0.96rem;
   font-weight: 700;
   color: var(--text-primary);
   white-space: nowrap;
@@ -4877,21 +4930,197 @@ body.has-custom-bg .zen-timer-overlay {
 }
 
 .preview-role-pill {
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   font-weight: 700;
-  padding: 1px 7px;
+  padding: 2px 7px;
   border-radius: var(--radius-pill);
   background: rgba(139, 92, 246, 0.15);
   color: #8b5cf6;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.preview-tags-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 2px 0;
+}
+
+.preview-mood-pill {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.preview-exam-badge {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(6, 182, 212, 0.12);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  color: #06b6d4;
+  font-weight: 600;
 }
 
 .preview-motto {
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   color: var(--text-secondary);
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ========================================================
+   6 BANNER GRADIENT THEMES
+   ======================================================== */
+.banner-midnight,
+.banner-theme-swatch.banner-midnight {
+  background: linear-gradient(135deg, #1e1b4b 0%, #4338ca 50%, #6366f1 100%);
+}
+
+.banner-sunset,
+.banner-theme-swatch.banner-sunset {
+  background: linear-gradient(135deg, #4c0519 0%, #e11d48 50%, #fb923c 100%);
+}
+
+.banner-emerald,
+.banner-theme-swatch.banner-emerald {
+  background: linear-gradient(135deg, #064e3b 0%, #059669 50%, #34d399 100%);
+}
+
+.banner-cosmic,
+.banner-theme-swatch.banner-cosmic {
+  background: linear-gradient(135deg, #2e1065 0%, #7c3aed 50%, #06b6d4 100%);
+}
+
+.banner-matrix,
+.banner-theme-swatch.banner-matrix {
+  background: linear-gradient(135deg, #09090b 0%, #18181b 50%, #0d9488 100%);
+}
+
+.banner-slate,
+.banner-theme-swatch.banner-slate {
+  background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #64748b 100%);
+}
+
+/* ========================================================
+   7 AVATAR GLOW RINGS
+   ======================================================== */
+.glow-gold {
+  border: 2.5px solid #f59e0b !important;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.6), inset 0 0 6px rgba(245, 158, 11, 0.3) !important;
+}
+
+.glow-cyan {
+  border: 2.5px solid #06b6d4 !important;
+  box-shadow: 0 0 14px rgba(6, 182, 212, 0.6), inset 0 0 6px rgba(6, 182, 212, 0.3) !important;
+}
+
+.glow-emerald {
+  border: 2.5px solid #10b981 !important;
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.6), inset 0 0 6px rgba(16, 185, 129, 0.3) !important;
+}
+
+.glow-violet {
+  border: 2.5px solid #8b5cf6 !important;
+  box-shadow: 0 0 14px rgba(139, 92, 246, 0.6), inset 0 0 6px rgba(139, 92, 246, 0.3) !important;
+}
+
+.glow-rose {
+  border: 2.5px solid #f43f5e !important;
+  box-shadow: 0 0 14px rgba(244, 63, 94, 0.6), inset 0 0 6px rgba(244, 63, 94, 0.3) !important;
+}
+
+.glow-blue {
+  border: 2.5px solid #3b82f6 !important;
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.6), inset 0 0 6px rgba(59, 130, 246, 0.3) !important;
+}
+
+.glow-slate {
+  border: 2.5px solid #94a3b8 !important;
+  box-shadow: 0 0 14px rgba(148, 163, 184, 0.45), inset 0 0 6px rgba(148, 163, 184, 0.2) !important;
+}
+
+/* Theme & Ring Pickers */
+.section-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.section-sub-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.banner-themes-grid,
+.glow-rings-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 540px) {
+  .banner-themes-grid,
+  .glow-rings-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.banner-theme-btn,
+.glow-ring-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 6px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.banner-theme-btn:hover,
+.glow-ring-btn:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-medium);
+  transform: translateY(-2px);
+}
+
+.banner-theme-btn.active,
+.glow-ring-btn.active {
+  border-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.12);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.3);
+}
+
+.banner-theme-swatch {
+  width: 100%;
+  height: 20px;
+  border-radius: 4px;
+}
+
+.glow-ring-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--bg-card);
+}
+
+.banner-theme-name,
+.glow-ring-name {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
 /* Avatar Presets Grid */
@@ -4932,6 +5161,27 @@ body.has-custom-bg .zen-timer-overlay {
   border-color: #8b5cf6;
   box-shadow: 0 0 10px rgba(139, 92, 246, 0.35);
   transform: scale(1.1);
+}
+
+/* Form Row Grids */
+.input-row-grid {
+  display: flex;
+  gap: 12px;
+}
+
+.input-row-grid .flex-1 {
+  flex: 1;
+}
+
+.input-row-grid .flex-2 {
+  flex: 2;
+}
+
+@media (max-width: 480px) {
+  .input-row-grid {
+    flex-direction: column;
+    gap: 10px;
+  }
 }
 
 .input-hint-sub {
@@ -7862,7 +8112,7 @@ textarea:focus-visible {
 }
 
 /* ============================================================================
-   AUDIO ENGINE BADGE & HYBRID PIPED STREAM CONTROLS
+   AUDIO ENGINE BADGE CONTROLS
    ============================================================================ */
 .audio-engine-badge {
   display: inline-flex;
@@ -7881,94 +8131,23 @@ textarea:focus-visible {
   transition: all 0.25s ease;
 }
 
-.audio-engine-badge.engine-piped {
+.audio-engine-badge.engine-youtube {
+  background: rgba(255, 0, 0, 0.12);
+  color: #ff4e4e;
+  border-color: rgba(255, 0, 0, 0.35);
+  box-shadow: 0 0 8px rgba(255, 0, 0, 0.15);
+}
+
+.audio-engine-badge.engine-webaudio {
   background: rgba(16, 185, 129, 0.15);
   color: #10b981;
   border-color: rgba(16, 185, 129, 0.35);
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.2);
-}
-
-.audio-engine-badge.engine-youtube {
-  background: rgba(139, 92, 246, 0.15);
-  color: #a78bfa;
-  border-color: rgba(139, 92, 246, 0.35);
 }
 
 .audio-engine-badge.engine-offline {
   background: rgba(59, 130, 246, 0.15);
   color: #60a5fa;
   border-color: rgba(59, 130, 246, 0.35);
-}
-
-/* Compact Hybrid Engine Switch Row */
-.yt-engine-compact-row {
-  margin-top: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 12px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-pill);
-}
-
-.yt-engine-compact-left {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.yt-engine-compact-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-/* Small Switch Toggle */
-.switch-toggle-hybrid {
-  position: relative;
-  display: inline-block;
-  width: 34px;
-  height: 18px;
-  flex-shrink: 0;
-  cursor: pointer;
-}
-
-.switch-toggle-hybrid input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.switch-slider {
-  position: absolute;
-  cursor: pointer;
-  inset: 0;
-  background-color: var(--border-default);
-  transition: 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  border-radius: 20px;
-}
-
-.switch-slider:before {
-  position: absolute;
-  content: "";
-  height: 12px;
-  width: 12px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-}
-
-.switch-toggle-hybrid input:checked + .switch-slider {
-  background-color: #10b981;
-}
-
-.switch-toggle-hybrid input:checked + .switch-slider:before {
-  transform: translateX(16px);
 }
 
 /* Dedicated Audio Music Preview Card (Music Format with Cover Thumbnail, No Video) */

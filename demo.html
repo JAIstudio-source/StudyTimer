@@ -11,6 +11,7 @@
   <meta name="keywords" content="online pomodoro timer, web study timer, study habit tracker, student focus timer, pomodoro technique online, subject timer, study timer with cloud sync">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://get-studytimer.vercel.app/demo.html">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="theme-color" content="#09090b">
 
   <!-- Favicon & Touch Icons -->
@@ -194,29 +195,9 @@
           <span class="nav-item-text">Leaderboard</span>
           <span class="live-pulse-dot" style="margin-left: auto;"></span>
         </button>
-      </nav>
 
-      <!-- Sidebar Footer (Themes, Settings, Profile & Sync) -->
-      <div class="sidebar-footer">
-        
-        <div class="sidebar-tools-row">
-          <button type="button" class="sidebar-tool-btn" id="btnOpenBackgroundModal" title="Studio Ambience & Wallpapers">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>
-            <span class="sidebar-tool-label">Themes</span>
-          </button>
-          <button type="button" class="sidebar-tool-btn" id="btnOpenTimerSettings" title="Timer Settings">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-            <span class="sidebar-tool-label">Settings</span>
-          </button>
-          <button type="button" class="sidebar-tool-btn" id="themeToggleBtn" title="Toggle Light/Dark Theme">
-            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-            <span class="sidebar-tool-label">Theme</span>
-          </button>
-        </div>
-
-        <!-- Cloud Sync & User Profile Widget -->
-        <div class="sidebar-user-block">
+        <!-- Cloud Sync & User Profile Widget (Directly Below Leaderboard) -->
+        <div class="sidebar-user-block" style="margin-top: 10px;">
           <div class="sync-status-pill" id="syncStatusPill" title="Cloud Sync Status with Android App">
             <span class="sync-dot"></span>
             <span class="sync-label" id="syncStatusText">Local</span>
@@ -265,6 +246,26 @@
               </div>
             </div>
           </div>
+        </div>
+      </nav>
+
+      <!-- Sidebar Footer (Themes, Settings, Theme toggle) -->
+      <div class="sidebar-footer">
+        
+        <div class="sidebar-tools-row">
+          <button type="button" class="sidebar-tool-btn" id="btnOpenBackgroundModal" title="Studio Ambience & Wallpapers">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>
+            <span class="sidebar-tool-label">Themes</span>
+          </button>
+          <button type="button" class="sidebar-tool-btn" id="btnOpenTimerSettings" title="Timer Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            <span class="sidebar-tool-label">Settings</span>
+          </button>
+          <button type="button" class="sidebar-tool-btn" id="themeToggleBtn" title="Toggle Light/Dark Theme">
+            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            <span class="sidebar-tool-label">Theme</span>
+          </button>
         </div>
 
       </div>
@@ -753,8 +754,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </button>
 
-        <!-- HTML5 Ad-Free Audio Stream Player -->
-        <audio id="customAdFreeAudio" preload="none" loop style="display:none;"></audio>
+        <!-- Off-Screen YouTube Audio Player Anchor is initialized below -->
       </div>
 
     </main>
@@ -893,56 +893,192 @@
 
       <form class="modal-body profile-modal-body" id="profileCustomizationForm">
         
+        <!-- Moderation Notice Banner -->
+        <div class="moderation-notice-banner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="notice-shield-icon">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          <span>Your private profile updates immediately. Public leaderboard tags are verified within 24 hours to keep the community safe 🛡️</span>
+        </div>
+
         <!-- Live Profile Card Preview -->
-        <div class="profile-preview-card">
-          <div class="preview-avatar-wrap">
-            <div class="preview-avatar-badge" id="previewAvatarIcon">🐱</div>
-          </div>
-          <div class="preview-info-wrap">
-            <div class="preview-name-row">
-              <strong class="preview-name" id="previewDisplayName">Student</strong>
-              <span class="preview-role-pill">Student</span>
+        <div class="profile-preview-card banner-midnight" id="previewProfileCard">
+          <div class="preview-card-header-bg" id="previewCardBanner"></div>
+          <div class="preview-card-body-row">
+            <div class="preview-avatar-wrap">
+              <div class="preview-avatar-ring glow-gold" id="previewAvatarRing">
+                <div class="preview-avatar-badge" id="previewAvatarIcon">🐱</div>
+              </div>
             </div>
-            <p class="preview-motto" id="previewMottoText">🎯 Deep focus &amp; daily consistency</p>
+            <div class="preview-info-wrap">
+              <div class="preview-name-row">
+                <span class="preview-flag" id="previewCountryFlag">🌐</span>
+                <strong class="preview-name" id="previewDisplayName">Student</strong>
+                <span class="preview-role-pill" id="previewRolePill">Scholar</span>
+              </div>
+              <div class="preview-tags-row">
+                <span class="preview-mood-pill" id="previewMoodPill">☕ Deep Focus</span>
+                <span class="preview-exam-badge" id="previewExamBadge">🎯 Target: 4h Daily</span>
+              </div>
+              <p class="preview-motto" id="previewMottoText">🎯 Deep focus &amp; daily consistency</p>
+            </div>
           </div>
         </div>
 
-        <!-- Avatar Sticker Picker (100% Safe Preset Stickers) -->
+        <!-- Banner Theme Picker -->
         <div class="settings-section">
-          <label class="settings-label">Choose Avatar Sticker</label>
+          <div class="section-label-row">
+            <label class="settings-label">Card Banner Theme</label>
+            <span class="section-sub-label">Header gradient aura</span>
+          </div>
+          <div class="banner-themes-grid" id="bannerThemesGrid">
+            <button type="button" class="banner-theme-btn active" data-banner="banner-midnight" title="Lofi Midnight">
+              <span class="banner-theme-swatch banner-midnight"></span>
+              <span class="banner-theme-name">Midnight</span>
+            </button>
+            <button type="button" class="banner-theme-btn" data-banner="banner-sunset" title="Sunset Glow">
+              <span class="banner-theme-swatch banner-sunset"></span>
+              <span class="banner-theme-name">Sunset</span>
+            </button>
+            <button type="button" class="banner-theme-btn" data-banner="banner-emerald" title="Emerald Forest">
+              <span class="banner-theme-swatch banner-emerald"></span>
+              <span class="banner-theme-name">Emerald</span>
+            </button>
+            <button type="button" class="banner-theme-btn" data-banner="banner-cosmic" title="Cosmic Nebula">
+              <span class="banner-theme-swatch banner-cosmic"></span>
+              <span class="banner-theme-name">Cosmic</span>
+            </button>
+            <button type="button" class="banner-theme-btn" data-banner="banner-matrix" title="Cyber Matrix">
+              <span class="banner-theme-swatch banner-matrix"></span>
+              <span class="banner-theme-name">Cyber</span>
+            </button>
+            <button type="button" class="banner-theme-btn" data-banner="banner-slate" title="Minimal Slate">
+              <span class="banner-theme-swatch banner-slate"></span>
+              <span class="banner-theme-name">Slate</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Avatar Glow Ring Picker -->
+        <div class="settings-section">
+          <div class="section-label-row">
+            <label class="settings-label">Avatar Glow Ring</label>
+            <span class="section-sub-label">Aura on leaderboards &amp; profile</span>
+          </div>
+          <div class="glow-rings-grid" id="glowRingsGrid">
+            <button type="button" class="glow-ring-btn active" data-ring="glow-gold" title="Gold Aura">
+              <span class="glow-ring-swatch glow-gold"></span>
+              <span class="glow-ring-name">Gold</span>
+            </button>
+            <button type="button" class="glow-ring-btn" data-ring="glow-cyan" title="Cyber Neon">
+              <span class="glow-ring-swatch glow-cyan"></span>
+              <span class="glow-ring-name">Cyan</span>
+            </button>
+            <button type="button" class="glow-ring-btn" data-ring="glow-emerald" title="Emerald Scholar">
+              <span class="glow-ring-swatch glow-emerald"></span>
+              <span class="glow-ring-name">Emerald</span>
+            </button>
+            <button type="button" class="glow-ring-btn" data-ring="glow-violet" title="Violet Mystic">
+              <span class="glow-ring-swatch glow-violet"></span>
+              <span class="glow-ring-name">Violet</span>
+            </button>
+            <button type="button" class="glow-ring-btn" data-ring="glow-rose" title="Rose Sunset">
+              <span class="glow-ring-swatch glow-rose"></span>
+              <span class="glow-ring-name">Rose</span>
+            </button>
+            <button type="button" class="glow-ring-btn" data-ring="glow-blue" title="Ocean Blue">
+              <span class="glow-ring-swatch glow-blue"></span>
+              <span class="glow-ring-name">Ocean</span>
+            </button>
+            <button type="button" class="glow-ring-btn" data-ring="glow-slate" title="Minimal Silver">
+              <span class="glow-ring-swatch glow-slate"></span>
+              <span class="glow-ring-name">Silver</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Avatar Sticker Picker (24 Curated Aesthetic Avatar Stickers) -->
+        <div class="settings-section">
+          <div class="section-label-row">
+            <label class="settings-label">Avatar Sticker</label>
+            <span class="section-sub-label">Curated student identity</span>
+          </div>
           <div class="avatar-presets-grid" id="avatarPresetsGrid">
-            <!-- 16 Curated Aesthetic Avatar Stickers -->
+            <!-- Lofi Animals -->
             <button type="button" class="avatar-preset-btn active" data-avatar="🐱" data-label="Lofi Cat" title="Lofi Cat">🐱</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🚀" data-label="Astro" title="Astronaut">🚀</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="☕" data-label="Coffee" title="Cozy Coffee">☕</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🦉" data-label="Owl" title="Study Owl">🦉</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🧠" data-label="Brainiac" title="Deep Mind">🧠</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="💻" data-label="Coder" title="Code Master">💻</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🩺" data-label="Med" title="Medical Student">🩺</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🦉" data-label="Study Owl" title="Study Owl">🦉</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🦊" data-label="Focus Fox" title="Focus Fox">🦊</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🐼" data-label="Chill Panda" title="Chill Panda">🐼</button>
+            <!-- Academics & Science -->
             <button type="button" class="avatar-preset-btn" data-avatar="📚" data-label="Scholar" title="Bookworm">📚</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🧠" data-label="Brainiac" title="Deep Mind">🧠</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🔬" data-label="Lab Flask" title="Science Mind">🔬</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🩺" data-label="Med" title="Medical Student">🩺</button>
+            <!-- Tech & Creativity -->
+            <button type="button" class="avatar-preset-btn" data-avatar="💻" data-label="Coder" title="Code Master">💻</button>
             <button type="button" class="avatar-preset-btn" data-avatar="⚡" data-label="Lightning" title="Fast Learner">⚡</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🎨" data-label="Artist" title="Creative Mind">🎨</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🚀" data-label="Astro" title="Astronaut">🚀</button>
+            <!-- Zen & Nature -->
             <button type="button" class="avatar-preset-btn" data-avatar="🌸" data-label="Lotus" title="Zen Lotus">🌸</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🌲" data-label="Forest" title="Nature Focus">🌲</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="☕" data-label="Coffee" title="Cozy Coffee">☕</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🌙" data-label="Moon" title="Night Grind">🌙</button>
+            <!-- Milestones & Icons -->
             <button type="button" class="avatar-preset-btn" data-avatar="🎯" data-label="Target" title="Goal Crusher">🎯</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🏆" data-label="Champion" title="Leaderboard Champ">🏆</button>
             <button type="button" class="avatar-preset-btn" data-avatar="🔥" data-label="Flame" title="Streak Master">🔥</button>
             <button type="button" class="avatar-preset-btn" data-avatar="💎" data-label="Diamond" title="Diamond Focus">💎</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🎨" data-label="Artist" title="Creative Mind">🎨</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🌲" data-label="Forest" title="Nature Focus">🌲</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🏆" data-label="Champion" title="Leaderboard Champ">🏆</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="👑" data-label="Crown" title="Royalty">👑</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🪐" data-label="Saturn" title="Cosmic Mind">🪐</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🎮" data-label="Gamer" title="Focus Flow">🎮</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🎧" data-label="Lofi Beats" title="Lofi Beats">🎧</button>
           </div>
         </div>
 
-        <!-- Custom Display Name -->
-        <div class="input-group">
-          <label for="inputProfileDisplayName">Display Name / Handle</label>
-          <input type="text" id="inputProfileDisplayName" maxlength="24" placeholder="e.g. Alex StudyMaster" required autocomplete="off">
-          <span class="input-hint-sub">Visible to classmates on the global leaderboard</span>
+        <!-- Custom Display Name & Flag -->
+        <div class="input-row-grid">
+          <div class="input-group flex-2">
+            <label for="inputProfileDisplayName">Display Name / Handle</label>
+            <input type="text" id="inputProfileDisplayName" maxlength="24" placeholder="e.g. Alex StudyMaster" required autocomplete="off">
+          </div>
+          <div class="input-group flex-1">
+            <label for="selectProfileCountryFlag">Region Flag</label>
+            <select id="selectProfileCountryFlag" class="form-select">
+              <option value="🌐" selected>🌐 Global</option>
+              <option value="🇺🇸">🇺🇸 USA</option>
+              <option value="🇮🇳">🇮🇳 India</option>
+              <option value="🇬🇧">🇬🇧 UK</option>
+              <option value="🇨🇦">🇨🇦 Canada</option>
+              <option value="🇩🇪">🇩🇪 Germany</option>
+              <option value="🇫🇷">🇫🇷 France</option>
+              <option value="🇯🇵">🇯🇵 Japan</option>
+              <option value="🇰🇷">🇰🇷 S. Korea</option>
+              <option value="🇧🇷">🇧🇷 Brazil</option>
+              <option value="🇦🇺">🇦🇺 Australia</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Live Status & Mood + Target Exam -->
+        <div class="input-row-grid">
+          <div class="input-group">
+            <label for="inputProfileMood">Live Status / Mood</label>
+            <input type="text" id="inputProfileMood" maxlength="40" placeholder="e.g. Cramming Organic Chem ☕" autocomplete="off">
+            <span class="input-hint-sub">Current study mood or session goal (max 40 chars)</span>
+          </div>
+          <div class="input-group">
+            <label for="inputProfileExam">Target Exam / Goal</label>
+            <input type="text" id="inputProfileExam" maxlength="30" placeholder="e.g. MCAT 2026, SAT 1550+" autocomplete="off">
+            <span class="input-hint-sub">Exam target badge on leaderboard (max 30 chars)</span>
+          </div>
         </div>
 
         <!-- Study Motto / Bio -->
         <div class="input-group">
           <label for="inputProfileMotto">Study Motto / Bio</label>
           <input type="text" id="inputProfileMotto" maxlength="60" placeholder="e.g. Aiming for 6h daily | CS Major" autocomplete="off">
-          <span class="input-hint-sub">Your personal study motivation (max 60 chars)</span>
+          <span class="input-hint-sub">Your personal quote (max 60 chars)</span>
         </div>
 
         <!-- Primary Subject -->
@@ -951,6 +1087,18 @@
           <select id="selectProfilePrimarySubject" class="form-select">
             <!-- Dynamically populated in JS -->
           </select>
+        </div>
+
+        <!-- Stealth Mode Toggle -->
+        <div class="privacy-toggle-row">
+          <div class="privacy-toggle-info">
+            <strong>Stealth Scholar (Anonymous Mode)</strong>
+            <p>Appear as <code>Stealth Scholar #XXXX</code> on public leaderboards while keeping your stats synced</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="checkStealthScholar">
+            <span class="toggle-slider"></span>
+          </label>
         </div>
 
         <!-- Leaderboard Visibility Toggle -->
@@ -1633,7 +1781,7 @@
         <!-- Quick 1-Tap Popular Suggestions -->
         <div class="yt-suggestions-label">Popular Focus Streams</div>
         <div class="yt-suggestions-grid">
-          <button type="button" class="yt-suggestion-chip" data-id="amfWIRasxtI">🎧 Lofi Chill</button>
+          <button type="button" class="yt-suggestion-chip" data-id="5yx6BWlEVcY">🎧 Lofi Chill</button>
           <button type="button" class="yt-suggestion-chip" data-id="vCTRNKPJr40">⛏️ Minecraft Tracks</button>
           <button type="button" class="yt-suggestion-chip" data-id="FjHGZj2IjBk">🎹 Study Piano</button>
           <button type="button" class="yt-suggestion-chip" data-id="4xDzrJKXOOY">🌆 Synthwave</button>
@@ -1646,7 +1794,7 @@
         <!-- Dedicated Audio Music Preview Card (Music Format with Cover Thumbnail, Click to Play) -->
         <div class="custom-music-preview-card" id="customMusicPreviewCard" title="Click to Play this track">
           <div class="music-preview-cover-wrap">
-            <img src="https://img.youtube.com/vi/amfWIRasxtI/hqdefault.jpg" alt="Music Cover" class="music-preview-thumb" id="customMusicPreviewThumb">
+            <img src="https://img.youtube.com/vi/5yx6BWlEVcY/hqdefault.jpg" alt="Music Cover" class="music-preview-thumb" id="customMusicPreviewThumb">
             <div class="music-preview-vinyl-groove"></div>
             <div class="music-preview-audio-icon">
               <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
@@ -1655,20 +1803,8 @@
           <div class="music-preview-meta">
             <span class="music-preview-format-tag" id="customMusicPreviewBadge">▶ Click to Play Stream</span>
             <h4 class="music-preview-title" id="customMusicPreviewTitle">Lofi Chill Beats — Focus & Study</h4>
-            <span class="music-preview-channel" id="customMusicPreviewChannel">Focus Ambience • Ad-Free Audio</span>
+            <span class="music-preview-channel" id="customMusicPreviewChannel">Focus Ambience • Official YouTube Stream</span>
           </div>
-        </div>
-
-        <!-- Small Compact Hybrid Toggle (Positioned Below Audio Preview) -->
-        <div class="yt-engine-compact-row">
-          <div class="yt-engine-compact-left">
-            <span class="engine-sparkle">⚡</span>
-            <span class="yt-engine-compact-label">Ad-Free Hybrid Audio</span>
-          </div>
-          <label class="switch-toggle-hybrid switch-toggle-sm" title="Toggle Ad-Free Hybrid Stream">
-            <input type="checkbox" id="chkPreferAdFreePiped" checked>
-            <span class="switch-slider"></span>
-          </label>
         </div>
 
         <div class="modal-actions-row" style="display: flex; gap: 10px; margin-top: 16px;">
@@ -1679,8 +1815,8 @@
     </div>
   </div>
 
-  <!-- Off-Screen YouTube Audio Embed Anchor (Ensures zero visual artifact or frame over the UI) -->
-  <div id="youtubePlayerAnchor" aria-hidden="true" style="position:fixed; top:-9999px; left:-9999px; width:320px; height:240px; opacity:0; pointer-events:none; z-index:-9999; overflow:hidden;"></div>
+  <!-- YouTube Audio Embed Anchor (Positioned with layout footprint and zero visual disturbance to satisfy browser media policies) -->
+  <div id="youtubePlayerAnchor" aria-hidden="true" style="position:fixed; bottom:0; right:0; width:200px; height:112px; opacity:0.01; pointer-events:none; z-index:-1; overflow:hidden;"></div>
 
   <!-- TOAST CONTAINER -->
   <div class="toast-container" id="toastContainer"></div>

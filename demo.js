@@ -917,15 +917,24 @@ function mergeCloudDataIntoLocal(data) {
       if (loadedProfile && typeof loadedProfile === 'object') {
         appState.userProfile = {
           ...appState.userProfile,
-          displayName: sanitizeString(loadedProfile.displayName || appState.userProfile.displayName || '', 50),
-          avatarPreset: sanitizeUrl(loadedProfile.avatarPreset || appState.userProfile.avatarPreset || ''),
+          ...loadedProfile,
+          displayName: sanitizeString(loadedProfile.displayName || appState.userProfile?.displayName || '', 50),
+          avatarPreset: sanitizeUrl(loadedProfile.avatarPreset || appState.userProfile?.avatarPreset || ''),
+          avatarRing: loadedProfile.avatarRing || appState.userProfile?.avatarRing || 'glow-gold',
+          bannerTheme: loadedProfile.bannerTheme || appState.userProfile?.bannerTheme || 'banner-midnight',
+          countryFlag: loadedProfile.countryFlag || appState.userProfile?.countryFlag || '🌐',
+          mood: loadedProfile.mood || appState.userProfile?.mood || '',
+          examTarget: loadedProfile.examTarget || appState.userProfile?.examTarget || '',
+          motto: loadedProfile.motto || appState.userProfile?.motto || '',
+          primarySubjectId: loadedProfile.primarySubjectId || appState.userProfile?.primarySubjectId || 'math',
+          isStealth: Boolean(loadedProfile.isStealth),
           isPublicLeaderboard: loadedProfile.isPublicLeaderboard !== false
         };
       }
     } catch (_) {}
   } else {
     const remoteName = cloudPrefs.auth_user_name || data.user_name;
-    if (remoteName) {
+    if (remoteName && (!appState.userProfile?.displayName || appState.userProfile.displayName === 'Student')) {
       appState.userProfile.displayName = sanitizeString(remoteName, 50);
     }
   }
@@ -4937,7 +4946,7 @@ async function handleSaveProfile(e) {
     updateStudyPresence(true);
   }
 
-  pushDataToCloud(true);
+  await pushDataToCloud(false, true);
 
   leaderboardTimeframeCache.daily = { data: null, timestamp: 0 };
   leaderboardTimeframeCache.weekly = { data: null, timestamp: 0 };

@@ -347,19 +347,85 @@ export default async function handler(req, res) {
 async function handleQueueCommand(chatId) {
   const { data: pending } = await supabase
     .from('user_sync_data')
-    .select('user_id, user_name, user_email, profile_status, updated_at')
-    .eq('profile_status', 'pending');
+    .select('*')
+    .eq('profile_status', 'pending')
+    .limit(10);
 
   if (!pending || pending.length === 0) {
-    await sendTelegramMessage(chatId, '✨ <b>Queue Clear!</b> No profiles pending review.');
+    const emptyKeyboard = { inline_keyboard: [[{ text: "🔄 Refresh Queue", callback_data: "cmd:view_queue" }]] };
+    await sendTelegramMessage(chatId, '✨ <b>Queue Clear!</b> No profiles pending review at this time.', emptyKeyboard);
     return;
   }
 
-  let queueMsg = `📋 <b>Pending Approvals Queue (${pending.length})</b>\n\n`;
-  pending.slice(0, 10).forEach((p, idx) => {
-    queueMsg += `${idx + 1}. <b>${p.user_name || 'Student'}</b> (<code>${p.user_id}</code>)\n`;
-  });
-  await sendTelegramMessage(chatId, queueMsg);
+  await sendTelegramMessage(chatId, `📋 <b>Found ${pending.length} pending profile(s) awaiting approval:</b>`);
+
+  for (const item of pending) {
+    let profile = {};
+    if (item.pending_profile_json) {
+      try {
+        profile = typeof item.pending_profile_json === 'string' ? JSON.parse(item.pending_profile_json) : item.pending_profile_json;
+      } catch (_) {}
+    }
+
+    if (!profile.displayName && item.prefs_data) {
+      try {
+        const p = typeof item.prefs_data === 'string' ? JSON.parse(item.prefs_data) : item.prefs_data;
+        if (p && p.__user_profile__) {
+          const up = typeof p.__user_profile__ === 'string' ? JSON.parse(p.__user_profile__) : p.__user_profile__;
+          profile = { ...up, ...profile };
+        }
+      } catch (_) {}
+    }
+
+    const displayName = profile.displayName || item.user_name || 'Student';
+    const email = item.user_email || 'N/A';
+    const avatarUrl = profile.avatarPreset || item.profile_image_uri || '🐱';
+    const mood = profile.mood || 'None';
+    const examTarget = profile.examTarget || profile.exam_target || 'None';
+    const ring = profile.avatarRing || 'glow-gold';
+    const flag = profile.countryFlag || '🌐';
+
+    const isCustomPhoto = avatarUrl && /^(http|https|data:|blob:)/i.test(avatarUrl);
+
+    const caption = (
+      `⏳ <b>[PENDING APPROVAL]</b>\n\n` +
+      `👤 <b>Student:</b> <code>${String(displayName).replace(/[<>&"]/g, '')}</code>\n` +
+      `📧 <b>Email:</b> <code>${String(email).replace(/[<>&"]/g, '')}</code>\n` +
+      `🆔 <b>ID:</b> <code>${item.user_id}</code>\n` +
+      `💍 <b>Glow Ring:</b> <code>${String(ring).replace(/[<>&"]/g, '')}</code> | <b>Flag:</b> ${flag}\n` +
+      (mood !== 'None' ? `💬 <b>Mood:</b> <i>"${String(mood).replace(/[<>&"]/g, '')}"</i>\n` : '') +
+      (examTarget !== 'None' ? `🎯 <b>Target Exam:</b> <code>${String(examTarget).replace(/[<>&"]/g, '')}</code>\n` : '') +
+      (isCustomPhoto ? `\n⚠️ <i>Custom photo waiting for approval</i>` : `\n🎨 <b>Avatar:</b> ${avatarUrl}`)
+    ).slice(0, 1000);
+
+    const keyboard = {
+      inline_keyboard: [
+        [
+          { text: "✅ Approve", callback_data: `approve:${item.user_id}` },
+          { text: "❌ Reject", callback_data: `reject:${item.user_id}` }
+        ]
+      ]
+    };
+
+    if (isCustomPhoto && (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://'))) {
+      try {
+        const r = await fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/sendPhoto`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            photo: avatarUrl,
+            caption: caption,
+            parse_mode: 'HTML',
+            reply_markup: keyboard
+          })
+        });
+        if (r.ok) continue;
+      } catch (_) {}
+    }
+
+    await sendTelegramMessage(chatId, caption, keyboard);
+  }
 }
 
 async function handleStatsCommand(chatId) {

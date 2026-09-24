@@ -68,6 +68,7 @@ object CloudSyncManager {
                         userName = uName,
                         profileImageUri = pImg
                     )
+                    ProfileManager.updateFromCloudRecord(context, record)
                     return@withContext Pair(meta, record)
                 }
             }
@@ -181,9 +182,10 @@ object CloudSyncManager {
             val examJsonStr = examPrefs.getString("exams_list_json", "[]") ?: "[]"
             prefsJson.put("__exam_countdowns_data__", examJsonStr)
 
+            val currentProf = ProfileManager.getProfile(context)
             var userName: String = ProfileManager.getEffectiveDisplayName(context).trim().take(50)
             val userEmail: String = (AuthManager.getUserEmail(context) ?: "").trim().take(100)
-            val profileImg: String = (AuthManager.getProfileImageUri(context) ?: "").trim().take(300)
+            val profileImg: String = ProfileManager.getEffectiveAvatarUrl(context).trim().take(300)
             val now = System.currentTimeMillis()
             val localLastMod = BackupManager(context).getLastModifiedTimestamp()
 
@@ -391,11 +393,19 @@ object CloudSyncManager {
                 // Synchronize custom Display Name and Profile from cloud
                 try {
                     val pObj = JSONObject(cloudPrefsStr)
-                    val profileObj = pObj.optJSONObject("__user_profile__")
+                    var profileObj: JSONObject? = pObj.optJSONObject("__user_profile__")
+                    if (profileObj == null && pObj.has("__user_profile__")) {
+                        val rawProfileStr = pObj.optString("__user_profile__", "")
+                        if (rawProfileStr.isNotBlank() && rawProfileStr != "null") {
+                            profileObj = JSONObject(rawProfileStr)
+                        }
+                    }
                     if (profileObj != null) {
                         ProfileManager.updateFromCloudJson(context, profileObj)
                     }
                 } catch (_: Exception) {}
+
+                ProfileManager.updateFromCloudRecord(context, cloudRecord)
 
                 val cloudName = if (cloudRecord.has("user_name") && cloudRecord.optString("user_name").isNotBlank() && cloudRecord.optString("user_name") != "Student") {
                     cloudRecord.optString("user_name")

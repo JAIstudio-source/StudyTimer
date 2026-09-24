@@ -813,25 +813,95 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                                 }
                             }
                             rejectedCard.addView(TextView(this).apply {
-                                text = "⚠️ Display Name Change Rejected"
+                                text = "❌ Profile Edit Rejected by Moderators"
                                 setTextColor(Color.parseColor("#EF4444"))
                                 textSize = 13f
                                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                             })
                             rejectedCard.addView(TextView(this).apply {
-                                val reason = currentProfile.rejectionReason ?: "Name did not meet community guidelines."
-                                text = "$reason Please submit an alternate display name below."
+                                text = "Your previous requested name or photo was rejected for not meeting community standards. Your profile has been reset to safe defaults. Please choose a respectful display name below."
                                 setTextColor(themeCoordinator.textColor)
-                                alpha = 0.75f
+                                alpha = 0.85f
                                 textSize = 11.5f
                                 setPadding(0, dp(4), 0, 0)
                             })
                             profileContent.addView(rejectedCard)
                         }
                         else -> {
-                            // Approved status - already shown via accountBadge
+                            // Approved status
                         }
                     }
+
+                    // --- AVATAR STICKER SELECTOR ---
+                    val avatarLabel = TextView(this).apply {
+                        text = "CHOOSE AVATAR STICKER"
+                        setTextColor(themeCoordinator.textColor)
+                        alpha = 0.6f
+                        textSize = 11f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        setPadding(dp(2), 0, 0, dp(6))
+                    }
+                    profileContent.addView(avatarLabel)
+
+                    val stickerOptions = listOf(
+                        "avatar_cat" to "🐱 Cat",
+                        "avatar_fox" to "🦊 Fox",
+                        "avatar_lion" to "🦁 Lion",
+                        "avatar_panda" to "🐼 Panda",
+                        "avatar_owl" to "🦉 Owl",
+                        "avatar_rocket" to "🚀 Rocket",
+                        "avatar_fire" to "🔥 Fire",
+                        "avatar_star" to "⭐ Star",
+                        "avatar_scholar" to "🎓 Scholar"
+                    )
+                    var selectedAvatarId = currentProfile.avatarPresetId.ifBlank { "avatar_cat" }
+
+                    val avatarScroll = android.widget.HorizontalScrollView(this).apply {
+                        isHorizontalScrollBarEnabled = false
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                            setMargins(0, 0, 0, dp(12))
+                        }
+                    }
+                    val avatarLayout = LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                    }
+
+                    val stickerChipViews = mutableListOf<Pair<String, TextView>>()
+                    for ((stickId, stickLabel) in stickerOptions) {
+                        val isStickSel = stickId.equals(selectedAvatarId, ignoreCase = true)
+                        val chip = TextView(this).apply {
+                            text = stickLabel
+                            textSize = 12.5f
+                            typeface = Typeface.create("sans-serif-medium", if (isStickSel) Typeface.BOLD else Typeface.NORMAL)
+                            setTextColor(if (isStickSel) Color.WHITE else themeCoordinator.textColor)
+                            background = if (isStickSel) {
+                                themeCoordinator.createButtonBackground(themeCoordinator.primaryColor)
+                            } else {
+                                themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 25), 10f)
+                            }
+                            setPadding(dp(12), dp(6), dp(12), dp(6))
+                            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                                setMargins(0, 0, dp(8), 0)
+                            }
+                            setOnClickListener {
+                                selectedAvatarId = stickId
+                                for ((id, c) in stickerChipViews) {
+                                    val sel = id == stickId
+                                    c.typeface = Typeface.create("sans-serif-medium", if (sel) Typeface.BOLD else Typeface.NORMAL)
+                                    c.setTextColor(if (sel) Color.WHITE else themeCoordinator.textColor)
+                                    c.background = if (sel) {
+                                        themeCoordinator.createButtonBackground(themeCoordinator.primaryColor)
+                                    } else {
+                                        themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 25), 10f)
+                                    }
+                                }
+                            }
+                        }
+                        stickerChipViews.add(stickId to chip)
+                        avatarLayout.addView(chip)
+                    }
+                    avatarScroll.addView(avatarLayout)
+                    profileContent.addView(avatarScroll)
 
                     // --- DISPLAY NAME INPUT ---
                     val nameLabel = TextView(this).apply {
@@ -976,41 +1046,49 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                                 return@setOnClickListener
                             }
 
-                            isEnabled = false
-                            text = "Saving..."
+                            // Verification Confirmation Dialog
+                            androidx.appcompat.app.AlertDialog.Builder(this@with)
+                                .setTitle("🛡️ Leaderboard Profile Verification")
+                                .setMessage("Your display name \"$inputName\" and profile details will be submitted to moderators for verification before appearing live on the public leaderboard.\n\nDo you want to submit your profile for verification?")
+                                .setPositiveButton("Confirm & Submit") { _, _ ->
+                                    isEnabled = false
+                                    text = "Saving..."
 
-                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-                                val result = ProfileSyncService.submitProfile(
-                                    context = this@with,
-                                    displayName = inputName,
-                                    bio = inputBio,
-                                    targetExam = selectedExam,
-                                    dailyGoalMinutes = currentProfile.dailyGoalMinutes,
-                                    avatarPresetId = currentProfile.avatarPresetId,
-                                    avatarUrl = currentProfile.avatarUrl
-                                )
+                                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                                        val result = ProfileSyncService.submitProfile(
+                                            context = this@with,
+                                            displayName = inputName,
+                                            bio = inputBio,
+                                            targetExam = selectedExam,
+                                            dailyGoalMinutes = currentProfile.dailyGoalMinutes,
+                                            avatarPresetId = selectedAvatarId,
+                                            avatarUrl = currentProfile.avatarUrl
+                                        )
 
-                                isEnabled = true
-                                text = "Save Profile Changes"
+                                        isEnabled = true
+                                        text = "Save Profile Changes"
 
-                                when (result) {
-                                    is ProfileSyncService.SubmissionResult.Success -> {
-                                        Toast.makeText(this@with, result.message, Toast.LENGTH_LONG).show()
-                                        navigateToPanel(AppPanel.SETTINGS)
-                                    }
-                                    is ProfileSyncService.SubmissionResult.RejectedLocally -> {
-                                        androidx.appcompat.app.AlertDialog.Builder(this@with)
-                                            .setTitle("Name Not Allowed")
-                                            .setMessage(result.reason)
-                                            .setPositiveButton("OK", null)
-                                            .show()
-                                    }
-                                    is ProfileSyncService.SubmissionResult.NetworkError -> {
-                                        Toast.makeText(this@with, result.message, Toast.LENGTH_LONG).show()
-                                        navigateToPanel(AppPanel.SETTINGS)
+                                        when (result) {
+                                            is ProfileSyncService.SubmissionResult.Success -> {
+                                                Toast.makeText(this@with, result.message, Toast.LENGTH_LONG).show()
+                                                navigateToPanel(AppPanel.SETTINGS)
+                                            }
+                                            is ProfileSyncService.SubmissionResult.RejectedLocally -> {
+                                                androidx.appcompat.app.AlertDialog.Builder(this@with)
+                                                    .setTitle("Name Not Allowed")
+                                                    .setMessage(result.reason)
+                                                    .setPositiveButton("OK", null)
+                                                    .show()
+                                            }
+                                            is ProfileSyncService.SubmissionResult.NetworkError -> {
+                                                Toast.makeText(this@with, result.message, Toast.LENGTH_LONG).show()
+                                                navigateToPanel(AppPanel.SETTINGS)
+                                            }
+                                        }
                                     }
                                 }
-                            }
+                                .setNegativeButton("Cancel", null)
+                                .show()
                         }
                     }
                     profileContent.addView(saveProfileBtn)

@@ -503,5 +503,6 @@ object TimelineLogger {
             writeLegacyPref(context, content)
         }
         cache = entries
+        BackupManager(context).markDataModified()
     }
 }

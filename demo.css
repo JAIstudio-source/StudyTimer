@@ -148,18 +148,7 @@ html, body {
 }
 
 .sync-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background-color: #f59e0b;
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
-  transition: var(--transition-fast);
-  flex-shrink: 0;
-}
-
-.sync-status-pill.synced .sync-dot {
-  background-color: #10b981;
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.7);
+  display: none !important;
 }
 
 .sync-status-pill.syncing .sync-dot {

@@ -14,6 +14,7 @@ import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -1046,13 +1047,122 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                                 return@setOnClickListener
                             }
 
-                            // Verification Confirmation Dialog
-                            androidx.appcompat.app.AlertDialog.Builder(this@with)
-                                .setTitle("🛡️ Leaderboard Profile Verification")
-                                .setMessage("Your display name \"$inputName\" and profile details will be submitted to moderators for verification before appearing live on the public leaderboard.\n\nDo you want to submit your profile for verification?")
-                                .setPositiveButton("Confirm & Submit") { _, _ ->
-                                    isEnabled = false
-                                    text = "Saving..."
+                            val parentSaveBtn = this@apply
+
+                            // Themed Verification Confirmation Dialog
+                            val confirmDialog = Dialog(this@with)
+                            confirmDialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+
+                            val dialogRoot = LinearLayout(this@with).apply {
+                                orientation = LinearLayout.VERTICAL
+                                background = themeCoordinator.createDialogBackground(26f)
+                                setPadding(dp(22), dp(22), dp(22), dp(20))
+                            }
+
+                            // Title & Icon
+                            val titleView = TextView(this@with).apply {
+                                text = "🛡️ Profile Verification"
+                                setTextColor(themeCoordinator.textColor)
+                                textSize = 17.5f
+                                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                                setPadding(0, 0, 0, dp(4))
+                            }
+                            dialogRoot.addView(titleView)
+
+                            val subtitleView = TextView(this@with).apply {
+                                text = "Submit details to moderators for live leaderboard"
+                                setTextColor(themeCoordinator.textColor)
+                                alpha = 0.65f
+                                textSize = 12.5f
+                                setPadding(0, 0, 0, dp(14))
+                            }
+                            dialogRoot.addView(subtitleView)
+
+                            // Preview Card
+                            val previewBox = LinearLayout(this@with).apply {
+                                orientation = LinearLayout.VERTICAL
+                                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 22), 14f)
+                                setPadding(dp(14), dp(12), dp(14), dp(12))
+                                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                                    setMargins(0, 0, 0, dp(14))
+                                }
+                            }
+
+                            val rowName = TextView(this@with).apply {
+                                text = "👤 Display Name: $inputName"
+                                setTextColor(themeCoordinator.textColor)
+                                textSize = 13f
+                                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                                setPadding(0, 0, 0, dp(4))
+                            }
+                            previewBox.addView(rowName)
+
+                            val rowExam = TextView(this@with).apply {
+                                text = "🎯 Focus Track: $selectedExam"
+                                setTextColor(themeCoordinator.textColor)
+                                alpha = 0.85f
+                                textSize = 12f
+                                setPadding(0, 0, 0, dp(4))
+                            }
+                            previewBox.addView(rowExam)
+
+                            if (inputBio.isNotBlank()) {
+                                val rowBio = TextView(this@with).apply {
+                                    text = "💬 Motto: \"$inputBio\""
+                                    setTextColor(themeCoordinator.textColor)
+                                    alpha = 0.85f
+                                    textSize = 12f
+                                }
+                                previewBox.addView(rowBio)
+                            }
+                            dialogRoot.addView(previewBox)
+
+                            val explanationText = TextView(this@with).apply {
+                                text = "Your profile changes will be checked to maintain a safe, spam-free study community."
+                                setTextColor(themeCoordinator.textColor)
+                                alpha = 0.65f
+                                textSize = 11.5f
+                                setPadding(0, 0, 0, dp(18))
+                            }
+                            dialogRoot.addView(explanationText)
+
+                            // Button Row
+                            val btnRow = LinearLayout(this@with).apply {
+                                orientation = LinearLayout.HORIZONTAL
+                                gravity = Gravity.END
+                            }
+
+                            val cancelBtn = Button(this@with).apply {
+                                text = "Edit Details"
+                                setTextColor(tintedColor(themeCoordinator.textColor, 180))
+                                textSize = 12f
+                                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 25), 12f)
+                                setPadding(dp(14), dp(8), dp(14), dp(8))
+                                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(42)).apply {
+                                    setMargins(0, 0, dp(10), 0)
+                                }
+                                setOnClickListener {
+                                    confirmDialog.dismiss()
+                                }
+                            }
+                            btnRow.addView(cancelBtn)
+
+                            val confirmSubmitBtn = Button(this@with).apply {
+                                text = "✓ Submit Profile"
+                                setTextColor(Color.WHITE)
+                                textSize = 12.5f
+                                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                                background = GradientDrawable().apply {
+                                    cornerRadius = dp(12).toFloat()
+                                    setColor(Color.parseColor("#10B981")) // Emerald Green CTA
+                                }
+                                setPadding(dp(18), dp(8), dp(18), dp(8))
+                                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(42))
+                                setOnClickListener {
+                                    confirmDialog.dismiss()
+                                    parentSaveBtn.isEnabled = false
+                                    parentSaveBtn.text = "Submitting..."
 
                                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
                                         val result = ProfileSyncService.submitProfile(
@@ -1065,8 +1175,8 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                                             avatarUrl = currentProfile.avatarUrl
                                         )
 
-                                        isEnabled = true
-                                        text = "Save Profile Changes"
+                                        parentSaveBtn.isEnabled = true
+                                        parentSaveBtn.text = "Save Profile Changes"
 
                                         when (result) {
                                             is ProfileSyncService.SubmissionResult.Success -> {
@@ -1087,8 +1197,17 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                                         }
                                     }
                                 }
-                                .setNegativeButton("Cancel", null)
-                                .show()
+                            }
+                            btnRow.addView(confirmSubmitBtn)
+                            dialogRoot.addView(btnRow)
+
+                            confirmDialog.setContentView(dialogRoot)
+                            confirmDialog.window?.apply {
+                                setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+                                setGravity(Gravity.CENTER)
+                                setLayout((resources.displayMetrics.widthPixels * 0.90f).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
+                            }
+                            confirmDialog.show()
                         }
                     }
                     profileContent.addView(saveProfileBtn)

@@ -5313,16 +5313,6 @@ async function notifyAdminModerationWebhook(payload) {
         })
       }).catch(err => console.debug('Direct Telegram sendMessage error:', err));
     }
-
-    // Also dispatch to Cloudflare Worker if URL is specified
-    const workerUrl = window.STUDYTIMER_MODERATION_WEBHOOK_URL;
-    if (workerUrl) {
-      fetch(workerUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      }).catch(err => console.debug('Worker moderation dispatch error:', err));
-    }
   } catch (e) {
     console.debug('Moderation webhook exception:', e);
   }

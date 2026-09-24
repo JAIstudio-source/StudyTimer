@@ -9708,6 +9708,13 @@ class MainActivity : AppCompatActivity() {
                 showSwitchToLectureDialog()
             }
 
+            // Check if TimerService triggered an anti-cheat inactivity check-in prompt
+            if (!inactivityCheckDialogShowing
+                && sharedPrefs.getBoolean("pending_inactivity_check", false)
+                && currentTimerState == TimerState.STUDYING) {
+                showInactivityCheckDialog()
+            }
+
             if (currentPanel == AppPanel.FOCUS) {
                 val isLectureModeActive = sharedPrefs.getBoolean("lecture_mode_enabled", false)
                 val isStudying = currentTimerState == TimerState.STUDYING ||
@@ -11082,6 +11089,143 @@ class MainActivity : AppCompatActivity() {
 
         root.addView(btnRow)
         dialog.setOnDismissListener { ongoingLectureDialogShowing = false }
+        dialog.setContentView(root)
+        dialog.window?.apply {
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+            setLayout((resources.displayMetrics.widthPixels * 0.90f).toInt(), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+        }
+        dialog.show()
+    }
+
+    private var inactivityCheckDialogShowing = false
+    private var inactivityCheckDialog: Dialog? = null
+
+    private fun showInactivityCheckDialog() {
+        if (inactivityCheckDialogShowing || isFinishing || isDestroyed) return
+        inactivityCheckDialogShowing = true
+
+        val sharedPrefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val promptTimestamp = sharedPrefs.getLong("inactivity_prompt_timestamp", System.currentTimeMillis() / 1000)
+
+        val dialog = Dialog(this)
+        inactivityCheckDialog = dialog
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(22), dp(20), dp(22), dp(20))
+            background = themeCoordinator.createDialogBackground(28f)
+        }
+
+        root.addView(TextView(this).apply {
+            text = "🔥 Study Check-in"
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 18f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        })
+
+        val countdownText = TextView(this).apply {
+            val elapsed = ((System.currentTimeMillis() / 1000) - promptTimestamp).coerceAtLeast(0L)
+            val remainingSecs = (300L - elapsed).coerceAtLeast(0L)
+            val m = remainingSecs / 60
+            val s = remainingSecs % 60
+            text = String.format(Locale.US, "Auto-pausing in %d:%02d if unconfirmed", m, s)
+            setTextColor(tintedColor(themeCoordinator.primaryColor, 180))
+            textSize = 13f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(0, dp(6), 0, 0)
+        }
+        root.addView(countdownText)
+
+        root.addView(TextView(this).apply {
+            text = "You have been studying continuously for 3.5 hours! Please confirm you are still active to keep your timer running."
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.85f
+            textSize = 13f
+            setPadding(0, dp(8), 0, dp(18))
+        })
+
+        val btnRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.END
+        }
+
+        btnRow.addView(TextView(this).apply {
+            text = "Take a Break"
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.6f
+            textSize = 14f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 16f)
+            setOnClickListener {
+                inactivityCheckDialogShowing = false
+                dialog.dismiss()
+                sharedPrefs.edit().putBoolean("pending_inactivity_check", false).apply()
+                val intent = Intent(this@MainActivity, TimerService::class.java).apply {
+                    action = TimerService.ACTION_TOGGLE // Switch to break
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(intent)
+                } else {
+                    startService(intent)
+                }
+            }
+        })
+
+        btnRow.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(dp(8), 1) })
+
+        btnRow.addView(TextView(this).apply {
+            text = "✓ Still Studying"
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 14f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setPadding(dp(16), dp(10), dp(16), dp(10))
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 110), 16f)
+            setOnClickListener {
+                inactivityCheckDialogShowing = false
+                dialog.dismiss()
+                sharedPrefs.edit().putBoolean("pending_inactivity_check", false).apply()
+                val intent = Intent(this@MainActivity, TimerService::class.java).apply {
+                    action = TimerService.ACTION_CONFIRM_ACTIVITY
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(intent)
+                } else {
+                    startService(intent)
+                }
+            }
+        })
+
+        root.addView(btnRow)
+
+        // Periodic tick to refresh countdown on modal
+        val dialogHandler = Handler(Looper.getMainLooper())
+        val countdownRunnable = object : Runnable {
+            override fun run() {
+                if (!inactivityCheckDialogShowing || !dialog.isShowing) return
+                val nowSecs = System.currentTimeMillis() / 1000
+                val elapsed = (nowSecs - promptTimestamp).coerceAtLeast(0L)
+                val remainingSecs = (300L - elapsed).coerceAtLeast(0L)
+                val m = remainingSecs / 60
+                val s = remainingSecs % 60
+                countdownText.text = String.format(Locale.US, "Auto-pausing in %d:%02d if unconfirmed", m, s)
+
+                if (remainingSecs <= 0L) {
+                    inactivityCheckDialogShowing = false
+                    dialog.dismiss()
+                    sharedPrefs.edit().putBoolean("pending_inactivity_check", false).apply()
+                } else {
+                    dialogHandler.postDelayed(this, 1000)
+                }
+            }
+        }
+        dialogHandler.postDelayed(countdownRunnable, 1000)
+
+        dialog.setOnDismissListener {
+            inactivityCheckDialogShowing = false
+            dialogHandler.removeCallbacks(countdownRunnable)
+        }
         dialog.setContentView(root)
         dialog.window?.apply {
             setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))

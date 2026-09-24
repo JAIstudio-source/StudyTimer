@@ -5348,82 +5348,99 @@ async function uploadAvatarToSupabaseStorage(dataUrlOrFile, userId) {
 // TODO (C1): Move to Supabase Edge Function or Cloudflare Worker to hide from client bundle.
 const TELEGRAM_MODERATION_BOT_TOKEN = '8755792560:AAFrTNyOjveVTV9vtRgwVD6tkNMwfRBDG2k';
 const TELEGRAM_MODERATION_CHAT_ID = '6326462250';
+const APPROVAL_WORKER_URL = 'https://studytimer-approval-bot.jaistudio.workers.dev/notify-new-profile';
 let _lastModerationNotifyMs = 0; // Rate-limit guard (B2)
 
 async function notifyAdminModerationWebhook(payload) {
-  // Fix B2: Client-side cooldown — prevents spam approval requests from rapid re-saves
   const now = Date.now();
-  if (now - _lastModerationNotifyMs < 30000) return;
+  if (now - _lastModerationNotifyMs < 10000) return;
   _lastModerationNotifyMs = now;
+
   try {
-    const { user_id, display_name, email, avatar_ring, status_mood, exam_tag, country_flag, subjects, avatar_url, photo_changed, details_changed, diffs } = payload;
-    const isFlagged = hasProfanity(display_name) || hasProfanity(status_mood) || hasProfanity(exam_tag);
+    const { user_id, display_name, previous_name, email, status_mood, previous_bio, avatar_url, previous_avatar, photo_changed } = payload;
+    const isFlagged = hasProfanity(display_name) || hasProfanity(status_mood);
     const isCustomPhoto = avatar_url && /^(http|https|data:|blob:)/i.test(avatar_url);
 
-    let headerTag = '🛡️ <b>[PROFILE UPDATE] ';
+    const oldName = (previous_name || '').replace(/[<>&"]/g, '');
+    const newName = (display_name || 'Student').replace(/[<>&"]/g, '');
+    const oldBio = (previous_bio || '').replace(/[<>&"]/g, '');
+    const newBio = (status_mood || '').replace(/[<>&"]/g, '');
+    const oldAvatar = (previous_avatar || '🐱').replace(/[<>&"]/g, '');
+    const newAvatar = (avatar_url || '🐱').replace(/[<>&"]/g, '');
+    const safeEmail = (email || '').replace(/[<>&"]/g, '');
+
+    const nameChanged = Boolean(oldName && newName !== oldName);
+    const bioChanged = Boolean(newBio !== oldBio);
+    const avatarChanged = Boolean(newAvatar !== oldAvatar);
+
+    let header = `🛡️ <b>[PROFILE APPROVAL REQUEST]</b>\n\n`;
     if (isFlagged) {
-      headerTag = '🚨 <b>[FLAGGED UPDATE] ';
-    } else if (photo_changed && details_changed) {
-      headerTag = '📸📝 <b>[PHOTO & DETAILS APPROVAL] ';
-    } else if (photo_changed && isCustomPhoto) {
-      headerTag = '📸 <b>[PHOTO APPROVAL] ';
-    } else if (details_changed) {
-      headerTag = '📝 <b>[DETAILS APPROVAL] ';
+      header = `🚨 <b>[FLAGGED: INAPPROPRIATE CONTENT DETECTED]</b>\n⚠️ <i>Potential vulgar/prohibited words found in public profile!</i>\n\n`;
     }
 
-    const safeName = (display_name || 'Student').replace(/[<>&"]/g, '');
-    const safeEmail = (email || 'N/A').replace(/[<>&"]/g, '');
-    const safeMood = (status_mood || 'None').replace(/[<>&"]/g, '');
-    const safeExam = (exam_tag || 'None').replace(/[<>&"]/g, '');
-    const safeRing = (avatar_ring || 'glow-gold').replace(/[<>&"]/g, '');
-    const safeFlag = country_flag || '🌐';
-    const safeSubjects = Array.isArray(subjects) ? subjects.join(', ').replace(/[<>&"]/g, '') : '';
-
-    let diffsSection = '';
-    if (Array.isArray(diffs) && diffs.length > 0) {
-      diffsSection = '\n\n<b>🔍 Exact Changes:</b>\n' + diffs.map(d => {
-        const safeOld = String(d.old).replace(/[<>&"]/g, '');
-        const safeNew = String(d.new).replace(/[<>&"]/g, '');
-        return `⚡ <b>${d.field}:</b> <code>old=${safeOld}</code> ➔ <code>new=${safeNew}</code>`;
-      }).join('\n');
+    let nameSection = "";
+    if (nameChanged) {
+      nameSection = `👤 <b>Display Name:</b>\n<code>${oldName || "None"}</code> ➔ <b><code>${newName}</code></b>\n\n`;
+    } else {
+      nameSection = `👤 <b>Display Name:</b> <b><code>${newName}</code></b> <i>(Unchanged)</i>\n\n`;
     }
 
-    const caption = (
-      `${headerTag}</b>\n\n` +
-      `👤 <b>Student:</b> <code>${safeName}</code>\n` +
-      `📧 <b>Email:</b> <code>${safeEmail}</code>\n` +
-      `🆔 <b>ID:</b> <code>${user_id}</code>\n` +
-      `💍 <b>Glow Ring:</b> <code>${safeRing}</code> | <b>Flag:</b> ${safeFlag}\n` +
-      (safeMood !== 'None' ? `💬 <b>Mood:</b> <i>"${safeMood}"</i>\n` : '') +
-      (safeExam !== 'None' ? `🎯 <b>Target Exam:</b> <code>${safeExam}</code>\n` : '') +
-      (safeSubjects ? `📚 <b>Subjects:</b> <code>${safeSubjects}</code>\n` : '') +
-      diffsSection +
-      (isCustomPhoto ? `\n\n⚠️ <i>Custom Photo held in safety quarantine until approved below.</i>` : `\n\n🎨 <b>Avatar Sticker:</b> ${avatar_url || '🐱'}`)
-    ).slice(0, 1000);
+    let bioSection = "";
+    if (bioChanged && (newBio || oldBio)) {
+      bioSection = `💬 <b>Bio / Motto:</b>\n<i>"${oldBio || "None"}"</i> ➔ <b><i>"${newBio || "None"}"</i></b>\n\n`;
+    } else if (newBio) {
+      bioSection = `💬 <b>Bio / Motto:</b> <i>"${newBio}"</i> <i>(Unchanged)</i>\n\n`;
+    }
 
-    const approveButtonLabel = photo_changed
-      ? (details_changed ? "✅ Approve Profile & Photo" : "✅ Approve Photo")
-      : "✅ Approve Details";
+    let avatarSection = "";
+    if (isCustomPhoto) {
+      avatarSection = `📸 <b>Profile Photo:</b> ⚠️ <code>Custom Photo Uploaded</code>\n\n`;
+    } else if (avatarChanged) {
+      avatarSection = `🎨 <b>Avatar Sticker:</b> <code>${oldAvatar}</code> ➔ <b><code>${newAvatar}</code></b>\n\n`;
+    }
+
+    const footer = (
+      `──────────────────\n` +
+      `🆔 <b>User ID:</b> <code>${user_id}</code>\n` +
+      `📱 <b>Source:</b> Website${safeEmail ? ` • 📧 <code>${safeEmail}</code>` : ""}`
+    );
+
+    const caption = (header + nameSection + bioSection + avatarSection + footer).slice(0, 1024);
 
     const keyboard = {
-      inline_keyboard: [
+      inline_keyboard: isFlagged ? [
         [
-          { text: approveButtonLabel, callback_data: `approve:${user_id}` },
-          { text: "❌ Reject & Reset", callback_data: `reject:${user_id}` }
+          { text: "❌ Reject & Sanitize", callback_data: `reject:${user_id}` },
+          { text: "⚠️ Force Approve", callback_data: `approve:${user_id}` }
+        ]
+      ] : [
+        [
+          { text: "✅ Approve", callback_data: `approve:${user_id}` },
+          { text: "❌ Reject", callback_data: `reject:${user_id}` }
         ]
       ]
     };
 
-    // Auto-ensure Telegram webhook is active
-    if (typeof window !== 'undefined' && window.location.origin.startsWith('https://')) {
-      const webhookUrl = `${window.location.origin}/api/telegram-webhook`;
-      fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/setWebhook?url=${encodeURIComponent(webhookUrl)}&drop_pending_updates=false`)
-        .catch(() => {});
-    }
+    // Forward notification to Cloudflare Worker as well
+    fetch(APPROVAL_WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id,
+        display_name: newName,
+        previous_name: oldName,
+        bio: newBio,
+        previous_bio: oldBio,
+        avatar_url: newAvatar,
+        previous_avatar: oldAvatar,
+        email: safeEmail,
+        source: 'Website'
+      })
+    }).catch(() => {});
 
+    // Direct Telegram Dispatch
     if (isCustomPhoto) {
       if (avatar_url.startsWith('data:image/')) {
-        // Direct Base64 binary image upload to Telegram sendPhoto via FormData
         const photoBlob = dataURLtoBlob(avatar_url);
         if (photoBlob) {
           const formData = new FormData();
@@ -5439,7 +5456,6 @@ async function notifyAdminModerationWebhook(payload) {
           }).catch(err => console.debug('Direct Telegram sendPhoto (Blob) error:', err));
         }
       } else if (avatar_url.startsWith('http://') || avatar_url.startsWith('https://')) {
-        // Direct Web image URL to Telegram sendPhoto
         fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/sendPhoto`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -5453,7 +5469,6 @@ async function notifyAdminModerationWebhook(payload) {
         }).catch(err => console.debug('Direct Telegram sendPhoto (URL) error:', err));
       }
     } else {
-      // Standard Text message for emoji stickers
       fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -5576,24 +5591,22 @@ async function handleSaveProfile(e) {
     showToast('Profile updated successfully! ✨', 'success');
   }
 
-  // Predetermined options (emoji stickers, flags, rings, numbers) apply instantly without Telegram moderation.
-  // Telegram moderation is strictly reserved for custom photo safety review & profanity flags.
-  const requiresModeration = photoChanged || hasProfanity(displayName) || hasProfanity(mood) || hasProfanity(examTarget);
+  // Public text modifications (display name, bio/motto, custom photos) trigger moderation review.
+  const nameChanged = Boolean(prevProfile.displayName && displayName.trim() !== prevProfile.displayName.trim());
+  const bioChanged = Boolean(prevProfile.mood !== undefined && mood.trim() !== (prevProfile.mood || '').trim());
+  const requiresModeration = nameChanged || bioChanged || photoChanged || hasProfanity(displayName) || hasProfanity(mood);
 
   if (requiresModeration) {
     notifyAdminModerationWebhook({
       user_id: appState.currentUser?.id || 'guest_' + Date.now(),
       display_name: displayName,
+      previous_name: prevProfile.displayName || '',
       email: appState.currentUser?.email || '',
-      avatar_url: avatarValueToSave,
-      avatar_ring: selectedAvatarRing,
       status_mood: mood,
-      exam_tag: examTarget,
-      country_flag: countryFlag,
-      subjects: appState.subjects.map(s => s.name),
-      photo_changed: photoChanged,
-      details_changed: detailsChanged,
-      diffs: diffs
+      previous_bio: prevProfile.mood || '',
+      avatar_url: avatarValueToSave,
+      previous_avatar: prevProfile.avatarPreset || '🐱',
+      photo_changed: photoChanged
     });
   }
 

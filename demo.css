@@ -6468,6 +6468,37 @@ body.has-custom-bg .app-sidebar {
   width: 68px !important;
   min-width: 68px !important;
   padding: 16px 8px;
+  overflow: visible !important;
+}
+
+.app-sidebar.collapsed .sidebar-nav-menu,
+.app-sidebar.collapsed .sidebar-user-block,
+.app-sidebar.collapsed .auth-wrapper,
+.app-sidebar.collapsed .user-dropdown-container {
+  overflow: visible !important;
+  position: relative;
+}
+
+.app-sidebar.collapsed .user-menu-dropdown {
+  position: absolute;
+  left: calc(100% + 14px) !important;
+  right: auto !important;
+  top: -12px !important;
+  width: 240px;
+  z-index: 1050;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border-subtle);
+  animation: flyoutSlideIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes flyoutSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
 }
 
 .app-sidebar.collapsed .sidebar-brand-names,

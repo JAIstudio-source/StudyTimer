@@ -5047,7 +5047,7 @@ function getAvatarElementHtml(avatarVal, userName, className = 'row-avatar-img',
   const trimmed = typeof avatarVal === 'string' ? avatarVal.trim() : '🐱';
   const isUrl = /^(http|https|data:|assets\/|\/|blob:)/i.test(trimmed);
   if (isUrl) {
-    return `<img src="${trimmed}" alt="${userName || 'Student'}" class="${className}${ringCls}" loading="eager" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null; this.style.display='none'; if(this.nextElementSibling){this.nextElementSibling.style.display='inline-flex';}"><span class="avatar-sticker ${className}${ringCls}" style="display:none;">🐱</span>`;
+    return `<img src="${trimmed}" alt="${userName || 'Student'}" class="${className}${ringCls}" loading="eager" decoding="async" referrerpolicy="no-referrer" style="width:100%; height:100%; object-fit:cover; border-radius:inherit; display:block;" onerror="this.onerror=null; this.style.display='none'; if(this.nextElementSibling){this.nextElementSibling.style.display='inline-flex';}"><span class="avatar-sticker ${className}${ringCls}" style="display:none; width:100%; height:100%; align-items:center; justify-content:center;">🐱</span>`;
   } else {
     return `<span class="avatar-sticker ${className}${ringCls}">${trimmed}</span>`;
   }
@@ -5132,15 +5132,18 @@ function openProfileModal() {
       photoPreviewImg.classList.remove('hidden');
       photoFallback.classList.add('hidden');
       btnRemovePhoto?.classList.remove('hidden');
-      if (photoUrlInput && selectedAvatarPreset.startsWith('http')) {
-        photoUrlInput.value = selectedAvatarPreset;
+      
+      // Do not display internal Supabase CDN storage URLs to the user in the input field
+      const isInternalStorage = selectedAvatarPreset.includes('supabase.co') || selectedAvatarPreset.startsWith('data:image/');
+      if (photoUrlInput) {
+        photoUrlInput.value = (selectedAvatarPreset.startsWith('http') && !isInternalStorage) ? selectedAvatarPreset : '';
       }
       if (statusCard) {
         statusCard.className = 'photo-url-status-card is-valid';
         statusCard.classList.remove('hidden');
         if (statusIcon) statusIcon.textContent = '✓';
         if (statusTitle) statusTitle.textContent = 'Current Profile Photo';
-        if (statusDesc) statusDesc.textContent = profile.photoApproved ? 'Approved & active on global leaderboard' : 'In review / safety quarantine';
+        if (statusDesc) statusDesc.textContent = profile.photoApproved ? 'Approved & active on global leaderboard' : 'In review / safety verification';
       }
     } else {
       photoPreviewImg.src = '';
@@ -6682,7 +6685,10 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
     const flagHtml = (flagEmoji && flagEmoji !== '🌐') ? `<span class="lb-flag-bottom" title="Region">${flagEmoji}</span>` : '';
     const crown = rankNum === 1 ? '<span class="podium-crown-badge">👑</span>' : '';
     const timeFormatted = formatLeaderboardTime(entry.total_seconds);
-    const avatarHtml = getAvatarElementHtml(entry.avatar_url, entry.user_name, 'podium-avatar-img', ring);
+    const userAvatarVal = isCurrent 
+      ? (appState.userProfile?.avatarPreset || entry.avatar_url || '🐱')
+      : (entry.avatar_url || '🐱');
+    const avatarHtml = getAvatarElementHtml(userAvatarVal, entry.user_name, 'podium-avatar-img', ring);
 
     let statusChip = '';
     if (entry.is_studying) {
@@ -6759,7 +6765,10 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
       const flagEmoji = getCountryFlagEmoji(r.country_flag || (isCurrent ? (appState.userProfile?.countryFlag || '') : ''));
       const flagHtml = (flagEmoji && flagEmoji !== '🌐') ? `<span class="lb-flag-bottom" title="Region">${flagEmoji}</span>` : '';
       const timeFormatted = formatLeaderboardTime(r.total_seconds);
-      const avatarHtml = getAvatarElementHtml(r.avatar_url, r.user_name, 'row-avatar-img', ring);
+      const userAvatarVal = isCurrent
+        ? (appState.userProfile?.avatarPreset || r.avatar_url || '🐱')
+        : (r.avatar_url || '🐱');
+      const avatarHtml = getAvatarElementHtml(userAvatarVal, r.user_name, 'row-avatar-img', ring);
 
       const moodHtml = r.status_mood ? `<span class="preview-mood-pill" style="font-size:0.68rem; padding:1px 6px;">${r.status_mood}</span>` : '';
       const examHtml = r.exam_tag ? `<span class="preview-exam-badge" style="font-size:0.68rem; padding:1px 6px;">${r.exam_tag}</span>` : '';
@@ -6817,7 +6826,7 @@ function updatePersonalUserBar(myEntry, localTotalSec) {
   const subName = appState.selectedSubject?.name || 'Focus';
   const profile = appState.userProfile || {};
   const currentName = profile.displayName || appState.currentUser.user_metadata?.full_name || 'You';
-  const avatar = getPublicLeaderboardAvatarUrl(profile);
+  const avatar = profile.avatarPreset || appState.currentUser.user_metadata?.avatar_url || '🐱';
   const currentRing = profile.avatarRing || 'glow-gold';
 
   if (userBarName) {
@@ -7424,7 +7433,8 @@ const AUDIO_PRESETS = {
   },
   cafe: { 
     name: 'Cozy Cafe Ambience', 
-    id: 'e3L1I7i4Z40'
+    id: 'gaGrHUekGdc',
+    synthesizer: 'cafe'
   },
   alpha: { 
     name: '432Hz Alpha Waves', 
@@ -7569,6 +7579,38 @@ function playProceduralAmbience(type) {
       filter.connect(webAudioGainNode);
       whiteNoise.start();
       webAudioNodes.push(whiteNoise, filter);
+      currentAudioEngine = 'webaudio';
+      updateAudioEngineBadge('webaudio');
+      return true;
+    } else if (type === 'cafe') {
+      const bufferSize = ctx.sampleRate * 2;
+      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const output = noiseBuffer.getChannelData(0);
+      let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        b0 = 0.99886 * b0 + white * 0.0555179;
+        b1 = 0.99332 * b1 + white * 0.0750759;
+        b2 = 0.96900 * b2 + white * 0.1538520;
+        b3 = 0.86650 * b3 + white * 0.3104856;
+        b4 = 0.55000 * b4 + white * 0.5329522;
+        b5 = -0.7616 * b5 - white * 0.0168980;
+        output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.06;
+        b6 = white * 0.115926;
+      }
+      const cafeNoise = ctx.createBufferSource();
+      cafeNoise.buffer = noiseBuffer;
+      cafeNoise.loop = true;
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(480, ctx.currentTime);
+      filter.Q.setValueAtTime(0.85, ctx.currentTime);
+
+      cafeNoise.connect(filter);
+      filter.connect(webAudioGainNode);
+      cafeNoise.start();
+      webAudioNodes.push(cafeNoise, filter);
       currentAudioEngine = 'webaudio';
       updateAudioEngineBadge('webaudio');
       return true;
@@ -7850,6 +7892,7 @@ function initFocusAudio() {
     'DWcJFNfaw9c': '🎹 Peaceful Study Piano — Relaxing Melodies',
     '4xDzrJKXOOY': '🌆 Synthwave Chill Radio — Retro Focus Beats',
     'mPZkdNFkNps': '🌧️ Gentle Rain & Thunder — Calming Soundscape',
+    'gaGrHUekGdc': '☕ Cozy Coffee Shop Ambience — Focus Background',
     'e3L1I7i4Z40': '☕ Cozy Coffee Shop Ambience — Focus Background',
     'WPni755-Krg': '🧠 432Hz Deep Alpha Waves — Study & Concentration',
     'jgpJVI3tDbY': '🎻 Baroque Classical Music — High Brain Focus'
@@ -8158,6 +8201,7 @@ function switchAudioTrack(presetKey) {
         'DWcJFNfaw9c': '🎹 Study Piano',
         '4xDzrJKXOOY': '🌆 Synthwave',
         'mPZkdNFkNps': '🌧️ Rain Storm',
+        'gaGrHUekGdc': '☕ Coffee Shop',
         'e3L1I7i4Z40': '☕ Coffee Shop',
         'WPni755-Krg': '🧠 432Hz Alpha',
         'jgpJVI3tDbY': '🎻 Classical'

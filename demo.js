@@ -5081,6 +5081,10 @@ function openProfileModal() {
   const photoFallback = document.getElementById('customPhotoPreviewFallback');
   const btnRemovePhoto = document.getElementById('btnRemoveCustomPhoto');
   const photoUrlInput = document.getElementById('inputProfilePhotoUrl');
+  const statusCard = document.getElementById('photoUrlStatusCard');
+  const statusIcon = document.getElementById('photoUrlStatusIcon');
+  const statusTitle = document.getElementById('photoUrlStatusTitle');
+  const statusDesc = document.getElementById('photoUrlStatusDesc');
 
   if (photoPreviewImg && photoFallback) {
     if (isCustomPhoto) {
@@ -5091,12 +5095,21 @@ function openProfileModal() {
       if (photoUrlInput && selectedAvatarPreset.startsWith('http')) {
         photoUrlInput.value = selectedAvatarPreset;
       }
+      if (statusCard) {
+        statusCard.className = 'photo-url-status-card is-valid';
+        statusCard.classList.remove('hidden');
+        if (statusIcon) statusIcon.textContent = '✓';
+        if (statusTitle) statusTitle.textContent = 'Current Profile Photo';
+        if (statusDesc) statusDesc.textContent = profile.photoApproved ? 'Approved & active on global leaderboard' : 'In review / safety quarantine';
+      }
     } else {
       photoPreviewImg.src = '';
       photoPreviewImg.classList.add('hidden');
+      photoFallback.textContent = selectedAvatarPreset || '🐱';
       photoFallback.classList.remove('hidden');
       btnRemovePhoto?.classList.add('hidden');
       if (photoUrlInput) photoUrlInput.value = '';
+      if (statusCard) statusCard.classList.add('hidden');
     }
   }
 
@@ -5228,6 +5241,9 @@ async function notifyAdminModerationWebhook(payload) {
     const safeFlag = country_flag || '🌐';
     const safeSubjects = Array.isArray(subjects) ? subjects.join(', ').replace(/[<>&"]/g, '') : '';
 
+    const approveUrl = `https://studytimer.vercel.app/api/approve?user_id=${encodeURIComponent(user_id)}&action=approve`;
+    const rejectUrl = `https://studytimer.vercel.app/api/approve?user_id=${encodeURIComponent(user_id)}&action=reject`;
+
     const caption = (
       `${isFlagged ? '🚨 <b>[FLAGGED] ' : (isCustomPhoto ? '📸 <b>[PHOTO APPROVAL] ' : '🛡️ <b>')}Profile Update</b>\n\n` +
       `👤 <b>Student:</b> <code>${safeName}</code>\n` +
@@ -5237,14 +5253,16 @@ async function notifyAdminModerationWebhook(payload) {
       (safeMood !== 'None' ? `💬 <b>Mood:</b> <i>"${safeMood}"</i>\n` : '') +
       (safeExam !== 'None' ? `🎯 <b>Target Exam:</b> <code>${safeExam}</code>\n` : '') +
       (safeSubjects ? `📚 <b>Subjects:</b> <code>${safeSubjects}</code>\n` : '') +
-      (isCustomPhoto ? `\n⚠️ <i>Custom Photo held in safety quarantine until approved.</i>` : `\n🎨 <b>Avatar Sticker:</b> ${avatar_url || '🐱'}`)
+      (isCustomPhoto ? `\n⚠️ <i>Custom Photo held in safety quarantine until approved.</i>\n` : `\n🎨 <b>Avatar Sticker:</b> ${avatar_url || '🐱'}\n`) +
+      `\n⚡ <a href="${approveUrl}"><b>[Tap to Instant 1-Click Approve]</b></a>\n` +
+      `❌ <a href="${rejectUrl}"><b>[Tap to Reject]</b></a>`
     ).slice(0, 1000);
 
     const keyboard = {
       inline_keyboard: [
         [
-          { text: "✅ Approve Profile & Photo", callback_data: `approve:${user_id}` },
-          { text: "❌ Reject & Reset", callback_data: `reject:${user_id}` }
+          { text: "⚡ 1-Click Instant Approve", url: approveUrl },
+          { text: "❌ Reject & Reset", url: rejectUrl }
         ]
       ]
     };
@@ -5336,10 +5354,15 @@ async function handleSaveProfile(e) {
 
   const isCustomPhoto = /^(http|https|data:|blob:)/i.test((selectedAvatarPreset || '').trim());
 
+  // Retain previously approved avatar/sticker as fallback during safety review
+  const previousApprovedAvatar = (appState.userProfile?.photoApproved === true && appState.userProfile?.avatarPreset)
+    ? appState.userProfile.avatarPreset
+    : (appState.userProfile?.fallbackSticker || appState.approvedAvatar || '🐱');
+
   appState.userProfile = {
     displayName,
     avatarPreset: selectedAvatarPreset,
-    fallbackSticker: isCustomPhoto ? (appState.userProfile?.fallbackSticker || '🐱') : selectedAvatarPreset,
+    fallbackSticker: isCustomPhoto ? previousApprovedAvatar : selectedAvatarPreset,
     photoApproved: !isCustomPhoto, // Emoji stickers are auto-approved, custom photos strictly require admin approval
     avatarRing: selectedAvatarRing,
     bannerTheme: selectedBannerTheme,
@@ -5471,6 +5494,79 @@ function initProfileCustomizationSystem() {
     });
   });
 
+  // Photo URL Live Validation with debounce
+  let photoUrlDebounceTimer = null;
+
+  function testAndVerifyProfilePhotoUrl(url, callback) {
+    const statusCard = document.getElementById('photoUrlStatusCard');
+    const statusIcon = document.getElementById('photoUrlStatusIcon');
+    const statusTitle = document.getElementById('photoUrlStatusTitle');
+    const statusDesc = document.getElementById('photoUrlStatusDesc');
+    const photoPreviewImg = document.getElementById('customPhotoPreviewImg');
+    const photoFallback = document.getElementById('customPhotoPreviewFallback');
+    const btnRemovePhoto = document.getElementById('btnRemoveCustomPhoto');
+
+    const trimmed = (url || '').trim();
+    if (!trimmed) {
+      if (statusCard) statusCard.classList.add('hidden');
+      if (typeof callback === 'function') callback(false);
+      return;
+    }
+
+    if (statusCard) {
+      statusCard.className = 'photo-url-status-card is-testing';
+      statusCard.classList.remove('hidden');
+      if (statusIcon) statusIcon.textContent = '⏳';
+      if (statusTitle) statusTitle.textContent = 'Testing Image URL...';
+      if (statusDesc) statusDesc.textContent = 'Checking image format and cross-origin access...';
+    }
+
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://') && !trimmed.startsWith('data:image/')) {
+      if (statusCard) {
+        statusCard.className = 'photo-url-status-card is-error';
+        if (statusIcon) statusIcon.textContent = '❌';
+        if (statusTitle) statusTitle.textContent = 'Invalid Format';
+        if (statusDesc) statusDesc.textContent = 'URL must start with https:// or http://';
+      }
+      if (typeof callback === 'function') callback(false);
+      return;
+    }
+
+    const testImg = new Image();
+    testImg.onload = () => {
+      if (statusCard) {
+        statusCard.className = 'photo-url-status-card is-valid';
+        if (statusIcon) statusIcon.textContent = '✓';
+        if (statusTitle) statusTitle.textContent = 'Supported Image';
+        const isGif = trimmed.toLowerCase().includes('.gif');
+        statusDesc.textContent = `${isGif ? 'Animated GIF' : 'Image format'} (${testImg.naturalWidth || 0}×${testImg.naturalHeight || 0}px)`;
+      }
+
+      selectedAvatarPreset = trimmed;
+      if (photoPreviewImg && photoFallback) {
+        photoPreviewImg.src = trimmed;
+        photoPreviewImg.classList.remove('hidden');
+        photoFallback.classList.add('hidden');
+        btnRemovePhoto?.classList.remove('hidden');
+      }
+      document.querySelectorAll('.avatar-preset-btn').forEach(b => b.classList.remove('active'));
+      updateProfileLivePreview();
+      if (typeof callback === 'function') callback(true);
+    };
+
+    testImg.onerror = () => {
+      if (statusCard) {
+        statusCard.className = 'photo-url-status-card is-error';
+        if (statusIcon) statusIcon.textContent = '❌';
+        if (statusTitle) statusTitle.textContent = 'Cannot Load Image';
+        statusDesc.textContent = 'Link is broken, forbidden (hotlinking blocked), or unsupported format.';
+      }
+      if (typeof callback === 'function') callback(false);
+    };
+
+    testImg.src = trimmed;
+  }
+
   // File Uploader with HTML5 Canvas Compression
   const photoInput = document.getElementById('inputProfilePhotoFile');
   photoInput?.addEventListener('change', (e) => {
@@ -5511,6 +5607,18 @@ function initProfileCustomizationSystem() {
           btnRemovePhoto?.classList.remove('hidden');
         }
 
+        const statusCard = document.getElementById('photoUrlStatusCard');
+        const statusIcon = document.getElementById('photoUrlStatusIcon');
+        const statusTitle = document.getElementById('photoUrlStatusTitle');
+        const statusDesc = document.getElementById('photoUrlStatusDesc');
+        if (statusCard) {
+          statusCard.className = 'photo-url-status-card is-valid';
+          statusCard.classList.remove('hidden');
+          if (statusIcon) statusIcon.textContent = '✓';
+          if (statusTitle) statusTitle.textContent = 'Custom Photo Selected';
+          if (statusDesc) statusDesc.textContent = `${file.name} (Auto-compressed)`;
+        }
+
         document.querySelectorAll('.avatar-preset-btn').forEach(b => b.classList.remove('active'));
         updateProfileLivePreview();
         showToast('Photo selected! Live preview updated.', 'info');
@@ -5520,47 +5628,65 @@ function initProfileCustomizationSystem() {
     reader.readAsDataURL(file);
   });
 
-  // URL Photo Apply
+  // URL Photo input listeners with live auto-test
+  const photoUrlInputEl = document.getElementById('inputProfilePhotoUrl');
+  photoUrlInputEl?.addEventListener('input', (e) => {
+    clearTimeout(photoUrlDebounceTimer);
+    const val = e.target.value;
+    if (!val || (!val.startsWith('http://') && !val.startsWith('https://'))) {
+      testAndVerifyProfilePhotoUrl(val);
+    } else {
+      photoUrlDebounceTimer = setTimeout(() => {
+        testAndVerifyProfilePhotoUrl(val);
+      }, 200);
+    }
+  });
+
+  photoUrlInputEl?.addEventListener('paste', () => {
+    setTimeout(() => {
+      testAndVerifyProfilePhotoUrl(photoUrlInputEl.value);
+    }, 50);
+  });
+
+  // URL Photo Apply button
   document.getElementById('btnApplyPhotoUrl')?.addEventListener('click', () => {
-    const urlInput = document.getElementById('inputProfilePhotoUrl');
-    const val = urlInput?.value.trim();
+    const val = photoUrlInputEl?.value.trim();
     if (!val) {
       showToast('Please enter an image URL.', 'warning');
       return;
     }
-    selectedAvatarPreset = val;
-    const photoPreviewImg = document.getElementById('customPhotoPreviewImg');
-    const photoFallback = document.getElementById('customPhotoPreviewFallback');
-    const btnRemovePhoto = document.getElementById('btnRemoveCustomPhoto');
-    if (photoPreviewImg && photoFallback) {
-      photoPreviewImg.src = val;
-      photoPreviewImg.classList.remove('hidden');
-      photoFallback.classList.add('hidden');
-      btnRemovePhoto?.classList.remove('hidden');
-    }
-    document.querySelectorAll('.avatar-preset-btn').forEach(b => b.classList.remove('active'));
-    updateProfileLivePreview();
-    showToast('Photo link applied! Live preview updated.', 'info');
+    testAndVerifyProfilePhotoUrl(val, (isValid) => {
+      if (isValid) {
+        showToast('Valid image verified & applied! Live preview updated.', 'success');
+      } else {
+        showToast('Image URL could not be loaded or format is unsupported.', 'error');
+      }
+    });
   });
 
-  // Remove Photo
+  // Remove Photo / Reset
   document.getElementById('btnRemoveCustomPhoto')?.addEventListener('click', () => {
     selectedAvatarPreset = '🐱';
     const photoPreviewImg = document.getElementById('customPhotoPreviewImg');
     const photoFallback = document.getElementById('customPhotoPreviewFallback');
     const btnRemovePhoto = document.getElementById('btnRemoveCustomPhoto');
     const photoUrlInput = document.getElementById('inputProfilePhotoUrl');
+    const statusCard = document.getElementById('photoUrlStatusCard');
+
     if (photoPreviewImg && photoFallback) {
       photoPreviewImg.src = '';
       photoPreviewImg.classList.add('hidden');
+      photoFallback.textContent = '🐱';
       photoFallback.classList.remove('hidden');
       btnRemovePhoto?.classList.add('hidden');
     }
     if (photoUrlInput) photoUrlInput.value = '';
+    if (statusCard) statusCard.classList.add('hidden');
+
     const firstPreset = document.querySelector('.avatar-preset-btn[data-avatar="🐱"]');
     if (firstPreset) firstPreset.classList.add('active');
     updateProfileLivePreview();
-    showToast('Custom photo removed. Reset to Lofi Cat sticker.', 'info');
+    showToast('Reset to default Lofi Cat sticker.', 'info');
   });
 
   // Avatar Presets

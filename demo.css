@@ -5697,6 +5697,64 @@ body.has-custom-bg .zen-timer-overlay {
   outline: none;
 }
 
+/* Photo URL Live Verification Status Card (Same robust feedback as Wallpaper) */
+.photo-url-status-card {
+  margin-top: 6px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.78rem;
+  transition: all var(--transition-fast);
+}
+
+.photo-url-status-card.is-valid {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #10b981;
+}
+
+.photo-url-status-card.is-error {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+}
+
+.photo-url-status-card.is-testing {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #60a5fa;
+}
+
+.photo-url-status-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.photo-url-status-indicator {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.photo-url-status-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.photo-url-status-text strong {
+  font-size: 0.78rem;
+  color: inherit;
+}
+
+.photo-url-status-text span {
+  font-size: 0.70rem;
+  color: var(--text-muted);
+}
+
 /* Sticker Category Filter Row (Clean sub-menu to avoid clutter) */
 .sticker-category-filter-row {
   display: flex;

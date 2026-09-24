@@ -895,216 +895,243 @@
           <span>Your private profile updates immediately. Public leaderboard tags are verified within 24 hours to keep the community safe 🛡️</span>
         </div>
 
-        <!-- Live Profile Card Preview -->
-        <div class="profile-preview-card banner-midnight" id="previewProfileCard">
-          <div class="preview-card-header-bg" id="previewCardBanner"></div>
-          <div class="preview-card-body-row">
-            <div class="preview-avatar-wrap">
-              <div class="preview-avatar-ring glow-gold" id="previewAvatarRing">
-                <div class="preview-avatar-badge" id="previewAvatarIcon">🐱</div>
+        <!-- Hero Avatar Showcase Circle & Live Identity Banner -->
+        <div class="profile-hero-showcase banner-midnight" id="previewProfileCard">
+          <div class="hero-showcase-bg" id="previewCardBanner"></div>
+          <div class="hero-showcase-content">
+            <div class="hero-avatar-circle-wrap">
+              <div class="hero-avatar-ring glow-gold" id="previewAvatarRing">
+                <span class="hero-avatar-icon" id="previewAvatarIcon">🐱</span>
               </div>
+              <span class="hero-flag-badge" id="previewCountryFlag">🌐</span>
             </div>
-            <div class="preview-info-wrap">
-              <div class="preview-name-row">
-                <span class="preview-flag" id="previewCountryFlag">🌐</span>
-                <strong class="preview-name" id="previewDisplayName">Student</strong>
-                <span class="preview-role-pill" id="previewRolePill">Scholar</span>
+            <div class="hero-details-col">
+              <div class="hero-name-row">
+                <strong class="hero-name" id="previewDisplayName">Student</strong>
+                <span class="hero-role-pill" id="previewRolePill">Scholar</span>
               </div>
-              <div class="preview-tags-row">
-                <span class="preview-mood-pill" id="previewMoodPill">☕ Deep Focus</span>
-                <span class="preview-exam-badge" id="previewExamBadge">🎯 Target: 4h Daily</span>
+              <div class="hero-tags-row">
+                <span class="hero-mood-pill" id="previewMoodPill">☕ Deep Focus</span>
+                <span class="hero-exam-pill" id="previewExamBadge">🎯 Target: 4h Daily</span>
               </div>
-              <p class="preview-motto" id="previewMottoText">🎯 Deep focus &amp; daily consistency</p>
+              <p class="hero-motto" id="previewMottoText">🎯 Deep focus &amp; daily consistency</p>
             </div>
           </div>
         </div>
 
-        <!-- 1. Avatar Sticker Picker (Curated Student Identity & Profile Picture) -->
-        <div class="settings-section">
-          <div class="section-label-row">
-            <label class="settings-label">Profile Sticker / Avatar</label>
-            <span class="section-sub-label">Choose your avatar sticker</span>
-          </div>
-          <div class="avatar-presets-grid" id="avatarPresetsGrid">
-            <!-- Lofi Animals -->
-            <button type="button" class="avatar-preset-btn active" data-avatar="🐱" data-label="Lofi Cat" title="Lofi Cat">🐱</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🦉" data-label="Study Owl" title="Study Owl">🦉</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🦊" data-label="Focus Fox" title="Focus Fox">🦊</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🐼" data-label="Chill Panda" title="Chill Panda">🐼</button>
-            <!-- Academics & Science -->
-            <button type="button" class="avatar-preset-btn" data-avatar="📚" data-label="Scholar" title="Bookworm">📚</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🧠" data-label="Brainiac" title="Deep Mind">🧠</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🔬" data-label="Lab Flask" title="Science Mind">🔬</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🩺" data-label="Med" title="Medical Student">🩺</button>
-            <!-- Tech & Creativity -->
-            <button type="button" class="avatar-preset-btn" data-avatar="💻" data-label="Coder" title="Code Master">💻</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="⚡" data-label="Lightning" title="Fast Learner">⚡</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🎨" data-label="Artist" title="Creative Mind">🎨</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🚀" data-label="Astro" title="Astronaut">🚀</button>
-            <!-- Zen & Nature -->
-            <button type="button" class="avatar-preset-btn" data-avatar="🌸" data-label="Lotus" title="Zen Lotus">🌸</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🌲" data-label="Forest" title="Nature Focus">🌲</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="☕" data-label="Coffee" title="Cozy Coffee">☕</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🌙" data-label="Moon" title="Night Grind">🌙</button>
-            <!-- Milestones & Icons -->
-            <button type="button" class="avatar-preset-btn" data-avatar="🎯" data-label="Target" title="Goal Crusher">🎯</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🔥" data-label="Flame" title="Streak Master">🔥</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="💎" data-label="Diamond" title="Diamond Focus">💎</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🏆" data-label="Champion" title="Leaderboard Champ">🏆</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="👑" data-label="Crown" title="Royalty">👑</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🪐" data-label="Saturn" title="Cosmic Mind">🪐</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🎮" data-label="Gamer" title="Focus Flow">🎮</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🎧" data-label="Lofi Beats" title="Lofi Beats">🎧</button>
-          </div>
+        <!-- Customization Submenu Navigation Tabs -->
+        <div class="profile-submenu-nav" id="profileSubmenuNav" role="tablist">
+          <button type="button" class="profile-tab-btn active" data-tab="tab-identity" role="tab" aria-selected="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <span>Identity</span>
+          </button>
+          <button type="button" class="profile-tab-btn" data-tab="tab-avatar" role="tab" aria-selected="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+            <span>Sticker</span>
+          </button>
+          <button type="button" class="profile-tab-btn" data-tab="tab-themes" role="tab" aria-selected="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"></circle><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"></circle><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"></circle><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"></path></svg>
+            <span>Theme &amp; Ring</span>
+          </button>
+          <button type="button" class="profile-tab-btn" data-tab="tab-privacy" role="tab" aria-selected="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            <span>Privacy</span>
+          </button>
         </div>
 
-        <!-- 2. Custom Display Name & Region Flag -->
-        <div class="input-row-grid">
-          <div class="input-group flex-2">
-            <label for="inputProfileDisplayName">Display Name / Handle</label>
-            <input type="text" id="inputProfileDisplayName" maxlength="24" placeholder="e.g. Alex StudyMaster" required autocomplete="off">
+        <!-- Tab 1: Identity & Bio -->
+        <div class="profile-tab-panel active" id="panel-tab-identity">
+          <div class="input-row-grid">
+            <div class="input-group flex-2">
+              <label for="inputProfileDisplayName">Display Name / Handle</label>
+              <input type="text" id="inputProfileDisplayName" maxlength="24" placeholder="e.g. Alex StudyMaster" required autocomplete="off">
+            </div>
+            <div class="input-group flex-1">
+              <label for="selectProfileCountryFlag">Region Flag</label>
+              <select id="selectProfileCountryFlag" class="form-select">
+                <option value="🌐" selected>🌐 Global</option>
+                <option value="🇺🇸">🇺🇸 USA</option>
+                <option value="🇮🇳">🇮🇳 India</option>
+                <option value="🇬🇧">🇬🇧 UK</option>
+                <option value="🇨🇦">🇨🇦 Canada</option>
+                <option value="🇩🇪">🇩🇪 Germany</option>
+                <option value="🇫🇷">🇫🇷 France</option>
+                <option value="🇯🇵">🇯🇵 Japan</option>
+                <option value="🇰🇷">🇰🇷 S. Korea</option>
+                <option value="🇧🇷">🇧🇷 Brazil</option>
+                <option value="🇦🇺">🇦🇺 Australia</option>
+              </select>
+            </div>
           </div>
-          <div class="input-group flex-1">
-            <label for="selectProfileCountryFlag">Region Flag</label>
-            <select id="selectProfileCountryFlag" class="form-select">
-              <option value="🌐" selected>🌐 Global</option>
-              <option value="🇺🇸">🇺🇸 USA</option>
-              <option value="🇮🇳">🇮🇳 India</option>
-              <option value="🇬🇧">🇬🇧 UK</option>
-              <option value="🇨🇦">🇨🇦 Canada</option>
-              <option value="🇩🇪">🇩🇪 Germany</option>
-              <option value="🇫🇷">🇫🇷 France</option>
-              <option value="🇯🇵">🇯🇵 Japan</option>
-              <option value="🇰🇷">🇰🇷 S. Korea</option>
-              <option value="🇧🇷">🇧🇷 Brazil</option>
-              <option value="🇦🇺">🇦🇺 Australia</option>
+
+          <div class="input-row-grid">
+            <div class="input-group">
+              <label for="inputProfileMood">Live Status / Mood</label>
+              <input type="text" id="inputProfileMood" maxlength="40" placeholder="e.g. Cramming Organic Chem ☕" autocomplete="off">
+              <span class="input-hint-sub">Current study mood or session goal (max 40 chars)</span>
+            </div>
+            <div class="input-group">
+              <label for="inputProfileExam">Target Exam / Goal</label>
+              <input type="text" id="inputProfileExam" maxlength="30" placeholder="e.g. MCAT 2026, SAT 1550+" autocomplete="off">
+              <span class="input-hint-sub">Exam target badge on leaderboard (max 30 chars)</span>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label for="inputProfileMotto">Study Motto / Bio</label>
+            <input type="text" id="inputProfileMotto" maxlength="60" placeholder="e.g. Aiming for 6h daily | CS Major" autocomplete="off">
+            <span class="input-hint-sub">Your personal quote (max 60 chars)</span>
+          </div>
+
+          <div class="input-group">
+            <label for="selectProfilePrimarySubject">Primary Focus Subject</label>
+            <select id="selectProfilePrimarySubject" class="form-select">
+              <!-- Dynamically populated in JS -->
             </select>
           </div>
         </div>
 
-        <!-- 3. Live Status & Mood + Target Exam -->
-        <div class="input-row-grid">
-          <div class="input-group">
-            <label for="inputProfileMood">Live Status / Mood</label>
-            <input type="text" id="inputProfileMood" maxlength="40" placeholder="e.g. Cramming Organic Chem ☕" autocomplete="off">
-            <span class="input-hint-sub">Current study mood or session goal (max 40 chars)</span>
-          </div>
-          <div class="input-group">
-            <label for="inputProfileExam">Target Exam / Goal</label>
-            <input type="text" id="inputProfileExam" maxlength="30" placeholder="e.g. MCAT 2026, SAT 1550+" autocomplete="off">
-            <span class="input-hint-sub">Exam target badge on leaderboard (max 30 chars)</span>
-          </div>
-        </div>
-
-        <!-- 4. Study Motto / Bio -->
-        <div class="input-group">
-          <label for="inputProfileMotto">Study Motto / Bio</label>
-          <input type="text" id="inputProfileMotto" maxlength="60" placeholder="e.g. Aiming for 6h daily | CS Major" autocomplete="off">
-          <span class="input-hint-sub">Your personal quote (max 60 chars)</span>
-        </div>
-
-        <!-- 5. Primary Subject -->
-        <div class="input-group">
-          <label for="selectProfilePrimarySubject">Primary Focus Subject</label>
-          <select id="selectProfilePrimarySubject" class="form-select">
-            <!-- Dynamically populated in JS -->
-          </select>
-        </div>
-
-        <!-- 6. Banner Theme Picker -->
-        <div class="settings-section">
-          <div class="section-label-row">
-            <label class="settings-label">Card Banner Theme</label>
-            <span class="section-sub-label">Header gradient aura</span>
-          </div>
-          <div class="banner-themes-grid" id="bannerThemesGrid">
-            <button type="button" class="banner-theme-btn active" data-banner="banner-midnight" title="Lofi Midnight">
-              <span class="banner-theme-swatch banner-midnight"></span>
-              <span class="banner-theme-name">Midnight</span>
-            </button>
-            <button type="button" class="banner-theme-btn" data-banner="banner-sunset" title="Sunset Glow">
-              <span class="banner-theme-swatch banner-sunset"></span>
-              <span class="banner-theme-name">Sunset</span>
-            </button>
-            <button type="button" class="banner-theme-btn" data-banner="banner-emerald" title="Emerald Forest">
-              <span class="banner-theme-swatch banner-emerald"></span>
-              <span class="banner-theme-name">Emerald</span>
-            </button>
-            <button type="button" class="banner-theme-btn" data-banner="banner-cosmic" title="Cosmic Nebula">
-              <span class="banner-theme-swatch banner-cosmic"></span>
-              <span class="banner-theme-name">Cosmic</span>
-            </button>
-            <button type="button" class="banner-theme-btn" data-banner="banner-matrix" title="Cyber Matrix">
-              <span class="banner-theme-swatch banner-matrix"></span>
-              <span class="banner-theme-name">Cyber</span>
-            </button>
-            <button type="button" class="banner-theme-btn" data-banner="banner-slate" title="Minimal Slate">
-              <span class="banner-theme-swatch banner-slate"></span>
-              <span class="banner-theme-name">Slate</span>
-            </button>
+        <!-- Tab 2: Avatar Sticker Picker -->
+        <div class="profile-tab-panel hidden" id="panel-tab-avatar">
+          <div class="settings-section">
+            <div class="section-label-row">
+              <label class="settings-label">Choose Avatar Sticker</label>
+              <span class="section-sub-label">Select your study persona</span>
+            </div>
+            <div class="avatar-presets-grid" id="avatarPresetsGrid">
+              <!-- Lofi Animals -->
+              <button type="button" class="avatar-preset-btn active" data-avatar="🐱" data-label="Lofi Cat" title="Lofi Cat">🐱</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🦉" data-label="Study Owl" title="Study Owl">🦉</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🦊" data-label="Focus Fox" title="Focus Fox">🦊</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🐼" data-label="Chill Panda" title="Chill Panda">🐼</button>
+              <!-- Academics & Science -->
+              <button type="button" class="avatar-preset-btn" data-avatar="📚" data-label="Scholar" title="Bookworm">📚</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🧠" data-label="Brainiac" title="Deep Mind">🧠</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🔬" data-label="Lab Flask" title="Science Mind">🔬</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🩺" data-label="Med" title="Medical Student">🩺</button>
+              <!-- Tech & Creativity -->
+              <button type="button" class="avatar-preset-btn" data-avatar="💻" data-label="Coder" title="Code Master">💻</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="⚡" data-label="Lightning" title="Fast Learner">⚡</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🎨" data-label="Artist" title="Creative Mind">🎨</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🚀" data-label="Astro" title="Astronaut">🚀</button>
+              <!-- Zen & Nature -->
+              <button type="button" class="avatar-preset-btn" data-avatar="🌸" data-label="Lotus" title="Zen Lotus">🌸</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🌲" data-label="Forest" title="Nature Focus">🌲</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="☕" data-label="Coffee" title="Cozy Coffee">☕</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🌙" data-label="Moon" title="Night Grind">🌙</button>
+              <!-- Milestones & Icons -->
+              <button type="button" class="avatar-preset-btn" data-avatar="🎯" data-label="Target" title="Goal Crusher">🎯</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🔥" data-label="Flame" title="Streak Master">🔥</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="💎" data-label="Diamond" title="Diamond Focus">💎</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🏆" data-label="Champion" title="Leaderboard Champ">🏆</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="👑" data-label="Crown" title="Royalty">👑</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🪐" data-label="Saturn" title="Cosmic Mind">🪐</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🎮" data-label="Gamer" title="Focus Flow">🎮</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🎧" data-label="Lofi Beats" title="Lofi Beats">🎧</button>
+            </div>
           </div>
         </div>
 
-        <!-- 7. Avatar Glow Ring Picker -->
-        <div class="settings-section">
-          <div class="section-label-row">
-            <label class="settings-label">Avatar Glow Ring</label>
-            <span class="section-sub-label">Aura on leaderboards &amp; profile</span>
+        <!-- Tab 3: Themes & Rings -->
+        <div class="profile-tab-panel hidden" id="panel-tab-themes">
+          <!-- Card Banner Theme Picker -->
+          <div class="settings-section">
+            <div class="section-label-row">
+              <label class="settings-label">Card Banner Theme</label>
+              <span class="section-sub-label">Header gradient aura</span>
+            </div>
+            <div class="banner-themes-grid" id="bannerThemesGrid">
+              <button type="button" class="banner-theme-btn active" data-banner="banner-midnight" title="Lofi Midnight">
+                <span class="banner-theme-swatch banner-midnight"></span>
+                <span class="banner-theme-name">Midnight</span>
+              </button>
+              <button type="button" class="banner-theme-btn" data-banner="banner-sunset" title="Sunset Glow">
+                <span class="banner-theme-swatch banner-sunset"></span>
+                <span class="banner-theme-name">Sunset</span>
+              </button>
+              <button type="button" class="banner-theme-btn" data-banner="banner-emerald" title="Emerald Forest">
+                <span class="banner-theme-swatch banner-emerald"></span>
+                <span class="banner-theme-name">Emerald</span>
+              </button>
+              <button type="button" class="banner-theme-btn" data-banner="banner-cosmic" title="Cosmic Nebula">
+                <span class="banner-theme-swatch banner-cosmic"></span>
+                <span class="banner-theme-name">Cosmic</span>
+              </button>
+              <button type="button" class="banner-theme-btn" data-banner="banner-matrix" title="Cyber Matrix">
+                <span class="banner-theme-swatch banner-matrix"></span>
+                <span class="banner-theme-name">Cyber</span>
+              </button>
+              <button type="button" class="banner-theme-btn" data-banner="banner-slate" title="Minimal Slate">
+                <span class="banner-theme-swatch banner-slate"></span>
+                <span class="banner-theme-name">Slate</span>
+              </button>
+            </div>
           </div>
-          <div class="glow-rings-grid" id="glowRingsGrid">
-            <button type="button" class="glow-ring-btn active" data-ring="glow-gold" title="Gold Aura">
-              <span class="glow-ring-swatch glow-gold"></span>
-              <span class="glow-ring-name">Gold</span>
-            </button>
-            <button type="button" class="glow-ring-btn" data-ring="glow-cyan" title="Cyber Neon">
-              <span class="glow-ring-swatch glow-cyan"></span>
-              <span class="glow-ring-name">Cyan</span>
-            </button>
-            <button type="button" class="glow-ring-btn" data-ring="glow-emerald" title="Emerald Scholar">
-              <span class="glow-ring-swatch glow-emerald"></span>
-              <span class="glow-ring-name">Emerald</span>
-            </button>
-            <button type="button" class="glow-ring-btn" data-ring="glow-violet" title="Violet Mystic">
-              <span class="glow-ring-swatch glow-violet"></span>
-              <span class="glow-ring-name">Violet</span>
-            </button>
-            <button type="button" class="glow-ring-btn" data-ring="glow-rose" title="Rose Sunset">
-              <span class="glow-ring-swatch glow-rose"></span>
-              <span class="glow-ring-name">Rose</span>
-            </button>
-            <button type="button" class="glow-ring-btn" data-ring="glow-blue" title="Ocean Blue">
-              <span class="glow-ring-swatch glow-blue"></span>
-              <span class="glow-ring-name">Ocean</span>
-            </button>
-            <button type="button" class="glow-ring-btn" data-ring="glow-slate" title="Minimal Silver">
-              <span class="glow-ring-swatch glow-slate"></span>
-              <span class="glow-ring-name">Silver</span>
-            </button>
+
+          <!-- Avatar Glow Ring Picker -->
+          <div class="settings-section">
+            <div class="section-label-row">
+              <label class="settings-label">Avatar Glow Ring</label>
+              <span class="section-sub-label">Glowing aura on profile &amp; leaderboards</span>
+            </div>
+            <div class="glow-rings-grid" id="glowRingsGrid">
+              <button type="button" class="glow-ring-btn active" data-ring="glow-gold" title="Gold Aura">
+                <span class="glow-ring-swatch glow-gold"></span>
+                <span class="glow-ring-name">Gold</span>
+              </button>
+              <button type="button" class="glow-ring-btn" data-ring="glow-cyan" title="Cyber Neon">
+                <span class="glow-ring-swatch glow-cyan"></span>
+                <span class="glow-ring-name">Cyan</span>
+              </button>
+              <button type="button" class="glow-ring-btn" data-ring="glow-emerald" title="Emerald Scholar">
+                <span class="glow-ring-swatch glow-emerald"></span>
+                <span class="glow-ring-name">Emerald</span>
+              </button>
+              <button type="button" class="glow-ring-btn" data-ring="glow-violet" title="Violet Mystic">
+                <span class="glow-ring-swatch glow-violet"></span>
+                <span class="glow-ring-name">Violet</span>
+              </button>
+              <button type="button" class="glow-ring-btn" data-ring="glow-rose" title="Rose Sunset">
+                <span class="glow-ring-swatch glow-rose"></span>
+                <span class="glow-ring-name">Rose</span>
+              </button>
+              <button type="button" class="glow-ring-btn" data-ring="glow-blue" title="Ocean Blue">
+                <span class="glow-ring-swatch glow-blue"></span>
+                <span class="glow-ring-name">Ocean</span>
+              </button>
+              <button type="button" class="glow-ring-btn" data-ring="glow-slate" title="Minimal Silver">
+                <span class="glow-ring-swatch glow-slate"></span>
+                <span class="glow-ring-name">Silver</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- Stealth Mode Toggle -->
-        <div class="privacy-toggle-row">
-          <div class="privacy-toggle-info">
-            <strong>Stealth Scholar (Anonymous Mode)</strong>
-            <p>Appear as <code>Stealth Scholar #XXXX</code> on public leaderboards while keeping your stats synced</p>
+        <!-- Tab 4: Privacy & Visibility -->
+        <div class="profile-tab-panel hidden" id="panel-tab-privacy">
+          <!-- Stealth Mode Toggle -->
+          <div class="privacy-toggle-row">
+            <div class="privacy-toggle-info">
+              <strong>Stealth Scholar (Anonymous Mode)</strong>
+              <p>Appear as <code>Stealth Scholar #XXXX</code> on public leaderboards while keeping your stats synced</p>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="checkStealthScholar">
+              <span class="toggle-slider"></span>
+            </label>
           </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="checkStealthScholar">
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
 
-        <!-- Leaderboard Visibility Toggle -->
-        <div class="privacy-toggle-row">
-          <div class="privacy-toggle-info">
-            <strong>Public Leaderboard Ranking</strong>
-            <p>Show your study time and active focus on the global leaderboard</p>
+          <!-- Leaderboard Visibility Toggle -->
+          <div class="privacy-toggle-row">
+            <div class="privacy-toggle-info">
+              <strong>Public Leaderboard Ranking</strong>
+              <p>Show your study time and active focus on the global leaderboard</p>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="checkLeaderboardPublic" checked>
+              <span class="toggle-slider"></span>
+            </label>
           </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="checkLeaderboardPublic" checked>
-            <span class="toggle-slider"></span>
-          </label>
         </div>
 
         <!-- Modal Actions -->

@@ -5018,17 +5018,8 @@ function openProfileModal() {
     publicToggle.checked = profile.isPublicLeaderboard !== false;
   }
 
-  // Reset Submenu Tabs to Identity by default
-  document.querySelectorAll('.profile-tab-btn').forEach(b => {
-    const isFirst = b.dataset.tab === 'tab-identity';
-    b.classList.toggle('active', isFirst);
-    b.setAttribute('aria-selected', isFirst ? 'true' : 'false');
-  });
-  document.querySelectorAll('.profile-tab-panel').forEach(panel => {
-    const isFirst = panel.id === 'panel-tab-identity';
-    panel.classList.toggle('hidden', !isFirst);
-    panel.classList.toggle('active', isFirst);
-  });
+  // Reset Submenu Tabs to Photo & Avatar by default
+  switchProfileTab('tab-avatar');
 
   // Check if avatar is a custom photo vs preset
   const isCustomPhoto = /^(http|https|data:|assets\/|\/|blob:)/i.test((selectedAvatarPreset || '').trim());
@@ -5069,6 +5060,19 @@ function openProfileModal() {
   updateProfileLivePreview();
   lockBodyScroll();
   modal.classList.remove('hidden');
+}
+
+function switchProfileTab(tabName) {
+  document.querySelectorAll('.profile-tab-btn').forEach(b => {
+    const isTarget = b.dataset.tab === tabName;
+    b.classList.toggle('active', isTarget);
+    b.setAttribute('aria-selected', isTarget ? 'true' : 'false');
+  });
+  document.querySelectorAll('.profile-tab-panel').forEach(panel => {
+    const isTarget = panel.id === `panel-${tabName}`;
+    panel.classList.toggle('hidden', !isTarget);
+    panel.classList.toggle('active', isTarget);
+  });
 }
 
 function closeProfileModal() {
@@ -5140,8 +5144,9 @@ const TELEGRAM_MODERATION_CHAT_ID = '6326462250';
 
 async function notifyAdminModerationWebhook(payload) {
   try {
-    const { user_id, display_name, email, avatar_ring, status_mood, exam_tag, country_flag, subjects } = payload;
+    const { user_id, display_name, email, avatar_ring, status_mood, exam_tag, country_flag, subjects, avatar_url } = payload;
     const isFlagged = hasProfanity(display_name) || hasProfanity(status_mood) || hasProfanity(exam_tag);
+    const isCustomPhoto = avatar_url && /^(http|https|data:|blob:)/i.test(avatar_url);
 
     const safeName = (display_name || 'Student').replace(/[<>&"]/g, '');
     const safeEmail = (email || 'N/A').replace(/[<>&"]/g, '');
@@ -5152,24 +5157,26 @@ async function notifyAdminModerationWebhook(payload) {
     const safeSubjects = Array.isArray(subjects) ? subjects.join(', ').replace(/[<>&"]/g, '') : '';
 
     const text = (
-      `${isFlagged ? '🚨 <b>[FLAGGED] ' : '🛡️ <b>'}Profile Customization Update</b>\n\n` +
+      `${isFlagged ? '🚨 <b>[FLAGGED] ' : (isCustomPhoto ? '📸 <b>[PHOTO APPROVAL] ' : '🛡️ <b>')}Profile Customization Update</b>\n\n` +
+      (isCustomPhoto ? `🖼️ <b>Custom Profile Photo Submitted:</b> Requires Telegram Admin Approval before showing on leaderboard.\n\n` : '') +
       (isFlagged ? `⚠️ <i>Automated safety scanner detected flagged words!</i>\n\n` : '') +
       `👤 <b>Student:</b> <code>${safeName}</code>\n` +
       `📧 <b>Email:</b> <code>${safeEmail}</code>\n` +
       `🆔 <b>ID:</b> <code>${user_id}</code>\n\n` +
+      (isCustomPhoto && avatar_url.startsWith('http') ? `🖼️ <b>Photo URL:</b> <a href="${avatar_url}">Open Photo Link</a>\n` : (isCustomPhoto ? `🖼️ <b>Photo:</b> <i>[Direct Image Upload (${Math.round(avatar_url.length/1024)} KB)]</i>\n` : `🎨 <b>Avatar Sticker:</b> ${avatar_url || '🐱'}\n`)) +
       `💍 <b>Glow Ring:</b> <code>${safeRing}</code>\n` +
       `🚩 <b>Region:</b> ${safeFlag}\n` +
       `💬 <b>Mood / Status:</b> <i>"${safeMood}"</i>\n` +
       `🎯 <b>Target Exam:</b> <code>${safeExam}</code>\n` +
       (safeSubjects ? `📚 <b>Subjects:</b> <code>${safeSubjects}</code>\n` : '') +
-      `\n<i>StudyTimer Moderation Engine Active</i>`
+      `\n<i>StudyTimer Moderation Engine Active • Instant Approval Gate</i>`
     );
 
     const keyboard = {
       inline_keyboard: [
         [
-          { text: "✅ Approve (Go Live)", callback_data: `approve:${user_id}` },
-          { text: "❌ Reject (Sanitize)", callback_data: `reject:${user_id}` }
+          { text: "✅ Approve Profile & Photo", callback_data: `approve:${user_id}` },
+          { text: "❌ Reject & Reset", callback_data: `reject:${user_id}` }
         ]
       ]
     };
@@ -5227,6 +5234,8 @@ async function handleSaveProfile(e) {
     return;
   }
 
+  const isCustomPhoto = /^(http|https|data:|blob:)/i.test((selectedAvatarPreset || '').trim());
+
   appState.userProfile = {
     displayName,
     avatarPreset: selectedAvatarPreset,
@@ -5246,13 +5255,18 @@ async function handleSaveProfile(e) {
   renderUserProfileUI();
   closeProfileModal();
 
-  showToast('Profile submitted for review 🛡️ Public leaderboard tags go live upon admin approval.', 'success');
+  if (isCustomPhoto) {
+    showToast('Profile saved! Custom photo submitted to Telegram for approval 🛡️', 'success');
+  } else {
+    showToast('Profile updated! Public leaderboard tags go live upon verification.', 'success');
+  }
 
   // Notify Admin Moderation Bot
   notifyAdminModerationWebhook({
     user_id: appState.currentUser?.id || 'guest_' + Date.now(),
     display_name: displayName,
     email: appState.currentUser?.email || '',
+    avatar_url: selectedAvatarPreset,
     avatar_ring: selectedAvatarRing,
     status_mood: mood,
     exam_tag: examTarget,
@@ -5285,6 +5299,196 @@ async function handleSaveProfile(e) {
   const lbModal = document.getElementById('leaderboardModalOverlay');
   if (lbModal && !lbModal.classList.contains('hidden')) {
     fetchLeaderboard(true);
+  }
+}
+
+function initProfileCustomizationSystem() {
+  const form = document.getElementById('profileCustomizationForm');
+  form?.addEventListener('submit', handleSaveProfile);
+
+  // Close triggers
+  document.getElementById('btnCloseProfileModal')?.addEventListener('click', closeProfileModal);
+  document.getElementById('btnCancelProfileModal')?.addEventListener('click', closeProfileModal);
+  document.getElementById('profileModalOverlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'profileModalOverlay') closeProfileModal();
+  });
+
+  // Open triggers
+  document.getElementById('btnOpenProfileModal')?.addEventListener('click', openProfileModal);
+  document.getElementById('btnOpenProfileCustomizer')?.addEventListener('click', openProfileModal);
+  document.getElementById('navUserAvatarWrap')?.addEventListener('click', openProfileModal);
+  document.getElementById('btnTopbarUser')?.addEventListener('click', openProfileModal);
+
+  // Quick Change Photo button on Hero Avatar Showcase
+  document.getElementById('btnHeroQuickChangePhoto')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    switchProfileTab('tab-avatar');
+    document.getElementById('inputProfilePhotoFile')?.click();
+  });
+  document.getElementById('heroAvatarCircleWrap')?.addEventListener('click', () => {
+    switchProfileTab('tab-avatar');
+  });
+
+  // Tab navigation
+  document.querySelectorAll('.profile-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabName = btn.dataset.tab;
+      if (tabName) switchProfileTab(tabName);
+    });
+  });
+
+  // File Uploader with HTML5 Canvas Compression
+  const photoInput = document.getElementById('inputProfilePhotoFile');
+  photoInput?.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 8 * 1024 * 1024) {
+      showToast('Image file too large (max 8MB).', 'warning');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const size = 180;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        
+        // Square crop from center
+        const minDim = Math.min(img.width, img.height);
+        const sx = (img.width - minDim) / 2;
+        const sy = (img.height - minDim) / 2;
+        ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size);
+
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        selectedAvatarPreset = compressedDataUrl;
+
+        const photoPreviewImg = document.getElementById('customPhotoPreviewImg');
+        const photoFallback = document.getElementById('customPhotoPreviewFallback');
+        const btnRemovePhoto = document.getElementById('btnRemoveCustomPhoto');
+        if (photoPreviewImg && photoFallback) {
+          photoPreviewImg.src = compressedDataUrl;
+          photoPreviewImg.classList.remove('hidden');
+          photoFallback.classList.add('hidden');
+          btnRemovePhoto?.classList.remove('hidden');
+        }
+
+        document.querySelectorAll('.avatar-preset-btn').forEach(b => b.classList.remove('active'));
+        updateProfileLivePreview();
+        showToast('Photo selected! Live preview updated.', 'info');
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // URL Photo Apply
+  document.getElementById('btnApplyPhotoUrl')?.addEventListener('click', () => {
+    const urlInput = document.getElementById('inputProfilePhotoUrl');
+    const val = urlInput?.value.trim();
+    if (!val) {
+      showToast('Please enter an image URL.', 'warning');
+      return;
+    }
+    selectedAvatarPreset = val;
+    const photoPreviewImg = document.getElementById('customPhotoPreviewImg');
+    const photoFallback = document.getElementById('customPhotoPreviewFallback');
+    const btnRemovePhoto = document.getElementById('btnRemoveCustomPhoto');
+    if (photoPreviewImg && photoFallback) {
+      photoPreviewImg.src = val;
+      photoPreviewImg.classList.remove('hidden');
+      photoFallback.classList.add('hidden');
+      btnRemovePhoto?.classList.remove('hidden');
+    }
+    document.querySelectorAll('.avatar-preset-btn').forEach(b => b.classList.remove('active'));
+    updateProfileLivePreview();
+    showToast('Photo link applied! Live preview updated.', 'info');
+  });
+
+  // Remove Photo
+  document.getElementById('btnRemoveCustomPhoto')?.addEventListener('click', () => {
+    selectedAvatarPreset = '🐱';
+    const photoPreviewImg = document.getElementById('customPhotoPreviewImg');
+    const photoFallback = document.getElementById('customPhotoPreviewFallback');
+    const btnRemovePhoto = document.getElementById('btnRemoveCustomPhoto');
+    const photoUrlInput = document.getElementById('inputProfilePhotoUrl');
+    if (photoPreviewImg && photoFallback) {
+      photoPreviewImg.src = '';
+      photoPreviewImg.classList.add('hidden');
+      photoFallback.classList.remove('hidden');
+      btnRemovePhoto?.classList.add('hidden');
+    }
+    if (photoUrlInput) photoUrlInput.value = '';
+    const firstPreset = document.querySelector('.avatar-preset-btn[data-avatar="🐱"]');
+    if (firstPreset) firstPreset.classList.add('active');
+    updateProfileLivePreview();
+    showToast('Custom photo removed. Reset to Lofi Cat sticker.', 'info');
+  });
+
+  // Avatar Presets
+  document.querySelectorAll('.avatar-preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.avatar-preset-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedAvatarPreset = btn.dataset.avatar || '🐱';
+
+      const photoPreviewImg = document.getElementById('customPhotoPreviewImg');
+      const photoFallback = document.getElementById('customPhotoPreviewFallback');
+      const btnRemovePhoto = document.getElementById('btnRemoveCustomPhoto');
+      if (photoPreviewImg && photoFallback) {
+        photoPreviewImg.src = '';
+        photoPreviewImg.classList.add('hidden');
+        photoFallback.classList.remove('hidden');
+        btnRemovePhoto?.classList.add('hidden');
+      }
+      const photoUrlInput = document.getElementById('inputProfilePhotoUrl');
+      if (photoUrlInput) photoUrlInput.value = '';
+
+      updateProfileLivePreview();
+    });
+  });
+
+  // Banner Theme Presets
+  document.querySelectorAll('.banner-theme-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.banner-theme-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedBannerTheme = btn.dataset.banner || 'banner-midnight';
+      updateProfileLivePreview();
+    });
+  });
+
+  // Avatar Glow Ring Presets
+  document.querySelectorAll('.glow-ring-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.glow-ring-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedAvatarRing = btn.dataset.ring || 'glow-gold';
+      updateProfileLivePreview();
+    });
+  });
+
+  // Live input change listeners
+  ['inputProfileDisplayName', 'inputProfileMood', 'inputProfileExam', 'inputProfileMotto'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', updateProfileLivePreview);
+  });
+  document.getElementById('selectProfileCountryFlag')?.addEventListener('change', (e) => {
+    selectedCountryFlag = e.target.value;
+    updateProfileLivePreview();
+  });
+  document.getElementById('checkStealthScholar')?.addEventListener('change', updateProfileLivePreview);
+}
+
+// Call during initial script parsing
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initProfileCustomizationSystem);
+  } else {
+    initProfileCustomizationSystem();
   }
 }
 

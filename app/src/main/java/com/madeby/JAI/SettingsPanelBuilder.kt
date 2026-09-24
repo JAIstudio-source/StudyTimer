@@ -833,76 +833,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         }
                     }
 
-                    // --- AVATAR STICKER SELECTOR ---
-                    val avatarLabel = TextView(this).apply {
-                        text = "CHOOSE AVATAR STICKER"
-                        setTextColor(themeCoordinator.textColor)
-                        alpha = 0.6f
-                        textSize = 11f
-                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                        setPadding(dp(2), 0, 0, dp(6))
-                    }
-                    profileContent.addView(avatarLabel)
-
-                    val stickerOptions = listOf(
-                        "avatar_cat" to "🐱 Cat",
-                        "avatar_fox" to "🦊 Fox",
-                        "avatar_lion" to "🦁 Lion",
-                        "avatar_panda" to "🐼 Panda",
-                        "avatar_owl" to "🦉 Owl",
-                        "avatar_rocket" to "🚀 Rocket",
-                        "avatar_fire" to "🔥 Fire",
-                        "avatar_star" to "⭐ Star",
-                        "avatar_scholar" to "🎓 Scholar"
-                    )
                     var selectedAvatarId = currentProfile.avatarPresetId.ifBlank { "avatar_cat" }
-
-                    val avatarScroll = android.widget.HorizontalScrollView(this).apply {
-                        isHorizontalScrollBarEnabled = false
-                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                            setMargins(0, 0, 0, dp(12))
-                        }
-                    }
-                    val avatarLayout = LinearLayout(this).apply {
-                        orientation = LinearLayout.HORIZONTAL
-                    }
-
-                    val stickerChipViews = mutableListOf<Pair<String, TextView>>()
-                    for ((stickId, stickLabel) in stickerOptions) {
-                        val isStickSel = stickId.equals(selectedAvatarId, ignoreCase = true)
-                        val chip = TextView(this).apply {
-                            text = stickLabel
-                            textSize = 12.5f
-                            typeface = Typeface.create("sans-serif-medium", if (isStickSel) Typeface.BOLD else Typeface.NORMAL)
-                            setTextColor(if (isStickSel) Color.WHITE else themeCoordinator.textColor)
-                            background = if (isStickSel) {
-                                themeCoordinator.createButtonBackground(themeCoordinator.primaryColor)
-                            } else {
-                                themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 25), 10f)
-                            }
-                            setPadding(dp(12), dp(6), dp(12), dp(6))
-                            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                                setMargins(0, 0, dp(8), 0)
-                            }
-                            setOnClickListener {
-                                selectedAvatarId = stickId
-                                for ((id, c) in stickerChipViews) {
-                                    val sel = id == stickId
-                                    c.typeface = Typeface.create("sans-serif-medium", if (sel) Typeface.BOLD else Typeface.NORMAL)
-                                    c.setTextColor(if (sel) Color.WHITE else themeCoordinator.textColor)
-                                    c.background = if (sel) {
-                                        themeCoordinator.createButtonBackground(themeCoordinator.primaryColor)
-                                    } else {
-                                        themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 25), 10f)
-                                    }
-                                }
-                            }
-                        }
-                        stickerChipViews.add(stickId to chip)
-                        avatarLayout.addView(chip)
-                    }
-                    avatarScroll.addView(avatarLayout)
-                    profileContent.addView(avatarScroll)
 
                     // --- DISPLAY NAME INPUT ---
                     val nameLabel = TextView(this).apply {

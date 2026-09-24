@@ -1809,6 +1809,22 @@ function setupEventListeners() {
     if (e.target.id === 'profileModalOverlay') closeProfileModal();
   });
 
+  // Profile Submenu Tab Switcher
+  document.querySelectorAll('.profile-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetTab = btn.dataset.tab;
+      document.querySelectorAll('.profile-tab-btn').forEach(b => {
+        b.classList.toggle('active', b === btn);
+        b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+      });
+      document.querySelectorAll('.profile-tab-panel').forEach(panel => {
+        const isMatch = panel.id === `panel-${targetTab}`;
+        panel.classList.toggle('hidden', !isMatch);
+        panel.classList.toggle('active', isMatch);
+      });
+    });
+  });
+
   // Avatar Presets Picker
   document.querySelectorAll('.avatar-preset-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -4777,7 +4793,7 @@ function getAvatarElementHtml(avatarVal, userName, className = 'row-avatar-img',
   const ringCls = ringClass ? ` ${ringClass}` : '';
   const isUrl = /^(http|https|data:|assets\/|\/)/i.test(avatarVal.trim());
   if (isUrl) {
-    return `<img src="${avatarVal}" alt="${userName || 'Student'}" class="${className}${ringCls}" onerror="this.outerHTML='<span class=\\'avatar-sticker ${className}${ringCls}\\'>🐱</span>'">`;
+    return `<img src="${avatarVal}" width="48" height="48" alt="${userName || 'Student'}" class="${className}${ringCls}" loading="eager" decoding="sync" onerror="this.outerHTML='<span class=\\'avatar-sticker ${className}${ringCls}\\'>🐱</span>'">`;
   } else {
     return `<span class="avatar-sticker ${className}${ringCls}">${avatarVal}</span>`;
   }
@@ -4800,7 +4816,7 @@ function openProfileModal() {
     mood: '☕ Deep Focus',
     examTarget: '🎯 4h Daily Target',
     motto: '🎯 Deep focus & daily consistency',
-    primarySubjectId: 'math',
+    primarySubjectId: 'general',
     isStealth: false,
     isPublicLeaderboard: true
   };
@@ -4840,6 +4856,18 @@ function openProfileModal() {
   if (publicToggle) {
     publicToggle.checked = profile.isPublicLeaderboard !== false;
   }
+
+  // Reset Submenu Tabs to Identity by default
+  document.querySelectorAll('.profile-tab-btn').forEach(b => {
+    const isFirst = b.dataset.tab === 'tab-identity';
+    b.classList.toggle('active', isFirst);
+    b.setAttribute('aria-selected', isFirst ? 'true' : 'false');
+  });
+  document.querySelectorAll('.profile-tab-panel').forEach(panel => {
+    const isFirst = panel.id === 'panel-tab-identity';
+    panel.classList.toggle('hidden', !isFirst);
+    panel.classList.toggle('active', isFirst);
+  });
 
   // Highlight active buttons
   document.querySelectorAll('.avatar-preset-btn').forEach(btn => {
@@ -4889,10 +4917,10 @@ function updateProfileLivePreview() {
   const mottoVal = (mottoInput?.value.trim() || '🎯 Deep focus & daily consistency').slice(0, 60);
 
   if (previewCard) {
-    previewCard.className = `profile-preview-card ${selectedBannerTheme}`;
+    previewCard.className = `profile-hero-showcase ${selectedBannerTheme}`;
   }
   if (previewAvatarRing) {
-    previewAvatarRing.className = `preview-avatar-ring ${selectedAvatarRing}`;
+    previewAvatarRing.className = `hero-avatar-ring ${selectedAvatarRing}`;
   }
   if (previewAvatarIcon) previewAvatarIcon.textContent = selectedAvatarPreset;
   if (previewCountryFlag) previewCountryFlag.textContent = flagVal;

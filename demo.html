@@ -958,7 +958,7 @@
             </div>
             <div class="photo-upload-container">
               <div class="photo-upload-preview-wrap">
-                <div class="photo-upload-circle" id="customPhotoPreviewCircle">
+                <div class="photo-upload-circle" id="customPhotoPreviewCircle" title="Live Profile Photo Preview">
                   <span id="customPhotoPreviewFallback">📷</span>
                   <img id="customPhotoPreviewImg" class="hidden" alt="Profile Photo Preview">
                 </div>
@@ -969,15 +969,25 @@
                       <span>Choose Image</span>
                     </label>
                     <input type="file" id="inputProfilePhotoFile" accept="image/png, image/jpeg, image/webp, image/gif" style="display: none;">
-                    <button type="button" class="btn btn-ghost btn-sm hidden" id="btnRemoveCustomPhoto">Remove</button>
+                    <button type="button" class="btn btn-ghost btn-sm hidden" id="btnRemoveCustomPhoto">Reset</button>
                   </div>
-                  <span class="photo-upload-hint">Supports JPG, PNG, WebP • Auto-optimized</span>
+                  <span class="photo-upload-hint">Supports JPG, PNG, WebP, GIF • Auto-optimized</span>
                 </div>
               </div>
               <div class="photo-url-row">
                 <div class="photo-url-input-wrap">
                   <input type="url" id="inputProfilePhotoUrl" placeholder="Or paste image link (https://...)" autocomplete="off">
                   <button type="button" class="btn btn-secondary btn-sm" id="btnApplyPhotoUrl">Apply Link</button>
+                </div>
+                <!-- Live Image Validation & Support Status Card -->
+                <div class="photo-url-status-card hidden" id="photoUrlStatusCard">
+                  <div class="photo-url-status-left">
+                    <span class="photo-url-status-indicator" id="photoUrlStatusIcon">✓</span>
+                    <div class="photo-url-status-text">
+                      <strong id="photoUrlStatusTitle">Valid Image Link</strong>
+                      <span id="photoUrlStatusDesc">Image verified successfully</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

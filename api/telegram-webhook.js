@@ -37,6 +37,14 @@ async function createProfileSnapshot(userId, actionType, previousRow) {
   }
 }
 
+const TELEGRAM_ADMIN_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '6326462250';
+
+function isAuthorized(userId, chatId) {
+  const adminId = String(TELEGRAM_ADMIN_CHAT_ID || '').trim();
+  if (!adminId) return true;
+  return String(userId) === adminId || String(chatId) === adminId;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(200).json({ ok: true, message: 'StudyTimer Telegram Admin Controller Live' });
@@ -46,13 +54,29 @@ export default async function handler(req, res) {
   const callbackQuery = update.callback_query;
   const message = update.message;
 
+  // Security Check: Verify admin authorization
+  const senderId = callbackQuery?.from?.id || message?.from?.id || message?.chat?.id;
+  const chatId = callbackQuery?.message?.chat?.id || message?.chat?.id;
+
+  if (senderId && !isAuthorized(senderId, chatId)) {
+    if (callbackQuery) {
+      fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/answerCallbackQuery`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callback_query_id: callbackQuery.id, text: '⛔ Access Denied: Admin Only', show_alert: true })
+      }).catch(() => {});
+    } else if (message) {
+      await sendTelegramMessage(chatId, '⛔ <b>Access Denied</b>\nThis bot is private and restricted to StudyTimer administrators only.');
+    }
+    return res.status(200).json({ ok: true, status: 'denied' });
+  }
+
   // ============================================================================
   // 1. TELEGRAM CALLBACK QUERY HANDLER (Button Taps)
   // ============================================================================
   if (callbackQuery) {
     const callbackId = callbackQuery.id;
     const data = callbackQuery.data || '';
-    const chatId = callbackQuery.message?.chat?.id;
     const messageId = callbackQuery.message?.message_id;
 
     const isApprove = data.startsWith('approve:');

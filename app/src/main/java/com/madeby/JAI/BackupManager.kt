@@ -269,7 +269,7 @@ class BackupManager(private val context: Context) {
         val sharedPrefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
         val prefTs = sharedPrefs.getLong("last_data_modified_timestamp", 0L)
         val timelineLastTs = TimelineLogger.load(context).maxOfOrNull { it.timestamp } ?: 0L
-        return maxOf(prefTs, timelineLastTs, System.currentTimeMillis() - 86400000L)
+        return maxOf(prefTs, timelineLastTs)
     }
 
     fun markDataModified() {

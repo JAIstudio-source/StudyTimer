@@ -25,9 +25,19 @@ export default async function handler(req, res) {
     const userId = data.split(':')[1];
 
     if (userId && (isApprove || isReject)) {
+      // 1. Instant acknowledgment: Answer Telegram callback in <20ms so button never spins
+      fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/answerCallbackQuery`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          callback_query_id: callbackId,
+          text: isApprove ? '✅ Profile & Photo Approved! Leaderboard updated.' : '❌ Profile Rejected & Reset.',
+          show_alert: false
+        })
+      }).catch(() => {});
+
       try {
         if (isApprove) {
-          // Fetch user sync data to inspect current profile
           const { data: syncRow } = await supabase
             .from('user_sync_data')
             .select('*')
@@ -70,7 +80,7 @@ export default async function handler(req, res) {
               .eq('user_id', userId);
           }
 
-          // Update daily_leaderboard table
+          // Direct sync to daily_leaderboard table
           await supabase
             .from('daily_leaderboard')
             .update({
@@ -80,28 +90,34 @@ export default async function handler(req, res) {
             })
             .eq('user_id', userId);
 
-          // 1. Answer Callback Query to stop the spinning loader
-          await fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/answerCallbackQuery`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              callback_query_id: callbackId,
-              text: `✅ Approved ${targetName}! Leaderboard updated.`,
-              show_alert: true
-            })
-          });
-
-          // 2. Edit message caption/text to show verified
+          // Update message in-place and remove action buttons
           if (chatId && messageId) {
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/editMessageCaption`, {
+            const confirmedText = `✅ <b>APPROVED BY ADMIN</b>\n👤 <b>Student:</b> <code>${targetName}</code>\n🆔 <b>ID:</b> <code>${userId}</code>\n⚡ <i>Activated on live leaderboard at ${new Date().toLocaleTimeString()}</i>`;
+            
+            fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/editMessageCaption`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 chat_id: chatId,
                 message_id: messageId,
-                caption: `✅ <b>APPROVED BY ADMIN</b>\n👤 <b>Student:</b> <code>${targetName}</code>\n🆔 <b>ID:</b> <code>${userId}</code>\n⚡ <i>Activated on live global leaderboard at ${new Date().toLocaleTimeString()}</i>`,
-                parse_mode: 'HTML'
+                caption: confirmedText,
+                parse_mode: 'HTML',
+                reply_markup: { inline_keyboard: [] }
               })
+            }).then(r => {
+              if (!r.ok) {
+                return fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/editMessageText`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    chat_id: chatId,
+                    message_id: messageId,
+                    text: confirmedText,
+                    parse_mode: 'HTML',
+                    reply_markup: { inline_keyboard: [] }
+                  })
+                });
+              }
             }).catch(() => {});
           }
         } else {
@@ -116,31 +132,38 @@ export default async function handler(req, res) {
             .update({ avatar_url: '🐱', is_stealth: false })
             .eq('user_id', userId);
 
-          await fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/answerCallbackQuery`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              callback_query_id: callbackId,
-              text: `❌ Profile rejected and reset to default sticker.`,
-              show_alert: true
-            })
-          });
-
           if (chatId && messageId) {
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/editMessageCaption`, {
+            const rejectText = `❌ <b>REJECTED BY ADMIN</b>\n🆔 <b>ID:</b> <code>${userId}</code>\n⚠️ <i>Profile photo reset to default sticker.</i>`;
+            
+            fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/editMessageCaption`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 chat_id: chatId,
                 message_id: messageId,
-                caption: `❌ <b>REJECTED BY ADMIN</b>\n🆔 <b>ID:</b> <code>${userId}</code>\n⚠️ <i>Reset to default sticker.</i>`,
-                parse_mode: 'HTML'
+                caption: rejectText,
+                parse_mode: 'HTML',
+                reply_markup: { inline_keyboard: [] }
               })
+            }).then(r => {
+              if (!r.ok) {
+                return fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/editMessageText`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    chat_id: chatId,
+                    message_id: messageId,
+                    text: rejectText,
+                    parse_mode: 'HTML',
+                    reply_markup: { inline_keyboard: [] }
+                  })
+                });
+              }
             }).catch(() => {});
           }
         }
       } catch (err) {
-        console.error('Webhook error:', err);
+        console.error('Telegram webhook callback processing error:', err);
       }
     }
   }

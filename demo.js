@@ -111,12 +111,14 @@ function getCleanInitialState(user = null) {
     currentUser: user || null,
     streakCount: 0,
     lastStudyDate: '',
+    approvedDisplayName: name,
     userProfile: {
       displayName: name,
       avatarPreset: avatar,
       motto: '🎯 Deep focus & daily consistency',
       primarySubjectId: 'general',
-      isPublicLeaderboard: true
+      isPublicLeaderboard: true,
+      profileStatus: 'approved'
     },
     subjects: JSON.parse(JSON.stringify(DEFAULT_SUBJECTS)),
     selectedSubject: DEFAULT_SUBJECTS[0],
@@ -1531,6 +1533,11 @@ function loadLocalState(targetUserId = null) {
       if (parsed.userProfile) {
         appState.userProfile = { ...appState.userProfile, ...parsed.userProfile };
       }
+      if (parsed.approvedDisplayName) {
+        appState.approvedDisplayName = parsed.approvedDisplayName;
+      } else if (parsed.userProfile?.displayName && parsed.userProfile?.profileStatus !== 'pending') {
+        appState.approvedDisplayName = parsed.userProfile.displayName;
+      }
       if (Array.isArray(parsed.plannerGoals)) {
         appState.plannerGoals = parsed.plannerGoals;
       }
@@ -1574,6 +1581,7 @@ function saveLocalState() {
       timerConfig,
       streakCount: appState.streakCount,
       lastStudyDate: appState.lastStudyDate,
+      approvedDisplayName: appState.approvedDisplayName || (appState.userProfile?.profileStatus === 'approved' ? appState.userProfile?.displayName : ''),
       userProfile: appState.userProfile,
       subjects: appState.subjects,
       plannerGoals: appState.plannerGoals || [],
@@ -1586,8 +1594,9 @@ function saveLocalState() {
     const jsonStr = JSON.stringify(stateToSave);
     if (uid) {
       localStorage.setItem(`studytimer_state_${uid}`, jsonStr);
+    } else {
+      localStorage.setItem('studytimer_guest_state', jsonStr);
     }
-    localStorage.setItem('studytimer_guest_state', jsonStr);
   } catch (e) {
     console.error('Failed to save local state:', e);
   }

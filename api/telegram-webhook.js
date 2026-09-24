@@ -25,13 +25,13 @@ export default async function handler(req, res) {
     const userId = data.split(':')[1];
 
     if (userId && (isApprove || isReject)) {
-      // 1. Instant acknowledgment: Answer Telegram callback in <20ms so button never spins
-      fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/answerCallbackQuery`, {
+      // 1. Instant non-blocking acknowledgment (<50ms response to Telegram)
+      const ackPromise = fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/answerCallbackQuery`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           callback_query_id: callbackId,
-          text: isApprove ? '✅ Profile & Photo Approved! Leaderboard updated.' : '❌ Profile Rejected & Reset.',
+          text: isApprove ? '✅ Approved! Updating leaderboard...' : '❌ Photo rejected. Resetting...',
           show_alert: false
         })
       }).catch(() => {});

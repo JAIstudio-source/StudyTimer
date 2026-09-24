@@ -13,7 +13,7 @@ import java.util.*
 
 object LeaderboardManager {
     private const val TAG = "LeaderboardManager"
-    private const val CACHE_TTL_MS = 25_000L // 25 seconds
+    private const val CACHE_TTL_MS = 120_000L // 2 minutes in-memory TTL
 
     private data class CacheRecord(
         val timestamp: Long,

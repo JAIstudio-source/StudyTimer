@@ -140,6 +140,7 @@ async function initApp() {
   setupEventListeners();
   initTimerWorker();
   initBackgroundSyncListeners();
+  initAutoSyncEngine();
   initQuoteManager();
   initFocusAudio();
   initBackgroundManager();
@@ -527,7 +528,9 @@ function handleUserSignedIn(user) {
   if (timerStatus === 'RUNNING' && currentMode !== 'break') {
     startPresenceHeartbeat();
   }
-  leaderboardCache.timestamp = 0;
+  leaderboardTimeframeCache.daily = { data: null, timestamp: 0 };
+  leaderboardTimeframeCache.weekly = { data: null, timestamp: 0 };
+  leaderboardTimeframeCache.monthly = { data: null, timestamp: 0 };
   const lbModal = document.getElementById('leaderboardModalOverlay');
   if (lbModal && !lbModal.classList.contains('hidden')) {
     fetchLeaderboard(true);
@@ -558,7 +561,9 @@ function handleUserSignedOut() {
   if (typeof renderMonthlyCalendar === 'function') renderMonthlyCalendar();
   if (typeof renderUserProfileUI === 'function') renderUserProfileUI();
 
-  leaderboardCache.timestamp = 0;
+  leaderboardTimeframeCache.daily = { data: null, timestamp: 0 };
+  leaderboardTimeframeCache.weekly = { data: null, timestamp: 0 };
+  leaderboardTimeframeCache.monthly = { data: null, timestamp: 0 };
   const lbModal = document.getElementById('leaderboardModalOverlay');
   if (lbModal && !lbModal.classList.contains('hidden')) {
     fetchLeaderboard(true);
@@ -581,8 +586,37 @@ function handleUserSignedOut() {
 }
 
 // ============================================================================
-// 4. TWO-WAY CLOUD SYNC LOGIC (100% Android App Compatible)
+// 4. TWO-WAY CLOUD SYNC & CONFLICT RESOLUTION ENGINE (100% Android App Compatible)
 // ============================================================================
+
+let isLocalStateDirty = false;
+let localLastModifiedTimestamp = Date.now();
+let lastCloudPushTime = 0;
+let cloudPushDebounceTimer = null;
+let autoSyncIntervalTimer = null;
+let lastAutoSyncAttempt = 0;
+
+function markLocalDataModified() {
+  isLocalStateDirty = true;
+  localLastModifiedTimestamp = Date.now();
+}
+
+function sanitizeString(str, maxLen = 100) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/[<>]/g, '')
+    .trim()
+    .slice(0, maxLen);
+}
+
+function sanitizeUrl(url) {
+  if (typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (/^(https?:\/\/|assets\/|data:image\/)/i.test(trimmed)) {
+    return trimmed.slice(0, 500);
+  }
+  return '';
+}
 
 function parseSafeStringSet(val) {
   const set = new Set();
@@ -612,6 +646,299 @@ function parseSafeStringSet(val) {
   return set;
 }
 
+// Intelligent Two-Way Merge Algorithm (Prevents data loss between Web Studio & Android App)
+function mergeCloudDataIntoLocal(data) {
+  if (!data) return { mergedSubjects: 0, mergedGoals: 0, mergedTimeline: 0 };
+  const cloudUpdatedAt = Number(data.updated_at) || 0;
+
+  let cloudPrefs = {};
+  if (data.prefs_data) {
+    try {
+      cloudPrefs = typeof data.prefs_data === 'string' ? JSON.parse(data.prefs_data) : data.prefs_data;
+    } catch (e) {
+      console.warn('Failed to parse cloud prefs_data:', e);
+    }
+  }
+
+  // 1. TIMELINE ENTRIES MERGE (De-duplicate by unique ID / session timestamp)
+  let cloudTimeline = [];
+  if (data.timeline_data) {
+    try {
+      const parsed = typeof data.timeline_data === 'string' ? JSON.parse(data.timeline_data) : data.timeline_data;
+      if (Array.isArray(parsed)) cloudTimeline = parsed;
+    } catch (e) {
+      console.warn('Failed to parse cloud timeline_data:', e);
+    }
+  }
+
+  const localTimeline = Array.isArray(appState.timelineEntries) ? appState.timelineEntries : [];
+  const mergedTimelineMap = new Map();
+
+  localTimeline.forEach(e => {
+    if (e && typeof e.t === 'number') {
+      const key = e.id || `t_${e.t}_${e.s || ''}`;
+      mergedTimelineMap.set(key, e);
+    }
+  });
+
+  cloudTimeline.forEach(e => {
+    if (e && typeof e.t === 'number') {
+      const key = e.id || `t_${e.t}_${e.s || ''}`;
+      if (!mergedTimelineMap.has(key)) {
+        let foundNearby = false;
+        for (const [existingKey, existingEntry] of mergedTimelineMap.entries()) {
+          if (Math.abs(existingEntry.t - e.t) < 1500 && existingEntry.s === e.s) {
+            foundNearby = true;
+            if ((e.durationSec || 0) > (existingEntry.durationSec || 0)) {
+              mergedTimelineMap.set(existingKey, { ...existingEntry, ...e });
+            }
+            break;
+          }
+        }
+        if (!foundNearby) {
+          mergedTimelineMap.set(key, e);
+        }
+      } else {
+        const existing = mergedTimelineMap.get(key);
+        if ((e.durationSec || 0) > (existing.durationSec || 0)) {
+          mergedTimelineMap.set(key, { ...existing, ...e });
+        }
+      }
+    }
+  });
+
+  const nowFutureThreshold = Date.now() + 60000;
+  appState.timelineEntries = Array.from(mergedTimelineMap.values())
+    .filter(e => e && typeof e.t === 'number' && e.t <= nowFutureThreshold)
+    .sort((a, b) => a.t - b.t)
+    .slice(-500);
+
+  // 2. DAILY FOCUS TOTALS MERGE (Safe max retention for every calendar date)
+  const mergedDailyFocus = { ...(appState.dailyFocusTotals || {}) };
+  Object.keys(cloudPrefs).forEach(k => {
+    const match = k.match(/^(\d{4}-\d{2}-\d{2})_focus_total$/);
+    if (match) {
+      const dStr = match[1];
+      const cloudSec = Math.min(86400, Math.max(0, Number(cloudPrefs[k]) || 0));
+      mergedDailyFocus[dStr] = Math.max(mergedDailyFocus[dStr] || 0, cloudSec);
+    }
+  });
+
+  const parsedSessions = parseAllTimelineSessions(appState.timelineEntries);
+  parsedSessions.forEach(s => {
+    const dStr = getLocalDateStr(s.timestamp);
+    mergedDailyFocus[dStr] = Math.min(86400, Math.max(mergedDailyFocus[dStr] || 0, s.durationSec));
+  });
+  appState.dailyFocusTotals = mergedDailyFocus;
+
+  // 3. SUBJECT DURATIONS MERGE
+  const mergedSubDur = { ...(appState.subjectDurations || {}) };
+  let cloudSubDur = {};
+  if (cloudPrefs.subject_durations_json) {
+    try {
+      cloudSubDur = typeof cloudPrefs.subject_durations_json === 'string'
+        ? JSON.parse(cloudPrefs.subject_durations_json)
+        : cloudPrefs.subject_durations_json;
+    } catch (_) {}
+  }
+  Object.keys(cloudSubDur || {}).forEach(subId => {
+    mergedSubDur[subId] = Math.max(mergedSubDur[subId] || 0, Number(cloudSubDur[subId]) || 0);
+  });
+  appState.subjectDurations = mergedSubDur;
+
+  // 4. DAILY SUBJECT DURATIONS BREAKDOWN MERGE
+  const mergedDailySub = { ...(appState.dailySubjectDurations || {}) };
+  let cloudDailySub = {};
+  if (cloudPrefs.daily_subject_durations_json) {
+    try {
+      cloudDailySub = typeof cloudPrefs.daily_subject_durations_json === 'string'
+        ? JSON.parse(cloudPrefs.daily_subject_durations_json)
+        : cloudPrefs.daily_subject_durations_json;
+    } catch (_) {}
+  }
+  Object.keys(cloudDailySub || {}).forEach(dStr => {
+    if (!mergedDailySub[dStr]) mergedDailySub[dStr] = {};
+    const subObj = cloudDailySub[dStr];
+    if (subObj && typeof subObj === 'object') {
+      Object.keys(subObj).forEach(subId => {
+        mergedDailySub[dStr][subId] = Math.max(mergedDailySub[dStr][subId] || 0, Number(subObj[subId]) || 0);
+      });
+    }
+  });
+  appState.dailySubjectDurations = mergedDailySub;
+
+  // 5. STREAK MERGE
+  const cloudStreak = Math.max(0, Number(cloudPrefs.current_streak || cloudPrefs.streak_count) || 0);
+  appState.streakCount = Math.max(appState.streakCount || 0, cloudStreak);
+  if (cloudPrefs.last_study_date && (!appState.lastStudyDate || cloudPrefs.last_study_date > appState.lastStudyDate)) {
+    appState.lastStudyDate = sanitizeString(cloudPrefs.last_study_date, 20);
+  }
+
+  // 6. CUSTOM SUBJECTS MERGE
+  const rawTags = cloudPrefs.__subject_tags_data__ || data.subject_tags_data || cloudPrefs.custom_subjects_json;
+  let subjectPrefs = null;
+  if (rawTags) {
+    try {
+      subjectPrefs = typeof rawTags === 'string' ? JSON.parse(rawTags) : rawTags;
+    } catch (_) {}
+  }
+  let cloudCustomList = [];
+  let cloudHiddenSet = new Set();
+  let selectedSubId = cloudPrefs.selected_subject_id || 'general';
+
+  if (subjectPrefs) {
+    if (subjectPrefs.custom_subjects_json) {
+      try {
+        cloudCustomList = typeof subjectPrefs.custom_subjects_json === 'string'
+          ? JSON.parse(subjectPrefs.custom_subjects_json)
+          : subjectPrefs.custom_subjects_json;
+      } catch (_) {}
+    } else if (subjectPrefs.custom_subjects) {
+      try {
+        cloudCustomList = typeof subjectPrefs.custom_subjects === 'string'
+          ? JSON.parse(subjectPrefs.custom_subjects)
+          : subjectPrefs.custom_subjects;
+      } catch (_) {}
+    } else if (Array.isArray(subjectPrefs)) {
+      cloudCustomList = subjectPrefs;
+    }
+    if (subjectPrefs.hidden_subjects_set) {
+      cloudHiddenSet = parseSafeStringSet(subjectPrefs.hidden_subjects_set);
+    }
+    if (subjectPrefs.selected_subject_id) {
+      selectedSubId = subjectPrefs.selected_subject_id;
+    }
+  }
+
+  const existingSubMap = new Map();
+  DEFAULT_SUBJECTS.forEach(d => {
+    if (!cloudHiddenSet.has(d.id)) existingSubMap.set(d.id, { ...d });
+  });
+  (appState.subjects || []).forEach(s => {
+    if (s && s.id && !cloudHiddenSet.has(s.id)) existingSubMap.set(s.id, { ...s });
+  });
+  if (Array.isArray(cloudCustomList)) {
+    cloudCustomList.forEach(c => {
+      if (c && c.id && !cloudHiddenSet.has(c.id)) {
+        existingSubMap.set(c.id, {
+          id: sanitizeString(c.id, 30),
+          name: sanitizeString(c.name || 'Subject', 40),
+          color: c.colorHex || c.color || '#3b82f6',
+          colorHex: c.colorHex || c.color || '#3b82f6',
+          iconEmoji: sanitizeString(c.iconEmoji || '📚', 10),
+          isCustom: true
+        });
+      }
+    });
+  }
+  appState.subjects = Array.from(existingSubMap.values()).slice(0, 50);
+  const foundSel = appState.subjects.find(s => s.id === selectedSubId);
+  appState.selectedSubject = foundSel || appState.subjects[0];
+
+  // 7. PLANNER GOALS MERGE (Union by unique ID, latest checked/updated status)
+  let cloudGoals = [];
+  if (cloudPrefs.session_goals_json) {
+    try {
+      cloudGoals = typeof cloudPrefs.session_goals_json === 'string'
+        ? JSON.parse(cloudPrefs.session_goals_json)
+        : cloudPrefs.session_goals_json;
+    } catch (_) {}
+  } else if (cloudPrefs.__planner_goals_data__) {
+    try {
+      cloudGoals = typeof cloudPrefs.__planner_goals_data__ === 'string'
+        ? JSON.parse(cloudPrefs.__planner_goals_data__)
+        : cloudPrefs.__planner_goals_data__;
+    } catch (_) {}
+  }
+
+  const goalMap = new Map();
+  (appState.plannerGoals || []).forEach(g => {
+    if (g && g.id) goalMap.set(g.id, g);
+  });
+  if (Array.isArray(cloudGoals)) {
+    cloudGoals.forEach(g => {
+      if (g && g.id) {
+        if (!goalMap.has(g.id)) {
+          goalMap.set(g.id, {
+            id: sanitizeString(g.id, 50),
+            subjectId: g.subjectId ? sanitizeString(g.subjectId, 30) : null,
+            dailyMinutes: Math.min(1440, Math.max(0, Number(g.targetMinutes ?? g.dailyMinutes) || 0)),
+            targetMinutes: Math.min(1440, Math.max(0, Number(g.targetMinutes ?? g.dailyMinutes) || 0)),
+            title: sanitizeString(g.title || '', 60),
+            note: sanitizeString(g.note || '', 200),
+            completed: !!g.completed,
+            checkedAt: g.checkedAt || (g.completed ? Date.now() : null),
+            createdAt: g.createdAt || Date.now()
+          });
+        } else {
+          const existing = goalMap.get(g.id);
+          const isCompleted = existing.completed || !!g.completed;
+          const checkedAt = Math.max(existing.checkedAt || 0, g.checkedAt || 0) || (isCompleted ? Date.now() : null);
+          goalMap.set(g.id, {
+            ...existing,
+            ...g,
+            completed: isCompleted,
+            checkedAt: checkedAt,
+            title: sanitizeString(g.title || existing.title || '', 60),
+            note: sanitizeString(g.note || existing.note || '', 200)
+          });
+        }
+      }
+    });
+  }
+  appState.plannerGoals = Array.from(goalMap.values()).slice(0, 50);
+
+  // 8. TIMER SETTINGS (Cloud sync interop)
+  const todayKey = getLocalDateStr();
+  const todayGoalSecs = Number(cloudPrefs[`${todayKey}_goal_secs`]) || Number(cloudPrefs.daily_goal_secs) || 0;
+  const goalMins = cloudPrefs.daily_goal_minutes || (todayGoalSecs > 0 ? Math.round(todayGoalSecs / 60) : null);
+  if (goalMins) timerConfig.dailyGoalMinutes = Math.min(1440, Math.max(15, goalMins));
+
+  if (cloudPrefs.study_interval_minutes || cloudPrefs.pomo_focus_minutes) {
+    timerConfig.pomoFocusMinutes = Math.min(180, Math.max(1, Number(cloudPrefs.study_interval_minutes || cloudPrefs.pomo_focus_minutes)));
+  }
+  if (cloudPrefs.break_interval_minutes || cloudPrefs.pomo_break_minutes) {
+    timerConfig.pomoBreakMinutes = Math.min(60, Math.max(1, Number(cloudPrefs.break_interval_minutes || cloudPrefs.pomo_break_minutes)));
+  }
+  if (cloudPrefs.pomo_long_break_minutes) timerConfig.pomoLongBreakMinutes = Math.min(120, Math.max(1, Number(cloudPrefs.pomo_long_break_minutes)));
+  if (cloudPrefs.pomo_total_cycles) timerConfig.pomoTotalCycles = Math.min(12, Math.max(1, Number(cloudPrefs.pomo_total_cycles)));
+  if (typeof cloudPrefs.pomo_auto_switch_break === 'boolean') timerConfig.pomoAutoSwitchBreak = cloudPrefs.pomo_auto_switch_break;
+  if (typeof cloudPrefs.pomo_auto_switch_focus === 'boolean') timerConfig.pomoAutoSwitchFocus = cloudPrefs.pomo_auto_switch_focus;
+  if (cloudPrefs.custom_timer_minutes) {
+    timerConfig.customTimerMinutes = Math.min(720, Math.max(1, Number(cloudPrefs.custom_timer_minutes)));
+  }
+
+  // 9. USER PROFILE
+  if (cloudPrefs.__user_profile__) {
+    try {
+      const loadedProfile = typeof cloudPrefs.__user_profile__ === 'string'
+        ? JSON.parse(cloudPrefs.__user_profile__)
+        : cloudPrefs.__user_profile__;
+      if (loadedProfile && typeof loadedProfile === 'object') {
+        appState.userProfile = {
+          ...appState.userProfile,
+          displayName: sanitizeString(loadedProfile.displayName || appState.userProfile.displayName || '', 50),
+          avatarPreset: sanitizeUrl(loadedProfile.avatarPreset || appState.userProfile.avatarPreset || ''),
+          isPublicLeaderboard: loadedProfile.isPublicLeaderboard !== false
+        };
+      }
+    } catch (_) {}
+  } else {
+    const remoteName = cloudPrefs.auth_user_name || data.user_name;
+    if (remoteName) {
+      appState.userProfile.displayName = sanitizeString(remoteName, 50);
+    }
+  }
+
+  reconstructTodaySessionsFromTimeline();
+
+  return {
+    mergedSubjects: appState.subjects.length,
+    mergedGoals: appState.plannerGoals.length,
+    mergedTimeline: appState.timelineEntries.length
+  };
+}
+
 async function pullDataFromCloud(isUserTriggered = false) {
   if (!supabaseClient || !appState.currentUser) {
     if (isUserTriggered) showToast('Please sign in with Google to sync with mobile app', 'info');
@@ -630,7 +957,6 @@ async function pullDataFromCloud(isUserTriggered = false) {
     const userId = user.id;
     const userEmail = (user.email || user.user_metadata?.email || '').trim().toLowerCase();
 
-    // Strict user query: match exact user_id or user_email for this specific user
     let query = supabaseClient.from('user_sync_data').select('*');
     if (userEmail && userEmail !== userId) {
       query = query.or(`user_id.eq.${userId},user_id.eq.${userEmail},user_email.eq.${userEmail}`);
@@ -646,7 +972,6 @@ async function pullDataFromCloud(isUserTriggered = false) {
 
     let data = null;
     if (Array.isArray(rows) && rows.length > 0) {
-      // Find record with actual timeline/subject data or the most recent one
       data = rows.find(r => {
         const hasTimeline = r.timeline_data && r.timeline_data !== '[]' && r.timeline_data.length > 10;
         const hasPrefs = r.prefs_data && r.prefs_data.length > 10;
@@ -655,283 +980,13 @@ async function pullDataFromCloud(isUserTriggered = false) {
     }
 
     if (data) {
-      if (data.updated_at) {
-        lastPulledCloudUpdatedAt = Math.max(lastPulledCloudUpdatedAt, Number(data.updated_at) || 0);
-      }
-      let restoredSubjectCount = 0;
-      let restoredTimelineCount = 0;
-
-      // Cleanly clear state collections before applying this user's cloud data
-      const dailyFocus = {};
-      let restoredSubDur = {};
-      let restoredDailySub = {};
-      let restoredGoals = [];
-      let restoredTimeline = [];
-
-      if (data.prefs_data) {
-        try {
-          const prefs = typeof data.prefs_data === 'string' ? JSON.parse(data.prefs_data) : data.prefs_data;
-          
-          // 1. Daily Goal & Timer Durations (Android & Web interop)
-          const todayKey = getLocalDateStr();
-          const todayGoalSecs = Number(prefs[`${todayKey}_goal_secs`]) || Number(prefs.daily_goal_secs) || 0;
-          const goalMins = prefs.daily_goal_minutes || (todayGoalSecs > 0 ? Math.round(todayGoalSecs / 60) : (prefs.daily_goal_secs ? Math.round(prefs.daily_goal_secs / 60) : null));
-          if (goalMins) timerConfig.dailyGoalMinutes = Math.min(1440, Math.max(15, goalMins));
-
-          appState.streakCount = Math.max(0, Number(prefs.current_streak || prefs.streak_count) || 0);
-          appState.lastStudyDate = prefs.last_study_date || '';
-
-          if (prefs.study_interval_minutes || prefs.pomo_focus_minutes) {
-            timerConfig.pomoFocusMinutes = Number(prefs.study_interval_minutes || prefs.pomo_focus_minutes);
-          }
-          if (prefs.break_interval_minutes || prefs.pomo_break_minutes) {
-            timerConfig.pomoBreakMinutes = Number(prefs.break_interval_minutes || prefs.pomo_break_minutes);
-          }
-          if (prefs.pomo_long_break_minutes) timerConfig.pomoLongBreakMinutes = prefs.pomo_long_break_minutes;
-          if (prefs.pomo_total_cycles) timerConfig.pomoTotalCycles = prefs.pomo_total_cycles;
-          if (typeof prefs.pomo_auto_switch_break === 'boolean') timerConfig.pomoAutoSwitchBreak = prefs.pomo_auto_switch_break;
-          if (typeof prefs.pomo_auto_switch_focus === 'boolean') timerConfig.pomoAutoSwitchFocus = prefs.pomo_auto_switch_focus;
-          if (prefs.custom_timer_minutes) timerConfig.customTimerMinutes = prefs.custom_timer_minutes;
-          if (prefs.focus_countdown_secs) {
-            const cdMins = Math.round(Number(prefs.focus_countdown_secs) / 60);
-            if (cdMins > 0) timerConfig.customTimerMinutes = cdMins;
-          }
-
-          // 2. Extract all daily focus totals & subject durations from Android
-          Object.keys(prefs).forEach(k => {
-            const match = k.match(/^(\d{4}-\d{2}-\d{2})_focus_total$/);
-            if (match) {
-              const dStr = match[1];
-              const sec = Number(prefs[k]) || 0;
-              if (sec > 0) dailyFocus[dStr] = sec;
-            }
-          });
-
-          if (prefs.accumulatedStudy) {
-            const acc = Number(prefs.accumulatedStudy) || 0;
-            if (acc > 0) {
-              dailyFocus[todayKey] = Math.max(dailyFocus[todayKey] || 0, acc);
-            }
-          }
-
-          if (prefs.subject_durations_json) {
-            try {
-              const rawSubDur = typeof prefs.subject_durations_json === 'string'
-                ? JSON.parse(prefs.subject_durations_json)
-                : prefs.subject_durations_json;
-              if (rawSubDur && typeof rawSubDur === 'object') restoredSubDur = rawSubDur;
-            } catch (_) {}
-          }
-
-          if (prefs.daily_subject_durations_json) {
-            try {
-              const rawDailySub = typeof prefs.daily_subject_durations_json === 'string'
-                ? JSON.parse(prefs.daily_subject_durations_json)
-                : prefs.daily_subject_durations_json;
-              if (rawDailySub && typeof rawDailySub === 'object') restoredDailySub = rawDailySub;
-            } catch (_) {}
-          }
-
-          appState.dailyFocusTotals = dailyFocus;
-          appState.subjectDurations = restoredSubDur;
-          appState.dailySubjectDurations = restoredDailySub;
-
-          // 3. Full Subjects Restoration (Android studytimer_subject_tags & Web custom_subjects)
-          const rawTags = prefs.__subject_tags_data__ || data.subject_tags_data || prefs.custom_subjects_json;
-          let subjectPrefs = null;
-          if (rawTags) {
-            try {
-              subjectPrefs = typeof rawTags === 'string' ? JSON.parse(rawTags) : rawTags;
-            } catch (_) {}
-          }
-
-          let customList = [];
-          let hiddenSet = new Set();
-          let selectedSubId = prefs.selected_subject_id || 'general';
-
-          if (subjectPrefs) {
-            if (subjectPrefs.custom_subjects_json) {
-              try {
-                customList = typeof subjectPrefs.custom_subjects_json === 'string'
-                  ? JSON.parse(subjectPrefs.custom_subjects_json)
-                  : subjectPrefs.custom_subjects_json;
-              } catch (_) {}
-            } else if (subjectPrefs.custom_subjects) {
-              try {
-                customList = typeof subjectPrefs.custom_subjects === 'string'
-                  ? JSON.parse(subjectPrefs.custom_subjects)
-                  : subjectPrefs.custom_subjects;
-              } catch (_) {}
-            } else if (Array.isArray(subjectPrefs)) {
-              customList = subjectPrefs;
-            }
-
-            if (subjectPrefs.hidden_subjects_set) {
-              hiddenSet = parseSafeStringSet(subjectPrefs.hidden_subjects_set);
-            }
-            if (subjectPrefs.selected_subject_id) {
-              selectedSubId = subjectPrefs.selected_subject_id;
-            }
-          }
-
-          if ((!customList || customList.length === 0) && prefs.custom_subjects_json) {
-            try {
-              customList = typeof prefs.custom_subjects_json === 'string'
-                ? JSON.parse(prefs.custom_subjects_json)
-                : prefs.custom_subjects_json;
-            } catch (_) {}
-          }
-
-          const mergedSubjects = [];
-          DEFAULT_SUBJECTS.forEach(d => {
-            if (!hiddenSet.has(d.id)) {
-              mergedSubjects.push({ ...d });
-            }
-          });
-
-          if (Array.isArray(customList)) {
-            customList.forEach(c => {
-              if (c && c.id && !hiddenSet.has(c.id)) {
-                const existingIdx = mergedSubjects.findIndex(s => s.id === c.id);
-                const formatted = {
-                  id: c.id,
-                  name: c.name || 'Subject',
-                  color: c.colorHex || c.color || '#3b82f6',
-                  colorHex: c.colorHex || c.color || '#3b82f6',
-                  iconEmoji: c.iconEmoji || '📚',
-                  isCustom: true
-                };
-                if (existingIdx >= 0) {
-                  mergedSubjects[existingIdx] = formatted;
-                } else {
-                  mergedSubjects.push(formatted);
-                }
-              }
-            });
-          }
-
-          // Also check timeline_data for subjects that might have been studied in Android
-          if (data.timeline_data) {
-            try {
-              const tl = typeof data.timeline_data === 'string' ? JSON.parse(data.timeline_data) : data.timeline_data;
-              if (Array.isArray(tl)) {
-                tl.forEach(e => {
-                  if (e && e.subId && !hiddenSet.has(e.subId) && !mergedSubjects.some(s => s.id === e.subId)) {
-                    mergedSubjects.push({
-                      id: e.subId,
-                      name: e.subName || e.subId,
-                      color: e.subColor || '#3b82f6',
-                      colorHex: e.subColor || '#3b82f6',
-                      iconEmoji: '📚',
-                      isCustom: true
-                    });
-                  }
-                });
-              }
-            } catch (_) {}
-          }
-
-          if (mergedSubjects.length > 0) {
-            appState.subjects = mergedSubjects;
-            restoredSubjectCount = mergedSubjects.length;
-            const foundSel = appState.subjects.find(s => s.id === selectedSubId);
-            appState.selectedSubject = foundSel || appState.subjects[0];
-          }
-
-          // 4. Planner Goals Restoration (Android session_goals_json & Web __planner_goals_data__)
-          let loadedGoals = null;
-          if (prefs.session_goals_json) {
-            try {
-              loadedGoals = typeof prefs.session_goals_json === 'string'
-                ? JSON.parse(prefs.session_goals_json)
-                : prefs.session_goals_json;
-            } catch (_) {}
-          } else if (prefs.__planner_goals_data__) {
-            try {
-              loadedGoals = typeof prefs.__planner_goals_data__ === 'string'
-                ? JSON.parse(prefs.__planner_goals_data__)
-                : prefs.__planner_goals_data__;
-            } catch (_) {}
-          }
-
-          if (Array.isArray(loadedGoals)) {
-            restoredGoals = loadedGoals.map(g => ({
-              id: g.id || ('goal_' + Date.now()),
-              subjectId: g.subjectId || null,
-              dailyMinutes: Math.max(0, Number(g.targetMinutes ?? g.dailyMinutes) || 0),
-              targetMinutes: Math.max(0, Number(g.targetMinutes ?? g.dailyMinutes) || 0),
-              title: g.title || '',
-              note: g.note || '',
-              completed: !!g.completed,
-              checkedAt: g.checkedAt || null,
-              createdAt: g.createdAt || Date.now()
-            }));
-          }
-          appState.plannerGoals = restoredGoals;
-
-          // 5. User Profile
-          if (prefs.__user_profile__) {
-            try {
-              const loadedProfile = typeof prefs.__user_profile__ === 'string'
-                ? JSON.parse(prefs.__user_profile__)
-                : prefs.__user_profile__;
-              if (loadedProfile && typeof loadedProfile === 'object') {
-                appState.userProfile = { ...appState.userProfile, ...loadedProfile };
-              }
-            } catch (e) {
-              console.error('Failed to parse remote user_profile', e);
-            }
-          } else {
-            const remoteName = prefs.auth_user_name || data.user_name;
-            if (remoteName) {
-              appState.userProfile.displayName = remoteName;
-            }
-          }
-
-          if ((!restoredSubDur || Object.keys(restoredSubDur).length === 0) && subjectPrefs?.subject_durations_json) {
-            try {
-              restoredSubDur = typeof subjectPrefs.subject_durations_json === 'string'
-                ? JSON.parse(subjectPrefs.subject_durations_json)
-                : subjectPrefs.subject_durations_json;
-              appState.subjectDurations = restoredSubDur;
-            } catch (_) {}
-          }
-          if ((!restoredDailySub || Object.keys(restoredDailySub).length === 0) && subjectPrefs?.daily_subject_durations_json) {
-            try {
-              restoredDailySub = typeof subjectPrefs.daily_subject_durations_json === 'string'
-                ? JSON.parse(subjectPrefs.daily_subject_durations_json)
-                : subjectPrefs.daily_subject_durations_json;
-              appState.dailySubjectDurations = restoredDailySub;
-            } catch (_) {}
-          }
-        } catch (e) {
-          console.error('Failed to parse remote prefs_data', e);
-        }
+      const cloudUpdatedAt = Number(data.updated_at) || 0;
+      if (cloudUpdatedAt > 0) {
+        lastPulledCloudUpdatedAt = Math.max(lastPulledCloudUpdatedAt, cloudUpdatedAt);
       }
 
-      // 6. Timeline History Restoration
-      if (data.timeline_data) {
-        try {
-          const parsedTimeline = typeof data.timeline_data === 'string' ? JSON.parse(data.timeline_data) : data.timeline_data;
-          if (Array.isArray(parsedTimeline)) {
-            restoredTimeline = parsedTimeline;
-            restoredTimelineCount = parsedTimeline.length;
-          }
-        } catch (e) {
-          console.error('Failed to parse remote timeline_data', e);
-        }
-      }
-      appState.timelineEntries = restoredTimeline;
-
-      reconstructTodaySessionsFromTimeline();
-
-      // Auto-sync presence & leaderboard for mobile logged in user
-      let totalSecToday = 0;
-      (appState.todaySessions || []).forEach(s => {
-        if (s && typeof s.durationSec === 'number') totalSecToday += s.durationSec;
-      });
-      // Sync live score to global leaderboard table
-      await syncLeaderboardScore();
+      // Execute non-destructive intelligent merge
+      const mergeStats = mergeCloudDataIntoLocal(data);
 
       renderSubjects();
       renderUserProfileUI();
@@ -946,20 +1001,24 @@ async function pullDataFromCloud(isUserTriggered = false) {
         resetTimer();
       }
 
-      // Update leaderboard UI if open
+      // Sync active presence and score to leaderboard
+      await syncStudyProgressToLeaderboard(0);
+
+      // Refresh leaderboard UI if open
       const lbModal = document.getElementById('leaderboardModalOverlay');
       if (lbModal && !lbModal.classList.contains('hidden')) {
-        fetchLeaderboard(true);
+        fetchLeaderboard(false, false);
       }
 
+      // If user manually clicked "Sync with App", push the consolidated merged state back to cloud
       if (isUserTriggered) {
-        const validatedSessions = getAllValidatedSessions();
-        const activeDaysCount = Object.keys(appState.dailyFocusTotals || {}).length || validatedSessions.length;
-        showToast(`Sync complete! Loaded ${appState.subjects.length} subjects & ${appState.plannerGoals.length} goals. ☁️`, 'success');
+        pushDataToCloud(true, true);
+        showToast(`Sync complete! Merged ${mergeStats.mergedSubjects} subjects & ${mergeStats.mergedGoals} goals. ☁️`, 'success');
       }
     } else {
       if (isUserTriggered) {
-        showToast('No existing cloud backup found. Clean account initialized.', 'info');
+        pushDataToCloud(true, true);
+        showToast('First-time backup created for your account! ☁️', 'success');
       }
     }
   } catch (err) {
@@ -974,22 +1033,25 @@ async function pullDataFromCloud(isUserTriggered = false) {
   }
 }
 
-let lastCloudPushTime = 0;
-let cloudPushDebounceTimer = null;
-
-async function pushDataToCloud(silent = false) {
+async function pushDataToCloud(silent = false, force = false) {
   saveLocalState();
   if (!supabaseClient || !appState.currentUser) return;
 
-  // Rate Limiting & Cooldown Protection (Minimum 3 seconds between cloud API calls)
   const now = Date.now();
-  if (now - lastCloudPushTime < 3000) {
+  // Rate Limiting & Cooldown Protection (Minimum 3 seconds between cloud API calls unless forced)
+  if (!force && (now - lastCloudPushTime < 3000)) {
     if (cloudPushDebounceTimer) clearTimeout(cloudPushDebounceTimer);
     cloudPushDebounceTimer = setTimeout(() => {
-      pushDataToCloud(silent);
+      pushDataToCloud(silent, force);
     }, 3000);
     return;
   }
+
+  // Server Concurrency Optimization: Skip heavy network writes if nothing has changed
+  if (!force && !isLocalStateDirty && (now - lastCloudPushTime < 180000)) {
+    return;
+  }
+
   lastCloudPushTime = now;
 
   const syncStatusPill = document.getElementById('syncStatusPill');
@@ -1001,16 +1063,15 @@ async function pushDataToCloud(silent = false) {
 
   try {
     const user = appState.currentUser;
-    const userName = (appState.userProfile?.displayName || user.user_metadata?.full_name || user.email?.split('@')[0] || 'Student').slice(0, 100);
-    const userEmail = (user.email || user.user_metadata?.email || '').trim().slice(0, 150);
-    const profileImg = (user.user_metadata?.avatar_url || '').slice(0, 500);
+    const userName = sanitizeString(appState.userProfile?.displayName || user.user_metadata?.full_name || user.email?.split('@')[0] || 'Student', 50);
+    const userEmail = sanitizeString(user.email || user.user_metadata?.email || '', 100);
+    const profileImg = sanitizeUrl(user.user_metadata?.avatar_url || appState.userProfile?.avatarPreset || '');
 
     // Payload sanitization & safety caps
-    const sanitizedSubjects = Array.isArray(appState.subjects) ? appState.subjects.slice(0, 50) : [];
-    const sanitizedTimeline = Array.isArray(appState.timelineEntries) ? appState.timelineEntries.slice(-500) : [];
-    const sanitizedGoals = Array.isArray(appState.plannerGoals) ? appState.plannerGoals.slice(0, 50) : [];
+    const sanitizedSubjects = (Array.isArray(appState.subjects) ? appState.subjects : []).slice(0, 50);
+    const sanitizedTimeline = (Array.isArray(appState.timelineEntries) ? appState.timelineEntries : []).slice(-500);
+    const sanitizedGoals = (Array.isArray(appState.plannerGoals) ? appState.plannerGoals : []).slice(0, 50);
 
-    // Format subjects specifically for Android's studytimer_subject_tags SharedPreferences
     const defaultIds = DEFAULT_SUBJECTS.map(d => d.id);
     const currentSubjectIds = new Set(sanitizedSubjects.map(s => s.id));
     const hiddenDefaultIds = defaultIds.filter(id => !currentSubjectIds.has(id));
@@ -1018,37 +1079,36 @@ async function pushDataToCloud(silent = false) {
     const customSubjectsForAndroid = sanitizedSubjects
       .filter(s => !defaultIds.includes(s.id))
       .map(s => ({
-        id: s.id,
-        name: s.name,
-        iconEmoji: s.iconEmoji || '📚',
+        id: sanitizeString(s.id, 30),
+        name: sanitizeString(s.name, 40),
+        iconEmoji: sanitizeString(s.iconEmoji || '📚', 10),
         colorHex: s.color || s.colorHex || '#3b82f6',
         isCustom: true
       }));
 
     const allSubjectsForWeb = sanitizedSubjects.map(s => ({
-      id: s.id,
-      name: s.name,
+      id: sanitizeString(s.id, 30),
+      name: sanitizeString(s.name, 40),
       color: s.color || s.colorHex || '#3b82f6',
       colorHex: s.colorHex || s.color || '#3b82f6',
-      iconEmoji: s.iconEmoji || '📚'
+      iconEmoji: sanitizeString(s.iconEmoji || '📚', 10)
     }));
 
     const subjectTagsObj = {
       custom_subjects_json: JSON.stringify(customSubjectsForAndroid),
       custom_subjects: JSON.stringify(allSubjectsForWeb),
-      selected_subject_id: appState.selectedSubject?.id || 'general',
+      selected_subject_id: sanitizeString(appState.selectedSubject?.id || 'general', 30),
       hidden_subjects_set: hiddenDefaultIds
     };
 
-    // Format planner goals for Android's session_goals_json (100% matches SessionGoal Kotlin class)
     const androidPlannerGoals = sanitizedGoals.map(g => {
       const matchingSub = sanitizedSubjects.find(s => s.id === g.subjectId);
       return {
-        id: g.id || ('goal_' + Date.now()),
-        title: g.title || (matchingSub ? `${matchingSub.name} Goal` : 'Daily Study Goal'),
-        note: g.note || '',
+        id: sanitizeString(g.id || ('goal_' + Date.now()), 50),
+        title: sanitizeString(g.title || (matchingSub ? `${matchingSub.name} Goal` : 'Daily Study Goal'), 60),
+        note: sanitizeString(g.note || '', 200),
         targetMinutes: Math.min(1440, Math.max(0, Number(g.targetMinutes ?? g.dailyMinutes) || 0)),
-        subjectId: (g.subjectId && g.subjectId !== 'all') ? g.subjectId : null,
+        subjectId: (g.subjectId && g.subjectId !== 'all') ? sanitizeString(g.subjectId, 30) : null,
         completed: !!g.completed,
         checkedAt: g.checkedAt || (g.completed ? Date.now() : 0),
         createdAt: g.createdAt || Date.now()
@@ -1056,13 +1116,12 @@ async function pushDataToCloud(silent = false) {
     });
 
     const dailyGoalMin = Math.min(1440, Math.max(1, Number(timerConfig.dailyGoalMinutes) || 120));
-
-    // Calculate today's study seconds
     const todayKey = getLocalDateStr();
     let totalSecToday = 0;
     (appState.todaySessions || []).forEach(s => {
       if (s && typeof s.durationSec === 'number') totalSecToday += s.durationSec;
     });
+    totalSecToday = Math.min(86400, totalSecToday);
 
     const prefsObj = {
       daily_goal_minutes: dailyGoalMin,
@@ -1078,7 +1137,7 @@ async function pushDataToCloud(silent = false) {
       pomo_auto_switch_focus: timerConfig.pomoAutoSwitchFocus !== false,
       current_streak: Math.max(0, Number(appState.streakCount) || 0),
       streak_count: Math.max(0, Number(appState.streakCount) || 0),
-      last_study_date: appState.lastStudyDate || '',
+      last_study_date: sanitizeString(appState.lastStudyDate || '', 20),
       accumulatedStudy: totalSecToday,
       [`${todayKey}_focus_total`]: totalSecToday,
       session_goals_json: JSON.stringify(androidPlannerGoals),
@@ -1088,11 +1147,10 @@ async function pushDataToCloud(silent = false) {
       __user_profile__: JSON.stringify(appState.userProfile)
     };
 
-    // Preserve previous daily focus records
     if (appState.dailyFocusTotals) {
       Object.keys(appState.dailyFocusTotals).forEach(d => {
         if (d !== todayKey && appState.dailyFocusTotals[d]) {
-          prefsObj[`${d}_focus_total`] = appState.dailyFocusTotals[d];
+          prefsObj[`${d}_focus_total`] = Math.min(86400, Number(appState.dailyFocusTotals[d]) || 0);
         }
       });
     }
@@ -1103,7 +1161,6 @@ async function pushDataToCloud(silent = false) {
     if (appState.dailySubjectDurations) {
       prefsObj.daily_subject_durations_json = JSON.stringify(appState.dailySubjectDurations);
     }
-
 
     const nowMs = Date.now();
     lastCloudPushTime = nowMs;
@@ -1126,6 +1183,7 @@ async function pushDataToCloud(silent = false) {
       console.warn('Cloud sync push warning:', error);
       if (!silent) showToast('Cloud sync failed to update.', 'error');
     } else {
+      isLocalStateDirty = false;
       if (!silent) showToast('Session synced with Android app!', 'success');
     }
   } catch (err) {
@@ -1137,6 +1195,48 @@ async function pushDataToCloud(silent = false) {
       syncStatusText.textContent = 'Synced';
     }
   }
+}
+
+// ----------------------------------------------------------------------------
+// Automatic Background Sync Engine (2.5 - 3.5 Minute Jittered Periodic Sync)
+// ----------------------------------------------------------------------------
+function initAutoSyncEngine() {
+  if (autoSyncIntervalTimer) {
+    clearTimeout(autoSyncIntervalTimer);
+    autoSyncIntervalTimer = null;
+  }
+
+  function scheduleNextAutoSync() {
+    // Randomized jitter (+/- 25 seconds) to prevent 100+ concurrent active users hitting server in lockstep
+    const jitterMs = Math.floor((Math.random() - 0.5) * 50000);
+    const nextInterval = Math.max(120000, 180000 + jitterMs); // ~2.5 to 3.5 minutes
+
+    autoSyncIntervalTimer = setTimeout(async () => {
+      if (appState.currentUser && supabaseClient && navigator.onLine) {
+        try {
+          if (isLocalStateDirty) {
+            await pushDataToCloud(true);
+          } else {
+            await pullDataFromCloud(false);
+          }
+
+          if (timerStatus === 'RUNNING' && currentMode !== 'break') {
+            syncStudyProgressToLeaderboard(0);
+          }
+
+          const lbModal = document.getElementById('leaderboardModalOverlay');
+          if (lbModal && !lbModal.classList.contains('hidden')) {
+            fetchLeaderboard(false, false);
+          }
+        } catch (e) {
+          console.warn('Periodic auto-sync exception:', e);
+        }
+      }
+      scheduleNextAutoSync();
+    }, nextInterval);
+  }
+
+  scheduleNextAutoSync();
 }
 
 // Universal timeline session parser (Handles Android TimelineLogger & Web formats)
@@ -1421,6 +1521,7 @@ function loadLocalState(targetUserId = null) {
 
 function saveLocalState() {
   try {
+    markLocalDataModified();
     const uid = appState.currentUser?.id;
     const storageKey = uid ? `studytimer_state_${uid}` : 'studytimer_guest_state';
     const stateToSave = {
@@ -1659,9 +1760,33 @@ function setupEventListeners() {
     });
   });
 
-  // Live Input Preview
+  // Banner Theme Picker
+  document.querySelectorAll('.banner-theme-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.banner-theme-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedBannerTheme = btn.dataset.banner || 'banner-midnight';
+      updateProfileLivePreview();
+    });
+  });
+
+  // Avatar Glow Ring Picker
+  document.querySelectorAll('.glow-ring-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.glow-ring-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedAvatarRing = btn.dataset.ring || 'glow-gold';
+      updateProfileLivePreview();
+    });
+  });
+
+  // Live Input Previews
   document.getElementById('inputProfileDisplayName')?.addEventListener('input', updateProfileLivePreview);
+  document.getElementById('inputProfileMood')?.addEventListener('input', updateProfileLivePreview);
+  document.getElementById('inputProfileExam')?.addEventListener('input', updateProfileLivePreview);
   document.getElementById('inputProfileMotto')?.addEventListener('input', updateProfileLivePreview);
+  document.getElementById('selectProfileCountryFlag')?.addEventListener('change', updateProfileLivePreview);
+  document.getElementById('checkStealthScholar')?.addEventListener('change', updateProfileLivePreview);
   document.getElementById('profileCustomizationForm')?.addEventListener('submit', handleSaveProfile);
 
   // Mobile Insights Bottom Sheet Drawer & Backdrop
@@ -4476,7 +4601,20 @@ let presenceHeartbeatInterval = null;
 let leaderboardCache = { data: null, timestamp: 0 };
 const LEADERBOARD_CACHE_TTL_MS = 30000; // 30-second client cache
 let resetCountdownInterval = null;
+
+// Profile Customization State
 let selectedAvatarPreset = '🐱';
+let selectedAvatarRing = 'glow-gold';
+let selectedBannerTheme = 'banner-midnight';
+let selectedCountryFlag = '🌐';
+
+// Client-Side Profanity Defense Filter
+const PROFANITY_REGEX = /\b(f+[u*@_.-]*c+k+|s+h+[i*@_.-]*t+|b+[i*@_.-]*t+c+h+|a+s+s+h+o+l+e+|d+[i*@_.-]*c+k+|p+u+s+s+y+|c+u+n+t+|w+h+o+r+e+|s+l+u+t+|n+[i*@_.-]*g+g+[a*e*r*]*|f+a+g+g*o*t*|r+e+t+a+r+d+)\b/i;
+
+function hasProfanity(text) {
+  if (!text || typeof text !== 'string') return false;
+  return PROFANITY_REGEX.test(text);
+}
 
 function formatLeaderboardTime(totalSec) {
   if (!totalSec || totalSec <= 0) return '0m';
@@ -4491,15 +4629,16 @@ function formatLeaderboardTime(totalSec) {
   return `${totalMin}m`;
 }
 
-function getAvatarElementHtml(avatarVal, userName, className = 'row-avatar-img') {
+function getAvatarElementHtml(avatarVal, userName, className = 'row-avatar-img', ringClass = '') {
   if (!avatarVal || avatarVal.trim() === '') {
     avatarVal = '🐱';
   }
+  const ringCls = ringClass ? ` ${ringClass}` : '';
   const isUrl = /^(http|https|data:|assets\/|\/)/i.test(avatarVal.trim());
   if (isUrl) {
-    return `<img src="${avatarVal}" alt="${userName || 'Student'}" class="${className}" onerror="this.outerHTML='<span class=\\'avatar-sticker ${className}\\'>🐱</span>'">`;
+    return `<img src="${avatarVal}" alt="${userName || 'Student'}" class="${className}${ringCls}" onerror="this.outerHTML='<span class=\\'avatar-sticker ${className}${ringCls}\\'>🐱</span>'">`;
   } else {
-    return `<span class="avatar-sticker ${className}">${avatarVal}</span>`;
+    return `<span class="avatar-sticker ${className}${ringCls}">${avatarVal}</span>`;
   }
 }
 
@@ -4514,16 +4653,29 @@ function openProfileModal() {
   const profile = appState.userProfile || {
     displayName: 'Student',
     avatarPreset: '🐱',
+    avatarRing: 'glow-gold',
+    bannerTheme: 'banner-midnight',
+    countryFlag: '🌐',
+    mood: '☕ Deep Focus',
+    examTarget: '🎯 4h Daily Target',
     motto: '🎯 Deep focus & daily consistency',
     primarySubjectId: 'math',
+    isStealth: false,
     isPublicLeaderboard: true
   };
 
   selectedAvatarPreset = profile.avatarPreset || '🐱';
+  selectedAvatarRing = profile.avatarRing || 'glow-gold';
+  selectedBannerTheme = profile.bannerTheme || 'banner-midnight';
+  selectedCountryFlag = profile.countryFlag || '🌐';
 
   const nameInput = document.getElementById('inputProfileDisplayName');
+  const moodInput = document.getElementById('inputProfileMood');
+  const examInput = document.getElementById('inputProfileExam');
   const mottoInput = document.getElementById('inputProfileMotto');
+  const flagSelect = document.getElementById('selectProfileCountryFlag');
   const subjectSelect = document.getElementById('selectProfilePrimarySubject');
+  const stealthToggle = document.getElementById('checkStealthScholar');
   const publicToggle = document.getElementById('checkLeaderboardPublic');
 
   if (nameInput) {
@@ -4533,9 +4685,12 @@ function openProfileModal() {
                       appState.currentUser?.email?.split('@')[0] || 
                       'Student';
   }
-  if (mottoInput) {
-    mottoInput.value = profile.motto || '';
-  }
+  if (moodInput) moodInput.value = profile.mood || '';
+  if (examInput) examInput.value = profile.examTarget || '';
+  if (mottoInput) mottoInput.value = profile.motto || '';
+  if (flagSelect) flagSelect.value = selectedCountryFlag;
+  if (stealthToggle) stealthToggle.checked = Boolean(profile.isStealth);
+
   if (subjectSelect) {
     subjectSelect.innerHTML = appState.subjects.map(s => 
       `<option value="${s.id}" ${s.id === profile.primarySubjectId ? 'selected' : ''}>${s.name}</option>`
@@ -4545,13 +4700,15 @@ function openProfileModal() {
     publicToggle.checked = profile.isPublicLeaderboard !== false;
   }
 
-  // Highlight active preset button
+  // Highlight active buttons
   document.querySelectorAll('.avatar-preset-btn').forEach(btn => {
-    if (btn.dataset.avatar === selectedAvatarPreset) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
-    }
+    btn.classList.toggle('active', btn.dataset.avatar === selectedAvatarPreset);
+  });
+  document.querySelectorAll('.banner-theme-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.banner === selectedBannerTheme);
+  });
+  document.querySelectorAll('.glow-ring-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.ring === selectedAvatarRing);
   });
 
   updateProfileLivePreview();
@@ -4566,47 +4723,133 @@ function closeProfileModal() {
 
 function updateProfileLivePreview() {
   const nameInput = document.getElementById('inputProfileDisplayName');
+  const moodInput = document.getElementById('inputProfileMood');
+  const examInput = document.getElementById('inputProfileExam');
   const mottoInput = document.getElementById('inputProfileMotto');
+  const flagSelect = document.getElementById('selectProfileCountryFlag');
+  const stealthToggle = document.getElementById('checkStealthScholar');
+
+  const previewCard = document.getElementById('previewProfileCard');
+  const previewAvatarRing = document.getElementById('previewAvatarRing');
   const previewAvatarIcon = document.getElementById('previewAvatarIcon');
+  const previewCountryFlag = document.getElementById('previewCountryFlag');
   const previewDisplayName = document.getElementById('previewDisplayName');
+  const previewRolePill = document.getElementById('previewRolePill');
+  const previewMoodPill = document.getElementById('previewMoodPill');
+  const previewExamBadge = document.getElementById('previewExamBadge');
   const previewMottoText = document.getElementById('previewMottoText');
 
-  const nameVal = (nameInput?.value.trim() || 'Student').slice(0, 24);
-  const mottoVal = (mottoInput?.value.trim() || 'Deep focus & daily consistency').slice(0, 60);
+  const isStealth = Boolean(stealthToggle?.checked);
+  const rawName = (nameInput?.value.trim() || 'Student').slice(0, 24);
+  const nameVal = isStealth ? `Stealth Scholar #${Math.abs(hashString(rawName) % 9000 + 1000)}` : rawName;
+  const flagVal = flagSelect?.value || selectedCountryFlag || '🌐';
+  const moodVal = (moodInput?.value.trim() || '☕ Deep Focus').slice(0, 40);
+  const examVal = (examInput?.value.trim() || '🎯 Target: 4h Daily').slice(0, 30);
+  const mottoVal = (mottoInput?.value.trim() || '🎯 Deep focus & daily consistency').slice(0, 60);
 
+  if (previewCard) {
+    previewCard.className = `profile-preview-card ${selectedBannerTheme}`;
+  }
+  if (previewAvatarRing) {
+    previewAvatarRing.className = `preview-avatar-ring ${selectedAvatarRing}`;
+  }
   if (previewAvatarIcon) previewAvatarIcon.textContent = selectedAvatarPreset;
+  if (previewCountryFlag) previewCountryFlag.textContent = flagVal;
   if (previewDisplayName) previewDisplayName.textContent = nameVal;
+  if (previewRolePill) previewRolePill.textContent = isStealth ? 'Stealth' : 'Scholar';
+  if (previewMoodPill) previewMoodPill.textContent = moodVal;
+  if (previewExamBadge) previewExamBadge.textContent = examVal;
   if (previewMottoText) previewMottoText.textContent = mottoVal;
+}
+
+// Simple deterministic hash for stealth IDs
+function hashString(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return hash;
+}
+
+// Optional Dispatch to Admin Moderation Webhook
+async function notifyAdminModerationWebhook(payload) {
+  try {
+    // If worker endpoint is hosted or configured
+    const workerUrl = window.STUDYTIMER_MODERATION_WEBHOOK_URL;
+    if (workerUrl) {
+      await fetch(workerUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    }
+  } catch (e) {
+    console.debug('Moderation webhook dispatch skipped:', e);
+  }
 }
 
 async function handleSaveProfile(e) {
   e.preventDefault();
   const nameInput = document.getElementById('inputProfileDisplayName');
+  const moodInput = document.getElementById('inputProfileMood');
+  const examInput = document.getElementById('inputProfileExam');
   const mottoInput = document.getElementById('inputProfileMotto');
+  const flagSelect = document.getElementById('selectProfileCountryFlag');
   const subjectSelect = document.getElementById('selectProfilePrimarySubject');
+  const stealthToggle = document.getElementById('checkStealthScholar');
   const publicToggle = document.getElementById('checkLeaderboardPublic');
 
   const displayName = (nameInput?.value.trim() || 'Student').slice(0, 24);
+  const mood = (moodInput?.value.trim() || '').slice(0, 40);
+  const examTarget = (examInput?.value.trim() || '').slice(0, 30);
   const motto = (mottoInput?.value.trim() || '').slice(0, 60);
+  const countryFlag = flagSelect?.value || '🌐';
   const primarySubjectId = subjectSelect?.value || (appState.subjects[0]?.id || 'math');
+  const isStealth = Boolean(stealthToggle?.checked);
   const isPublicLeaderboard = publicToggle ? publicToggle.checked : true;
+
+  // Tier 1 Profanity Defense Check
+  if (hasProfanity(displayName) || hasProfanity(mood) || hasProfanity(examTarget) || hasProfanity(motto)) {
+    showToast('Please keep display names, moods, and motto respectful & friendly 🛡️', 'error');
+    return;
+  }
 
   appState.userProfile = {
     displayName,
     avatarPreset: selectedAvatarPreset,
+    avatarRing: selectedAvatarRing,
+    bannerTheme: selectedBannerTheme,
+    countryFlag,
+    mood,
+    examTarget,
     motto,
     primarySubjectId,
-    isPublicLeaderboard
+    isStealth,
+    isPublicLeaderboard,
+    profileStatus: 'approved'
   };
 
   saveLocalState();
   renderUserProfileUI();
   closeProfileModal();
 
-  showToast('Profile customizations saved!', 'success');
+  showToast('Profile updated! Public tags active 🛡️', 'success');
+
+  // Notify Admin Moderation Bot
+  notifyAdminModerationWebhook({
+    user_id: appState.currentUser?.id || 'guest_' + Date.now(),
+    display_name: displayName,
+    email: appState.currentUser?.email || '',
+    avatar_ring: selectedAvatarRing,
+    status_mood: mood,
+    exam_tag: examTarget,
+    country_flag: countryFlag,
+    subjects: appState.subjects.map(s => s.name)
+  });
 
   // Immediately sync to Leaderboard and Cloud
-  await syncLeaderboardScore();
+  await syncStudyProgressToLeaderboard(0);
 
   if (timerStatus === 'RUNNING' && currentMode !== 'break') {
     updateStudyPresence(true);
@@ -4614,7 +4857,9 @@ async function handleSaveProfile(e) {
 
   pushDataToCloud(true);
 
-  leaderboardCache.timestamp = 0;
+  leaderboardTimeframeCache.daily = { data: null, timestamp: 0 };
+  leaderboardTimeframeCache.weekly = { data: null, timestamp: 0 };
+  leaderboardTimeframeCache.monthly = { data: null, timestamp: 0 };
   const lbModal = document.getElementById('leaderboardModalOverlay');
   if (lbModal && !lbModal.classList.contains('hidden')) {
     fetchLeaderboard(true);
@@ -4913,6 +5158,8 @@ function renderUserProfileUI() {
   const profile = appState.userProfile || {
     displayName: 'Student',
     avatarPreset: '🐱',
+    avatarRing: 'glow-gold',
+    countryFlag: '🌐',
     motto: '🎯 Deep focus & daily consistency',
     primarySubjectId: 'math',
     isPublicLeaderboard: true
@@ -4927,18 +5174,22 @@ function renderUserProfileUI() {
                  appState.currentUser?.user_metadata?.avatar_url || 
                  appState.currentUser?.user_metadata?.picture || 
                  '🐱';
+  const ring = profile.avatarRing || 'glow-gold';
 
   const userDisplayName = document.getElementById('userDisplayName');
   const dropdownUserName = document.getElementById('dropdownUserName');
   const dropdownUserEmail = document.getElementById('dropdownUserEmail');
   const navUserAvatarWrap = document.getElementById('navUserAvatarWrap');
+  const userAvatarImg = document.getElementById('userAvatarImg');
 
   if (userDisplayName) userDisplayName.textContent = name;
   if (dropdownUserName) dropdownUserName.textContent = name;
   if (dropdownUserEmail && appState.currentUser) dropdownUserEmail.textContent = appState.currentUser.email || '';
   
   if (navUserAvatarWrap) {
-    navUserAvatarWrap.innerHTML = getAvatarElementHtml(avatar, name, 'user-avatar');
+    navUserAvatarWrap.innerHTML = getAvatarElementHtml(avatar, name, 'user-avatar', ring);
+  } else if (userAvatarImg) {
+    userAvatarImg.className = `user-avatar-img ${ring}`;
   }
 }
 
@@ -5428,9 +5679,12 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
     }
 
     const isCurrent = isCurrentUserEntry(entry);
+    const ring = entry.avatar_ring || (isCurrent ? (appState.userProfile?.avatarRing || 'glow-gold') : 'glow-gold');
+    const flag = entry.country_flag || (isCurrent ? (appState.userProfile?.countryFlag || '') : '');
+    const flagHtml = (flag && flag !== '🌐') ? `<span class="lb-flag">${flag}</span> ` : '';
     const crown = rankNum === 1 ? '<span class="podium-crown-badge">👑</span>' : '';
     const timeFormatted = formatLeaderboardTime(entry.total_seconds);
-    const avatarHtml = getAvatarElementHtml(entry.avatar_url, entry.user_name, 'podium-avatar-img');
+    const avatarHtml = getAvatarElementHtml(entry.avatar_url, entry.user_name, 'podium-avatar-img', ring);
 
     let statusChip = '';
     if (entry.is_studying) {
@@ -5456,7 +5710,7 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
           ${avatarHtml}
           <span class="podium-rank-pill">${rankNum}</span>
         </div>
-        <span class="podium-name" title="${entry.user_name}">${isCurrent ? 'You' : entry.user_name}</span>
+        <span class="podium-name" title="${entry.user_name}">${flagHtml}${isCurrent ? 'You' : entry.user_name}</span>
         <span class="podium-time">${timeFormatted}</span>
         ${statusChip}
       </div>
@@ -5500,8 +5754,15 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
   } else {
     listContainer.innerHTML = remainingRanks.map(r => {
       const isCurrent = isCurrentUserEntry(r);
+      const ring = r.avatar_ring || (isCurrent ? (appState.userProfile?.avatarRing || 'glow-gold') : 'glow-gold');
+      const flag = r.country_flag || (isCurrent ? (appState.userProfile?.countryFlag || '') : '');
+      const flagHtml = (flag && flag !== '🌐') ? `<span class="lb-flag">${flag}</span> ` : '';
       const timeFormatted = formatLeaderboardTime(r.total_seconds);
-      const avatarHtml = getAvatarElementHtml(r.avatar_url, r.user_name, 'row-avatar-img');
+      const avatarHtml = getAvatarElementHtml(r.avatar_url, r.user_name, 'row-avatar-img', ring);
+
+      const moodHtml = r.status_mood ? `<span class="preview-mood-pill" style="font-size:0.68rem; padding:1px 6px;">${r.status_mood}</span>` : '';
+      const examHtml = r.exam_tag ? `<span class="preview-exam-badge" style="font-size:0.68rem; padding:1px 6px;">${r.exam_tag}</span>` : '';
+      const tagsLine = (moodHtml || examHtml) ? `<div class="row-user-tags" style="display:flex; gap:4px; margin-top:2px;">${moodHtml}${examHtml}</div>` : '';
 
       const statusHtml = r.is_studying
         ? `<span class="live-status-chip studying"><span class="status-dot"></span><span>${r.current_subject || 'Studying'}</span></span>`
@@ -5512,7 +5773,10 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
           <span class="row-rank-num">#${r.rank}</span>
           <div class="row-user-col">
             ${avatarHtml}
-            <span class="row-user-name" title="${r.user_name}">${isCurrent ? 'You' : r.user_name}</span>
+            <div>
+              <span class="row-user-name" title="${r.user_name}">${flagHtml}${isCurrent ? 'You' : r.user_name}</span>
+              ${tagsLine}
+            </div>
           </div>
           <div>${statusHtml}</div>
           <span class="row-time">${timeFormatted}</span>
@@ -6136,61 +6400,50 @@ function initQuoteManager() {
 const AUDIO_PRESETS = {
   lofi: { 
     name: 'Focus Lofi Beats', 
-    id: 'amfWIRasxtI', 
-    directUrl: 'https://stream.zeno.fm/f3wvbbqmdg8uv' 
+    id: '5yx6BWlEVcY'
   },
   minecraft: { 
     name: 'Minecraft Tracks', 
-    id: 'vCTRNKPJr40', 
-    directUrl: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3' 
+    id: 'vCTRNKPJr40'
   },
   piano: { 
     name: 'Peaceful Study Piano', 
-    id: 'FjHGZj2IjBk', 
-    directUrl: 'https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3' 
+    id: 'FjHGZj2IjBk'
   },
   synthwave: { 
     name: 'Synthwave Chill', 
-    id: '4xDzrJKXOOY', 
-    directUrl: 'https://stream.zeno.fm/0r0xa792kwzuv' 
+    id: '4xDzrJKXOOY'
   },
   rain: { 
     name: 'Rain & Gentle Thunder', 
-    id: 'mPZkdNFkNps', 
-    directUrl: 'https://cdn.pixabay.com/download/audio/2022/05/16/audio_db6591201e.mp3',
+    id: 'mPZkdNFkNps',
     synthesizer: 'rain'
   },
   cafe: { 
     name: 'Cozy Cafe Ambience', 
-    id: 'e3L1I7i4Z40', 
-    directUrl: 'https://cdn.pixabay.com/download/audio/2022/03/10/audio_c8c8a73467.mp3' 
+    id: 'e3L1I7i4Z40'
   },
   alpha: { 
     name: '432Hz Alpha Waves', 
-    id: 'WPni755-Krg', 
-    directUrl: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_2bf7c83f6f.mp3',
+    id: 'WPni755-Krg',
     synthesizer: 'alpha'
   },
   classical: { 
     name: 'Baroque Focus Music', 
-    id: 'jgpJVI3tDbY', 
-    directUrl: 'https://cdn.pixabay.com/download/audio/2022/10/14/audio_9939f792cb.mp3' 
+    id: 'jgpJVI3tDbY'
   },
   custom: { 
-    name: 'Custom Audio Stream / URL', 
-    id: '', 
-    directUrl: '' 
+    name: 'Custom YouTube Stream', 
+    id: ''
   }
 };
 
 let activeAudioPresetKey = 'lofi';
 let isAudioPlaying = false;
-let currentAudioEngine = 'idle'; // 'youtube' | 'direct' | 'webaudio' | 'idle'
+let currentAudioEngine = 'idle'; // 'youtube' | 'webaudio' | 'idle'
 let audioVolume = parseInt(localStorage.getItem('studytimer_audio_vol') || '60', 10);
 let customYoutubeVideoId = localStorage.getItem('studytimer_custom_yt_id') || '';
-let customAudioUrl = localStorage.getItem('studytimer_custom_audio_url') || '';
 
-let adFreeAudioElement = null;
 let ytPlayerInstance = null;
 let isYtApiReady = false;
 let currentPlayingVideoId = '';
@@ -6204,16 +6457,12 @@ function updateAudioEngineBadge(engine = 'ready') {
   const badge = document.getElementById('audioEngineBadge');
   if (!badge) return;
   badge.className = 'audio-engine-badge';
-  if (engine === 'audio' || engine === 'direct') {
-    badge.classList.add('engine-piped');
-    badge.textContent = 'Audio';
-    badge.title = 'Direct HTML5 Audio Stream';
-  } else if (engine === 'youtube') {
+  if (engine === 'youtube') {
     badge.classList.add('engine-youtube');
-    badge.textContent = 'Stream';
-    badge.title = 'Online Ambient Stream';
+    badge.textContent = 'YouTube';
+    badge.title = 'Official YouTube API Stream';
   } else if (engine === 'webaudio') {
-    badge.classList.add('engine-piped');
+    badge.classList.add('engine-webaudio');
     badge.textContent = 'Pure Tone';
     badge.title = 'Procedural Web Audio Engine';
   } else {
@@ -6328,8 +6577,52 @@ function playProceduralAmbience(type) {
 }
 
 // ----------------------------------------------------------------------------
-// YouTube IFrame API Handler
+// YouTube IFrame API Handler (Robust & Resilient Loader)
 // ----------------------------------------------------------------------------
+function ensureYouTubeIframeAPILoaded(callback) {
+  if (typeof window === 'undefined') return;
+  
+  if (window.YT && window.YT.Player) {
+    isYtApiReady = true;
+    if (callback) callback();
+    return;
+  }
+
+  const prevReady = window.onYouTubeIframeAPIReady;
+  window.onYouTubeIframeAPIReady = function() {
+    isYtApiReady = true;
+    if (typeof prevReady === 'function') {
+      try { prevReady(); } catch (_) {}
+    }
+    if (callback) {
+      try { callback(); } catch (_) {}
+    }
+  };
+
+  if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    const firstScript = document.getElementsByTagName('script')[0];
+    if (firstScript && firstScript.parentNode) {
+      firstScript.parentNode.insertBefore(tag, firstScript);
+    } else {
+      document.head.appendChild(tag);
+    }
+  }
+
+  let attempts = 0;
+  const pollInterval = setInterval(() => {
+    attempts++;
+    if (window.YT && window.YT.Player) {
+      clearInterval(pollInterval);
+      isYtApiReady = true;
+      if (callback) callback();
+    } else if (attempts > 60) {
+      clearInterval(pollInterval);
+    }
+  }, 100);
+}
+
 window.onYouTubeIframeAPIReady = function() {
   isYtApiReady = true;
   initYouTubePlayerInstance();
@@ -6339,9 +6632,31 @@ if (typeof window !== 'undefined' && window.YT && window.YT.Player) {
   isYtApiReady = true;
 }
 
-function initYouTubePlayerInstance() {
+function initYouTubePlayerInstance(customVidId, autoPlay = false) {
   const container = document.getElementById('youtubePlayerAnchor');
-  if (!container || ytPlayerInstance) return;
+  if (!container) return;
+
+  const preset = AUDIO_PRESETS[activeAudioPresetKey];
+  const targetVidId = customVidId || currentPlayingVideoId || (activeAudioPresetKey === 'custom' ? (customYoutubeVideoId || '5yx6BWlEVcY') : (preset ? preset.id : '5yx6BWlEVcY'));
+  currentPlayingVideoId = targetVidId;
+
+  if (ytPlayerInstance && typeof ytPlayerInstance.loadVideoById === 'function') {
+    if (autoPlay || isAudioPlaying) {
+      try {
+        ytPlayerInstance.loadVideoById({
+          videoId: targetVidId,
+          startSeconds: 0
+        });
+        ytPlayerInstance.unMute();
+        ytPlayerInstance.setVolume(audioVolume);
+        ytPlayerInstance.playVideo();
+        currentAudioEngine = 'youtube';
+        updateAudioEngineBadge('youtube');
+        setAudioPlayingUI(true);
+      } catch (_) {}
+    }
+    return;
+  }
 
   let target = document.getElementById('ytPlayerTarget');
   if (!target) {
@@ -6350,13 +6665,10 @@ function initYouTubePlayerInstance() {
     container.appendChild(target);
   }
 
-  try {
-    ytPlayerInstance = new window.YT.Player('ytPlayerTarget', {
-      height: '240',
-      width: '320',
-      videoId: 'amfWIRasxtI',
-      playerVars: {
-        autoplay: 0,
+  if (typeof window !== 'undefined' && window.YT && window.YT.Player) {
+    try {
+      const playerVars = {
+        autoplay: autoPlay ? 1 : 0,
         controls: 0,
         disablekb: 1,
         enablejsapi: 1,
@@ -6365,67 +6677,84 @@ function initYouTubePlayerInstance() {
         loop: 1,
         modestbranding: 1,
         playsinline: 1,
-        rel: 0,
-        origin: typeof window !== 'undefined' && window.location && window.location.origin ? window.location.origin : 'https://get-studytimer.vercel.app'
-      },
-      events: {
-        onReady: (event) => {
-          try {
-            event.target.setVolume(audioVolume);
-            event.target.unMute();
-            if (isAudioPlaying && currentAudioEngine === 'youtube' && currentPlayingVideoId) {
-              event.target.playVideo();
+        rel: 0
+      };
+
+      if (typeof window !== 'undefined' && window.location && window.location.protocol.startsWith('http')) {
+        playerVars.origin = window.location.origin;
+        playerVars.widget_referrer = window.location.origin;
+      }
+
+      ytPlayerInstance = new window.YT.Player('ytPlayerTarget', {
+        height: '112',
+        width: '200',
+        videoId: targetVidId,
+        playerVars: playerVars,
+        events: {
+          onReady: (event) => {
+            isYtApiReady = true;
+            try {
+              const iframe = typeof event.target.getIframe === 'function' ? event.target.getIframe() : null;
+              if (iframe) {
+                iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+                iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+              }
+            } catch (_) {}
+            try {
+              event.target.unMute();
+              event.target.setVolume(audioVolume);
+              if (isAudioPlaying || autoPlay) {
+                event.target.playVideo();
+                currentAudioEngine = 'youtube';
+                updateAudioEngineBadge('youtube');
+                setAudioPlayingUI(true);
+              }
+            } catch (_) {}
+          },
+          onStateChange: (event) => {
+            if (window.YT && event.data === window.YT.PlayerState.PLAYING) {
+              setAudioPlayingUI(true);
+              currentAudioEngine = 'youtube';
+              updateAudioEngineBadge('youtube');
+            } else if (window.YT && (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.ENDED)) {
+              if (event.data === window.YT.PlayerState.ENDED) {
+                try { event.target.playVideo(); } catch (_) {}
+              } else if (!isAudioPlaying) {
+                setAudioPlayingUI(false);
+              }
             }
-          } catch (_) {}
-        },
-        onStateChange: (event) => {
-          if (window.YT && event.data === window.YT.PlayerState.PLAYING) {
-            setAudioPlayingUI(true);
-            currentAudioEngine = 'youtube';
-            updateAudioEngineBadge('youtube');
-          } else if (window.YT && (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.ENDED)) {
-            if (!isAudioPlaying) {
-              setAudioPlayingUI(false);
+          },
+          onError: (event) => {
+            console.warn('[Audio Engine] YouTube API error code:', event.data);
+            const p = AUDIO_PRESETS[activeAudioPresetKey];
+            if (event.data === 153 || event.data === 150 || event.data === 101) {
+              if (targetVidId !== '5yx6BWlEVcY') {
+                showToast('This video is restricted from embedding (Error ' + event.data + '). Switching to Focus Lofi stream...', 'info');
+                setTimeout(() => {
+                  initYouTubePlayerInstance('5yx6BWlEVcY', true);
+                }, 300);
+                return;
+              }
+              showToast('YouTube stream restricted by browser policy (Code ' + event.data + '). Playing Focus Ambient Soundscape 🎧', 'info');
+              const fallbackTone = (p && p.synthesizer) ? p.synthesizer : 'alpha';
+              playProceduralAmbience(fallbackTone);
+              setAudioPlayingUI(true);
+              return;
+            }
+            showToast('YouTube audio encountered an error (Code: ' + event.data + ').', 'warning');
+            if (p && p.synthesizer) {
+              playProceduralAmbience(p.synthesizer);
             }
           }
-        },
-        onError: (event) => {
-          console.warn('[Audio Engine] YouTube Stream error code:', event.data, '— Triggering direct high-quality audio failover.');
-          fallbackToDirectAudio();
-        }
-      }
-    });
-  } catch (err) {
-    console.warn('[Audio Engine] YT.Player constructor error:', err);
-  }
-}
-
-function fallbackToDirectAudio() {
-  const preset = AUDIO_PRESETS[activeAudioPresetKey];
-  if (!preset) return;
-
-  // Try direct procedural audio if available
-  if (preset.synthesizer && playProceduralAmbience(preset.synthesizer)) {
-    setAudioPlayingUI(true);
-    return;
-  }
-
-  // Fallback to direct HTML5 stream
-  if (preset.directUrl && adFreeAudioElement) {
-    try {
-      adFreeAudioElement.src = preset.directUrl;
-      adFreeAudioElement.volume = Math.max(0, Math.min(100, audioVolume)) / 100;
-      adFreeAudioElement.play().then(() => {
-        currentAudioEngine = 'direct';
-        updateAudioEngineBadge('direct');
-        setAudioPlayingUI(true);
-      }).catch(() => {
-        // Last resort procedural rain
-        if (playProceduralAmbience('rain')) {
-          setAudioPlayingUI(true);
         }
       });
-    } catch (_) {}
+    } catch (err) {
+      console.warn('[Audio Engine] YT.Player constructor error:', err);
+    }
+  } else {
+    ensureYouTubeIframeAPILoaded(() => {
+      initYouTubePlayerInstance(customVidId, autoPlay);
+    });
   }
 }
 
@@ -6434,34 +6763,6 @@ function initFocusAudio() {
   const playBtn = document.getElementById('btnAudioPlayToggle');
   const volSlider = document.getElementById('audioVolumeSlider');
   const trackName = document.getElementById('audioCurrentName');
-
-  adFreeAudioElement = document.getElementById('customAdFreeAudio');
-  if (adFreeAudioElement) {
-    adFreeAudioElement.volume = Math.max(0, Math.min(100, audioVolume)) / 100;
-    adFreeAudioElement.addEventListener('playing', () => {
-      setAudioPlayingUI(true);
-      currentAudioEngine = 'direct';
-      updateAudioEngineBadge('direct');
-    });
-    adFreeAudioElement.addEventListener('pause', () => {
-      if (currentAudioEngine === 'direct') {
-        setAudioPlayingUI(false);
-      }
-    });
-    adFreeAudioElement.addEventListener('ended', () => {
-      if (!adFreeAudioElement.loop && currentAudioEngine === 'direct') {
-        setAudioPlayingUI(false);
-      }
-    });
-    adFreeAudioElement.addEventListener('error', () => {
-      if (isAudioPlaying && currentAudioEngine === 'direct') {
-        const preset = AUDIO_PRESETS[activeAudioPresetKey];
-        if (preset && preset.synthesizer) {
-          playProceduralAmbience(preset.synthesizer);
-        }
-      }
-    });
-  }
 
   if (volSlider) {
     volSlider.value = audioVolume;
@@ -6490,6 +6791,7 @@ function initFocusAudio() {
   });
 
   const POPULAR_STREAM_NAMES = {
+    '5yx6BWlEVcY': '🎧 Chillhop Lofi — Beats to Relax & Study',
     'amfWIRasxtI': '🎧 Lofi Chill Beats — Focus & Study',
     'vCTRNKPJr40': '⛏️ Minecraft Tracks — Peaceful Piano & Synth',
     'lTRiuFIWV54': '🎧 Lofi Girl — 1 A.M. Study Session',
@@ -6512,19 +6814,14 @@ function initFocusAudio() {
     if (!thumb || !title) return;
 
     const trimmed = (urlOrId || '').trim();
-    const vidId = extractYouTubeVideoId(trimmed) || (trimmed.length === 11 ? trimmed : (customYoutubeVideoId || 'amfWIRasxtI'));
+    const vidId = extractYouTubeVideoId(trimmed) || (trimmed.length === 11 ? trimmed : (customYoutubeVideoId || '5yx6BWlEVcY'));
 
     if (vidId) {
       thumb.src = `https://img.youtube.com/vi/${vidId}/hqdefault.jpg`;
       thumb.onerror = () => { thumb.src = 'assets/logo.png'; };
       const knownName = POPULAR_STREAM_NAMES[vidId];
       title.textContent = knownName || `YouTube Stream (${vidId})`;
-      if (channel) channel.textContent = 'Focus Ambience • Ad-Free Audio Stream';
-      if (badge) badge.textContent = '▶ Click to Play Stream';
-    } else if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-      thumb.src = 'assets/logo.png';
-      title.textContent = 'Custom Direct Audio Stream';
-      if (channel) channel.textContent = 'Web Stream • Direct Audio Format';
+      if (channel) channel.textContent = 'Focus Ambience • Official YouTube Stream';
       if (badge) badge.textContent = '▶ Click to Play Stream';
     }
   }
@@ -6544,7 +6841,6 @@ function initFocusAudio() {
       if (input && vidId) {
         input.value = `https://www.youtube.com/watch?v=${vidId}`;
         customYoutubeVideoId = vidId;
-        customAudioUrl = '';
         updateMusicCoverPreview(vidId);
         localStorage.setItem('studytimer_custom_yt_id', vidId);
         showToast(`Selected ${chip.textContent.trim()} — Click Preview to Play`, 'info');
@@ -6556,29 +6852,21 @@ function initFocusAudio() {
   function loadAndPlayCustomYoutube() {
     initWebAudioContext();
     const input = document.getElementById('customYoutubeUrlInput');
-    const val = input?.value.trim() || customYoutubeVideoId || 'amfWIRasxtI';
+    const val = input?.value.trim() || customYoutubeVideoId || '5yx6BWlEVcY';
     if (val) {
-      if (val.startsWith('http://') || val.startsWith('https://')) {
-        const parsedId = extractYouTubeVideoId(val);
-        if (parsedId) {
-          customYoutubeVideoId = parsedId;
-          customAudioUrl = '';
-          localStorage.setItem('studytimer_custom_yt_id', parsedId);
-        } else {
-          customAudioUrl = val;
-          customYoutubeVideoId = '';
-          localStorage.setItem('studytimer_custom_audio_url', val);
-        }
+      const parsedId = extractYouTubeVideoId(val) || (val.length === 11 ? val : null);
+      if (parsedId) {
+        customYoutubeVideoId = parsedId;
+        localStorage.setItem('studytimer_custom_yt_id', parsedId);
       } else {
-        customYoutubeVideoId = val;
-        customAudioUrl = '';
-        localStorage.setItem('studytimer_custom_yt_id', val);
+        customYoutubeVideoId = '5yx6BWlEVcY';
+        localStorage.setItem('studytimer_custom_yt_id', '5yx6BWlEVcY');
       }
       closeCustomYoutubeModal();
       switchAudioTrack('custom');
       startCurrentAudio();
       setAudioPlayingUI(true);
-      showToast('Now Playing Custom Stream 🎧', 'success');
+      showToast('Now Playing YouTube Stream 🎧', 'success');
     }
   }
 
@@ -6811,6 +7099,7 @@ function switchAudioTrack(presetKey) {
   if (trackName) {
     if (presetKey === 'custom') {
       const knownNames = {
+        '5yx6BWlEVcY': '🎧 Chillhop Lofi',
         'amfWIRasxtI': '🎧 Lofi Chill',
         'vCTRNKPJr40': '⛏️ Minecraft Tracks',
         'lTRiuFIWV54': '🎧 Lofi Girl',
@@ -6825,7 +7114,7 @@ function switchAudioTrack(presetKey) {
         'jgpJVI3tDbY': '🎻 Classical'
       };
       const known = knownNames[customYoutubeVideoId];
-      trackName.textContent = known || (customYoutubeVideoId ? `Stream (${customYoutubeVideoId.substring(0, 8)}...)` : 'Custom Focus Stream');
+      trackName.textContent = known || (customYoutubeVideoId ? `Stream (${customYoutubeVideoId.substring(0, 8)}...)` : 'Custom YouTube Stream');
     } else if (preset) {
       trackName.textContent = preset.name;
     }
@@ -6848,9 +7137,6 @@ function toggleAudioPlay() {
 }
 
 function pauseCurrentAudio() {
-  if (adFreeAudioElement && !adFreeAudioElement.paused) {
-    try { adFreeAudioElement.pause(); } catch (_) {}
-  }
   if (ytPlayerInstance && typeof ytPlayerInstance.pauseVideo === 'function') {
     try { ytPlayerInstance.pauseVideo(); } catch (_) {}
   }
@@ -6860,22 +7146,8 @@ function pauseCurrentAudio() {
 function resumeCurrentAudio() {
   initWebAudioContext();
 
-  if (activeAudioPresetKey === 'custom' && customAudioUrl) {
-    if (adFreeAudioElement) {
-      stopYouTubeAudio();
-      stopWebAudioAmbience();
-      adFreeAudioElement.src = customAudioUrl;
-      adFreeAudioElement.volume = Math.max(0, Math.min(100, audioVolume)) / 100;
-      adFreeAudioElement.play().catch(() => {});
-      currentAudioEngine = 'direct';
-      updateAudioEngineBadge('direct');
-      setAudioPlayingUI(true);
-      return;
-    }
-  }
-
   const preset = AUDIO_PRESETS[activeAudioPresetKey];
-  const videoId = activeAudioPresetKey === 'custom' ? (customYoutubeVideoId || 'amfWIRasxtI') : (preset ? preset.id : 'amfWIRasxtI');
+  const videoId = activeAudioPresetKey === 'custom' ? (customYoutubeVideoId || '5yx6BWlEVcY') : (preset ? preset.id : '5yx6BWlEVcY');
 
   if (currentPlayingVideoId === videoId && ytPlayerInstance && typeof ytPlayerInstance.playVideo === 'function') {
     try {
@@ -6915,32 +7187,16 @@ function startCurrentAudio() {
   const preset = AUDIO_PRESETS[activeAudioPresetKey];
   if (!preset) return;
 
-  // 1. Direct custom audio stream URL (.mp3 / stream)
-  if (activeAudioPresetKey === 'custom' && customAudioUrl) {
-    if (adFreeAudioElement) {
-      stopYouTubeAudio();
-      stopWebAudioAmbience();
-      adFreeAudioElement.src = customAudioUrl;
-      adFreeAudioElement.volume = Math.max(0, Math.min(100, audioVolume)) / 100;
-      adFreeAudioElement.play().then(() => {
-        currentAudioEngine = 'direct';
-        updateAudioEngineBadge('direct');
-        setAudioPlayingUI(true);
-      }).catch(() => {
-        setAudioPlayingUI(false);
-      });
-      return;
-    }
-  }
-
-  // 2. YouTube Stream Playback via YT.Player API
-  const videoId = activeAudioPresetKey === 'custom' ? (customYoutubeVideoId || 'amfWIRasxtI') : preset.id;
+  // 1. YouTube Stream Playback via Official YT.Player API
+  const videoId = activeAudioPresetKey === 'custom' ? (customYoutubeVideoId || '5yx6BWlEVcY') : preset.id;
   if (videoId) {
     startYouTubeEmbedPlayer(videoId);
     setAudioPlayingUI(true);
-  } else {
-    // 3. Procedural / Direct Fallback
-    fallbackToDirectAudio();
+  } else if (preset.synthesizer) {
+    // 2. Procedural Web Audio Ambient Tone (rain / alpha)
+    if (playProceduralAmbience(preset.synthesizer)) {
+      setAudioPlayingUI(true);
+    }
   }
 }
 
@@ -6948,22 +7204,12 @@ function stopCurrentAudio() {
   pauseCurrentAudio();
   stopYouTubeAudio();
   stopWebAudioAmbience();
-  if (adFreeAudioElement) {
-    try {
-      adFreeAudioElement.pause();
-      adFreeAudioElement.removeAttribute('src');
-      adFreeAudioElement.load();
-    } catch (_) {}
-  }
   currentAudioEngine = 'idle';
   updateAudioEngineBadge('ready');
 }
 
 function setAudioVolume(vol) {
   const normVol = Math.max(0, Math.min(100, vol));
-  if (adFreeAudioElement) {
-    adFreeAudioElement.volume = normVol / 100;
-  }
   if (ytPlayerInstance && typeof ytPlayerInstance.setVolume === 'function') {
     try {
       ytPlayerInstance.setVolume(normVol);
@@ -6982,14 +7228,7 @@ function startYouTubeEmbedPlayer(videoId) {
   currentPlayingVideoId = videoId;
   stopWebAudioAmbience();
 
-  if (adFreeAudioElement) {
-    try {
-      adFreeAudioElement.pause();
-      adFreeAudioElement.removeAttribute('src');
-    } catch (_) {}
-  }
-
-  // If YT.Player instance is ready, load and play video cleanly without recreating DOM
+  // 1. If YT.Player instance is ready, load and play video cleanly via official API
   if (ytPlayerInstance && typeof ytPlayerInstance.loadVideoById === 'function') {
     try {
       ytPlayerInstance.loadVideoById({
@@ -7008,39 +7247,8 @@ function startYouTubeEmbedPlayer(videoId) {
     }
   }
 
-  // Fallback: Build standard iframe in anchor
-  const container = document.getElementById('youtubePlayerAnchor');
-  if (!container) return;
-
-  const originHost = typeof window !== 'undefined' && window.location && window.location.origin ? window.location.origin : 'https://get-studytimer.vercel.app';
-  const originParam = `&origin=${encodeURIComponent(originHost)}`;
-  const embedUrl = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&autoplay=1&controls=0&loop=1&playlist=${videoId}&playsinline=1&modestbranding=1&rel=0${originParam}`;
-  
-  container.innerHTML = `<iframe id="ytIframePlayer" width="320" height="240" src="${embedUrl}" title="Custom Focus Audio" frameborder="0" allow="accelerometer; autoplay *; clipboard-write; encrypted-media *; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
-  
-  const ytIframe = document.getElementById('ytIframePlayer');
-  if (ytIframe) {
-    ytIframe.addEventListener('load', () => {
-      setTimeout(() => {
-        try {
-          ytIframe.contentWindow.postMessage(JSON.stringify({
-            event: 'command',
-            func: 'playVideo',
-            args: []
-          }), '*');
-          setAudioVolume(audioVolume);
-        } catch (_) {}
-      }, 300);
-    });
-  }
-
-  currentAudioEngine = 'youtube';
-  updateAudioEngineBadge('youtube');
-  setAudioPlayingUI(true);
-
-  setTimeout(() => {
-    setAudioVolume(audioVolume);
-  }, 400);
+  // 2. Initialize official YT.Player with autoPlay
+  initYouTubePlayerInstance(videoId, true);
 }
 
 function stopYouTubeAudio() {
@@ -7061,7 +7269,7 @@ function stopYouTubeAudio() {
 function openCustomYoutubeModal() {
   const modal = document.getElementById('customYoutubeModalOverlay');
   const input = document.getElementById('customYoutubeUrlInput');
-  const currentVal = customAudioUrl || (customYoutubeVideoId ? `https://www.youtube.com/watch?v=${customYoutubeVideoId}` : '');
+  const currentVal = customYoutubeVideoId ? `https://www.youtube.com/watch?v=${customYoutubeVideoId}` : '';
 
   if (input) {
     input.value = currentVal;

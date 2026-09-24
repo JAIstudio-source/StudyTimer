@@ -5347,7 +5347,7 @@ async function notifyAdminModerationWebhook(payload) {
   if (now - _lastModerationNotifyMs < 30000) return;
   _lastModerationNotifyMs = now;
   try {
-    const { user_id, display_name, email, avatar_ring, status_mood, exam_tag, country_flag, subjects, avatar_url, photo_changed, details_changed } = payload;
+    const { user_id, display_name, email, avatar_ring, status_mood, exam_tag, country_flag, subjects, avatar_url, photo_changed, details_changed, diffs } = payload;
     const isFlagged = hasProfanity(display_name) || hasProfanity(status_mood) || hasProfanity(exam_tag);
     const isCustomPhoto = avatar_url && /^(http|https|data:|blob:)/i.test(avatar_url);
 
@@ -5370,6 +5370,15 @@ async function notifyAdminModerationWebhook(payload) {
     const safeFlag = country_flag || '🌐';
     const safeSubjects = Array.isArray(subjects) ? subjects.join(', ').replace(/[<>&"]/g, '') : '';
 
+    let diffsSection = '';
+    if (Array.isArray(diffs) && diffs.length > 0) {
+      diffsSection = '\n\n<b>🔍 Exact Changes:</b>\n' + diffs.map(d => {
+        const safeOld = String(d.old).replace(/[<>&"]/g, '');
+        const safeNew = String(d.new).replace(/[<>&"]/g, '');
+        return `⚡ <b>${d.field}:</b> <code>old=${safeOld}</code> ➔ <code>new=${safeNew}</code>`;
+      }).join('\n');
+    }
+
     const caption = (
       `${headerTag}</b>\n\n` +
       `👤 <b>Student:</b> <code>${safeName}</code>\n` +
@@ -5379,7 +5388,8 @@ async function notifyAdminModerationWebhook(payload) {
       (safeMood !== 'None' ? `💬 <b>Mood:</b> <i>"${safeMood}"</i>\n` : '') +
       (safeExam !== 'None' ? `🎯 <b>Target Exam:</b> <code>${safeExam}</code>\n` : '') +
       (safeSubjects ? `📚 <b>Subjects:</b> <code>${safeSubjects}</code>\n` : '') +
-      (isCustomPhoto ? `\n⚠️ <i>Custom Photo held in safety quarantine until approved below.</i>` : `\n🎨 <b>Avatar Sticker:</b> ${avatar_url || '🐱'}`)
+      diffsSection +
+      (isCustomPhoto ? `\n\n⚠️ <i>Custom Photo held in safety quarantine until approved below.</i>` : `\n\n🎨 <b>Avatar Sticker:</b> ${avatar_url || '🐱'}`)
     ).slice(0, 1000);
 
     const approveButtonLabel = photo_changed
@@ -5503,6 +5513,29 @@ async function handleSaveProfile(e) {
                          (countryFlag !== prevProfile.countryFlag) ||
                          (selectedAvatarRing !== prevProfile.avatarRing);
 
+  const diffs = [];
+  if (displayName !== prevProfile.displayName && prevProfile.displayName) {
+    diffs.push({ field: 'Display Name', old: prevProfile.displayName, new: displayName });
+  }
+  if (mood !== prevProfile.mood && prevProfile.mood !== undefined) {
+    diffs.push({ field: 'Mood', old: prevProfile.mood || 'None', new: mood || 'None' });
+  }
+  if (examTarget !== prevProfile.examTarget && prevProfile.examTarget !== undefined) {
+    diffs.push({ field: 'Exam Target', old: prevProfile.examTarget || 'None', new: examTarget || 'None' });
+  }
+  if (motto !== prevProfile.motto && prevProfile.motto !== undefined) {
+    diffs.push({ field: 'Motto', old: prevProfile.motto || 'None', new: motto || 'None' });
+  }
+  if (countryFlag !== prevProfile.countryFlag && prevProfile.countryFlag) {
+    diffs.push({ field: 'Flag', old: prevProfile.countryFlag, new: countryFlag });
+  }
+  if (selectedAvatarRing !== prevProfile.avatarRing && prevProfile.avatarRing) {
+    diffs.push({ field: 'Glow Ring', old: prevProfile.avatarRing, new: selectedAvatarRing });
+  }
+  if (photoChanged) {
+    diffs.push({ field: 'Profile Photo', old: prevProfile.avatarPreset ? 'Previous Avatar' : 'Default Sticker', new: isCustomPhoto ? 'New Custom Photo' : avatarValueToSave });
+  }
+
   appState.userProfile = {
     displayName,
     avatarPreset: avatarValueToSave,
@@ -5542,7 +5575,8 @@ async function handleSaveProfile(e) {
     country_flag: countryFlag,
     subjects: appState.subjects.map(s => s.name),
     photo_changed: photoChanged,
-    details_changed: detailsChanged
+    details_changed: detailsChanged,
+    diffs: diffs
   });
 
   // Direct cosmetic update to daily_leaderboard using strict approved avatar helper

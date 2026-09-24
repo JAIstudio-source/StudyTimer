@@ -5155,10 +5155,13 @@ function openProfileModal() {
       photoFallback.classList.add('hidden');
       btnRemovePhoto?.classList.remove('hidden');
       
-      // Do not display internal Supabase CDN storage URLs to the user in the input field
-      const isInternalStorage = selectedAvatarPreset.includes('supabase.co') || selectedAvatarPreset.startsWith('data:image/');
+      // Do not display internal storage or Google OAuth avatar URLs to the user in the input text field
+      const isAutoAuthAvatar = selectedAvatarPreset.includes('supabase.co') || 
+                               selectedAvatarPreset.includes('googleusercontent.com') ||
+                               selectedAvatarPreset.includes('google.com') ||
+                               selectedAvatarPreset.startsWith('data:image/');
       if (photoUrlInput) {
-        photoUrlInput.value = (selectedAvatarPreset.startsWith('http') && !isInternalStorage) ? selectedAvatarPreset : '';
+        photoUrlInput.value = (selectedAvatarPreset.startsWith('http') && !isAutoAuthAvatar) ? selectedAvatarPreset : '';
       }
       if (statusCard) {
         statusCard.className = 'photo-url-status-card is-valid';

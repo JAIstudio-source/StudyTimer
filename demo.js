@@ -5047,7 +5047,7 @@ function getAvatarElementHtml(avatarVal, userName, className = 'row-avatar-img',
   const trimmed = typeof avatarVal === 'string' ? avatarVal.trim() : '🐱';
   const isUrl = /^(http|https|data:|assets\/|\/|blob:)/i.test(trimmed);
   if (isUrl) {
-    return `<img src="${trimmed}" alt="${userName || 'Student'}" class="${className}${ringCls}" loading="eager" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null; this.style.display='none'; if(this.nextElementSibling){this.nextElementSibling.style.display='inline-flex';}"><span class="avatar-sticker ${className}${ringCls}" style="display:none;">🐱</span>`;
+    return `<img src="${trimmed}" alt="${userName || 'Student'}" class="${className}${ringCls}" loading="eager" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null; this.outerHTML='<span class=\\'avatar-sticker ${className}${ringCls}\\'>🐱</span>';">`;
   } else {
     return `<span class="avatar-sticker ${className}${ringCls}">${trimmed}</span>`;
   }

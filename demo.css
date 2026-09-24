@@ -6024,7 +6024,6 @@ img.user-avatar,
   aspect-ratio: 1 / 1 !important;
   flex-shrink: 0 !important;
   overflow: hidden !important;
-  display: inline-block !important;
 }
 
 img.user-bar-avatar,
@@ -6041,7 +6040,6 @@ img.user-bar-avatar,
   aspect-ratio: 1 / 1 !important;
   flex-shrink: 0 !important;
   overflow: hidden !important;
-  display: inline-block !important;
 }
 
 img.row-avatar-img,
@@ -6057,7 +6055,6 @@ img.row-avatar-img,
   aspect-ratio: 1 / 1 !important;
   flex-shrink: 0 !important;
   overflow: hidden !important;
-  display: inline-block !important;
 }
 
 img.podium-avatar-img,
@@ -6069,7 +6066,6 @@ img.podium-avatar-img,
   aspect-ratio: 1 / 1 !important;
   flex-shrink: 0 !important;
   overflow: hidden !important;
-  display: block !important;
 }
 
 .user-bar-avatar-wrap,

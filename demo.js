@@ -129,6 +129,15 @@ let timeRemaining = 25 * 60;
 let stopwatchElapsed = 0;
 let timerInterval = null;
 
+// Anti-Cheat & Continuous Study Tracking
+const CONTINUOUS_STUDY_LIMIT_SEC = 12600; // 3.5 hours uninterrupted limit
+const INACTIVITY_CHECK_WINDOW_SEC = 300; // 5 minutes confirmation window
+const MAX_DAILY_LEADERBOARD_SECONDS = 57600; // 16 hours daily hard cap
+let continuousStudyElapsedSec = 0;
+let inactivityCheckPending = false;
+let inactivityPromptTimestamp = 0;
+let inactivityCountdownInterval = null;
+
 // User Data & History Helpers
 function getCleanInitialState(user = null) {
   const name = user?.user_metadata?.full_name || 
@@ -2386,6 +2395,8 @@ document.addEventListener('fullscreenchange', () => {
 
 function switchMode(modeKey) {
   stopInterval();
+  continuousStudyElapsedSec = 0;
+  dismissInactivityModal();
   if (modeKey === 'timer' || modeKey === 'pomodoro') {
     lastFocusMode = modeKey;
   }
@@ -2729,6 +2740,20 @@ function tickTimer() {
   updateTimerDisplay();
   saveActiveSessionState();
 
+  // Anti-Cheat: Track continuous uninterrupted study & trigger 3.5h check-in prompt
+  if (currentMode !== 'break') {
+    continuousStudyElapsedSec = (continuousStudyElapsedSec || 0) + 1;
+    if (!inactivityCheckPending && continuousStudyElapsedSec >= CONTINUOUS_STUDY_LIMIT_SEC) {
+      triggerInactivityCheck();
+    }
+    if (inactivityCheckPending && (Date.now() - inactivityPromptTimestamp >= INACTIVITY_CHECK_WINDOW_SEC * 1000)) {
+      pauseTimer();
+      dismissInactivityModal();
+      showToast('Timer auto-paused after 3.5h continuous session without check-in.', 'warning');
+      return;
+    }
+  }
+
   // Minute-by-Minute Auto-Save (Saves locally & syncs to cloud every 60s for logged-in user)
   const currentMinute = Math.floor(totalElapsedSec / 60);
   if (currentMinute > lastAutoSavedMinute && currentMinute > 0) {
@@ -2770,6 +2795,116 @@ function tickTimer() {
   }
 }
 
+function triggerInactivityCheck() {
+  if (inactivityCheckPending) return;
+  inactivityCheckPending = true;
+  inactivityPromptTimestamp = Date.now();
+
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.5);
+  } catch (e) {}
+
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification('Study Check-in Required', {
+      body: "You've been studying for 3.5 hours continuously. Click to confirm you are active!",
+      icon: 'assets/logo.png'
+    });
+  }
+
+  showInactivityModal();
+}
+
+function showInactivityModal() {
+  let modal = document.getElementById('inactivityCheckModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'inactivityCheckModal';
+    modal.className = 'modal-backdrop active';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);z-index:99999;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.3s ease;';
+    modal.innerHTML = `
+      <div style="background:var(--bg-surface, #1e293b);border:1px solid rgba(255,255,255,0.15);border-radius:24px;padding:32px;max-width:440px;width:90%;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);text-align:center;color:var(--text-main, #fff);">
+        <div style="font-size:42px;margin-bottom:12px;">🔥</div>
+        <h3 style="font-size:22px;font-weight:700;margin-bottom:8px;color:var(--primary, #a78bfa);">Are you still studying?</h3>
+        <p style="font-size:14px;color:rgba(255,255,255,0.75);line-height:1.5;margin-bottom:16px;">
+          You have been studying continuously for <strong>3.5 hours</strong>! Please confirm you are active so we keep your timer running.
+        </p>
+        <div id="inactivityCountdownDisplay" style="display:inline-block;padding:8px 18px;background:rgba(167,139,250,0.15);border:1px solid rgba(167,139,250,0.3);border-radius:20px;font-size:15px;font-weight:600;color:var(--primary, #c4b5fd);margin-bottom:24px;">
+          Auto-pausing in 5:00
+        </div>
+        <div style="display:flex;gap:12px;justify-content:center;">
+          <button id="inactivityBreakBtn" style="padding:12px 20px;border-radius:14px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:rgba(255,255,255,0.8);font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;">
+            Take a Break
+          </button>
+          <button id="inactivityConfirmBtn" style="padding:12px 24px;border-radius:14px;border:none;background:var(--primary-gradient, linear-gradient(135deg,#8b5cf6,#6366f1));color:#fff;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 15px rgba(139,92,246,0.4);transition:all 0.2s;">
+            ✓ Still Studying
+          </button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    document.getElementById('inactivityConfirmBtn').onclick = confirmContinuousStudy;
+    document.getElementById('inactivityBreakBtn').onclick = () => {
+      dismissInactivityModal();
+      switchMode('break');
+    };
+  } else {
+    modal.style.display = 'flex';
+  }
+
+  if (inactivityCountdownInterval) clearInterval(inactivityCountdownInterval);
+  inactivityCountdownInterval = setInterval(() => {
+    if (!inactivityCheckPending) {
+      clearInterval(inactivityCountdownInterval);
+      return;
+    }
+    const elapsedSec = Math.floor((Date.now() - inactivityPromptTimestamp) / 1000);
+    const remainingSec = Math.max(0, INACTIVITY_CHECK_WINDOW_SEC - elapsedSec);
+    const m = Math.floor(remainingSec / 60);
+    const s = remainingSec % 60;
+    const disp = document.getElementById('inactivityCountdownDisplay');
+    if (disp) {
+      disp.textContent = `Auto-pausing in ${m}:${s.toString().padStart(2, '0')}`;
+    }
+    if (remainingSec <= 0) {
+      clearInterval(inactivityCountdownInterval);
+      pauseTimer();
+      dismissInactivityModal();
+      showToast('Timer auto-paused after 3.5h uninterrupted session.', 'warning');
+    }
+  }, 1000);
+}
+
+function dismissInactivityModal() {
+  inactivityCheckPending = false;
+  if (inactivityCountdownInterval) {
+    clearInterval(inactivityCountdownInterval);
+    inactivityCountdownInterval = null;
+  }
+  const modal = document.getElementById('inactivityCheckModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+function confirmContinuousStudy() {
+  continuousStudyElapsedSec = 0;
+  inactivityCheckPending = false;
+  dismissInactivityModal();
+  showToast('Focus session confirmed! Keep going! 🚀', 'success');
+}
+
 function startTimer() {
   timerStatus = 'RUNNING';
   timerStartTimestamp = Date.now();
@@ -2798,6 +2933,8 @@ function pauseTimer() {
   }
   timerStatus = 'PAUSED';
   timerStartTimestamp = null;
+  continuousStudyElapsedSec = 0;
+  dismissInactivityModal();
   stopPresenceHeartbeat();
   stopInterval();
   saveActiveSessionState();
@@ -2823,6 +2960,8 @@ async function handleUserResetTimer() {
 }
 
 function resetTimer() {
+  continuousStudyElapsedSec = 0;
+  dismissInactivityModal();
   stopPresenceHeartbeat();
   stopInterval();
   timerStatus = 'IDLE';
@@ -6370,19 +6509,22 @@ async function syncStudyProgressToLeaderboard(incrementalSeconds = 0) {
   const avatarUrl = getPublicLeaderboardAvatarUrl(profile);
 
   const isStudying = timerStatus === 'RUNNING' && currentMode !== 'break';
-  const clampedSeconds = Math.min(Math.max(incrementalSeconds, 0), 600);
+  const todayKey = getLocalDateStr();
+  const currentDailyTotal = (appState.dailyFocusTotals && appState.dailyFocusTotals[todayKey]) || 0;
+  // Enforce 16h daily hard cap on leaderboard increments
+  const effectiveIncrementalSeconds = currentDailyTotal >= MAX_DAILY_LEADERBOARD_SECONDS ? 0 : Math.min(Math.max(incrementalSeconds, 0), 600);
 
   try {
-    if (clampedSeconds > 0) {
+    if (effectiveIncrementalSeconds > 0) {
       await supabaseClient.rpc('sync_study_progress_leaderboard', {
         p_user_id: appState.currentUser.id,
         p_user_name: userName,
         p_avatar_url: avatarUrl,
-        p_incremental_seconds: clampedSeconds,
+        p_incremental_seconds: effectiveIncrementalSeconds,
         p_is_studying: isStudying,
         p_subject: isStudying ? (currentSub.name || 'Focus Study') : '',
         p_subject_color: isStudying ? (currentSub.color || '#3b82f6') : '#3b82f6',
-        p_study_date: getLocalDateStr()
+        p_study_date: todayKey
       });
     } else {
       await supabaseClient.rpc('update_study_presence', {
@@ -6392,7 +6534,7 @@ async function syncStudyProgressToLeaderboard(incrementalSeconds = 0) {
         p_is_studying: isStudying,
         p_current_subject: isStudying ? (currentSub.name || 'Focus Study') : '',
         p_subject_color: isStudying ? (currentSub.color || '#3b82f6') : '#3b82f6',
-        p_study_date: getLocalDateStr()
+        p_study_date: todayKey
       });
     }
   } catch (err) {

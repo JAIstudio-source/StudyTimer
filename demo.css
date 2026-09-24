@@ -5240,6 +5240,152 @@ body.has-custom-bg .zen-timer-overlay {
   }
 }
 
+/* Avatar Submode Segmented Toggle (Photo vs Stickers) */
+.avatar-submode-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  background: var(--bg-subtle, rgba(255, 255, 255, 0.04));
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+  margin-bottom: 4px;
+}
+
+.avatar-submode-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.avatar-submode-btn svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.8;
+}
+
+.avatar-submode-btn:hover {
+  color: var(--text-primary);
+}
+
+.avatar-submode-btn.active {
+  background: var(--accent-blue);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+}
+
+/* Photo Upload Box & Actions */
+.photo-upload-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.photo-upload-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.photo-upload-preview-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.photo-upload-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 2px dashed var(--border-medium);
+  background: var(--bg-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  font-size: 1.8rem;
+  color: var(--text-muted);
+  transition: border-color 0.2s ease;
+}
+
+.photo-upload-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.photo-upload-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.photo-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.photo-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.photo-upload-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.photo-upload-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.photo-url-row {
+  display: flex;
+  align-items: center;
+}
+
+.photo-url-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.photo-url-input-wrap input {
+  flex: 1;
+  font-size: 0.8rem;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.photo-url-input-wrap input:focus {
+  border-color: var(--accent-blue);
+  outline: none;
+}
+
 /* ========================================================
    6 BANNER GRADIENT THEMES
    ======================================================== */
@@ -5551,12 +5697,54 @@ body.has-custom-bg .zen-timer-overlay {
   outline: none;
 }
 
+/* Sticker Category Filter Row (Clean sub-menu to avoid clutter) */
+.sticker-category-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px 2px 8px 2px;
+  margin-bottom: 8px;
+  scrollbar-width: none;
+}
+
+.sticker-category-filter-row::-webkit-scrollbar {
+  display: none;
+}
+
+.sticker-cat-pill {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  padding: 4px 11px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.sticker-cat-pill:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+  border-color: var(--border-medium);
+  transform: translateY(-1px);
+}
+
+.sticker-cat-pill.active {
+  background: rgba(139, 92, 246, 0.18);
+  color: #a78bfa;
+  border-color: #8b5cf6;
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.25);
+}
+
 /* Avatar Presets Grid */
 .avatar-presets-grid {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   gap: 8px;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 @media (max-width: 480px) {
@@ -5575,7 +5763,7 @@ body.has-custom-bg .zen-timer-overlay {
   justify-content: center;
   font-size: 1.35rem;
   cursor: pointer;
-  transition: transform var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+  transition: transform var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast), opacity var(--transition-fast);
 }
 
 .avatar-preset-btn:hover {

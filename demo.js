@@ -5241,9 +5241,6 @@ async function notifyAdminModerationWebhook(payload) {
     const safeFlag = country_flag || '🌐';
     const safeSubjects = Array.isArray(subjects) ? subjects.join(', ').replace(/[<>&"]/g, '') : '';
 
-    const approveUrl = `https://studytimer.vercel.app/api/approve?user_id=${encodeURIComponent(user_id)}&action=approve`;
-    const rejectUrl = `https://studytimer.vercel.app/api/approve?user_id=${encodeURIComponent(user_id)}&action=reject`;
-
     const caption = (
       `${isFlagged ? '🚨 <b>[FLAGGED] ' : (isCustomPhoto ? '📸 <b>[PHOTO APPROVAL] ' : '🛡️ <b>')}Profile Update</b>\n\n` +
       `👤 <b>Student:</b> <code>${safeName}</code>\n` +
@@ -5253,19 +5250,24 @@ async function notifyAdminModerationWebhook(payload) {
       (safeMood !== 'None' ? `💬 <b>Mood:</b> <i>"${safeMood}"</i>\n` : '') +
       (safeExam !== 'None' ? `🎯 <b>Target Exam:</b> <code>${safeExam}</code>\n` : '') +
       (safeSubjects ? `📚 <b>Subjects:</b> <code>${safeSubjects}</code>\n` : '') +
-      (isCustomPhoto ? `\n⚠️ <i>Custom Photo held in safety quarantine until approved.</i>\n` : `\n🎨 <b>Avatar Sticker:</b> ${avatar_url || '🐱'}\n`) +
-      `\n⚡ <a href="${approveUrl}"><b>[Tap to Instant 1-Click Approve]</b></a>\n` +
-      `❌ <a href="${rejectUrl}"><b>[Tap to Reject]</b></a>`
+      (isCustomPhoto ? `\n⚠️ <i>Custom Photo held in safety quarantine until approved below.</i>` : `\n🎨 <b>Avatar Sticker:</b> ${avatar_url || '🐱'}`)
     ).slice(0, 1000);
 
     const keyboard = {
       inline_keyboard: [
         [
-          { text: "⚡ 1-Click Instant Approve", url: approveUrl },
-          { text: "❌ Reject & Reset", url: rejectUrl }
+          { text: "✅ Approve Profile & Photo", callback_data: `approve:${user_id}` },
+          { text: "❌ Reject & Reset", callback_data: `reject:${user_id}` }
         ]
       ]
     };
+
+    // Auto-ensure Telegram webhook is active
+    if (typeof window !== 'undefined' && window.location.origin.startsWith('https://')) {
+      const webhookUrl = `${window.location.origin}/api/telegram-webhook`;
+      fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/setWebhook?url=${encodeURIComponent(webhookUrl)}&drop_pending_updates=false`)
+        .catch(() => {});
+    }
 
     if (isCustomPhoto) {
       if (avatar_url.startsWith('data:image/')) {

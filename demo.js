@@ -1831,8 +1831,125 @@ function setupEventListeners() {
       document.querySelectorAll('.avatar-preset-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       selectedAvatarPreset = btn.dataset.avatar || '🐱';
+
+      // Clear custom photo preview if user chooses a sticker
+      const photoPreviewImg = document.getElementById('customPhotoPreviewImg');
+      const photoFallback = document.getElementById('customPhotoPreviewFallback');
+      const btnRemovePhoto = document.getElementById('btnRemoveCustomPhoto');
+      if (photoPreviewImg) {
+        photoPreviewImg.src = '';
+        photoPreviewImg.classList.add('hidden');
+      }
+      if (photoFallback) photoFallback.classList.remove('hidden');
+      if (btnRemovePhoto) btnRemovePhoto.classList.add('hidden');
+
       updateProfileLivePreview();
     });
+  });
+
+  // Profile Photo File Upload
+  const photoFileInput = document.getElementById('inputProfilePhotoFile');
+  photoFileInput?.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showToast('Please select a valid image file (JPG, PNG, WebP) 📷', 'error');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        const MAX_DIM = 160;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > MAX_DIM) {
+            height = Math.round((height * MAX_DIM) / width);
+            width = MAX_DIM;
+          }
+        } else {
+          if (height > MAX_DIM) {
+            width = Math.round((width * MAX_DIM) / height);
+            height = MAX_DIM;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+        selectedAvatarPreset = compressedDataUrl;
+
+        const photoPreviewImg = document.getElementById('customPhotoPreviewImg');
+        const photoFallback = document.getElementById('customPhotoPreviewFallback');
+        const btnRemovePhoto = document.getElementById('btnRemoveCustomPhoto');
+        if (photoPreviewImg) {
+          photoPreviewImg.src = compressedDataUrl;
+          photoPreviewImg.classList.remove('hidden');
+        }
+        if (photoFallback) photoFallback.classList.add('hidden');
+        if (btnRemovePhoto) btnRemovePhoto.classList.remove('hidden');
+
+        document.querySelectorAll('.avatar-preset-btn').forEach(b => b.classList.remove('active'));
+        updateProfileLivePreview();
+        showToast('Profile photo ready! Click Save to apply.', 'success');
+      };
+      img.src = evt.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // Apply Photo URL Button
+  document.getElementById('btnApplyPhotoUrl')?.addEventListener('click', () => {
+    const urlInput = document.getElementById('inputProfilePhotoUrl');
+    const val = urlInput?.value.trim();
+    if (!val || !/^(http|https|data:)/i.test(val)) {
+      showToast('Please enter a valid HTTP or HTTPS image URL 🌐', 'warning');
+      return;
+    }
+    selectedAvatarPreset = val;
+
+    const photoPreviewImg = document.getElementById('customPhotoPreviewImg');
+    const photoFallback = document.getElementById('customPhotoPreviewFallback');
+    const btnRemovePhoto = document.getElementById('btnRemoveCustomPhoto');
+    if (photoPreviewImg) {
+      photoPreviewImg.src = val;
+      photoPreviewImg.classList.remove('hidden');
+    }
+    if (photoFallback) photoFallback.classList.add('hidden');
+    if (btnRemovePhoto) btnRemovePhoto.classList.remove('hidden');
+
+    document.querySelectorAll('.avatar-preset-btn').forEach(b => b.classList.remove('active'));
+    updateProfileLivePreview();
+    showToast('Photo URL applied! Click Save to apply.', 'success');
+  });
+
+  // Remove Photo Button
+  document.getElementById('btnRemoveCustomPhoto')?.addEventListener('click', () => {
+    selectedAvatarPreset = '🐱';
+    const photoPreviewImg = document.getElementById('customPhotoPreviewImg');
+    const photoFallback = document.getElementById('customPhotoPreviewFallback');
+    const btnRemovePhoto = document.getElementById('btnRemoveCustomPhoto');
+    const pFileInput = document.getElementById('inputProfilePhotoFile');
+    const urlInput = document.getElementById('inputProfilePhotoUrl');
+
+    if (photoPreviewImg) {
+      photoPreviewImg.src = '';
+      photoPreviewImg.classList.add('hidden');
+    }
+    if (photoFallback) photoFallback.classList.remove('hidden');
+    if (btnRemovePhoto) btnRemovePhoto.classList.add('hidden');
+    if (pFileInput) pFileInput.value = '';
+    if (urlInput) urlInput.value = '';
+
+    document.querySelectorAll('.avatar-preset-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.avatar === '🐱');
+    });
+    updateProfileLivePreview();
+    showToast('Custom photo removed. Using default avatar sticker.', 'info');
   });
 
   // Banner Theme Picker
@@ -4795,13 +4912,46 @@ function normalizeRingClass(ring) {
   return validRings.includes(r) ? r : 'glow-gold';
 }
 
+function getCountryFlagEmoji(codeOrFlag) {
+  if (!codeOrFlag || codeOrFlag === 'GLOBAL' || codeOrFlag === '🌐') return '🌐';
+  const str = String(codeOrFlag).trim();
+  const upper = str.toUpperCase();
+  const CODE_TO_FLAG = {
+    'US': '🇺🇸', 'USA': '🇺🇸', 'UNITED STATES': '🇺🇸',
+    'IN': '🇮🇳', 'IND': '🇮🇳', 'INDIA': '🇮🇳',
+    'GB': '🇬🇧', 'UK': '🇬🇧', 'UNITED KINGDOM': '🇬🇧',
+    'CA': '🇨🇦', 'CAN': '🇨🇦', 'CANADA': '🇨🇦',
+    'DE': '🇩🇪', 'GER': '🇩🇪', 'GERMANY': '🇩🇪',
+    'FR': '🇫🇷', 'FRA': '🇫🇷', 'FRANCE': '🇫🇷',
+    'JP': '🇯🇵', 'JPN': '🇯🇵', 'JAPAN': '🇯🇵',
+    'KR': '🇰🇷', 'KOR': '🇰🇷', 'KOREA': '🇰🇷', 'SOUTH KOREA': '🇰🇷',
+    'BR': '🇧🇷', 'BRA': '🇧🇷', 'BRAZIL': '🇧🇷',
+    'AU': '🇦🇺', 'AUS': '🇦🇺', 'AUSTRALIA': '🇦🇺',
+    'IT': '🇮🇹', 'ITA': '🇮🇹', 'ITALY': '🇮🇹',
+    'ES': '🇪🇸', 'ESP': '🇪🇸', 'SPAIN': '🇪🇸',
+    'RU': '🇷🇺', 'RUS': '🇷🇺', 'RUSSIA': '🇷🇺',
+    'CN': '🇨🇳', 'CHN': '🇨🇳', 'CHINA': '🇨🇳',
+    'MX': '🇲🇽', 'MEX': '🇲🇽', 'MEXICO': '🇲🇽',
+    'ID': '🇮🇩', 'IDN': '🇮🇩', 'INDONESIA': '🇮🇩',
+    'PK': '🇵🇰', 'PAK': '🇵🇰', 'PAKISTAN': '🇵🇰',
+    'BD': '🇧🇩', 'BGD': '🇧🇩', 'BANGLADESH': '🇧🇩',
+    'NG': '🇳🇬', 'NGA': '🇳🇬', 'NIGERIA': '🇳🇬',
+    'VN': '🇻🇳', 'VNM': '🇻🇳', 'VIETNAM': '🇻🇳',
+    'PH': '🇵🇭', 'PHL': '🇵🇭', 'PHILIPPINES': '🇵🇭',
+    'TR': '🇹🇷', 'TUR': '🇹🇷', 'TURKEY': '🇹🇷'
+  };
+  if (CODE_TO_FLAG[upper]) return CODE_TO_FLAG[upper];
+  if (/\p{Regional_Indicator}/u.test(str)) return str;
+  return '🌐';
+}
+
 function getAvatarElementHtml(avatarVal, userName, className = 'row-avatar-img', ringClass = '') {
   if (!avatarVal || avatarVal.trim() === '') {
     avatarVal = '🐱';
   }
   const normalizedRing = ringClass ? normalizeRingClass(ringClass) : '';
   const ringCls = normalizedRing ? ` ${normalizedRing}` : '';
-  const isUrl = /^(http|https|data:|assets\/|\/)/i.test(avatarVal.trim());
+  const isUrl = /^(http|https|data:|assets\/|\/|blob:)/i.test(avatarVal.trim());
   if (isUrl) {
     return `<img src="${avatarVal}" width="48" height="48" alt="${userName || 'Student'}" class="${className}${ringCls}" loading="eager" decoding="sync" onerror="this.outerHTML='<span class=\\'avatar-sticker ${className}${ringCls}\\'>🐱</span>'">`;
   } else {
@@ -4879,9 +5029,34 @@ function openProfileModal() {
     panel.classList.toggle('active', isFirst);
   });
 
+  // Check if avatar is a custom photo vs preset
+  const isCustomPhoto = /^(http|https|data:|assets\/|\/|blob:)/i.test((selectedAvatarPreset || '').trim());
+  const photoPreviewImg = document.getElementById('customPhotoPreviewImg');
+  const photoFallback = document.getElementById('customPhotoPreviewFallback');
+  const btnRemovePhoto = document.getElementById('btnRemoveCustomPhoto');
+  const photoUrlInput = document.getElementById('inputProfilePhotoUrl');
+
+  if (photoPreviewImg && photoFallback) {
+    if (isCustomPhoto) {
+      photoPreviewImg.src = selectedAvatarPreset;
+      photoPreviewImg.classList.remove('hidden');
+      photoFallback.classList.add('hidden');
+      btnRemovePhoto?.classList.remove('hidden');
+      if (photoUrlInput && selectedAvatarPreset.startsWith('http')) {
+        photoUrlInput.value = selectedAvatarPreset;
+      }
+    } else {
+      photoPreviewImg.src = '';
+      photoPreviewImg.classList.add('hidden');
+      photoFallback.classList.remove('hidden');
+      btnRemovePhoto?.classList.add('hidden');
+      if (photoUrlInput) photoUrlInput.value = '';
+    }
+  }
+
   // Highlight active buttons
   document.querySelectorAll('.avatar-preset-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.avatar === selectedAvatarPreset);
+    btn.classList.toggle('active', !isCustomPhoto && btn.dataset.avatar === selectedAvatarPreset);
   });
   document.querySelectorAll('.banner-theme-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.banner === selectedBannerTheme);
@@ -4921,7 +5096,8 @@ function updateProfileLivePreview() {
   const isStealth = Boolean(stealthToggle?.checked);
   const rawName = (nameInput?.value.trim() || 'Student').slice(0, 24);
   const nameVal = isStealth ? `Stealth Scholar #${Math.abs(hashString(rawName) % 9000 + 1000)}` : rawName;
-  const flagVal = flagSelect?.value || selectedCountryFlag || '🌐';
+  const rawFlag = flagSelect?.value || selectedCountryFlag || '🌐';
+  const flagVal = getCountryFlagEmoji(rawFlag);
   const moodVal = (moodInput?.value.trim() || '☕ Deep Focus').slice(0, 40);
   const examVal = (examInput?.value.trim() || '🎯 Target: 4h Daily').slice(0, 30);
   const mottoVal = (mottoInput?.value.trim() || '🎯 Deep focus & daily consistency').slice(0, 60);
@@ -4932,7 +5108,14 @@ function updateProfileLivePreview() {
   if (previewAvatarRing) {
     previewAvatarRing.className = `hero-avatar-ring ${selectedAvatarRing}`;
   }
-  if (previewAvatarIcon) previewAvatarIcon.textContent = selectedAvatarPreset;
+  if (previewAvatarIcon) {
+    const isUrl = /^(http|https|data:|assets\/|\/|blob:)/i.test((selectedAvatarPreset || '').trim());
+    if (isUrl) {
+      previewAvatarIcon.innerHTML = `<img src="${selectedAvatarPreset}" alt="Avatar Preview" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" onerror="this.outerHTML='🐱'">`;
+    } else {
+      previewAvatarIcon.textContent = selectedAvatarPreset || '🐱';
+    }
+  }
   if (previewCountryFlag) previewCountryFlag.textContent = flagVal;
   if (previewDisplayName) previewDisplayName.textContent = nameVal;
   if (previewRolePill) previewRolePill.textContent = isStealth ? 'Stealth' : 'Scholar';
@@ -5987,8 +6170,8 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
 
     const isCurrent = isCurrentUserEntry(entry);
     const ring = normalizeRingClass(entry.avatar_ring || (isCurrent ? (appState.userProfile?.avatarRing || 'glow-gold') : 'glow-gold'));
-    const flag = entry.country_flag || (isCurrent ? (appState.userProfile?.countryFlag || '') : '');
-    const flagHtml = (flag && flag !== '🌐') ? `<span class="lb-flag">${flag}</span> ` : '';
+    const flagEmoji = getCountryFlagEmoji(entry.country_flag || (isCurrent ? (appState.userProfile?.countryFlag || '') : ''));
+    const flagHtml = (flagEmoji && flagEmoji !== '🌐') ? `<span class="lb-flag-bottom" title="Region">${flagEmoji}</span>` : '';
     const crown = rankNum === 1 ? '<span class="podium-crown-badge">👑</span>' : '';
     const timeFormatted = formatLeaderboardTime(entry.total_seconds);
     const avatarHtml = getAvatarElementHtml(entry.avatar_url, entry.user_name, 'podium-avatar-img', ring);
@@ -6017,7 +6200,10 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
           ${avatarHtml}
           <span class="podium-rank-pill">${rankNum}</span>
         </div>
-        <span class="podium-name" title="${entry.user_name}">${flagHtml}${isCurrent ? 'You' : entry.user_name}</span>
+        <div class="podium-name-block">
+          <span class="podium-name" title="${entry.user_name}">${isCurrent ? 'You' : entry.user_name}</span>
+          ${flagHtml}
+        </div>
         <span class="podium-time">${timeFormatted}</span>
         ${statusChip}
       </div>
@@ -6062,8 +6248,8 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
     listContainer.innerHTML = remainingRanks.map(r => {
       const isCurrent = isCurrentUserEntry(r);
       const ring = normalizeRingClass(r.avatar_ring || (isCurrent ? (appState.userProfile?.avatarRing || 'glow-gold') : 'glow-gold'));
-      const flag = r.country_flag || (isCurrent ? (appState.userProfile?.countryFlag || '') : '');
-      const flagHtml = (flag && flag !== '🌐') ? `<span class="lb-flag">${flag}</span> ` : '';
+      const flagEmoji = getCountryFlagEmoji(r.country_flag || (isCurrent ? (appState.userProfile?.countryFlag || '') : ''));
+      const flagHtml = (flagEmoji && flagEmoji !== '🌐') ? `<span class="lb-flag-bottom" title="Region">${flagEmoji}</span>` : '';
       const timeFormatted = formatLeaderboardTime(r.total_seconds);
       const avatarHtml = getAvatarElementHtml(r.avatar_url, r.user_name, 'row-avatar-img', ring);
 
@@ -6080,8 +6266,9 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
           <span class="row-rank-num">#${r.rank}</span>
           <div class="row-user-col">
             ${avatarHtml}
-            <div>
-              <span class="row-user-name" title="${r.user_name}">${flagHtml}${isCurrent ? 'You' : r.user_name}</span>
+            <div class="row-user-info-col">
+              <span class="row-user-name" title="${r.user_name}">${isCurrent ? 'You' : r.user_name}</span>
+              ${flagHtml}
               ${tagsLine}
             </div>
           </div>
@@ -6887,23 +7074,38 @@ function playProceduralAmbience(type) {
 // ----------------------------------------------------------------------------
 // YouTube IFrame API Handler (Robust & Resilient Loader)
 // ----------------------------------------------------------------------------
+let isYtApiLoading = false;
+let isYtPlayerInitializing = false;
+const ytApiReadyCallbacks = [];
+let pendingPlayVideoId = null;
+let pendingAutoPlay = false;
+
 function ensureYouTubeIframeAPILoaded(callback) {
   if (typeof window === 'undefined') return;
   
   if (window.YT && window.YT.Player) {
     isYtApiReady = true;
-    if (callback) callback();
+    if (typeof callback === 'function') callback();
     return;
   }
+
+  if (typeof callback === 'function') {
+    ytApiReadyCallbacks.push(callback);
+  }
+
+  if (isYtApiLoading) return;
+  isYtApiLoading = true;
 
   const prevReady = window.onYouTubeIframeAPIReady;
   window.onYouTubeIframeAPIReady = function() {
     isYtApiReady = true;
+    isYtApiLoading = false;
     if (typeof prevReady === 'function') {
       try { prevReady(); } catch (_) {}
     }
-    if (callback) {
-      try { callback(); } catch (_) {}
+    while (ytApiReadyCallbacks.length > 0) {
+      const cb = ytApiReadyCallbacks.shift();
+      try { cb(); } catch (err) { console.warn('[YouTube API] Callback error:', err); }
     }
   };
 
@@ -6924,17 +7126,17 @@ function ensureYouTubeIframeAPILoaded(callback) {
     if (window.YT && window.YT.Player) {
       clearInterval(pollInterval);
       isYtApiReady = true;
-      if (callback) callback();
-    } else if (attempts > 60) {
+      isYtApiLoading = false;
+      while (ytApiReadyCallbacks.length > 0) {
+        const cb = ytApiReadyCallbacks.shift();
+        try { cb(); } catch (_) {}
+      }
+    } else if (attempts > 80) {
       clearInterval(pollInterval);
+      isYtApiLoading = false;
     }
   }, 100);
 }
-
-window.onYouTubeIframeAPIReady = function() {
-  isYtApiReady = true;
-  initYouTubePlayerInstance();
-};
 
 if (typeof window !== 'undefined' && window.YT && window.YT.Player) {
   isYtApiReady = true;
@@ -6946,10 +7148,14 @@ function initYouTubePlayerInstance(customVidId, autoPlay = false) {
 
   const preset = AUDIO_PRESETS[activeAudioPresetKey];
   const targetVidId = customVidId || currentPlayingVideoId || (activeAudioPresetKey === 'custom' ? (customYoutubeVideoId || '5yx6BWlEVcY') : (preset ? preset.id : '5yx6BWlEVcY'));
+  
+  pendingPlayVideoId = targetVidId;
+  pendingAutoPlay = autoPlay || isAudioPlaying;
   currentPlayingVideoId = targetVidId;
 
+  // If already instantiated, reuse it cleanly
   if (ytPlayerInstance && typeof ytPlayerInstance.loadVideoById === 'function') {
-    if (autoPlay || isAudioPlaying) {
+    if (pendingAutoPlay) {
       try {
         ytPlayerInstance.loadVideoById({
           videoId: targetVidId,
@@ -6961,8 +7167,28 @@ function initYouTubePlayerInstance(customVidId, autoPlay = false) {
         currentAudioEngine = 'youtube';
         updateAudioEngineBadge('youtube');
         setAudioPlayingUI(true);
+      } catch (err) {
+        console.warn('[Audio Engine] Reuse loadVideoById error:', err);
+      }
+    } else {
+      try {
+        ytPlayerInstance.cueVideoById({
+          videoId: targetVidId,
+          startSeconds: 0
+        });
       } catch (_) {}
     }
+    return;
+  }
+
+  if (isYtPlayerInitializing) {
+    return; // Will be picked up by onReady
+  }
+
+  if (!window.YT || !window.YT.Player) {
+    ensureYouTubeIframeAPILoaded(() => {
+      initYouTubePlayerInstance(customVidId, autoPlay);
+    });
     return;
   }
 
@@ -6973,96 +7199,103 @@ function initYouTubePlayerInstance(customVidId, autoPlay = false) {
     container.appendChild(target);
   }
 
-  if (typeof window !== 'undefined' && window.YT && window.YT.Player) {
-    try {
-      const playerVars = {
-        autoplay: autoPlay ? 1 : 0,
-        controls: 0,
-        disablekb: 1,
-        enablejsapi: 1,
-        fs: 0,
-        iv_load_policy: 3,
-        loop: 1,
-        modestbranding: 1,
-        playsinline: 1,
-        rel: 0
-      };
+  isYtPlayerInitializing = true;
 
-      if (typeof window !== 'undefined' && window.location && window.location.protocol.startsWith('http')) {
-        playerVars.origin = window.location.origin;
-        playerVars.widget_referrer = window.location.origin;
-      }
+  try {
+    const playerVars = {
+      autoplay: pendingAutoPlay ? 1 : 0,
+      controls: 0,
+      disablekb: 1,
+      enablejsapi: 1,
+      fs: 0,
+      iv_load_policy: 3,
+      loop: 1,
+      modestbranding: 1,
+      playsinline: 1,
+      rel: 0
+    };
 
-      ytPlayerInstance = new window.YT.Player('ytPlayerTarget', {
-        height: '112',
-        width: '200',
-        videoId: targetVidId,
-        playerVars: playerVars,
-        events: {
-          onReady: (event) => {
-            isYtApiReady = true;
-            try {
-              const iframe = typeof event.target.getIframe === 'function' ? event.target.getIframe() : null;
-              if (iframe) {
-                iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
-                iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+    if (typeof window !== 'undefined' && window.location && window.location.protocol.startsWith('http')) {
+      playerVars.origin = window.location.origin;
+      playerVars.widget_referrer = window.location.origin;
+    }
+
+    ytPlayerInstance = new window.YT.Player('ytPlayerTarget', {
+      height: '112',
+      width: '200',
+      videoId: targetVidId,
+      playerVars: playerVars,
+      events: {
+        onReady: (event) => {
+          isYtApiReady = true;
+          isYtPlayerInitializing = false;
+          try {
+            const iframe = typeof event.target.getIframe === 'function' ? event.target.getIframe() : null;
+            if (iframe) {
+              iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+              iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+            }
+          } catch (_) {}
+          try {
+            event.target.unMute();
+            event.target.setVolume(audioVolume);
+            const shouldPlay = pendingAutoPlay || isAudioPlaying;
+            if (shouldPlay) {
+              const toPlay = pendingPlayVideoId || targetVidId;
+              if (toPlay !== targetVidId && typeof event.target.loadVideoById === 'function') {
+                event.target.loadVideoById({ videoId: toPlay, startSeconds: 0 });
               }
-            } catch (_) {}
-            try {
-              event.target.unMute();
-              event.target.setVolume(audioVolume);
-              if (isAudioPlaying || autoPlay) {
-                event.target.playVideo();
-                currentAudioEngine = 'youtube';
-                updateAudioEngineBadge('youtube');
-                setAudioPlayingUI(true);
-              }
-            } catch (_) {}
-          },
-          onStateChange: (event) => {
-            if (window.YT && event.data === window.YT.PlayerState.PLAYING) {
-              setAudioPlayingUI(true);
+              event.target.playVideo();
               currentAudioEngine = 'youtube';
               updateAudioEngineBadge('youtube');
-            } else if (window.YT && (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.ENDED)) {
-              if (event.data === window.YT.PlayerState.ENDED) {
-                try { event.target.playVideo(); } catch (_) {}
-              } else if (!isAudioPlaying) {
-                setAudioPlayingUI(false);
-              }
-            }
-          },
-          onError: (event) => {
-            console.warn('[Audio Engine] YouTube API error code:', event.data);
-            const p = AUDIO_PRESETS[activeAudioPresetKey];
-            if (event.data === 153 || event.data === 150 || event.data === 101) {
-              if (targetVidId !== '5yx6BWlEVcY') {
-                showToast('This video is restricted from embedding (Error ' + event.data + '). Switching to Focus Lofi stream...', 'info');
-                setTimeout(() => {
-                  initYouTubePlayerInstance('5yx6BWlEVcY', true);
-                }, 300);
-                return;
-              }
-              showToast('YouTube stream restricted by browser policy (Code ' + event.data + '). Playing Focus Ambient Soundscape 🎧', 'info');
-              const fallbackTone = (p && p.synthesizer) ? p.synthesizer : 'alpha';
-              playProceduralAmbience(fallbackTone);
               setAudioPlayingUI(true);
-              return;
             }
-            showToast('YouTube audio encountered an error (Code: ' + event.data + ').', 'warning');
-            if (p && p.synthesizer) {
-              playProceduralAmbience(p.synthesizer);
+          } catch (err) {
+            console.warn('[Audio Engine] onReady auto-play error:', err);
+          }
+        },
+        onStateChange: (event) => {
+          if (window.YT && event.data === window.YT.PlayerState.PLAYING) {
+            setAudioPlayingUI(true);
+            currentAudioEngine = 'youtube';
+            updateAudioEngineBadge('youtube');
+          } else if (window.YT && (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.ENDED)) {
+            if (event.data === window.YT.PlayerState.ENDED) {
+              try { event.target.playVideo(); } catch (_) {}
+            } else if (!isAudioPlaying) {
+              setAudioPlayingUI(false);
             }
           }
+        },
+        onError: (event) => {
+          console.warn('[Audio Engine] YouTube API error code:', event.data);
+          isYtPlayerInitializing = false;
+          const p = AUDIO_PRESETS[activeAudioPresetKey];
+          // Error 150/101/153: Embed disallowed by owner, 100: Not found / deleted, 2/5: Invalid param
+          if ([2, 5, 100, 101, 150, 153].includes(event.data)) {
+            if (targetVidId !== '5yx6BWlEVcY') {
+              showToast('Stream unavailable (Code ' + event.data + '). Switching to Focus Lofi stream...', 'info');
+              setTimeout(() => {
+                initYouTubePlayerInstance('5yx6BWlEVcY', true);
+              }, 300);
+              return;
+            }
+            showToast('YouTube stream restricted (Code ' + event.data + '). Switching to Focus Soundscape 🎧', 'info');
+            const fallbackTone = (p && p.synthesizer) ? p.synthesizer : 'alpha';
+            playProceduralAmbience(fallbackTone);
+            setAudioPlayingUI(true);
+            return;
+          }
+          showToast('YouTube audio error (Code ' + event.data + ').', 'warning');
+          if (p && p.synthesizer) {
+            playProceduralAmbience(p.synthesizer);
+          }
         }
-      });
-    } catch (err) {
-      console.warn('[Audio Engine] YT.Player constructor error:', err);
-    }
-  } else {
-    ensureYouTubeIframeAPILoaded(() => {
-      initYouTubePlayerInstance(customVidId, autoPlay);
+      }
     });
+  } catch (err) {
+    console.warn('[Audio Engine] YT.Player constructor error:', err);
+    isYtPlayerInitializing = false;
   }
 }
 
@@ -7562,14 +7795,8 @@ function startYouTubeEmbedPlayer(videoId) {
 function stopYouTubeAudio() {
   if (ytPlayerInstance && typeof ytPlayerInstance.stopVideo === 'function') {
     try { ytPlayerInstance.stopVideo(); } catch (_) {}
-  }
-  const container = document.getElementById('youtubePlayerAnchor');
-  if (container) {
-    const iframe = container.querySelector('iframe');
-    if (iframe && iframe.id !== 'ytPlayerTarget') {
-      container.innerHTML = '<div id="ytPlayerTarget"></div>';
-      ytPlayerInstance = null;
-    }
+  } else if (ytPlayerInstance && typeof ytPlayerInstance.pauseVideo === 'function') {
+    try { ytPlayerInstance.pauseVideo(); } catch (_) {}
   }
   currentPlayingVideoId = '';
 }

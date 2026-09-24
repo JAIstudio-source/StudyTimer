@@ -122,6 +122,16 @@ object CloudSyncManager {
 
         try {
             val sharedPrefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+            val lastSync = sharedPrefs.getLong("last_cloud_sync_timestamp", 0L)
+            val lastMod = BackupManager(context).getLastModifiedTimestamp()
+            val now = System.currentTimeMillis()
+
+            // Server Load Optimization: If not a forced sync and local data hasn't changed since last sync, skip upload
+            if (!force && lastSync > 0L && lastMod <= lastSync && (now - lastSync) < 180_000L) {
+                Log.d("CloudSyncManager", "Skipping cloud sync: No data changes detected since last sync.")
+                return@withContext SyncResult(isSuccess = true)
+            }
+
             val prefsJson = JSONObject()
             for ((key, value) in sharedPrefs.all) {
                 if (value != null) {
@@ -186,7 +196,6 @@ object CloudSyncManager {
             var userName: String = ProfileManager.getEffectiveDisplayName(context).trim().take(50)
             val userEmail: String = (AuthManager.getUserEmail(context) ?: "").trim().take(100)
             val profileImg: String = ProfileManager.getEffectiveAvatarUrl(context).trim().take(300)
-            val now = System.currentTimeMillis()
             val localLastMod = BackupManager(context).getLastModifiedTimestamp()
 
             // Exact schema columns: user_id, user_name, user_email, profile_image_uri, prefs_data, timeline_data, updated_at

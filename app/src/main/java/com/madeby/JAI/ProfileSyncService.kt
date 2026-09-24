@@ -186,15 +186,22 @@ object ProfileSyncService {
     }
 
     suspend fun refreshProfileStatus(context: Context): UserProfile = withContext(Dispatchers.IO) {
+        val current = ProfileManager.getProfile(context)
+        // Guard: If not pending moderation, skip network request entirely to save server load
+        if (current.moderationStatus != ModerationStatus.PENDING_APPROVAL) {
+            return@withContext current
+        }
+
         val rawUserId = AuthManager.getUserId(context)
-        if (rawUserId.isNullOrBlank()) return@withContext ProfileManager.getProfile(context)
+        if (rawUserId.isNullOrBlank()) return@withContext current
 
         val supabaseUrl = BuildConfig.SUPABASE_URL
         val anonKey = BuildConfig.SUPABASE_ANON_KEY
-        if (supabaseUrl.isBlank() || anonKey.isBlank()) return@withContext ProfileManager.getProfile(context)
+        if (supabaseUrl.isBlank() || anonKey.isBlank()) return@withContext current
 
         try {
-            val url = URL("$supabaseUrl/rest/v1/user_sync_data?user_id=eq.$rawUserId&select=*")
+            // Fetch only necessary status columns to minimize payload & bandwidth (<100 bytes)
+            val url = URL("$supabaseUrl/rest/v1/user_sync_data?user_id=eq.$rawUserId&select=profile_status,user_name,profile_image_uri,updated_at")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
             conn.setRequestProperty("apikey", anonKey)

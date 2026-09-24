@@ -80,6 +80,7 @@ object LocalAvatarManager {
                 fos.flush()
                 fos.close()
                 AuthManager.saveProfileImageUri(context, targetFile.absolutePath)
+                markAvatarPendingUpload(context, true)
                 true
             } else {
                 false
@@ -109,5 +110,19 @@ object LocalAvatarManager {
         } catch (_: Exception) {
             null
         }
+    }
+
+    private const val KEY_AVATAR_PENDING_UPLOAD = "avatar_pending_upload"
+
+    fun isAvatarPendingUpload(context: Context): Boolean {
+        return context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+            .getBoolean(KEY_AVATAR_PENDING_UPLOAD, false)
+    }
+
+    fun markAvatarPendingUpload(context: Context, isPending: Boolean) {
+        context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_AVATAR_PENDING_UPLOAD, isPending)
+            .apply()
     }
 }

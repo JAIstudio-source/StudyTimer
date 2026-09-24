@@ -5047,7 +5047,7 @@ function getAvatarElementHtml(avatarVal, userName, className = 'row-avatar-img',
   const trimmed = typeof avatarVal === 'string' ? avatarVal.trim() : '🐱';
   const isUrl = /^(http|https|data:|assets\/|\/|blob:)/i.test(trimmed);
   if (isUrl) {
-    return `<img src="${trimmed}" alt="${userName || 'Student'}" class="${className}${ringCls}" loading="eager" decoding="async" referrerpolicy="no-referrer" style="width:100%; height:100%; object-fit:cover; border-radius:inherit; display:block;" onerror="this.onerror=null; this.style.display='none'; if(this.nextElementSibling){this.nextElementSibling.style.display='inline-flex';}"><span class="avatar-sticker ${className}${ringCls}" style="display:none; width:100%; height:100%; align-items:center; justify-content:center;">🐱</span>`;
+    return `<img src="${trimmed}" alt="${userName || 'Student'}" class="${className}${ringCls}" loading="eager" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null; this.style.display='none'; if(this.nextElementSibling){this.nextElementSibling.style.display='inline-flex';}"><span class="avatar-sticker ${className}${ringCls}" style="display:none;">🐱</span>`;
   } else {
     return `<span class="avatar-sticker ${className}${ringCls}">${trimmed}</span>`;
   }
@@ -6369,8 +6369,6 @@ async function openLeaderboardModal() {
     modal.classList.remove('hidden');
     initLeaderboardRealtime();
     switchLeaderboardTimeframe(currentLeaderboardPeriod || 'daily');
-    syncStudyProgressToLeaderboard(0);
-    fetchLeaderboard(true, true);
   }
 }
 
@@ -6394,6 +6392,8 @@ function getStartOfMonthDateStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }
 
+let isLeaderboardFetchInProgress = false;
+
 async function fetchLeaderboard(forceRefresh = false, showSpinning = false) {
   const now = Date.now();
   const period = currentLeaderboardPeriod || 'daily';
@@ -6404,6 +6404,9 @@ async function fetchLeaderboard(forceRefresh = false, showSpinning = false) {
     renderLeaderboard(cached.data, period);
     return;
   }
+
+  if (isLeaderboardFetchInProgress) return;
+  isLeaderboardFetchInProgress = true;
 
   const refreshBtn = document.getElementById('btnRefreshLeaderboard');
   if (showSpinning) {
@@ -6487,6 +6490,7 @@ async function fetchLeaderboard(forceRefresh = false, showSpinning = false) {
     console.warn('Leaderboard fetch exception:', err);
     fallbackLocalLeaderboard(period);
   } finally {
+    isLeaderboardFetchInProgress = false;
     if (showSpinning) {
       setTimeout(() => refreshBtn?.classList.remove('spinning'), 400);
     }
@@ -6724,17 +6728,22 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
     `;
   };
 
-  // Always show podium top 3 showcase
-  podiumContainer.innerHTML = `
+  // Update podium only if HTML changed to prevent crown & avatar flicker
+  const newPodiumHtml = `
     ${renderPodiumCard(top2, 2)}
     ${renderPodiumCard(top1, 1)}
     ${renderPodiumCard(top3, 3)}
-  `;
+  `.trim();
+
+  if (podiumContainer.innerHTML.trim() !== newPodiumHtml) {
+    podiumContainer.innerHTML = newPodiumHtml;
+  }
 
   const periodLabel = period === 'daily' ? 'today' : (period === 'weekly' ? 'this week' : 'this month');
+  let newListHtml = '';
 
   if (uniqueRankings.length === 0) {
-    listContainer.innerHTML = `
+    newListHtml = `
       <div class="leaderboard-empty-state" style="padding: 24px 16px;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="8" r="6"></circle>
@@ -6746,54 +6755,56 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
     `;
     const localSec = calculateLocalFocusSecondsForPeriod(period);
     updatePersonalUserBar(null, localSec);
-    return;
-  }
-
-  // 3. Render Ranks 4 to 25 List
-  const remainingRanks = uniqueRankings.filter(r => Number(r.rank) > 3);
-  if (remainingRanks.length === 0) {
-    listContainer.innerHTML = `
-      <div class="leaderboard-empty-state" style="padding: 24px 16px;">
-        <p style="font-size: 0.85rem;">Only ${uniqueRankings.length} on the board ${periodLabel}!</p>
-        <span>Complete a session to join the top rankings.</span>
-      </div>
-    `;
   } else {
-    listContainer.innerHTML = remainingRanks.map(r => {
-      const isCurrent = isCurrentUserEntry(r);
-      const ring = normalizeRingClass(r.avatar_ring || (isCurrent ? (appState.userProfile?.avatarRing || 'glow-gold') : 'glow-gold'));
-      const flagEmoji = getCountryFlagEmoji(r.country_flag || (isCurrent ? (appState.userProfile?.countryFlag || '') : ''));
-      const flagHtml = (flagEmoji && flagEmoji !== '🌐') ? `<span class="lb-flag-bottom" title="Region">${flagEmoji}</span>` : '';
-      const timeFormatted = formatLeaderboardTime(r.total_seconds);
-      const userAvatarVal = isCurrent
-        ? (appState.userProfile?.avatarPreset || r.avatar_url || '🐱')
-        : (r.avatar_url || '🐱');
-      const avatarHtml = getAvatarElementHtml(userAvatarVal, r.user_name, 'row-avatar-img', ring);
-
-      const moodHtml = r.status_mood ? `<span class="preview-mood-pill" style="font-size:0.68rem; padding:1px 6px;">${r.status_mood}</span>` : '';
-      const examHtml = r.exam_tag ? `<span class="preview-exam-badge" style="font-size:0.68rem; padding:1px 6px;">${r.exam_tag}</span>` : '';
-      const tagsLine = (moodHtml || examHtml) ? `<div class="row-user-tags" style="display:flex; gap:4px; margin-top:2px;">${moodHtml}${examHtml}</div>` : '';
-
-      const statusHtml = r.is_studying
-        ? `<span class="live-status-chip studying"><span class="status-dot"></span><span>${r.current_subject || 'Studying'}</span></span>`
-        : `<span class="live-status-chip resting"><span class="status-dot"></span><span>Resting</span></span>`;
-
-      return `
-        <div class="leaderboard-row ${isCurrent ? 'is-current-user' : ''}">
-          <span class="row-rank-num">#${r.rank}</span>
-          <div class="row-user-col">
-            ${avatarHtml}
-            <div class="row-user-info-col">
-              <span class="row-user-name" title="${r.user_name}">${isCurrent ? 'You' : r.user_name}</span>
-              ${flagHtml}
-              ${tagsLine}
-            </div>
-          </div>
-          <div>${statusHtml}</div>
-          <span class="row-time">${timeFormatted}</span>
+    const remainingRanks = uniqueRankings.filter(r => Number(r.rank) > 3);
+    if (remainingRanks.length === 0) {
+      newListHtml = `
+        <div class="leaderboard-empty-state" style="padding: 24px 16px;">
+          <p style="font-size: 0.85rem;">Only ${uniqueRankings.length} on the board ${periodLabel}!</p>
+          <span>Complete a session to join the top rankings.</span>
         </div>
       `;
-    }).join('');
+    } else {
+      newListHtml = remainingRanks.map(r => {
+        const isCurrent = isCurrentUserEntry(r);
+        const ring = normalizeRingClass(r.avatar_ring || (isCurrent ? (appState.userProfile?.avatarRing || 'glow-gold') : 'glow-gold'));
+        const flagEmoji = getCountryFlagEmoji(r.country_flag || (isCurrent ? (appState.userProfile?.countryFlag || '') : ''));
+        const flagHtml = (flagEmoji && flagEmoji !== '🌐') ? `<span class="lb-flag-bottom" title="Region">${flagEmoji}</span>` : '';
+        const timeFormatted = formatLeaderboardTime(r.total_seconds);
+        const userAvatarVal = isCurrent
+          ? (appState.userProfile?.avatarPreset || r.avatar_url || '🐱')
+          : (r.avatar_url || '🐱');
+        const avatarHtml = getAvatarElementHtml(userAvatarVal, r.user_name, 'row-avatar-img', ring);
+
+        const moodHtml = r.status_mood ? `<span class="preview-mood-pill" style="font-size:0.68rem; padding:1px 6px;">${r.status_mood}</span>` : '';
+        const examHtml = r.exam_tag ? `<span class="preview-exam-badge" style="font-size:0.68rem; padding:1px 6px;">${r.exam_tag}</span>` : '';
+        const tagsLine = (moodHtml || examHtml) ? `<div class="row-user-tags" style="display:flex; gap:4px; margin-top:2px;">${moodHtml}${examHtml}</div>` : '';
+
+        const statusHtml = r.is_studying
+          ? `<span class="live-status-chip studying"><span class="status-dot"></span><span>${r.current_subject || 'Studying'}</span></span>`
+          : `<span class="live-status-chip resting"><span class="status-dot"></span><span>Resting</span></span>`;
+
+        return `
+          <div class="leaderboard-row ${isCurrent ? 'is-current-user' : ''}">
+            <span class="row-rank-num">#${r.rank}</span>
+            <div class="row-user-col">
+              ${avatarHtml}
+              <div class="row-user-info-col">
+                <span class="row-user-name" title="${r.user_name}">${isCurrent ? 'You' : r.user_name}</span>
+                ${flagHtml}
+                ${tagsLine}
+              </div>
+            </div>
+            <div>${statusHtml}</div>
+            <span class="row-time">${timeFormatted}</span>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  if (listContainer.innerHTML.trim() !== newListHtml.trim()) {
+    listContainer.innerHTML = newListHtml;
   }
 
   // 4. Update Personal User Bar

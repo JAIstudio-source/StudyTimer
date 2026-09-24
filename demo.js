@@ -5298,6 +5298,19 @@ function dataURLtoBlob(dataurl) {
   }
 }
 
+function getPublicLeaderboardAvatarUrl(profile) {
+  if (!profile) return '🐱';
+  const custom = (profile.avatarPreset || profile.avatar_url || '').trim();
+  const isApproved = profile.photoApproved === true || profile.profileStatus === 'approved';
+  const isCustomPhoto = /^(http|https|data:|blob:)/i.test(custom);
+
+  if (isCustomPhoto) {
+    if (isApproved) return custom;
+    return profile.fallbackSticker || '🐱';
+  }
+  return custom || '🐱';
+}
+
 async function uploadAvatarToSupabaseStorage(dataUrlOrFile, userId) {
   if (!supabaseClient || !dataUrlOrFile || !userId) return null;
   try {

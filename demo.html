@@ -927,7 +927,7 @@
           </button>
           <button type="button" class="profile-tab-btn" data-tab="tab-avatar" role="tab" aria-selected="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
-            <span>Sticker</span>
+            <span>Photo &amp; Avatar</span>
           </button>
           <button type="button" class="profile-tab-btn" data-tab="tab-themes" role="tab" aria-selected="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"></circle><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"></circle><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"></circle><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"></path></svg>
@@ -991,11 +991,45 @@
           </div>
         </div>
 
-        <!-- Tab 2: Avatar Sticker Picker -->
+        <!-- Tab 2: Photo & Avatar Sticker Picker -->
         <div class="profile-tab-panel hidden" id="panel-tab-avatar">
+          <!-- Real Profile Photo Upload Section -->
+          <div class="settings-section photo-upload-box">
+            <div class="section-label-row">
+              <label class="settings-label">Custom Profile Photo</label>
+              <span class="section-sub-label">Upload a photo or enter image URL</span>
+            </div>
+            <div class="photo-upload-container">
+              <div class="photo-upload-preview-wrap">
+                <div class="photo-upload-circle" id="customPhotoPreviewCircle">
+                  <span id="customPhotoPreviewFallback">📷</span>
+                  <img id="customPhotoPreviewImg" class="hidden" alt="Profile Photo Preview">
+                </div>
+                <div class="photo-upload-actions">
+                  <div class="photo-btn-group">
+                    <label for="inputProfilePhotoFile" class="btn btn-primary btn-sm photo-upload-btn">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                      <span>Upload Photo</span>
+                    </label>
+                    <input type="file" id="inputProfilePhotoFile" accept="image/png, image/jpeg, image/webp, image/gif" style="display: none;">
+                    <button type="button" class="btn btn-ghost btn-sm hidden" id="btnRemoveCustomPhoto">Remove</button>
+                  </div>
+                  <span class="photo-upload-hint">Supports JPG, PNG, WebP (Auto-optimized)</span>
+                </div>
+              </div>
+              <div class="photo-url-row">
+                <div class="photo-url-input-wrap">
+                  <input type="url" id="inputProfilePhotoUrl" placeholder="Or paste image URL (https://...)" autocomplete="off">
+                  <button type="button" class="btn btn-secondary btn-sm" id="btnApplyPhotoUrl">Apply</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Preset Avatar Stickers -->
           <div class="settings-section">
             <div class="section-label-row">
-              <label class="settings-label">Choose Avatar Sticker</label>
+              <label class="settings-label">Or Choose Avatar Sticker</label>
               <span class="section-sub-label">Select your study persona</span>
             </div>
             <div class="avatar-presets-grid" id="avatarPresetsGrid">

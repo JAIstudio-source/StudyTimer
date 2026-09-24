@@ -5270,6 +5270,105 @@ body.has-custom-bg .zen-timer-overlay {
   color: var(--text-secondary);
 }
 
+/* Photo Upload Section */
+.photo-upload-box {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
+.photo-upload-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.photo-upload-preview-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.photo-upload-circle {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 2px dashed var(--border-medium);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  font-size: 1.5rem;
+}
+
+.photo-upload-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.photo-upload-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.photo-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.photo-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+
+.photo-upload-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.photo-upload-hint {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.photo-url-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.photo-url-input-wrap {
+  display: flex;
+  gap: 8px;
+}
+
+.photo-url-input-wrap input {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+}
+
+.photo-url-input-wrap input:focus {
+  border-color: #8b5cf6;
+  outline: none;
+}
+
 /* Avatar Presets Grid */
 .avatar-presets-grid {
   display: grid;
@@ -5308,6 +5407,60 @@ body.has-custom-bg .zen-timer-overlay {
   border-color: #8b5cf6;
   box-shadow: 0 0 10px rgba(139, 92, 246, 0.35);
   transform: scale(1.1);
+}
+
+/* Leaderboard Flag Layout (Positioned below student name) */
+.podium-name-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+}
+
+.row-user-info-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  gap: 1px;
+}
+
+.lb-flag-bottom {
+  font-size: 0.85rem;
+  line-height: 1;
+  display: inline-block;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+}
+
+/* Sidebar Small Account Avatar with Glow */
+.user-avatar.glow-gold, .user-avatar.ring-gold, .avatar-sticker.user-avatar.glow-gold {
+  border: 2px solid #f59e0b !important;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6) !important;
+}
+.user-avatar.glow-cyan, .user-avatar.ring-cyan, .avatar-sticker.user-avatar.glow-cyan {
+  border: 2px solid #06b6d4 !important;
+  box-shadow: 0 0 8px rgba(6, 182, 212, 0.6) !important;
+}
+.user-avatar.glow-emerald, .user-avatar.ring-emerald, .avatar-sticker.user-avatar.glow-emerald {
+  border: 2px solid #10b981 !important;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6) !important;
+}
+.user-avatar.glow-violet, .user-avatar.ring-violet, .avatar-sticker.user-avatar.glow-violet {
+  border: 2px solid #8b5cf6 !important;
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.6) !important;
+}
+.user-avatar.glow-rose, .user-avatar.ring-rose, .avatar-sticker.user-avatar.glow-rose {
+  border: 2px solid #f43f5e !important;
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.6) !important;
+}
+.user-avatar.glow-blue, .user-avatar.ring-blue, .avatar-sticker.user-avatar.glow-blue {
+  border: 2px solid #3b82f6 !important;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.6) !important;
+}
+.user-avatar.glow-slate, .user-avatar.ring-slate, .avatar-sticker.user-avatar.glow-slate {
+  border: 2px solid #94a3b8 !important;
+  box-shadow: 0 0 8px rgba(148, 163, 184, 0.5) !important;
 }
 
 /* Form Row Grids */

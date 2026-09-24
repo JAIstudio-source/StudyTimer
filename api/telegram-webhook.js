@@ -344,6 +344,65 @@ export default async function handler(req, res) {
 // ----------------------------------------------------------------------------
 // COMMAND IMPLEMENTATION HELPERS
 // ----------------------------------------------------------------------------
+function buildProfileReviewCard(userId, oldUser, pendingData, source = "Website", email = "") {
+  const oldName = (oldUser && oldUser.user_name) || (oldUser && oldUser.displayName) || "";
+  const newName = (pendingData && (pendingData.display_name || pendingData.displayName)) || oldName || "Student";
+
+  const oldBio = (oldUser && (oldUser.mood || oldUser.bio || oldUser.motto)) || "";
+  const newBio = (pendingData && (pendingData.mood || pendingData.bio || pendingData.motto)) || "";
+
+  const oldAvatar = (oldUser && (oldUser.profile_image_uri || oldUser.avatarPreset || oldUser.avatar_preset)) || "🐱";
+  const newAvatar = (pendingData && (pendingData.avatar_preset || pendingData.avatarPreset || pendingData.avatar_url)) || oldAvatar;
+
+  const isCustomPhoto = Boolean(newAvatar && /^(http|https|data:|blob:)/i.test(String(newAvatar).trim()));
+
+  const nameChanged = Boolean(newName && oldName && newName.trim() !== oldName.trim());
+  const bioChanged = Boolean(newBio.trim() !== oldBio.trim());
+  const avatarChanged = Boolean(newAvatar && oldAvatar && newAvatar.trim() !== oldAvatar.trim());
+
+  let header = `🛡️ <b>[PROFILE APPROVAL REQUEST]</b>\n\n`;
+
+  let nameSection = "";
+  if (nameChanged) {
+    nameSection = `👤 <b>Display Name:</b>\n<code>${String(oldName || "None").replace(/[<>&"]/g, '')}</code> ➔ <b><code>${String(newName).replace(/[<>&"]/g, '')}</code></b>\n\n`;
+  } else {
+    nameSection = `👤 <b>Display Name:</b> <b><code>${String(newName || oldName || "Student").replace(/[<>&"]/g, '')}</code></b> <i>(Unchanged)</i>\n\n`;
+  }
+
+  let bioSection = "";
+  if (bioChanged && (newBio || oldBio)) {
+    bioSection = `💬 <b>Bio / Motto:</b>\n<i>"${String(oldBio || "None").replace(/[<>&"]/g, '')}"</i> ➔ <b><i>"${String(newBio || "None").replace(/[<>&"]/g, '')}"</i></b>\n\n`;
+  } else if (newBio) {
+    bioSection = `💬 <b>Bio / Motto:</b> <i>"${String(newBio).replace(/[<>&"]/g, '')}"</i> <i>(Unchanged)</i>\n\n`;
+  }
+
+  let avatarSection = "";
+  if (isCustomPhoto) {
+    avatarSection = `📸 <b>Profile Photo:</b> ⚠️ <code>Custom Photo Uploaded</code>\n\n`;
+  } else if (avatarChanged) {
+    avatarSection = `🎨 <b>Avatar Sticker:</b> <code>${String(oldAvatar).replace(/[<>&"]/g, '')}</code> ➔ <b><code>${String(newAvatar).replace(/[<>&"]/g, '')}</code></b>\n\n`;
+  }
+
+  const footer = (
+    `──────────────────\n` +
+    `🆔 <b>User ID:</b> <code>${String(userId).replace(/[<>&"]/g, '')}</code>\n` +
+    `📱 <b>Source:</b> ${String(source).replace(/[<>&"]/g, '')}${email ? ` • 📧 <code>${String(email).replace(/[<>&"]/g, '')}</code>` : ""}`
+  );
+
+  const fullText = (header + nameSection + bioSection + avatarSection + footer).slice(0, 1024);
+
+  const keyboard = {
+    inline_keyboard: [
+      [
+        { text: "✅ Approve", callback_data: `approve:${userId}` },
+        { text: "❌ Reject", callback_data: `reject:${userId}` }
+      ]
+    ]
+  };
+
+  return { text: fullText, keyboard, isCustomPhoto, photoUrl: (isCustomPhoto && String(newAvatar).startsWith("http")) ? newAvatar : null };
+}
+
 async function handleQueueCommand(chatId) {
   const { data: pending } = await supabase
     .from('user_sync_data')
@@ -357,74 +416,54 @@ async function handleQueueCommand(chatId) {
     return;
   }
 
-  await sendTelegramMessage(chatId, `📋 <b>Found ${pending.length} pending profile(s) awaiting approval:</b>`);
-
   for (const item of pending) {
-    let profile = {};
+    let pendingObj = {};
     if (item.pending_profile_json) {
       try {
-        profile = typeof item.pending_profile_json === 'string' ? JSON.parse(item.pending_profile_json) : item.pending_profile_json;
+        pendingObj = typeof item.pending_profile_json === 'string' ? JSON.parse(item.pending_profile_json) : item.pending_profile_json;
       } catch (_) {}
     }
 
-    if (!profile.displayName && item.prefs_data) {
+    let prefsObj = {};
+    if (item.prefs_data) {
       try {
-        const p = typeof item.prefs_data === 'string' ? JSON.parse(item.prefs_data) : item.prefs_data;
-        if (p && p.__user_profile__) {
-          const up = typeof p.__user_profile__ === 'string' ? JSON.parse(p.__user_profile__) : p.__user_profile__;
-          profile = { ...up, ...profile };
-        }
+        prefsObj = typeof item.prefs_data === 'string' ? JSON.parse(item.prefs_data) : item.prefs_data;
+      } catch (_) {}
+    }
+    let existingProfile = {};
+    if (prefsObj && prefsObj.__user_profile__) {
+      try {
+        existingProfile = typeof prefsObj.__user_profile__ === 'string' ? JSON.parse(prefsObj.__user_profile__) : prefsObj.__user_profile__;
       } catch (_) {}
     }
 
-    const displayName = profile.displayName || item.user_name || 'Student';
-    const email = item.user_email || 'N/A';
-    const avatarUrl = profile.avatarPreset || item.profile_image_uri || '🐱';
-    const mood = profile.mood || 'None';
-    const examTarget = profile.examTarget || profile.exam_target || 'None';
-    const ring = profile.avatarRing || 'glow-gold';
-    const flag = profile.countryFlag || '🌐';
-
-    const isCustomPhoto = avatarUrl && /^(http|https|data:|blob:)/i.test(avatarUrl);
-
-    const caption = (
-      `⏳ <b>[PENDING APPROVAL]</b>\n\n` +
-      `👤 <b>Student:</b> <code>${String(displayName).replace(/[<>&"]/g, '')}</code>\n` +
-      `📧 <b>Email:</b> <code>${String(email).replace(/[<>&"]/g, '')}</code>\n` +
-      `🆔 <b>ID:</b> <code>${item.user_id}</code>\n` +
-      `💍 <b>Glow Ring:</b> <code>${String(ring).replace(/[<>&"]/g, '')}</code> | <b>Flag:</b> ${flag}\n` +
-      (mood !== 'None' ? `💬 <b>Mood:</b> <i>"${String(mood).replace(/[<>&"]/g, '')}"</i>\n` : '') +
-      (examTarget !== 'None' ? `🎯 <b>Target Exam:</b> <code>${String(examTarget).replace(/[<>&"]/g, '')}</code>\n` : '') +
-      (isCustomPhoto ? `\n⚠️ <i>Custom photo waiting for approval</i>` : `\n🎨 <b>Avatar:</b> ${avatarUrl}`)
-    ).slice(0, 1000);
-
-    const keyboard = {
-      inline_keyboard: [
-        [
-          { text: "✅ Approve", callback_data: `approve:${item.user_id}` },
-          { text: "❌ Reject", callback_data: `reject:${item.user_id}` }
-        ]
-      ]
+    const oldUser = {
+      user_name: item.user_name || existingProfile.displayName || 'Student',
+      mood: existingProfile.mood || existingProfile.bio || '',
+      profile_image_uri: item.profile_image_uri || existingProfile.avatarPreset || '🐱',
+      email: item.user_email || ''
     };
 
-    if (isCustomPhoto && (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://'))) {
+    const card = buildProfileReviewCard(item.user_id, oldUser, pendingObj, "Pending Queue", item.user_email);
+
+    if (card.photoUrl) {
       try {
         const r = await fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/sendPhoto`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             chat_id: chatId,
-            photo: avatarUrl,
-            caption: caption,
+            photo: card.photoUrl,
+            caption: card.text,
             parse_mode: 'HTML',
-            reply_markup: keyboard
+            reply_markup: card.keyboard
           })
         });
         if (r.ok) continue;
       } catch (_) {}
     }
 
-    await sendTelegramMessage(chatId, caption, keyboard);
+    await sendTelegramMessage(chatId, card.text, card.keyboard);
   }
 }
 

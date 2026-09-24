@@ -70,6 +70,38 @@ const DEFAULT_SUBJECTS = [
   { id: 'science', name: 'Science', iconEmoji: '🧪', color: '#ec4899' }
 ];
 
+function getCleanUniqueSubjects(subjectsList) {
+  const source = Array.isArray(subjectsList) && subjectsList.length > 0 ? subjectsList : DEFAULT_SUBJECTS;
+  const seenIds = new Set();
+  const seenNames = new Set();
+  const uniqueList = [];
+
+  for (const s of source) {
+    if (!s || !s.name) continue;
+    const normId = String(s.id || '').trim().toLowerCase();
+    const normName = String(s.name || '').trim().toLowerCase();
+
+    if (!normName) continue;
+    // Disallow duplicates by name or ID
+    if (seenNames.has(normName) || (normId && seenIds.has(normId))) {
+      continue;
+    }
+
+    if (normId) seenIds.add(normId);
+    seenNames.add(normName);
+    uniqueList.push({
+      id: s.id || `sub_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: s.name.trim(),
+      iconEmoji: s.iconEmoji || '📚',
+      color: s.color || s.colorHex || '#3b82f6',
+      colorHex: s.colorHex || s.color || '#3b82f6',
+      isCustom: Boolean(s.isCustom)
+    });
+  }
+
+  return uniqueList.length > 0 ? uniqueList : JSON.parse(JSON.stringify(DEFAULT_SUBJECTS));
+}
+
 // Timer Configuration Settings (Persisted)
 let timerConfig = {
   customTimerMinutes: 25,
@@ -833,7 +865,7 @@ function mergeCloudDataIntoLocal(data) {
       }
     });
   }
-  appState.subjects = Array.from(existingSubMap.values()).slice(0, 50);
+  appState.subjects = getCleanUniqueSubjects(Array.from(existingSubMap.values())).slice(0, 50);
   const foundSel = appState.subjects.find(s => s.id === selectedSubId);
   appState.selectedSubject = foundSel || appState.subjects[0];
 
@@ -1527,8 +1559,8 @@ function loadLocalState(targetUserId = null) {
       if (typeof parsed.streakCount === 'number') appState.streakCount = parsed.streakCount;
       if (parsed.lastStudyDate) appState.lastStudyDate = parsed.lastStudyDate;
       if (Array.isArray(parsed.subjects) && parsed.subjects.length > 0) {
-        appState.subjects = parsed.subjects;
-        appState.selectedSubject = appState.subjects[0];
+        appState.subjects = getCleanUniqueSubjects(parsed.subjects);
+        appState.selectedSubject = appState.subjects.find(s => s.id === parsed.selectedSubject?.id) || appState.subjects[0];
       }
       if (parsed.userProfile) {
         appState.userProfile = { ...appState.userProfile, ...parsed.userProfile };
@@ -3240,6 +3272,7 @@ function renderSubjects() {
   const mainContainer = document.getElementById('subjectMenuItems');
   const zenContainer = document.getElementById('zenSubjectMenuItems');
 
+  appState.subjects = getCleanUniqueSubjects(appState.subjects);
   if (!appState.selectedSubject && appState.subjects.length > 0) {
     appState.selectedSubject = appState.subjects[0];
   }
@@ -5030,8 +5063,9 @@ function openProfileModal() {
   if (stealthToggle) stealthToggle.checked = Boolean(profile.isStealth);
 
   if (subjectSelect) {
-    subjectSelect.innerHTML = appState.subjects.map(s => 
-      `<option value="${s.id}" ${s.id === profile.primarySubjectId ? 'selected' : ''}>${s.name}</option>`
+    const cleanSubjects = getCleanUniqueSubjects(appState.subjects);
+    subjectSelect.innerHTML = cleanSubjects.map(s => 
+      `<option value="${s.id}" ${s.id === profile.primarySubjectId ? 'selected' : ''}>${s.iconEmoji ? s.iconEmoji + ' ' : ''}${s.name}</option>`
     ).join('');
   }
   if (publicToggle) {
@@ -5159,6 +5193,24 @@ function hashString(str) {
   return hash;
 }
 
+function dataURLtoBlob(dataurl) {
+  try {
+    const parts = dataurl.split(',');
+    const mimeMatch = parts[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    const bstr = atob(parts[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  } catch (err) {
+    console.warn('Error converting dataURL to Blob:', err);
+    return null;
+  }
+}
+
 const TELEGRAM_MODERATION_BOT_TOKEN = '8755792560:AAFrTNyOjveVTV9vtRgwVD6tkNMwfRBDG2k';
 const TELEGRAM_MODERATION_CHAT_ID = '6326462250';
 
@@ -5176,21 +5228,17 @@ async function notifyAdminModerationWebhook(payload) {
     const safeFlag = country_flag || '🌐';
     const safeSubjects = Array.isArray(subjects) ? subjects.join(', ').replace(/[<>&"]/g, '') : '';
 
-    const text = (
-      `${isFlagged ? '🚨 <b>[FLAGGED] ' : (isCustomPhoto ? '📸 <b>[PHOTO APPROVAL] ' : '🛡️ <b>')}Profile Customization Update</b>\n\n` +
-      (isCustomPhoto ? `🖼️ <b>Custom Profile Photo Submitted:</b> Requires Telegram Admin Approval before showing on leaderboard.\n\n` : '') +
-      (isFlagged ? `⚠️ <i>Automated safety scanner detected flagged words!</i>\n\n` : '') +
+    const caption = (
+      `${isFlagged ? '🚨 <b>[FLAGGED] ' : (isCustomPhoto ? '📸 <b>[PHOTO APPROVAL] ' : '🛡️ <b>')}Profile Update</b>\n\n` +
       `👤 <b>Student:</b> <code>${safeName}</code>\n` +
       `📧 <b>Email:</b> <code>${safeEmail}</code>\n` +
-      `🆔 <b>ID:</b> <code>${user_id}</code>\n\n` +
-      (isCustomPhoto && avatar_url.startsWith('http') ? `🖼️ <b>Photo URL:</b> <a href="${avatar_url}">Open Photo Link</a>\n` : (isCustomPhoto ? `🖼️ <b>Photo:</b> <i>[Direct Image Upload (${Math.round(avatar_url.length/1024)} KB)]</i>\n` : `🎨 <b>Avatar Sticker:</b> ${avatar_url || '🐱'}\n`)) +
-      `💍 <b>Glow Ring:</b> <code>${safeRing}</code>\n` +
-      `🚩 <b>Region:</b> ${safeFlag}\n` +
-      `💬 <b>Mood / Status:</b> <i>"${safeMood}"</i>\n` +
-      `🎯 <b>Target Exam:</b> <code>${safeExam}</code>\n` +
+      `🆔 <b>ID:</b> <code>${user_id}</code>\n` +
+      `💍 <b>Glow Ring:</b> <code>${safeRing}</code> | <b>Flag:</b> ${safeFlag}\n` +
+      (safeMood !== 'None' ? `💬 <b>Mood:</b> <i>"${safeMood}"</i>\n` : '') +
+      (safeExam !== 'None' ? `🎯 <b>Target Exam:</b> <code>${safeExam}</code>\n` : '') +
       (safeSubjects ? `📚 <b>Subjects:</b> <code>${safeSubjects}</code>\n` : '') +
-      `\n<i>StudyTimer Moderation Engine Active • Instant Approval Gate</i>`
-    );
+      (isCustomPhoto ? `\n⚠️ <i>Custom Photo held in safety quarantine until approved.</i>` : `\n🎨 <b>Avatar Sticker:</b> ${avatar_url || '🐱'}`)
+    ).slice(0, 1000);
 
     const keyboard = {
       inline_keyboard: [
@@ -5201,18 +5249,50 @@ async function notifyAdminModerationWebhook(payload) {
       ]
     };
 
-    // Direct Telegram Dispatch
-    const tgUrl = `https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/sendMessage`;
-    fetch(tgUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: TELEGRAM_MODERATION_CHAT_ID,
-        text: text,
-        parse_mode: 'HTML',
-        reply_markup: keyboard
-      })
-    }).catch(err => console.debug('Direct Telegram dispatch error:', err));
+    if (isCustomPhoto) {
+      if (avatar_url.startsWith('data:image/')) {
+        // Direct Base64 binary image upload to Telegram sendPhoto via FormData
+        const photoBlob = dataURLtoBlob(avatar_url);
+        if (photoBlob) {
+          const formData = new FormData();
+          formData.append('chat_id', TELEGRAM_MODERATION_CHAT_ID);
+          formData.append('photo', photoBlob, 'avatar.jpg');
+          formData.append('caption', caption);
+          formData.append('parse_mode', 'HTML');
+          formData.append('reply_markup', JSON.stringify(keyboard));
+
+          fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/sendPhoto`, {
+            method: 'POST',
+            body: formData
+          }).catch(err => console.debug('Direct Telegram sendPhoto (Blob) error:', err));
+        }
+      } else if (avatar_url.startsWith('http://') || avatar_url.startsWith('https://')) {
+        // Direct Web image URL to Telegram sendPhoto
+        fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/sendPhoto`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: TELEGRAM_MODERATION_CHAT_ID,
+            photo: avatar_url,
+            caption: caption,
+            parse_mode: 'HTML',
+            reply_markup: keyboard
+          })
+        }).catch(err => console.debug('Direct Telegram sendPhoto (URL) error:', err));
+      }
+    } else {
+      // Standard Text message for emoji stickers
+      fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: TELEGRAM_MODERATION_CHAT_ID,
+          text: caption,
+          parse_mode: 'HTML',
+          reply_markup: keyboard
+        })
+      }).catch(err => console.debug('Direct Telegram sendMessage error:', err));
+    }
 
     // Also dispatch to Cloudflare Worker if URL is specified
     const workerUrl = window.STUDYTIMER_MODERATION_WEBHOOK_URL;

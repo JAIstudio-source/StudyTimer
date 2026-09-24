@@ -1032,20 +1032,25 @@ function mergeCloudDataIntoLocal(data) {
 
   // Enforce server moderation decision on local state
   if (serverProfileStatus === 'rejected') {
-    const fallbackName = remoteVerifiedName || appState.currentUser?.user_metadata?.full_name || appState.currentUser?.email?.split('@')[0] || 'Scholar';
-    appState.userProfile.displayName = sanitizeString(fallbackName, 50);
-    appState.userProfile.mood = '';
-    appState.userProfile.examTarget = '';
-    appState.userProfile.profileStatus = 'rejected';
+    const fallbackName = appState.approvedDisplayName || remoteVerifiedName || appState.currentUser?.user_metadata?.full_name || appState.currentUser?.email?.split('@')[0] || 'Scholar';
+    if (appState.userProfile) {
+      appState.userProfile.displayName = sanitizeString(fallbackName, 50);
+      appState.userProfile.mood = '';
+      appState.userProfile.examTarget = '';
+      appState.userProfile.profileStatus = 'rejected';
+    }
     appState.approvedDisplayName = sanitizeString(fallbackName, 50);
   } else if (serverProfileStatus === 'approved') {
-    appState.userProfile.profileStatus = 'approved';
-    if (remoteVerifiedName) {
-      appState.userProfile.displayName = sanitizeString(remoteVerifiedName, 50);
-      appState.approvedDisplayName = sanitizeString(remoteVerifiedName, 50);
+    if (appState.userProfile) {
+      appState.userProfile.profileStatus = 'approved';
+      const effectiveName = appState.userProfile.displayName || remoteVerifiedName || appState.currentUser?.user_metadata?.full_name || 'Student';
+      appState.userProfile.displayName = sanitizeString(effectiveName, 50);
+      appState.approvedDisplayName = sanitizeString(effectiveName, 50);
     }
   } else if (serverProfileStatus === 'pending') {
-    appState.userProfile.profileStatus = 'pending';
+    if (appState.userProfile) {
+      appState.userProfile.profileStatus = 'pending';
+    }
     if (remoteVerifiedName) {
       appState.approvedDisplayName = sanitizeString(remoteVerifiedName, 50);
     }
@@ -5556,6 +5561,10 @@ async function handleSaveProfile(e) {
     isPublicLeaderboard,
     profileStatus: isCustomPhoto ? 'pending' : (hasProfanity(displayName) ? 'pending' : 'approved')
   };
+
+  if (appState.userProfile.profileStatus === 'approved') {
+    appState.approvedDisplayName = displayName;
+  }
 
   saveLocalState();
   renderUserProfileUI();

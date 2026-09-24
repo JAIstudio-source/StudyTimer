@@ -5347,9 +5347,20 @@ async function notifyAdminModerationWebhook(payload) {
   if (now - _lastModerationNotifyMs < 30000) return;
   _lastModerationNotifyMs = now;
   try {
-    const { user_id, display_name, email, avatar_ring, status_mood, exam_tag, country_flag, subjects, avatar_url } = payload;
+    const { user_id, display_name, email, avatar_ring, status_mood, exam_tag, country_flag, subjects, avatar_url, photo_changed, details_changed } = payload;
     const isFlagged = hasProfanity(display_name) || hasProfanity(status_mood) || hasProfanity(exam_tag);
     const isCustomPhoto = avatar_url && /^(http|https|data:|blob:)/i.test(avatar_url);
+
+    let headerTag = '🛡️ <b>[PROFILE UPDATE] ';
+    if (isFlagged) {
+      headerTag = '🚨 <b>[FLAGGED UPDATE] ';
+    } else if (photo_changed && details_changed) {
+      headerTag = '📸📝 <b>[PHOTO & DETAILS APPROVAL] ';
+    } else if (photo_changed && isCustomPhoto) {
+      headerTag = '📸 <b>[PHOTO APPROVAL] ';
+    } else if (details_changed) {
+      headerTag = '📝 <b>[DETAILS APPROVAL] ';
+    }
 
     const safeName = (display_name || 'Student').replace(/[<>&"]/g, '');
     const safeEmail = (email || 'N/A').replace(/[<>&"]/g, '');
@@ -5360,7 +5371,7 @@ async function notifyAdminModerationWebhook(payload) {
     const safeSubjects = Array.isArray(subjects) ? subjects.join(', ').replace(/[<>&"]/g, '') : '';
 
     const caption = (
-      `${isFlagged ? '🚨 <b>[FLAGGED] ' : (isCustomPhoto ? '📸 <b>[PHOTO APPROVAL] ' : '🛡️ <b>')}Profile Update</b>\n\n` +
+      `${headerTag}</b>\n\n` +
       `👤 <b>Student:</b> <code>${safeName}</code>\n` +
       `📧 <b>Email:</b> <code>${safeEmail}</code>\n` +
       `🆔 <b>ID:</b> <code>${user_id}</code>\n` +
@@ -5371,10 +5382,14 @@ async function notifyAdminModerationWebhook(payload) {
       (isCustomPhoto ? `\n⚠️ <i>Custom Photo held in safety quarantine until approved below.</i>` : `\n🎨 <b>Avatar Sticker:</b> ${avatar_url || '🐱'}`)
     ).slice(0, 1000);
 
+    const approveButtonLabel = photo_changed
+      ? (details_changed ? "✅ Approve Profile & Photo" : "✅ Approve Photo")
+      : "✅ Approve Details";
+
     const keyboard = {
       inline_keyboard: [
         [
-          { text: "✅ Approve Profile & Photo", callback_data: `approve:${user_id}` },
+          { text: approveButtonLabel, callback_data: `approve:${user_id}` },
           { text: "❌ Reject & Reset", callback_data: `reject:${user_id}` }
         ]
       ]
@@ -5479,6 +5494,15 @@ async function handleSaveProfile(e) {
     ? appState.userProfile.avatarPreset
     : (appState.userProfile?.fallbackSticker || appState.approvedAvatar || '🐱');
 
+  const prevProfile = appState.userProfile || {};
+  const photoChanged = isCustomPhoto && (avatarValueToSave !== prevProfile.avatarPreset);
+  const detailsChanged = (displayName !== prevProfile.displayName) ||
+                         (mood !== prevProfile.mood) ||
+                         (examTarget !== prevProfile.examTarget) ||
+                         (motto !== prevProfile.motto) ||
+                         (countryFlag !== prevProfile.countryFlag) ||
+                         (selectedAvatarRing !== prevProfile.avatarRing);
+
   appState.userProfile = {
     displayName,
     avatarPreset: avatarValueToSave,
@@ -5516,7 +5540,9 @@ async function handleSaveProfile(e) {
     status_mood: mood,
     exam_tag: examTarget,
     country_flag: countryFlag,
-    subjects: appState.subjects.map(s => s.name)
+    subjects: appState.subjects.map(s => s.name),
+    photo_changed: photoChanged,
+    details_changed: detailsChanged
   });
 
   // Direct cosmetic update to daily_leaderboard using strict approved avatar helper

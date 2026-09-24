@@ -1185,6 +1185,8 @@ async function pushDataToCloud(silent = false, force = false) {
       user_name: userName,
       user_email: userEmail,
       profile_image_uri: profileImg,
+      profile_status: appState.userProfile?.profileStatus || 'approved',
+      pending_profile_json: appState.userProfile?.profileStatus === 'pending' ? JSON.stringify(appState.userProfile) : null,
       prefs_data: JSON.stringify(prefsObj),
       timeline_data: JSON.stringify(sanitizedTimeline),
       updated_at: nowMs
@@ -4994,14 +4996,14 @@ async function handleSaveProfile(e) {
     primarySubjectId,
     isStealth,
     isPublicLeaderboard,
-    profileStatus: 'approved'
+    profileStatus: 'pending'
   };
 
   saveLocalState();
   renderUserProfileUI();
   closeProfileModal();
 
-  showToast('Profile updated! Public tags active 🛡️', 'success');
+  showToast('Profile submitted for review 🛡️ Public leaderboard tags go live upon admin approval.', 'success');
 
   // Notify Admin Moderation Bot
   notifyAdminModerationWebhook({
@@ -5014,13 +5016,6 @@ async function handleSaveProfile(e) {
     country_flag: countryFlag,
     subjects: appState.subjects.map(s => s.name)
   });
-
-  // Immediately sync to Leaderboard and Cloud
-  await syncStudyProgressToLeaderboard(0);
-
-  if (timerStatus === 'RUNNING' && currentMode !== 'break') {
-    updateStudyPresence(true);
-  }
 
   await pushDataToCloud(false, true);
 

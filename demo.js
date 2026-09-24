@@ -2782,7 +2782,7 @@ function startTimer() {
   }
 
   if (timerInterval) clearInterval(timerInterval);
-  timerInterval = setInterval(tickTimer, 200);
+  timerInterval = setInterval(tickTimer, 500);
 }
 
 function pauseTimer() {

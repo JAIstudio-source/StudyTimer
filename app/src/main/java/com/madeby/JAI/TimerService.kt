@@ -48,6 +48,11 @@ class TimerService : Service() {
     private var lectureModeEnabled: Boolean = false
     private var lastLeaderboardSyncStudySecs: Long = 0L
 
+    // Anti-Cheat & Continuous Study Tracking
+    private var continuousStudySecs: Long = 0L
+    private var isPendingActivityConfirmation: Boolean = false
+    private var activityConfirmationPromptTime: Long = 0L
+
     companion object {
         const val ACTION_TOGGLE = "com.madeby.JAI.ACTION_TOGGLE"
         const val ACTION_STOP = "com.madeby.JAI.ACTION_STOP"
@@ -56,6 +61,14 @@ class TimerService : Service() {
         const val ACTION_EXTEND_LECTURE = "com.madeby.JAI.ACTION_EXTEND_LECTURE"
         const val ACTION_START_BREAK = "com.madeby.JAI.ACTION_START_BREAK"
         const val ACTION_RELOAD_STATE = "com.madeby.JAI.ACTION_RELOAD_STATE"
+        const val ACTION_CONFIRM_ACTIVITY = "com.madeby.JAI.ACTION_CONFIRM_ACTIVITY"
+        
+        // 3.5 Hours Continuous Uninterrupted Study Limit
+        const val CONTINUOUS_STUDY_LIMIT_SECS = 12600L 
+        // 5 Minutes Confirmation Grace Window
+        const val INACTIVITY_CONFIRMATION_WINDOW_SECS = 300L 
+        const val INACTIVITY_CHECK_NOTIFICATION_ID = 1005
+
         // Sent to MainActivity so it can show the "switch to lecture" dialog
         const val EXTRA_SWITCH_TO_LECTURE = "SWITCH_TO_LECTURE_REQUEST"
 
@@ -89,6 +102,7 @@ class TimerService : Service() {
                 val breakSecs = intent.getLongExtra("BREAK_SECS", 300L)
                 handleStartBreak(breakSecs)
             }
+            ACTION_CONFIRM_ACTIVITY -> handleConfirmActivity()
             ACTION_RELOAD_STATE -> {
                 loadSavedState()
                 updateForegroundNotification()
@@ -653,6 +667,45 @@ class TimerService : Service() {
                     when (currentTimerState) {
                         TimerState.STUDYING -> {
                             accumulatedStudy += gap
+                            continuousStudySecs += gap
+
+                            // Anti-Cheat: 3.5 Hours Continuous Study Inactivity Check-in
+                            if (!isPendingActivityConfirmation && continuousStudySecs >= CONTINUOUS_STUDY_LIMIT_SECS) {
+                                isPendingActivityConfirmation = true
+                                activityConfirmationPromptTime = now
+                                val sp = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+                                sp.edit()
+                                    .putBoolean("pending_inactivity_check", true)
+                                    .putLong("inactivity_prompt_timestamp", now)
+                                    .apply()
+                                postInactivityCheckNotification()
+                                triggerVibration()
+                            }
+
+                            // Anti-Cheat: Auto-pause if unconfirmed after 5 minutes (300s)
+                            if (isPendingActivityConfirmation && (now - activityConfirmationPromptTime) >= INACTIVITY_CONFIRMATION_WINDOW_SECS) {
+                                android.util.Log.w("TimerService", "Inactivity confirmation expired after 3.5h continuous study. Auto-pausing timer.")
+                                prePauseState = TimerState.STUDYING
+                                currentTimerState = TimerState.PAUSED
+                                isPendingActivityConfirmation = false
+                                continuousStudySecs = 0L
+                                activityConfirmationPromptTime = 0L
+                                cancelInactivityCheckNotification()
+                                val sp = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+                                sp.edit()
+                                    .putBoolean("pending_inactivity_check", false)
+                                    .putLong("activity_confirmation_prompt_time", 0L)
+                                    .apply()
+                                saveState()
+                                updateForegroundNotification()
+                                postAutoPausedNotification()
+                                StudyWidgetProvider.refresh(this@TimerService)
+                                TimelineLogger.record(this@TimerService, TimerState.IDLE)
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    LeaderboardManager.updateStudyPresence(this@TimerService, false)
+                                }
+                            }
+
                             if (timerMode != "STOPWATCH") {
                                 val sp = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
                                 val activeSubjId = if (timerMode == "LECTURE") {
@@ -799,6 +852,78 @@ class TimerService : Service() {
         (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(COMPLETION_NOTIFICATION_ID, notification)
     }
 
+    private fun handleConfirmActivity() {
+        isPendingActivityConfirmation = false
+        continuousStudySecs = 0L
+        activityConfirmationPromptTime = 0L
+        cancelInactivityCheckNotification()
+        val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        prefs.edit()
+            .putBoolean("pending_inactivity_check", false)
+            .putLong("inactivity_prompt_timestamp", 0L)
+            .putLong("activity_confirmation_prompt_time", 0L)
+            .apply()
+        saveState()
+    }
+
+    private fun postInactivityCheckNotification() {
+        ensureCompletionChannel()
+        val openIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val openPending = PendingIntent.getActivity(
+            this, 10, openIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val confirmIntent = Intent(this, TimerService::class.java).apply {
+            action = ACTION_CONFIRM_ACTIVITY
+        }
+        val confirmPending = PendingIntent.getService(
+            this, 11, confirmIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val soundUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
+        val notification = NotificationCompat.Builder(this, COMPLETION_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_flame)
+            .setContentTitle("Are you still studying?")
+            .setContentText("3.5 hours continuous study reached. Tap below to confirm you are active.")
+            .setAutoCancel(true)
+            .setSound(soundUri)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(openPending)
+            .addAction(R.drawable.ic_flame, "✓ I'm Still Studying", confirmPending)
+            .build()
+        (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(INACTIVITY_CHECK_NOTIFICATION_ID, notification)
+    }
+
+    private fun cancelInactivityCheckNotification() {
+        (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).cancel(INACTIVITY_CHECK_NOTIFICATION_ID)
+    }
+
+    private fun postAutoPausedNotification() {
+        ensureCompletionChannel()
+        val openIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val openPending = PendingIntent.getActivity(
+            this, 12, openIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val soundUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
+        val notification = NotificationCompat.Builder(this, COMPLETION_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_small_app_logo)
+            .setContentTitle("Timer Auto-Paused")
+            .setContentText("Study timer paused after 3.5h continuous session without activity check-in.")
+            .setAutoCancel(true)
+            .setSound(soundUri)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(openPending)
+            .build()
+        (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(1006, notification)
+    }
+
     private fun ensureCompletionChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -870,6 +995,9 @@ class TimerService : Service() {
         lectureModeEnabled = sharedPrefs.getBoolean("lecture_mode_enabled", false)
         lecturePromptTimestamp = sharedPrefs.getLong("lecture_prompt_timestamp", 0L)
         prePauseState = runCatching { TimerState.valueOf(sharedPrefs.getString("pre_pause_state", "STUDYING") ?: "STUDYING") }.getOrDefault(TimerState.STUDYING)
+        continuousStudySecs = sharedPrefs.getLong("continuous_study_secs", 0L)
+        isPendingActivityConfirmation = sharedPrefs.getBoolean("is_pending_activity_confirmation", false)
+        activityConfirmationPromptTime = sharedPrefs.getLong("activity_confirmation_prompt_time", 0L)
 
         // Clean up any stale lecture state so the service always starts from a known-good state.
         // checkScheduledLectures() will re-enable lectureModeEnabled within 1 second if a class is ongoing.
@@ -902,7 +1030,7 @@ class TimerService : Service() {
                 else -> {}
             }
         }
-        android.util.Log.d("TimerService", "loadSavedState: state=$currentTimerState mode=$timerMode lectureEnabled=$lectureModeEnabled focusRemaining=$focusRemainingSecs")
+        android.util.Log.d("TimerService", "loadSavedState: state=$currentTimerState mode=$timerMode lectureEnabled=$lectureModeEnabled focusRemaining=$focusRemainingSecs continuousStudySecs=$continuousStudySecs")
     }
 
     private fun saveState() {
@@ -924,6 +1052,9 @@ class TimerService : Service() {
             putBoolean("lecture_mode_enabled", lectureModeEnabled)
             putLong("lecture_prompt_timestamp", lecturePromptTimestamp)
             putString("pre_pause_state", prePauseState.name)
+            putLong("continuous_study_secs", continuousStudySecs)
+            putBoolean("is_pending_activity_confirmation", isPendingActivityConfirmation)
+            putLong("activity_confirmation_prompt_time", activityConfirmationPromptTime)
             apply()
         }
     }

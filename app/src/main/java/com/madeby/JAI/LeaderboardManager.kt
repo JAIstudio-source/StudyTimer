@@ -14,6 +14,7 @@ import java.util.*
 object LeaderboardManager {
     private const val TAG = "LeaderboardManager"
     private const val CACHE_TTL_MS = 120_000L // 2 minutes in-memory TTL
+    const val MAX_DAILY_LEADERBOARD_SECONDS = 57600 // 16 Hours daily sanity hard cap
 
     private data class CacheRecord(
         val timestamp: Long,
@@ -338,7 +339,7 @@ object LeaderboardManager {
         val shareLive = isLiveStatusSharingEnabled(context)
         val effectiveSubject = (if (shareLive) subject else "").trim().take(40)
         val effectiveColor = (if (shareLive) color else "#3b82f6").trim().take(10)
-        val clampedDuration = durationSeconds.coerceIn(1, 86400) // Max 24 hours per session
+        val clampedDuration = durationSeconds.coerceIn(1, MAX_DAILY_LEADERBOARD_SECONDS) // Max 16 hours hard cap
 
         val supabaseUrl = BuildConfig.SUPABASE_URL
         val anonKey = BuildConfig.SUPABASE_ANON_KEY
@@ -441,7 +442,7 @@ object LeaderboardManager {
                 put("user_name", userName)
                 put("avatar_url", avatarUrl)
                 put("study_date", todayStr)
-                put("total_seconds", totalSeconds.coerceIn(0, 86400))
+                put("total_seconds", totalSeconds.coerceIn(0, MAX_DAILY_LEADERBOARD_SECONDS))
                 put("is_studying", false)
                 put("current_subject", effectiveSubject)
                 put("subject_color", effectiveColor)

@@ -4478,6 +4478,16 @@ body.has-custom-bg .zen-timer-overlay {
   border: 2px solid var(--border-subtle);
   background: var(--bg-subtle);
   display: block;
+  /* Fix H1: GPU compositing layer prevents repaint flash on leaderboard re-render */
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.row-avatar-img, .user-bar-avatar {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .avatar-sticker {

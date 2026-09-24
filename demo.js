@@ -139,6 +139,13 @@ function getCleanInitialState(user = null) {
                  user?.user_metadata?.picture || 
                  'assets/logo.png';
 
+  // Auto-approve Google OAuth avatars — they come from trusted Google servers
+  const isGoogleAvatar = avatar && (
+    avatar.startsWith('https://lh3.googleusercontent.com') ||
+    avatar.startsWith('https://lh4.googleusercontent.com') ||
+    avatar.startsWith('https://googleusercontent.com')
+  );
+
   return {
     currentUser: user || null,
     streakCount: 0,
@@ -147,6 +154,8 @@ function getCleanInitialState(user = null) {
     userProfile: {
       displayName: name,
       avatarPreset: avatar,
+      fallbackSticker: isGoogleAvatar ? avatar : '🐱',
+      photoApproved: isGoogleAvatar, // Auto-approve trusted Google profile photos
       motto: '🎯 Deep focus & daily consistency',
       primarySubjectId: 'general',
       isPublicLeaderboard: true,
@@ -402,19 +411,24 @@ async function initAuth() {
     }
 
     // 3. Attach Auth State Change Listener
+    // Guard flag prevents double-fire when both onAuthStateChange AND getSession return a user
+    let _authSignInHandled = false;
     supabaseClient.auth.onAuthStateChange(async (event, session) => {
       console.log(`🔐 Supabase Auth Event: ${event}`, session?.user?.email);
-      if (session && session.user) {
+      if (session && session.user && !_authSignInHandled) {
+        _authSignInHandled = true;
         handleUserSignedIn(session.user);
         cleanAuthParamsFromUrl();
       } else if (event === 'SIGNED_OUT') {
+        _authSignInHandled = false;
         handleUserSignedOut();
       }
     });
 
     // 4. Check existing session from Supabase Client
     const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
-    if (session && session.user) {
+    if (session && session.user && !_authSignInHandled) {
+      _authSignInHandled = true;
       handleUserSignedIn(session.user);
       cleanAuthParamsFromUrl();
       return;
@@ -3810,9 +3824,12 @@ function renderSubjectDonutChart() {
     legendList.querySelectorAll('.donut-legend-item').forEach(l => l.classList.remove('active'));
   }
 
-  svgWrap?.addEventListener('mouseleave', () => {
-    if (activeHighlightedSubjectId) resetHighlight();
-  });
+  // Fix C3: remove stale listener before adding new one to prevent stacking on each re-render
+  if (svgWrap) {
+    if (svgWrap._mouseleaveHandler) svgWrap.removeEventListener('mouseleave', svgWrap._mouseleaveHandler);
+    svgWrap._mouseleaveHandler = () => { if (activeHighlightedSubjectId) resetHighlight(); };
+    svgWrap.addEventListener('mouseleave', svgWrap._mouseleaveHandler);
+  }
 
   entries.forEach(item => {
     const itemPct = (item.durationSec / totalSec) * 100;
@@ -4095,7 +4112,12 @@ function renderCalendarDayPieChart(dateStr) {
     legendList.querySelectorAll('.donut-legend-item').forEach(l => l.classList.remove('active'));
   }
 
-  svgWrap?.addEventListener('mouseleave', resetDayHighlight);
+  // Fix M9: remove stale listener before adding new one to prevent stacking on each calendar re-render
+  if (svgWrap) {
+    if (svgWrap._dayMouseleaveHandler) svgWrap.removeEventListener('mouseleave', svgWrap._dayMouseleaveHandler);
+    svgWrap._dayMouseleaveHandler = resetDayHighlight;
+    svgWrap.addEventListener('mouseleave', svgWrap._dayMouseleaveHandler);
+  }
 
   entries.forEach(item => {
     const itemPct = (item.durationSec / totalSec) * 100;
@@ -5313,10 +5335,17 @@ async function uploadAvatarToSupabaseStorage(dataUrlOrFile, userId) {
   return null;
 }
 
+// Note: Bot token is intentionally kept here for now (direct Telegram API).
+// TODO (C1): Move to Supabase Edge Function or Cloudflare Worker to hide from client bundle.
 const TELEGRAM_MODERATION_BOT_TOKEN = '8755792560:AAFrTNyOjveVTV9vtRgwVD6tkNMwfRBDG2k';
 const TELEGRAM_MODERATION_CHAT_ID = '6326462250';
+let _lastModerationNotifyMs = 0; // Rate-limit guard (B2)
 
 async function notifyAdminModerationWebhook(payload) {
+  // Fix B2: Client-side cooldown — prevents spam approval requests from rapid re-saves
+  const now = Date.now();
+  if (now - _lastModerationNotifyMs < 30000) return;
+  _lastModerationNotifyMs = now;
   try {
     const { user_id, display_name, email, avatar_ring, status_mood, exam_tag, country_flag, subjects, avatar_url } = payload;
     const isFlagged = hasProfanity(display_name) || hasProfanity(status_mood) || hasProfanity(exam_tag);
@@ -6729,13 +6758,15 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
   };
 
   // Update podium only if HTML changed to prevent crown & avatar flicker
+  // Fix H1: normalize whitespace before comparing to avoid spurious re-renders from whitespace differences
+  const normalizeHtml = (s) => s.replace(/\s+/g, ' ').trim();
   const newPodiumHtml = `
     ${renderPodiumCard(top2, 2)}
     ${renderPodiumCard(top1, 1)}
     ${renderPodiumCard(top3, 3)}
   `.trim();
 
-  if (podiumContainer.innerHTML.trim() !== newPodiumHtml) {
+  if (normalizeHtml(podiumContainer.innerHTML) !== normalizeHtml(newPodiumHtml)) {
     podiumContainer.innerHTML = newPodiumHtml;
   }
 
@@ -7594,34 +7625,59 @@ function playProceduralAmbience(type) {
       updateAudioEngineBadge('webaudio');
       return true;
     } else if (type === 'cafe') {
-      const bufferSize = ctx.sampleRate * 2;
-      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const output = noiseBuffer.getChannelData(0);
-      let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
-      for (let i = 0; i < bufferSize; i++) {
-        const white = Math.random() * 2 - 1;
-        b0 = 0.99886 * b0 + white * 0.0555179;
-        b1 = 0.99332 * b1 + white * 0.0750759;
-        b2 = 0.96900 * b2 + white * 0.1538520;
-        b3 = 0.86650 * b3 + white * 0.3104856;
-        b4 = 0.55000 * b4 + white * 0.5329522;
-        b5 = -0.7616 * b5 - white * 0.0168980;
-        output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.06;
-        b6 = white * 0.115926;
+      // Fix H3: Multi-layer cafe ambience — low rumble + mid chatter for realistic cafe feel
+      const bufferSize = ctx.sampleRate * 3;
+      const noiseBuffer = ctx.createBuffer(2, bufferSize, ctx.sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const output = noiseBuffer.getChannelData(ch);
+        let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          b0 = 0.99886 * b0 + white * 0.0555179;
+          b1 = 0.99332 * b1 + white * 0.0750759;
+          b2 = 0.96900 * b2 + white * 0.1538520;
+          b3 = 0.86650 * b3 + white * 0.3104856;
+          b4 = 0.55000 * b4 + white * 0.5329522;
+          b5 = -0.7616 * b5 - white * 0.0168980;
+          output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.04;
+          b6 = white * 0.115926;
+        }
       }
       const cafeNoise = ctx.createBufferSource();
       cafeNoise.buffer = noiseBuffer;
       cafeNoise.loop = true;
 
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(480, ctx.currentTime);
-      filter.Q.setValueAtTime(0.85, ctx.currentTime);
+      // Layer 1: Low rumble — crowd warmth (80–300Hz)
+      const rumbleFilter = ctx.createBiquadFilter();
+      rumbleFilter.type = 'lowshelf';
+      rumbleFilter.frequency.setValueAtTime(300, ctx.currentTime);
+      rumbleFilter.gain.setValueAtTime(6, ctx.currentTime);
 
-      cafeNoise.connect(filter);
-      filter.connect(webAudioGainNode);
+      // Layer 2: Mid-frequency presence — ambient chatter (600–1800Hz bandpass)
+      const chatterFilter = ctx.createBiquadFilter();
+      chatterFilter.type = 'bandpass';
+      chatterFilter.frequency.setValueAtTime(1000, ctx.currentTime);
+      chatterFilter.Q.setValueAtTime(0.6, ctx.currentTime);
+
+      const chatterGain = ctx.createGain();
+      chatterGain.gain.setValueAtTime(0.18, ctx.currentTime);
+
+      // Layer 3: High cut — remove harsh high frequencies
+      const hpFilter = ctx.createBiquadFilter();
+      hpFilter.type = 'highshelf';
+      hpFilter.frequency.setValueAtTime(3500, ctx.currentTime);
+      hpFilter.gain.setValueAtTime(-12, ctx.currentTime);
+
+      cafeNoise.connect(rumbleFilter);
+      rumbleFilter.connect(hpFilter);
+      hpFilter.connect(webAudioGainNode);
+
+      cafeNoise.connect(chatterFilter);
+      chatterFilter.connect(chatterGain);
+      chatterGain.connect(webAudioGainNode);
+
       cafeNoise.start();
-      webAudioNodes.push(cafeNoise, filter);
+      webAudioNodes.push(cafeNoise, rumbleFilter, chatterFilter, chatterGain, hpFilter);
       currentAudioEngine = 'webaudio';
       updateAudioEngineBadge('webaudio');
       return true;

@@ -193,7 +193,6 @@
         <button type="button" class="sidebar-nav-item" data-view="leaderboard" id="navItemLeaderboard" title="Global Leaderboard">
           <svg class="nav-item-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path></svg>
           <span class="nav-item-text">Leaderboard</span>
-          <span class="live-pulse-dot" style="margin-left: auto;"></span>
         </button>
 
         <!-- Cloud Sync & User Profile Widget (Directly Below Leaderboard) -->
@@ -925,7 +924,99 @@
           </div>
         </div>
 
-        <!-- Banner Theme Picker -->
+        <!-- 1. Avatar Sticker Picker (Curated Student Identity & Profile Picture) -->
+        <div class="settings-section">
+          <div class="section-label-row">
+            <label class="settings-label">Profile Sticker / Avatar</label>
+            <span class="section-sub-label">Choose your avatar sticker</span>
+          </div>
+          <div class="avatar-presets-grid" id="avatarPresetsGrid">
+            <!-- Lofi Animals -->
+            <button type="button" class="avatar-preset-btn active" data-avatar="🐱" data-label="Lofi Cat" title="Lofi Cat">🐱</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🦉" data-label="Study Owl" title="Study Owl">🦉</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🦊" data-label="Focus Fox" title="Focus Fox">🦊</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🐼" data-label="Chill Panda" title="Chill Panda">🐼</button>
+            <!-- Academics & Science -->
+            <button type="button" class="avatar-preset-btn" data-avatar="📚" data-label="Scholar" title="Bookworm">📚</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🧠" data-label="Brainiac" title="Deep Mind">🧠</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🔬" data-label="Lab Flask" title="Science Mind">🔬</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🩺" data-label="Med" title="Medical Student">🩺</button>
+            <!-- Tech & Creativity -->
+            <button type="button" class="avatar-preset-btn" data-avatar="💻" data-label="Coder" title="Code Master">💻</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="⚡" data-label="Lightning" title="Fast Learner">⚡</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🎨" data-label="Artist" title="Creative Mind">🎨</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🚀" data-label="Astro" title="Astronaut">🚀</button>
+            <!-- Zen & Nature -->
+            <button type="button" class="avatar-preset-btn" data-avatar="🌸" data-label="Lotus" title="Zen Lotus">🌸</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🌲" data-label="Forest" title="Nature Focus">🌲</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="☕" data-label="Coffee" title="Cozy Coffee">☕</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🌙" data-label="Moon" title="Night Grind">🌙</button>
+            <!-- Milestones & Icons -->
+            <button type="button" class="avatar-preset-btn" data-avatar="🎯" data-label="Target" title="Goal Crusher">🎯</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🔥" data-label="Flame" title="Streak Master">🔥</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="💎" data-label="Diamond" title="Diamond Focus">💎</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🏆" data-label="Champion" title="Leaderboard Champ">🏆</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="👑" data-label="Crown" title="Royalty">👑</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🪐" data-label="Saturn" title="Cosmic Mind">🪐</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🎮" data-label="Gamer" title="Focus Flow">🎮</button>
+            <button type="button" class="avatar-preset-btn" data-avatar="🎧" data-label="Lofi Beats" title="Lofi Beats">🎧</button>
+          </div>
+        </div>
+
+        <!-- 2. Custom Display Name & Region Flag -->
+        <div class="input-row-grid">
+          <div class="input-group flex-2">
+            <label for="inputProfileDisplayName">Display Name / Handle</label>
+            <input type="text" id="inputProfileDisplayName" maxlength="24" placeholder="e.g. Alex StudyMaster" required autocomplete="off">
+          </div>
+          <div class="input-group flex-1">
+            <label for="selectProfileCountryFlag">Region Flag</label>
+            <select id="selectProfileCountryFlag" class="form-select">
+              <option value="🌐" selected>🌐 Global</option>
+              <option value="🇺🇸">🇺🇸 USA</option>
+              <option value="🇮🇳">🇮🇳 India</option>
+              <option value="🇬🇧">🇬🇧 UK</option>
+              <option value="🇨🇦">🇨🇦 Canada</option>
+              <option value="🇩🇪">🇩🇪 Germany</option>
+              <option value="🇫🇷">🇫🇷 France</option>
+              <option value="🇯🇵">🇯🇵 Japan</option>
+              <option value="🇰🇷">🇰🇷 S. Korea</option>
+              <option value="🇧🇷">🇧🇷 Brazil</option>
+              <option value="🇦🇺">🇦🇺 Australia</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 3. Live Status & Mood + Target Exam -->
+        <div class="input-row-grid">
+          <div class="input-group">
+            <label for="inputProfileMood">Live Status / Mood</label>
+            <input type="text" id="inputProfileMood" maxlength="40" placeholder="e.g. Cramming Organic Chem ☕" autocomplete="off">
+            <span class="input-hint-sub">Current study mood or session goal (max 40 chars)</span>
+          </div>
+          <div class="input-group">
+            <label for="inputProfileExam">Target Exam / Goal</label>
+            <input type="text" id="inputProfileExam" maxlength="30" placeholder="e.g. MCAT 2026, SAT 1550+" autocomplete="off">
+            <span class="input-hint-sub">Exam target badge on leaderboard (max 30 chars)</span>
+          </div>
+        </div>
+
+        <!-- 4. Study Motto / Bio -->
+        <div class="input-group">
+          <label for="inputProfileMotto">Study Motto / Bio</label>
+          <input type="text" id="inputProfileMotto" maxlength="60" placeholder="e.g. Aiming for 6h daily | CS Major" autocomplete="off">
+          <span class="input-hint-sub">Your personal quote (max 60 chars)</span>
+        </div>
+
+        <!-- 5. Primary Subject -->
+        <div class="input-group">
+          <label for="selectProfilePrimarySubject">Primary Focus Subject</label>
+          <select id="selectProfilePrimarySubject" class="form-select">
+            <!-- Dynamically populated in JS -->
+          </select>
+        </div>
+
+        <!-- 6. Banner Theme Picker -->
         <div class="settings-section">
           <div class="section-label-row">
             <label class="settings-label">Card Banner Theme</label>
@@ -959,7 +1050,7 @@
           </div>
         </div>
 
-        <!-- Avatar Glow Ring Picker -->
+        <!-- 7. Avatar Glow Ring Picker -->
         <div class="settings-section">
           <div class="section-label-row">
             <label class="settings-label">Avatar Glow Ring</label>
@@ -995,98 +1086,6 @@
               <span class="glow-ring-name">Silver</span>
             </button>
           </div>
-        </div>
-
-        <!-- Avatar Sticker Picker (24 Curated Aesthetic Avatar Stickers) -->
-        <div class="settings-section">
-          <div class="section-label-row">
-            <label class="settings-label">Avatar Sticker</label>
-            <span class="section-sub-label">Curated student identity</span>
-          </div>
-          <div class="avatar-presets-grid" id="avatarPresetsGrid">
-            <!-- Lofi Animals -->
-            <button type="button" class="avatar-preset-btn active" data-avatar="🐱" data-label="Lofi Cat" title="Lofi Cat">🐱</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🦉" data-label="Study Owl" title="Study Owl">🦉</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🦊" data-label="Focus Fox" title="Focus Fox">🦊</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🐼" data-label="Chill Panda" title="Chill Panda">🐼</button>
-            <!-- Academics & Science -->
-            <button type="button" class="avatar-preset-btn" data-avatar="📚" data-label="Scholar" title="Bookworm">📚</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🧠" data-label="Brainiac" title="Deep Mind">🧠</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🔬" data-label="Lab Flask" title="Science Mind">🔬</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🩺" data-label="Med" title="Medical Student">🩺</button>
-            <!-- Tech & Creativity -->
-            <button type="button" class="avatar-preset-btn" data-avatar="💻" data-label="Coder" title="Code Master">💻</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="⚡" data-label="Lightning" title="Fast Learner">⚡</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🎨" data-label="Artist" title="Creative Mind">🎨</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🚀" data-label="Astro" title="Astronaut">🚀</button>
-            <!-- Zen & Nature -->
-            <button type="button" class="avatar-preset-btn" data-avatar="🌸" data-label="Lotus" title="Zen Lotus">🌸</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🌲" data-label="Forest" title="Nature Focus">🌲</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="☕" data-label="Coffee" title="Cozy Coffee">☕</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🌙" data-label="Moon" title="Night Grind">🌙</button>
-            <!-- Milestones & Icons -->
-            <button type="button" class="avatar-preset-btn" data-avatar="🎯" data-label="Target" title="Goal Crusher">🎯</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🔥" data-label="Flame" title="Streak Master">🔥</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="💎" data-label="Diamond" title="Diamond Focus">💎</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🏆" data-label="Champion" title="Leaderboard Champ">🏆</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="👑" data-label="Crown" title="Royalty">👑</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🪐" data-label="Saturn" title="Cosmic Mind">🪐</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🎮" data-label="Gamer" title="Focus Flow">🎮</button>
-            <button type="button" class="avatar-preset-btn" data-avatar="🎧" data-label="Lofi Beats" title="Lofi Beats">🎧</button>
-          </div>
-        </div>
-
-        <!-- Custom Display Name & Flag -->
-        <div class="input-row-grid">
-          <div class="input-group flex-2">
-            <label for="inputProfileDisplayName">Display Name / Handle</label>
-            <input type="text" id="inputProfileDisplayName" maxlength="24" placeholder="e.g. Alex StudyMaster" required autocomplete="off">
-          </div>
-          <div class="input-group flex-1">
-            <label for="selectProfileCountryFlag">Region Flag</label>
-            <select id="selectProfileCountryFlag" class="form-select">
-              <option value="🌐" selected>🌐 Global</option>
-              <option value="🇺🇸">🇺🇸 USA</option>
-              <option value="🇮🇳">🇮🇳 India</option>
-              <option value="🇬🇧">🇬🇧 UK</option>
-              <option value="🇨🇦">🇨🇦 Canada</option>
-              <option value="🇩🇪">🇩🇪 Germany</option>
-              <option value="🇫🇷">🇫🇷 France</option>
-              <option value="🇯🇵">🇯🇵 Japan</option>
-              <option value="🇰🇷">🇰🇷 S. Korea</option>
-              <option value="🇧🇷">🇧🇷 Brazil</option>
-              <option value="🇦🇺">🇦🇺 Australia</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Live Status & Mood + Target Exam -->
-        <div class="input-row-grid">
-          <div class="input-group">
-            <label for="inputProfileMood">Live Status / Mood</label>
-            <input type="text" id="inputProfileMood" maxlength="40" placeholder="e.g. Cramming Organic Chem ☕" autocomplete="off">
-            <span class="input-hint-sub">Current study mood or session goal (max 40 chars)</span>
-          </div>
-          <div class="input-group">
-            <label for="inputProfileExam">Target Exam / Goal</label>
-            <input type="text" id="inputProfileExam" maxlength="30" placeholder="e.g. MCAT 2026, SAT 1550+" autocomplete="off">
-            <span class="input-hint-sub">Exam target badge on leaderboard (max 30 chars)</span>
-          </div>
-        </div>
-
-        <!-- Study Motto / Bio -->
-        <div class="input-group">
-          <label for="inputProfileMotto">Study Motto / Bio</label>
-          <input type="text" id="inputProfileMotto" maxlength="60" placeholder="e.g. Aiming for 6h daily | CS Major" autocomplete="off">
-          <span class="input-hint-sub">Your personal quote (max 60 chars)</span>
-        </div>
-
-        <!-- Primary Subject -->
-        <div class="input-group">
-          <label for="selectProfilePrimarySubject">Primary Focus Subject</label>
-          <select id="selectProfilePrimarySubject" class="form-select">
-            <!-- Dynamically populated in JS -->
-          </select>
         </div>
 
         <!-- Stealth Mode Toggle -->

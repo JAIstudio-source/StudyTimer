@@ -471,8 +471,14 @@ function handleUserSignedIn(user) {
 
   if (isNewlySignedIn) {
     // Cleanly isolate state for this specific user account
+    const existingCustomProfile = (appState.userProfile && appState.userProfile.displayName && appState.userProfile.displayName !== 'Student') 
+      ? { ...appState.userProfile } 
+      : null;
     const cleanState = getCleanInitialState(user);
     Object.assign(appState, cleanState);
+    if (existingCustomProfile) {
+      appState.userProfile = { ...cleanState.userProfile, ...existingCustomProfile };
+    }
     loadLocalState(user.id);
   }
   
@@ -1481,8 +1487,26 @@ function loadLocalState(targetUserId = null) {
     const uid = targetUserId || appState.currentUser?.id;
     const storageKey = uid ? `studytimer_state_${uid}` : 'studytimer_guest_state';
     const local = localStorage.getItem(storageKey);
+    let parsed = null;
     if (local) {
-      const parsed = JSON.parse(local);
+      try { parsed = JSON.parse(local); } catch (_) {}
+    }
+
+    // Fallback: If user profile in scoped storage is default or missing, check guest state for custom changes
+    if (uid && (!parsed || !parsed.userProfile || !parsed.userProfile.displayName || parsed.userProfile.displayName === 'Student')) {
+      const guestLocal = localStorage.getItem('studytimer_guest_state');
+      if (guestLocal) {
+        try {
+          const guestParsed = JSON.parse(guestLocal);
+          if (guestParsed && guestParsed.userProfile && guestParsed.userProfile.displayName && guestParsed.userProfile.displayName !== 'Student') {
+            parsed = parsed || {};
+            parsed.userProfile = { ...(parsed.userProfile || {}), ...guestParsed.userProfile };
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (parsed) {
       if (parsed.timerConfig) timerConfig = { ...timerConfig, ...parsed.timerConfig };
       if (typeof parsed.streakCount === 'number') appState.streakCount = parsed.streakCount;
       if (parsed.lastStudyDate) appState.lastStudyDate = parsed.lastStudyDate;
@@ -1532,7 +1556,6 @@ function saveLocalState() {
   try {
     markLocalDataModified();
     const uid = appState.currentUser?.id;
-    const storageKey = uid ? `studytimer_state_${uid}` : 'studytimer_guest_state';
     const stateToSave = {
       timerConfig,
       streakCount: appState.streakCount,
@@ -1546,7 +1569,11 @@ function saveLocalState() {
       subjectDurations: appState.subjectDurations || {},
       dailySubjectDurations: appState.dailySubjectDurations || {}
     };
-    localStorage.setItem(storageKey, JSON.stringify(stateToSave));
+    const jsonStr = JSON.stringify(stateToSave);
+    if (uid) {
+      localStorage.setItem(`studytimer_state_${uid}`, jsonStr);
+    }
+    localStorage.setItem('studytimer_guest_state', jsonStr);
   } catch (e) {
     console.error('Failed to save local state:', e);
   }
@@ -4863,20 +4890,69 @@ function hashString(str) {
   return hash;
 }
 
-// Optional Dispatch to Admin Moderation Webhook
+const TELEGRAM_MODERATION_BOT_TOKEN = '8755792560:AAFrTNyOjveVTV9vtRgwVD6tkNMwfRBDG2k';
+const TELEGRAM_MODERATION_CHAT_ID = '6326462250';
+
 async function notifyAdminModerationWebhook(payload) {
   try {
-    // If worker endpoint is hosted or configured
+    const { user_id, display_name, email, avatar_ring, status_mood, exam_tag, country_flag, subjects } = payload;
+    const isFlagged = hasProfanity(display_name) || hasProfanity(status_mood) || hasProfanity(exam_tag);
+
+    const safeName = (display_name || 'Student').replace(/[<>&"]/g, '');
+    const safeEmail = (email || 'N/A').replace(/[<>&"]/g, '');
+    const safeMood = (status_mood || 'None').replace(/[<>&"]/g, '');
+    const safeExam = (exam_tag || 'None').replace(/[<>&"]/g, '');
+    const safeRing = (avatar_ring || 'glow-gold').replace(/[<>&"]/g, '');
+    const safeFlag = country_flag || '🌐';
+    const safeSubjects = Array.isArray(subjects) ? subjects.join(', ').replace(/[<>&"]/g, '') : '';
+
+    const text = (
+      `${isFlagged ? '🚨 <b>[FLAGGED] ' : '🛡️ <b>'}Profile Customization Update</b>\n\n` +
+      (isFlagged ? `⚠️ <i>Automated safety scanner detected flagged words!</i>\n\n` : '') +
+      `👤 <b>Student:</b> <code>${safeName}</code>\n` +
+      `📧 <b>Email:</b> <code>${safeEmail}</code>\n` +
+      `🆔 <b>ID:</b> <code>${user_id}</code>\n\n` +
+      `💍 <b>Glow Ring:</b> <code>${safeRing}</code>\n` +
+      `🚩 <b>Region:</b> ${safeFlag}\n` +
+      `💬 <b>Mood / Status:</b> <i>"${safeMood}"</i>\n` +
+      `🎯 <b>Target Exam:</b> <code>${safeExam}</code>\n` +
+      (safeSubjects ? `📚 <b>Subjects:</b> <code>${safeSubjects}</code>\n` : '') +
+      `\n<i>StudyTimer Moderation Engine Active</i>`
+    );
+
+    const keyboard = {
+      inline_keyboard: [
+        [
+          { text: "✅ Approve (Go Live)", callback_data: `approve:${user_id}` },
+          { text: "❌ Reject (Sanitize)", callback_data: `reject:${user_id}` }
+        ]
+      ]
+    };
+
+    // Direct Telegram Dispatch
+    const tgUrl = `https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/sendMessage`;
+    fetch(tgUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: TELEGRAM_MODERATION_CHAT_ID,
+        text: text,
+        parse_mode: 'HTML',
+        reply_markup: keyboard
+      })
+    }).catch(err => console.debug('Direct Telegram dispatch error:', err));
+
+    // Also dispatch to Cloudflare Worker if URL is specified
     const workerUrl = window.STUDYTIMER_MODERATION_WEBHOOK_URL;
     if (workerUrl) {
-      await fetch(workerUrl, {
+      fetch(workerUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
-      });
+      }).catch(err => console.debug('Worker moderation dispatch error:', err));
     }
   } catch (e) {
-    console.debug('Moderation webhook dispatch skipped:', e);
+    console.debug('Moderation webhook exception:', e);
   }
 }
 

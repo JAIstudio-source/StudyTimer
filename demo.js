@@ -470,15 +470,9 @@ function handleUserSignedIn(user) {
   appState.currentUser = user;
 
   if (isNewlySignedIn) {
-    // Cleanly isolate state for this specific user account
-    const existingCustomProfile = (appState.userProfile && appState.userProfile.displayName && appState.userProfile.displayName !== 'Student') 
-      ? { ...appState.userProfile } 
-      : null;
+    // Strictly isolate state for this specific user account - NO cross-account bleeding
     const cleanState = getCleanInitialState(user);
     Object.assign(appState, cleanState);
-    if (existingCustomProfile) {
-      appState.userProfile = { ...cleanState.userProfile, ...existingCustomProfile };
-    }
     loadLocalState(user.id);
   }
   
@@ -914,7 +908,10 @@ function mergeCloudDataIntoLocal(data) {
     timerConfig.customTimerMinutes = Math.min(720, Math.max(1, Number(cloudPrefs.custom_timer_minutes)));
   }
 
-  // 9. USER PROFILE
+  // 9. USER PROFILE & MODERATION STATUS
+  const serverProfileStatus = data.profile_status || 'approved';
+  const remoteVerifiedName = data.user_name || cloudPrefs.auth_user_name || '';
+
   if (cloudPrefs.__user_profile__) {
     try {
       const loadedProfile = typeof cloudPrefs.__user_profile__ === 'string'
@@ -934,14 +931,35 @@ function mergeCloudDataIntoLocal(data) {
           motto: loadedProfile.motto || appState.userProfile?.motto || '',
           primarySubjectId: loadedProfile.primarySubjectId || appState.userProfile?.primarySubjectId || 'math',
           isStealth: Boolean(loadedProfile.isStealth),
-          isPublicLeaderboard: loadedProfile.isPublicLeaderboard !== false
+          isPublicLeaderboard: loadedProfile.isPublicLeaderboard !== false,
+          profileStatus: serverProfileStatus
         };
       }
     } catch (_) {}
   } else {
-    const remoteName = cloudPrefs.auth_user_name || data.user_name;
-    if (remoteName && (!appState.userProfile?.displayName || appState.userProfile.displayName === 'Student')) {
-      appState.userProfile.displayName = sanitizeString(remoteName, 50);
+    if (remoteVerifiedName && (!appState.userProfile?.displayName || appState.userProfile.displayName === 'Student')) {
+      appState.userProfile.displayName = sanitizeString(remoteVerifiedName, 50);
+    }
+  }
+
+  // Enforce server moderation decision on local state
+  if (serverProfileStatus === 'rejected') {
+    const fallbackName = remoteVerifiedName || appState.currentUser?.user_metadata?.full_name || appState.currentUser?.email?.split('@')[0] || 'Scholar';
+    appState.userProfile.displayName = sanitizeString(fallbackName, 50);
+    appState.userProfile.mood = '';
+    appState.userProfile.examTarget = '';
+    appState.userProfile.profileStatus = 'rejected';
+    appState.approvedDisplayName = sanitizeString(fallbackName, 50);
+  } else if (serverProfileStatus === 'approved') {
+    appState.userProfile.profileStatus = 'approved';
+    if (remoteVerifiedName) {
+      appState.userProfile.displayName = sanitizeString(remoteVerifiedName, 50);
+      appState.approvedDisplayName = sanitizeString(remoteVerifiedName, 50);
+    }
+  } else if (serverProfileStatus === 'pending') {
+    appState.userProfile.profileStatus = 'pending';
+    if (remoteVerifiedName) {
+      appState.approvedDisplayName = sanitizeString(remoteVerifiedName, 50);
     }
   }
 
@@ -1078,7 +1096,15 @@ async function pushDataToCloud(silent = false, force = false) {
 
   try {
     const user = appState.currentUser;
-    const userName = sanitizeString(appState.userProfile?.displayName || user.user_metadata?.full_name || user.email?.split('@')[0] || 'Student', 50);
+    const defaultAuthName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Student';
+    const profileStatus = appState.userProfile?.profileStatus || 'approved';
+    const isPendingOrRejected = profileStatus === 'pending' || profileStatus === 'rejected';
+
+    // Moderation Gate: Only write approved display name as public user_name in user_sync_data
+    const userName = isPendingOrRejected
+      ? sanitizeString(appState.approvedDisplayName || defaultAuthName, 50)
+      : sanitizeString(appState.userProfile?.displayName || defaultAuthName, 50);
+
     const userEmail = sanitizeString(user.email || user.user_metadata?.email || '', 100);
     const profileImg = sanitizeUrl(user.user_metadata?.avatar_url || appState.userProfile?.avatarPreset || '');
 
@@ -1492,20 +1518,6 @@ function loadLocalState(targetUserId = null) {
     let parsed = null;
     if (local) {
       try { parsed = JSON.parse(local); } catch (_) {}
-    }
-
-    // Fallback: If user profile in scoped storage is default or missing, check guest state for custom changes
-    if (uid && (!parsed || !parsed.userProfile || !parsed.userProfile.displayName || parsed.userProfile.displayName === 'Student')) {
-      const guestLocal = localStorage.getItem('studytimer_guest_state');
-      if (guestLocal) {
-        try {
-          const guestParsed = JSON.parse(guestLocal);
-          if (guestParsed && guestParsed.userProfile && guestParsed.userProfile.displayName && guestParsed.userProfile.displayName !== 'Student') {
-            parsed = parsed || {};
-            parsed.userProfile = { ...(parsed.userProfile || {}), ...guestParsed.userProfile };
-          }
-        } catch (_) {}
-      }
     }
 
     if (parsed) {
@@ -5367,12 +5379,19 @@ async function updateStudyPresence(isStudying = false) {
     return;
   }
 
+  const defaultAuthName = appState.currentUser.user_metadata?.full_name || 
+                          appState.currentUser.user_metadata?.name || 
+                          appState.currentUser.email?.split('@')[0] || 
+                          'Student';
+  const isPendingOrRejected = profile.profileStatus === 'pending' || profile.profileStatus === 'rejected';
+
+  // Strict moderation gate: unapproved names NEVER go to daily_leaderboard table
+  const userName = (isPendingOrRejected 
+    ? (appState.approvedDisplayName || defaultAuthName)
+    : (profile.displayName || defaultAuthName)
+  ).slice(0, 50);
+
   const currentSub = appState.selectedSubject || { name: 'Focus Study', color: '#3b82f6' };
-  const userName = (profile.displayName || 
-                   appState.currentUser.user_metadata?.full_name || 
-                   appState.currentUser.user_metadata?.name || 
-                   appState.currentUser.email?.split('@')[0] || 
-                   'Student').slice(0, 50);
   const avatarUrl = profile.avatarPreset || 
                     appState.currentUser.user_metadata?.avatar_url || 
                     appState.currentUser.user_metadata?.picture || 
@@ -5400,12 +5419,19 @@ async function syncStudyProgressToLeaderboard(incrementalSeconds = 0) {
   const profile = appState.userProfile || {};
   if (profile.isPublicLeaderboard === false) return;
 
+  const defaultAuthName = appState.currentUser.user_metadata?.full_name || 
+                          appState.currentUser.user_metadata?.name || 
+                          appState.currentUser.email?.split('@')[0] || 
+                          'Student';
+  const isPendingOrRejected = profile.profileStatus === 'pending' || profile.profileStatus === 'rejected';
+
+  // Strict moderation gate: unapproved names NEVER go to daily_leaderboard table
+  const userName = (isPendingOrRejected 
+    ? (appState.approvedDisplayName || defaultAuthName)
+    : (profile.displayName || defaultAuthName)
+  ).slice(0, 50);
+
   const currentSub = appState.selectedSubject || { name: 'Focus Study', color: '#3b82f6' };
-  const userName = (profile.displayName || 
-                    appState.currentUser.user_metadata?.full_name || 
-                    appState.currentUser.user_metadata?.name || 
-                    appState.currentUser.email?.split('@')[0] || 
-                    'Student').slice(0, 50);
   const avatarUrl = profile.avatarPreset || 
                     appState.currentUser.user_metadata?.avatar_url || 
                     appState.currentUser.user_metadata?.picture || 

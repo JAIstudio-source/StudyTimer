@@ -887,23 +887,19 @@
 
       <form class="modal-body profile-modal-body" id="profileCustomizationForm">
         
-        <!-- Moderation Notice Banner -->
-        <div class="moderation-notice-banner">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="notice-shield-icon">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          </svg>
-          <span>Your private profile updates immediately. Public leaderboard tags are verified within 24 hours to keep the community safe 🛡️</span>
-        </div>
-
-        <!-- Hero Avatar Showcase Circle & Live Identity Banner -->
+        <!-- Hero Avatar Showcase Circle & Live Identity Banner (At Top) -->
         <div class="profile-hero-showcase banner-midnight" id="previewProfileCard">
           <div class="hero-showcase-bg" id="previewCardBanner"></div>
           <div class="hero-showcase-content">
-            <div class="hero-avatar-circle-wrap">
+            <div class="hero-avatar-circle-wrap" id="heroAvatarCircleWrap" title="Click to Change Photo / Avatar">
               <div class="hero-avatar-ring glow-gold" id="previewAvatarRing">
                 <span class="hero-avatar-icon" id="previewAvatarIcon">🐱</span>
               </div>
               <span class="hero-flag-badge" id="previewCountryFlag">🌐</span>
+              <button type="button" class="hero-avatar-edit-badge" id="btnHeroQuickChangePhoto" title="Change Profile Photo or Sticker">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                <span>Change</span>
+              </button>
             </div>
             <div class="hero-details-col">
               <div class="hero-name-row">
@@ -921,13 +917,13 @@
 
         <!-- Customization Submenu Navigation Tabs -->
         <div class="profile-submenu-nav" id="profileSubmenuNav" role="tablist">
-          <button type="button" class="profile-tab-btn active" data-tab="tab-identity" role="tab" aria-selected="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-            <span>Identity</span>
-          </button>
-          <button type="button" class="profile-tab-btn" data-tab="tab-avatar" role="tab" aria-selected="false">
+          <button type="button" class="profile-tab-btn active" data-tab="tab-avatar" role="tab" aria-selected="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
             <span>Photo &amp; Avatar</span>
+          </button>
+          <button type="button" class="profile-tab-btn" data-tab="tab-identity" role="tab" aria-selected="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <span>Identity</span>
           </button>
           <button type="button" class="profile-tab-btn" data-tab="tab-themes" role="tab" aria-selected="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"></circle><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"></circle><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"></circle><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"></path></svg>
@@ -939,8 +935,83 @@
           </button>
         </div>
 
-        <!-- Tab 1: Identity & Bio -->
-        <div class="profile-tab-panel active" id="panel-tab-identity">
+        <!-- Tab 1: Photo & Avatar Sticker Picker (Primary) -->
+        <div class="profile-tab-panel active" id="panel-tab-avatar">
+          <!-- Real Profile Photo Upload Section -->
+          <div class="settings-section photo-upload-box">
+            <div class="section-label-row">
+              <label class="settings-label">Custom Profile Photo</label>
+              <span class="section-sub-label">Upload your photo or paste an image URL (Telegram Verified 🛡️)</span>
+            </div>
+            <div class="photo-upload-container">
+              <div class="photo-upload-preview-wrap">
+                <div class="photo-upload-circle" id="customPhotoPreviewCircle">
+                  <span id="customPhotoPreviewFallback">📷</span>
+                  <img id="customPhotoPreviewImg" class="hidden" alt="Profile Photo Preview">
+                </div>
+                <div class="photo-upload-actions">
+                  <div class="photo-btn-group">
+                    <label for="inputProfilePhotoFile" class="btn btn-primary btn-sm photo-upload-btn">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                      <span>Upload Photo</span>
+                    </label>
+                    <input type="file" id="inputProfilePhotoFile" accept="image/png, image/jpeg, image/webp, image/gif" style="display: none;">
+                    <button type="button" class="btn btn-ghost btn-sm hidden" id="btnRemoveCustomPhoto">Remove</button>
+                  </div>
+                  <span class="photo-upload-hint">Auto-compressed • Requires admin Telegram approval</span>
+                </div>
+              </div>
+              <div class="photo-url-row">
+                <div class="photo-url-input-wrap">
+                  <input type="url" id="inputProfilePhotoUrl" placeholder="Or paste image link (https://...)" autocomplete="off">
+                  <button type="button" class="btn btn-secondary btn-sm" id="btnApplyPhotoUrl">Apply</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Preset Avatar Stickers -->
+          <div class="settings-section">
+            <div class="section-label-row">
+              <label class="settings-label">Or Choose Avatar Sticker</label>
+              <span class="section-sub-label">Select your study persona (Instant)</span>
+            </div>
+            <div class="avatar-presets-grid" id="avatarPresetsGrid">
+              <!-- Lofi Animals -->
+              <button type="button" class="avatar-preset-btn active" data-avatar="🐱" data-label="Lofi Cat" title="Lofi Cat">🐱</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🦉" data-label="Study Owl" title="Study Owl">🦉</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🦊" data-label="Focus Fox" title="Focus Fox">🦊</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🐼" data-label="Chill Panda" title="Chill Panda">🐼</button>
+              <!-- Academics & Science -->
+              <button type="button" class="avatar-preset-btn" data-avatar="📚" data-label="Scholar" title="Bookworm">📚</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🧠" data-label="Brainiac" title="Deep Mind">🧠</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🔬" data-label="Lab Flask" title="Science Mind">🔬</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🩺" data-label="Med" title="Medical Student">🩺</button>
+              <!-- Tech & Creativity -->
+              <button type="button" class="avatar-preset-btn" data-avatar="💻" data-label="Coder" title="Code Master">💻</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="⚡" data-label="Lightning" title="Fast Learner">⚡</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🎨" data-label="Artist" title="Creative Mind">🎨</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🚀" data-label="Astro" title="Astronaut">🚀</button>
+              <!-- Zen & Nature -->
+              <button type="button" class="avatar-preset-btn" data-avatar="🌸" data-label="Lotus" title="Zen Lotus">🌸</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🌲" data-label="Forest" title="Nature Focus">🌲</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="☕" data-label="Coffee" title="Cozy Coffee">☕</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🌙" data-label="Moon" title="Night Grind">🌙</button>
+              <!-- Milestones & Icons -->
+              <button type="button" class="avatar-preset-btn" data-avatar="🎯" data-label="Target" title="Goal Crusher">🎯</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🔥" data-label="Flame" title="Streak Master">🔥</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="💎" data-label="Diamond" title="Diamond Focus">💎</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🏆" data-label="Champion" title="Leaderboard Champ">🏆</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="👑" data-label="Crown" title="Royalty">👑</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🪐" data-label="Saturn" title="Cosmic Mind">🪐</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🎮" data-label="Gamer" title="Focus Flow">🎮</button>
+              <button type="button" class="avatar-preset-btn" data-avatar="🎧" data-label="Lofi Beats" title="Lofi Beats">🎧</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Identity & Bio -->
+        <div class="profile-tab-panel hidden" id="panel-tab-identity">
           <div class="input-row-grid">
             <div class="input-group flex-2">
               <label for="inputProfileDisplayName">Display Name / Handle</label>
@@ -988,81 +1059,6 @@
             <select id="selectProfilePrimarySubject" class="form-select">
               <!-- Dynamically populated in JS -->
             </select>
-          </div>
-        </div>
-
-        <!-- Tab 2: Photo & Avatar Sticker Picker -->
-        <div class="profile-tab-panel hidden" id="panel-tab-avatar">
-          <!-- Real Profile Photo Upload Section -->
-          <div class="settings-section photo-upload-box">
-            <div class="section-label-row">
-              <label class="settings-label">Custom Profile Photo</label>
-              <span class="section-sub-label">Upload a photo or enter image URL</span>
-            </div>
-            <div class="photo-upload-container">
-              <div class="photo-upload-preview-wrap">
-                <div class="photo-upload-circle" id="customPhotoPreviewCircle">
-                  <span id="customPhotoPreviewFallback">📷</span>
-                  <img id="customPhotoPreviewImg" class="hidden" alt="Profile Photo Preview">
-                </div>
-                <div class="photo-upload-actions">
-                  <div class="photo-btn-group">
-                    <label for="inputProfilePhotoFile" class="btn btn-primary btn-sm photo-upload-btn">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                      <span>Upload Photo</span>
-                    </label>
-                    <input type="file" id="inputProfilePhotoFile" accept="image/png, image/jpeg, image/webp, image/gif" style="display: none;">
-                    <button type="button" class="btn btn-ghost btn-sm hidden" id="btnRemoveCustomPhoto">Remove</button>
-                  </div>
-                  <span class="photo-upload-hint">Supports JPG, PNG, WebP (Auto-optimized)</span>
-                </div>
-              </div>
-              <div class="photo-url-row">
-                <div class="photo-url-input-wrap">
-                  <input type="url" id="inputProfilePhotoUrl" placeholder="Or paste image URL (https://...)" autocomplete="off">
-                  <button type="button" class="btn btn-secondary btn-sm" id="btnApplyPhotoUrl">Apply</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Preset Avatar Stickers -->
-          <div class="settings-section">
-            <div class="section-label-row">
-              <label class="settings-label">Or Choose Avatar Sticker</label>
-              <span class="section-sub-label">Select your study persona</span>
-            </div>
-            <div class="avatar-presets-grid" id="avatarPresetsGrid">
-              <!-- Lofi Animals -->
-              <button type="button" class="avatar-preset-btn active" data-avatar="🐱" data-label="Lofi Cat" title="Lofi Cat">🐱</button>
-              <button type="button" class="avatar-preset-btn" data-avatar="🦉" data-label="Study Owl" title="Study Owl">🦉</button>
-              <button type="button" class="avatar-preset-btn" data-avatar="🦊" data-label="Focus Fox" title="Focus Fox">🦊</button>
-              <button type="button" class="avatar-preset-btn" data-avatar="🐼" data-label="Chill Panda" title="Chill Panda">🐼</button>
-              <!-- Academics & Science -->
-              <button type="button" class="avatar-preset-btn" data-avatar="📚" data-label="Scholar" title="Bookworm">📚</button>
-              <button type="button" class="avatar-preset-btn" data-avatar="🧠" data-label="Brainiac" title="Deep Mind">🧠</button>
-              <button type="button" class="avatar-preset-btn" data-avatar="🔬" data-label="Lab Flask" title="Science Mind">🔬</button>
-              <button type="button" class="avatar-preset-btn" data-avatar="🩺" data-label="Med" title="Medical Student">🩺</button>
-              <!-- Tech & Creativity -->
-              <button type="button" class="avatar-preset-btn" data-avatar="💻" data-label="Coder" title="Code Master">💻</button>
-              <button type="button" class="avatar-preset-btn" data-avatar="⚡" data-label="Lightning" title="Fast Learner">⚡</button>
-              <button type="button" class="avatar-preset-btn" data-avatar="🎨" data-label="Artist" title="Creative Mind">🎨</button>
-              <button type="button" class="avatar-preset-btn" data-avatar="🚀" data-label="Astro" title="Astronaut">🚀</button>
-              <!-- Zen & Nature -->
-              <button type="button" class="avatar-preset-btn" data-avatar="🌸" data-label="Lotus" title="Zen Lotus">🌸</button>
-              <button type="button" class="avatar-preset-btn" data-avatar="🌲" data-label="Forest" title="Nature Focus">🌲</button>
-              <button type="button" class="avatar-preset-btn" data-avatar="☕" data-label="Coffee" title="Cozy Coffee">☕</button>
-              <button type="button" class="avatar-preset-btn" data-avatar="🌙" data-label="Moon" title="Night Grind">🌙</button>
-              <!-- Milestones & Icons -->
-              <button type="button" class="avatar-preset-btn" data-avatar="🎯" data-label="Target" title="Goal Crusher">🎯</button>
-              <button type="button" class="avatar-preset-btn" data-avatar="🔥" data-label="Flame" title="Streak Master">🔥</button>
-              <button type="button" class="avatar-preset-btn" data-avatar="💎" data-label="Diamond" title="Diamond Focus">💎</button>
-              <button type="button" class="avatar-preset-btn" data-avatar="🏆" data-label="Champion" title="Leaderboard Champ">🏆</button>
-              <button type="button" class="avatar-preset-btn" data-avatar="👑" data-label="Crown" title="Royalty">👑</button>
-              <button type="button" class="avatar-preset-btn" data-avatar="🪐" data-label="Saturn" title="Cosmic Mind">🪐</button>
-              <button type="button" class="avatar-preset-btn" data-avatar="🎮" data-label="Gamer" title="Focus Flow">🎮</button>
-              <button type="button" class="avatar-preset-btn" data-avatar="🎧" data-label="Lofi Beats" title="Lofi Beats">🎧</button>
-            </div>
           </div>
         </div>
 
@@ -1166,6 +1162,14 @@
               <span class="toggle-slider"></span>
             </label>
           </div>
+        </div>
+
+        <!-- Moderation Notice Banner (At bottom) -->
+        <div class="moderation-notice-banner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="notice-shield-icon">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          <span>Your private profile updates immediately. Custom photos and public leaderboard tags are verified via Telegram approval within 24 hours to keep the community safe 🛡️</span>
         </div>
 
         <!-- Modal Actions -->

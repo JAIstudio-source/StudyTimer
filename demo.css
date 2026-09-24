@@ -5095,57 +5095,99 @@ body.has-custom-bg .zen-timer-overlay {
    7 AVATAR GLOW RINGS (Applied across Modal, Sidebar, & Leaderboard)
    ======================================================== */
 .glow-gold,
+.ring-gold,
+.hero-avatar-ring.glow-gold,
+.hero-avatar-ring.ring-gold,
 .podium-avatar-img.glow-gold,
+.podium-avatar-img.ring-gold,
 .row-avatar-img.glow-gold,
-.avatar-sticker.glow-gold {
+.row-avatar-img.ring-gold,
+.avatar-sticker.glow-gold,
+.avatar-sticker.ring-gold {
   border: 2.5px solid #f59e0b !important;
   box-shadow: 0 0 14px rgba(245, 158, 11, 0.65), inset 0 0 6px rgba(245, 158, 11, 0.3) !important;
 }
 
 .glow-cyan,
+.ring-cyan,
+.hero-avatar-ring.glow-cyan,
+.hero-avatar-ring.ring-cyan,
 .podium-avatar-img.glow-cyan,
+.podium-avatar-img.ring-cyan,
 .row-avatar-img.glow-cyan,
-.avatar-sticker.glow-cyan {
+.row-avatar-img.ring-cyan,
+.avatar-sticker.glow-cyan,
+.avatar-sticker.ring-cyan {
   border: 2.5px solid #06b6d4 !important;
   box-shadow: 0 0 14px rgba(6, 182, 212, 0.65), inset 0 0 6px rgba(6, 182, 212, 0.3) !important;
 }
 
 .glow-emerald,
+.ring-emerald,
+.hero-avatar-ring.glow-emerald,
+.hero-avatar-ring.ring-emerald,
 .podium-avatar-img.glow-emerald,
+.podium-avatar-img.ring-emerald,
 .row-avatar-img.glow-emerald,
-.avatar-sticker.glow-emerald {
+.row-avatar-img.ring-emerald,
+.avatar-sticker.glow-emerald,
+.avatar-sticker.ring-emerald {
   border: 2.5px solid #10b981 !important;
   box-shadow: 0 0 14px rgba(16, 185, 129, 0.65), inset 0 0 6px rgba(16, 185, 129, 0.3) !important;
 }
 
 .glow-violet,
+.ring-violet,
+.hero-avatar-ring.glow-violet,
+.hero-avatar-ring.ring-violet,
 .podium-avatar-img.glow-violet,
+.podium-avatar-img.ring-violet,
 .row-avatar-img.glow-violet,
-.avatar-sticker.glow-violet {
+.row-avatar-img.ring-violet,
+.avatar-sticker.glow-violet,
+.avatar-sticker.ring-violet {
   border: 2.5px solid #8b5cf6 !important;
   box-shadow: 0 0 14px rgba(139, 92, 246, 0.65), inset 0 0 6px rgba(139, 92, 246, 0.3) !important;
 }
 
 .glow-rose,
+.ring-rose,
+.hero-avatar-ring.glow-rose,
+.hero-avatar-ring.ring-rose,
 .podium-avatar-img.glow-rose,
+.podium-avatar-img.ring-rose,
 .row-avatar-img.glow-rose,
-.avatar-sticker.glow-rose {
+.row-avatar-img.ring-rose,
+.avatar-sticker.glow-rose,
+.avatar-sticker.ring-rose {
   border: 2.5px solid #f43f5e !important;
   box-shadow: 0 0 14px rgba(244, 63, 94, 0.65), inset 0 0 6px rgba(244, 63, 94, 0.3) !important;
 }
 
 .glow-blue,
+.ring-blue,
+.hero-avatar-ring.glow-blue,
+.hero-avatar-ring.ring-blue,
 .podium-avatar-img.glow-blue,
+.podium-avatar-img.ring-blue,
 .row-avatar-img.glow-blue,
-.avatar-sticker.glow-blue {
+.row-avatar-img.ring-blue,
+.avatar-sticker.glow-blue,
+.avatar-sticker.ring-blue {
   border: 2.5px solid #3b82f6 !important;
   box-shadow: 0 0 14px rgba(59, 130, 246, 0.65), inset 0 0 6px rgba(59, 130, 246, 0.3) !important;
 }
 
 .glow-slate,
+.ring-slate,
+.hero-avatar-ring.glow-slate,
+.hero-avatar-ring.ring-slate,
 .podium-avatar-img.glow-slate,
+.podium-avatar-img.ring-slate,
 .row-avatar-img.glow-slate,
-.avatar-sticker.glow-slate {
+.row-avatar-img.ring-slate,
+.avatar-sticker.glow-slate,
+.avatar-sticker.ring-slate {
   border: 2.5px solid #94a3b8 !important;
   box-shadow: 0 0 14px rgba(148, 163, 184, 0.45), inset 0 0 6px rgba(148, 163, 184, 0.2) !important;
 }
@@ -5174,7 +5216,6 @@ body.has-custom-bg .zen-timer-overlay {
   .profile-submenu-nav {
     grid-template-columns: repeat(2, 1fr);
   }
-}
   .banner-themes-grid,
   .glow-rings-grid {
     grid-template-columns: repeat(3, 1fr);

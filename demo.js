@@ -4786,11 +4786,21 @@ function formatLeaderboardTime(totalSec) {
   return `${totalMin}m`;
 }
 
+function normalizeRingClass(ring) {
+  if (!ring) return 'glow-gold';
+  let r = String(ring).trim().toLowerCase();
+  if (r.startsWith('ring-')) r = 'glow-' + r.slice(5);
+  if (!r.startsWith('glow-')) r = 'glow-' + r;
+  const validRings = ['glow-gold', 'glow-cyan', 'glow-emerald', 'glow-violet', 'glow-rose', 'glow-blue', 'glow-slate'];
+  return validRings.includes(r) ? r : 'glow-gold';
+}
+
 function getAvatarElementHtml(avatarVal, userName, className = 'row-avatar-img', ringClass = '') {
   if (!avatarVal || avatarVal.trim() === '') {
     avatarVal = '🐱';
   }
-  const ringCls = ringClass ? ` ${ringClass}` : '';
+  const normalizedRing = ringClass ? normalizeRingClass(ringClass) : '';
+  const ringCls = normalizedRing ? ` ${normalizedRing}` : '';
   const isUrl = /^(http|https|data:|assets\/|\/)/i.test(avatarVal.trim());
   if (isUrl) {
     return `<img src="${avatarVal}" width="48" height="48" alt="${userName || 'Student'}" class="${className}${ringCls}" loading="eager" decoding="sync" onerror="this.outerHTML='<span class=\\'avatar-sticker ${className}${ringCls}\\'>🐱</span>'">`;
@@ -5065,6 +5075,23 @@ async function handleSaveProfile(e) {
     country_flag: countryFlag,
     subjects: appState.subjects.map(s => s.name)
   });
+
+  // Direct cosmetic update to daily_leaderboard so avatar ring & region flag are instantly visible cross-device
+  if (supabaseClient && appState.currentUser) {
+    try {
+      await supabaseClient
+        .from('daily_leaderboard')
+        .update({
+          avatar_ring: selectedAvatarRing || 'glow-gold',
+          country_flag: countryFlag || '🌐',
+          avatar_url: selectedAvatarPreset || '🐱',
+          is_stealth: Boolean(isStealth)
+        })
+        .eq('user_id', appState.currentUser.id);
+    } catch (dbErr) {
+      console.warn('Leaderboard direct avatar ring sync error:', dbErr);
+    }
+  }
 
   await pushDataToCloud(false, true);
 
@@ -5446,6 +5473,19 @@ async function updateStudyPresence(isStudying = false) {
       p_subject_color: shouldBeStudying ? (currentSub.color || '#3b82f6') : '#3b82f6',
       p_study_date: getLocalDateStr()
     });
+
+    if (profile.avatarRing || profile.countryFlag) {
+      await supabaseClient
+        .from('daily_leaderboard')
+        .update({
+          avatar_ring: profile.avatarRing || 'glow-gold',
+          country_flag: profile.countryFlag || '🌐',
+          avatar_url: avatarUrl,
+          is_stealth: Boolean(profile.isStealth)
+        })
+        .eq('user_id', appState.currentUser.id)
+        .eq('study_date', getLocalDateStr());
+    }
   } catch (err) {
     console.warn('Presence update error:', err);
   }
@@ -5499,6 +5539,19 @@ async function syncStudyProgressToLeaderboard(incrementalSeconds = 0) {
         p_subject_color: isStudying ? (currentSub.color || '#3b82f6') : '#3b82f6',
         p_study_date: getLocalDateStr()
       });
+    }
+
+    if (profile.avatarRing || profile.countryFlag) {
+      await supabaseClient
+        .from('daily_leaderboard')
+        .update({
+          avatar_ring: profile.avatarRing || 'glow-gold',
+          country_flag: profile.countryFlag || '🌐',
+          avatar_url: avatarUrl,
+          is_stealth: Boolean(profile.isStealth)
+        })
+        .eq('user_id', appState.currentUser.id)
+        .eq('study_date', getLocalDateStr());
     }
   } catch (err) {
     console.warn('Leaderboard progress sync error:', err);
@@ -5556,6 +5609,19 @@ async function logSessionToLeaderboard(durationSec, subject) {
       p_subject_color: subject?.color || '#3b82f6',
       p_study_date: getLocalDateStr()
     });
+
+    if (profile.avatarRing || profile.countryFlag) {
+      await supabaseClient
+        .from('daily_leaderboard')
+        .update({
+          avatar_ring: profile.avatarRing || 'glow-gold',
+          country_flag: profile.countryFlag || '🌐',
+          avatar_url: avatarUrl,
+          is_stealth: Boolean(profile.isStealth)
+        })
+        .eq('user_id', appState.currentUser.id)
+        .eq('study_date', getLocalDateStr());
+    }
 
     // Invalidate local cache and refresh leaderboard view
     leaderboardTimeframeCache.daily = { data: null, timestamp: 0 };
@@ -5656,56 +5722,61 @@ async function fetchLeaderboard(forceRefresh = false, showSpinning = false) {
       let rankings = null;
 
       if (period === 'daily') {
-        const { data, error } = await supabaseClient.rpc('get_daily_leaderboard', {
-          p_date: todayStr,
-          p_limit: 50
-        });
-        if (!error && data) rankings = data;
+        const { data: tableData, error: tableErr } = await supabaseClient
+          .from('daily_leaderboard')
+          .select('*')
+          .eq('study_date', todayStr)
+          .order('total_seconds', { ascending: false })
+          .limit(50);
+
+        if (!tableErr && tableData && tableData.length > 0) {
+          rankings = aggregateLeaderboardEntries(tableData);
+        } else {
+          const { data, error } = await supabaseClient.rpc('get_daily_leaderboard', {
+            p_date: todayStr,
+            p_limit: 50
+          });
+          if (!error && data) rankings = data;
+        }
       } else if (period === 'weekly') {
         const startWeekStr = getStartOfWeekDateStr();
-        // Try RPC first
-        const { data: rpcData, error: rpcErr } = await supabaseClient.rpc('get_weekly_leaderboard', {
-          p_start_date: startWeekStr,
-          p_end_date: todayStr,
-          p_limit: 50
-        });
+        const { data: tableData, error: tableErr } = await supabaseClient
+          .from('daily_leaderboard')
+          .select('*')
+          .gte('study_date', startWeekStr)
+          .lte('study_date', todayStr)
+          .order('total_seconds', { ascending: false })
+          .limit(100);
 
-        if (!rpcErr && rpcData) {
-          rankings = rpcData;
+        if (!tableErr && tableData && tableData.length > 0) {
+          rankings = aggregateLeaderboardEntries(tableData);
         } else {
-          // Client-side fallback aggregation from daily_leaderboard table
-          const { data: tableData, error: tableErr } = await supabaseClient
-            .from('daily_leaderboard')
-            .select('*')
-            .gte('study_date', startWeekStr)
-            .lte('study_date', todayStr);
-
-          if (!tableErr && tableData) {
-            rankings = aggregateLeaderboardEntries(tableData);
-          }
+          const { data: rpcData, error: rpcErr } = await supabaseClient.rpc('get_weekly_leaderboard', {
+            p_start_date: startWeekStr,
+            p_end_date: todayStr,
+            p_limit: 50
+          });
+          if (!rpcErr && rpcData) rankings = rpcData;
         }
       } else if (period === 'monthly') {
         const startMonthStr = getStartOfMonthDateStr();
-        // Try RPC first
-        const { data: rpcData, error: rpcErr } = await supabaseClient.rpc('get_monthly_leaderboard', {
-          p_start_date: startMonthStr,
-          p_end_date: todayStr,
-          p_limit: 50
-        });
+        const { data: tableData, error: tableErr } = await supabaseClient
+          .from('daily_leaderboard')
+          .select('*')
+          .gte('study_date', startMonthStr)
+          .lte('study_date', todayStr)
+          .order('total_seconds', { ascending: false })
+          .limit(150);
 
-        if (!rpcErr && rpcData) {
-          rankings = rpcData;
+        if (!tableErr && tableData && tableData.length > 0) {
+          rankings = aggregateLeaderboardEntries(tableData);
         } else {
-          // Client-side fallback aggregation from daily_leaderboard table
-          const { data: tableData, error: tableErr } = await supabaseClient
-            .from('daily_leaderboard')
-            .select('*')
-            .gte('study_date', startMonthStr)
-            .lte('study_date', todayStr);
-
-          if (!tableErr && tableData) {
-            rankings = aggregateLeaderboardEntries(tableData);
-          }
+          const { data: rpcData, error: rpcErr } = await supabaseClient.rpc('get_monthly_leaderboard', {
+            p_start_date: startMonthStr,
+            p_end_date: todayStr,
+            p_limit: 50
+          });
+          if (!rpcErr && rpcData) rankings = rpcData;
         }
       }
 
@@ -5738,12 +5809,18 @@ function aggregateLeaderboardEntries(rows) {
     const uid = row.user_id;
     const isRecentActive = row.last_active_at ? new Date(row.last_active_at).getTime() > threeMinsAgo : false;
     const isStudyingNow = Boolean(row.is_studying && isRecentActive);
+    const ring = normalizeRingClass(row.avatar_ring);
 
     if (!userMap.has(uid)) {
       userMap.set(uid, {
         user_id: uid,
         user_name: row.user_name || 'Student',
         avatar_url: row.avatar_url || '🐱',
+        avatar_ring: ring,
+        country_flag: row.country_flag || '🌐',
+        status_mood: row.status_mood || '',
+        exam_tag: row.exam_tag || '',
+        is_stealth: Boolean(row.is_stealth),
         total_seconds: Number(row.total_seconds) || 0,
         is_studying: isStudyingNow,
         current_subject: row.current_subject || '',
@@ -5755,6 +5832,11 @@ function aggregateLeaderboardEntries(rows) {
       existing.total_seconds += (Number(row.total_seconds) || 0);
       if (row.user_name && row.user_name !== 'Student') existing.user_name = row.user_name;
       if (row.avatar_url) existing.avatar_url = row.avatar_url;
+      if (row.avatar_ring) existing.avatar_ring = ring;
+      if (row.country_flag) existing.country_flag = row.country_flag;
+      if (row.status_mood) existing.status_mood = row.status_mood;
+      if (row.exam_tag) existing.exam_tag = row.exam_tag;
+      if (row.is_stealth !== undefined) existing.is_stealth = Boolean(row.is_stealth);
       if (isStudyingNow) {
         existing.is_studying = true;
         existing.current_subject = row.current_subject || existing.current_subject;
@@ -5767,7 +5849,7 @@ function aggregateLeaderboardEntries(rows) {
   });
 
   const sorted = Array.from(userMap.values()).sort((a, b) => b.total_seconds - a.total_seconds);
-  return sorted.slice(0, 25);
+  return sorted.slice(0, 50);
 }
 
 function isCurrentUserEntry(entry) {
@@ -5904,7 +5986,7 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
     }
 
     const isCurrent = isCurrentUserEntry(entry);
-    const ring = entry.avatar_ring || (isCurrent ? (appState.userProfile?.avatarRing || 'glow-gold') : 'glow-gold');
+    const ring = normalizeRingClass(entry.avatar_ring || (isCurrent ? (appState.userProfile?.avatarRing || 'glow-gold') : 'glow-gold'));
     const flag = entry.country_flag || (isCurrent ? (appState.userProfile?.countryFlag || '') : '');
     const flagHtml = (flag && flag !== '🌐') ? `<span class="lb-flag">${flag}</span> ` : '';
     const crown = rankNum === 1 ? '<span class="podium-crown-badge">👑</span>' : '';
@@ -5979,7 +6061,7 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
   } else {
     listContainer.innerHTML = remainingRanks.map(r => {
       const isCurrent = isCurrentUserEntry(r);
-      const ring = r.avatar_ring || (isCurrent ? (appState.userProfile?.avatarRing || 'glow-gold') : 'glow-gold');
+      const ring = normalizeRingClass(r.avatar_ring || (isCurrent ? (appState.userProfile?.avatarRing || 'glow-gold') : 'glow-gold'));
       const flag = r.country_flag || (isCurrent ? (appState.userProfile?.countryFlag || '') : '');
       const flagHtml = (flag && flag !== '🌐') ? `<span class="lb-flag">${flag}</span> ` : '';
       const timeFormatted = formatLeaderboardTime(r.total_seconds);
@@ -6041,13 +6123,14 @@ function updatePersonalUserBar(myEntry, localTotalSec) {
   const profile = appState.userProfile || {};
   const currentName = profile.displayName || appState.currentUser.user_metadata?.full_name || 'You';
   const avatar = profile.avatarPreset || appState.currentUser.user_metadata?.avatar_url || '🐱';
+  const currentRing = profile.avatarRing || 'glow-gold';
 
   if (userBarName) {
     userBarName.textContent = currentName;
   }
 
   if (userBarAvatarWrap) {
-    userBarAvatarWrap.innerHTML = getAvatarElementHtml(avatar, currentName, 'user-bar-avatar');
+    userBarAvatarWrap.innerHTML = getAvatarElementHtml(avatar, currentName, 'user-bar-avatar', currentRing);
   }
 
   if (userBarStatus) {

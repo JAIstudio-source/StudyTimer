@@ -113,9 +113,72 @@ object ProfileManager {
         }
     }
 
+    fun getEffectiveAvatarUrl(context: Context): String {
+        val profile = getProfile(context)
+        val custom = profile.avatarUrl.trim()
+        if (custom.isNotBlank() && (custom.startsWith("http://") || custom.startsWith("https://") || custom.startsWith("data:"))) {
+            return custom
+        }
+        val preset = profile.avatarPresetId.trim()
+        val stickerMap = mapOf(
+            "avatar_default" to "🐱",
+            "avatar_cat" to "🐱",
+            "avatar_fox" to "🦊",
+            "avatar_lion" to "🦁",
+            "avatar_panda" to "🐼",
+            "avatar_owl" to "🦉",
+            "avatar_rocket" to "🚀",
+            "avatar_fire" to "🔥",
+            "avatar_star" to "⭐",
+            "avatar_scholar" to "🎓"
+        )
+        if (stickerMap.containsKey(preset)) {
+            return stickerMap[preset]!!
+        }
+        if (preset.isNotBlank() && preset != "avatar_default") {
+            return preset
+        }
+        val authUri = AuthManager.getProfileImageUri(context) ?: ""
+        if (authUri.startsWith("http://") || authUri.startsWith("https://")) {
+            return authUri
+        }
+        return "🐱"
+    }
+
+    fun updateFromCloudRecord(context: Context, cloudRecord: JSONObject): Boolean {
+        return try {
+            val statusStr = cloudRecord.optString("profile_status", "").trim().lowercase()
+            val current = getProfile(context)
+            val cloudUserName = cloudRecord.optString("user_name", "")
+            val cloudImageUri = cloudRecord.optString("profile_image_uri", "")
+
+            val newStatus = when (statusStr) {
+                "approved" -> ModerationStatus.APPROVED
+                "rejected" -> ModerationStatus.REJECTED
+                "pending" -> ModerationStatus.PENDING_APPROVAL
+                else -> current.moderationStatus
+            }
+
+            val updated = current.copy(
+                displayName = if (newStatus == ModerationStatus.APPROVED && cloudUserName.isNotBlank() && cloudUserName != "Student") cloudUserName else current.displayName,
+                pendingDisplayName = if (newStatus == ModerationStatus.APPROVED || newStatus == ModerationStatus.REJECTED) null else current.pendingDisplayName,
+                avatarUrl = if (cloudImageUri.isNotBlank()) cloudImageUri else current.avatarUrl,
+                moderationStatus = newStatus,
+                rejectionReason = if (newStatus == ModerationStatus.REJECTED) "Your recent profile edit was rejected by moderators. Please use a respectful display name and photo." else null,
+                updatedAt = System.currentTimeMillis()
+            )
+
+            saveProfile(context, updated)
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update profile from cloud record", e)
+            false
+        }
+    }
+
     fun updateFromCloudJson(context: Context, profileJsonObj: JSONObject): Boolean {
         return try {
-            val statusStr = profileJsonObj.optString("moderationStatus", profileJsonObj.optString("displayNameStatus", "APPROVED"))
+            val statusStr = profileJsonObj.optString("moderationStatus", profileJsonObj.optString("profileStatus", profileJsonObj.optString("displayNameStatus", "APPROVED")))
             val status = when (statusStr.uppercase()) {
                 "PENDING", "PENDING_APPROVAL" -> ModerationStatus.PENDING_APPROVAL
                 "REJECTED" -> ModerationStatus.REJECTED
@@ -126,13 +189,13 @@ object ProfileManager {
             val current = getProfile(context)
             val updated = current.copy(
                 displayName = profileJsonObj.optString("displayName", current.displayName),
-                pendingDisplayName = if (profileJsonObj.has("pendingDisplayName") && !profileJsonObj.isNull("pendingDisplayName")) profileJsonObj.getString("pendingDisplayName") else null,
-                bio = profileJsonObj.optString("bio", current.bio),
-                targetExam = profileJsonObj.optString("targetExam", current.targetExam),
+                pendingDisplayName = if (status == ModerationStatus.APPROVED || status == ModerationStatus.REJECTED) null else (if (profileJsonObj.has("pendingDisplayName") && !profileJsonObj.isNull("pendingDisplayName")) profileJsonObj.getString("pendingDisplayName") else current.pendingDisplayName),
+                bio = profileJsonObj.optString("bio", profileJsonObj.optString("mood", current.bio)),
+                targetExam = profileJsonObj.optString("targetExam", profileJsonObj.optString("exam_target", current.targetExam)),
                 dailyGoalMinutes = profileJsonObj.optInt("dailyGoalMinutes", current.dailyGoalMinutes),
-                avatarUrl = profileJsonObj.optString("avatarUrl", current.avatarUrl),
+                avatarUrl = profileJsonObj.optString("avatarUrl", profileJsonObj.optString("avatarPreset", current.avatarUrl)),
                 moderationStatus = status,
-                rejectionReason = if (profileJsonObj.has("rejectionReason") && !profileJsonObj.isNull("rejectionReason")) profileJsonObj.getString("rejectionReason") else null,
+                rejectionReason = if (status == ModerationStatus.REJECTED) "Your recent profile edit was rejected by moderators. Please use a respectful display name." else null,
                 updatedAt = profileJsonObj.optLong("updatedAt", System.currentTimeMillis())
             )
 

@@ -197,7 +197,7 @@ object LeaderboardManager {
         val anonKey = BuildConfig.SUPABASE_ANON_KEY
         val userId = AuthManager.getUserId(context)
         val userName = ProfileManager.getEffectiveDisplayName(context).trim().take(30)
-        val avatarUrl = (AuthManager.getProfileImageUri(context) ?: "").take(250)
+        val avatarUrl = ProfileManager.getEffectiveAvatarUrl(context).take(250)
         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
 
         if (supabaseUrl.isBlank() || anonKey.isBlank() || userId.isNullOrBlank()) {
@@ -266,7 +266,7 @@ object LeaderboardManager {
         val anonKey = BuildConfig.SUPABASE_ANON_KEY
         val userId = AuthManager.getUserId(context)
         val userName = ProfileManager.getEffectiveDisplayName(context).trim().take(30)
-        val avatarUrl = (AuthManager.getProfileImageUri(context) ?: "").take(250)
+        val avatarUrl = ProfileManager.getEffectiveAvatarUrl(context).take(250)
         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
 
         if (supabaseUrl.isBlank() || anonKey.isBlank() || userId.isNullOrBlank()) {

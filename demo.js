@@ -4945,6 +4945,26 @@ function getCountryFlagEmoji(codeOrFlag) {
   return '🌐';
 }
 
+function getPublicLeaderboardAvatarUrl(profile) {
+  if (!profile) return '🐱';
+  const rawAvatar = profile.avatarPreset || appState.currentUser?.user_metadata?.avatar_url || '🐱';
+  const isCustomPhoto = /^(http|https|data:|blob:)/i.test((rawAvatar || '').trim());
+  
+  // STRICT SECURITY & MODERATION GATE:
+  // Custom uploaded photos / URLs MUST NEVER appear on the public leaderboard, presence, or public RPCs
+  // until explicitly approved by admin (photoApproved === true && profileStatus === 'approved')
+  if (isCustomPhoto) {
+    if (profile.photoApproved === true && profile.profileStatus === 'approved') {
+      return rawAvatar;
+    }
+    // Return safe fallback sticker until admin explicitly approves
+    return profile.fallbackSticker || '🐱';
+  }
+  
+  // Safe preset emoji stickers are allowed immediately
+  return rawAvatar || '🐱';
+}
+
 function getAvatarElementHtml(avatarVal, userName, className = 'row-avatar-img', ringClass = '') {
   if (!avatarVal || (typeof avatarVal === 'string' && avatarVal.trim() === '')) {
     avatarVal = '🐱';
@@ -5239,6 +5259,8 @@ async function handleSaveProfile(e) {
   appState.userProfile = {
     displayName,
     avatarPreset: selectedAvatarPreset,
+    fallbackSticker: isCustomPhoto ? (appState.userProfile?.fallbackSticker || '🐱') : selectedAvatarPreset,
+    photoApproved: !isCustomPhoto, // Emoji stickers are auto-approved, custom photos strictly require admin approval
     avatarRing: selectedAvatarRing,
     bannerTheme: selectedBannerTheme,
     countryFlag,
@@ -5248,7 +5270,7 @@ async function handleSaveProfile(e) {
     primarySubjectId,
     isStealth,
     isPublicLeaderboard,
-    profileStatus: 'pending'
+    profileStatus: isCustomPhoto ? 'pending' : (hasProfanity(displayName) ? 'pending' : 'approved')
   };
 
   saveLocalState();
@@ -5256,12 +5278,12 @@ async function handleSaveProfile(e) {
   closeProfileModal();
 
   if (isCustomPhoto) {
-    showToast('Profile saved! Custom photo submitted to Telegram for approval 🛡️', 'success');
+    showToast('Profile saved! Custom photo submitted for safety verification 🛡️', 'success');
   } else {
-    showToast('Profile updated! Public leaderboard tags go live upon verification.', 'success');
+    showToast('Profile updated successfully! ✨', 'success');
   }
 
-  // Notify Admin Moderation Bot
+  // Notify Admin Moderation Bot on Telegram
   notifyAdminModerationWebhook({
     user_id: appState.currentUser?.id || 'guest_' + Date.now(),
     display_name: displayName,
@@ -5274,7 +5296,8 @@ async function handleSaveProfile(e) {
     subjects: appState.subjects.map(s => s.name)
   });
 
-  // Direct cosmetic update to daily_leaderboard so avatar ring & region flag are instantly visible cross-device
+  // Direct cosmetic update to daily_leaderboard using strict approved avatar helper
+  const publicAvatarUrl = getPublicLeaderboardAvatarUrl(appState.userProfile);
   if (supabaseClient && appState.currentUser) {
     try {
       await supabaseClient
@@ -5282,7 +5305,7 @@ async function handleSaveProfile(e) {
         .update({
           avatar_ring: selectedAvatarRing || 'glow-gold',
           country_flag: countryFlag || '🌐',
-          avatar_url: selectedAvatarPreset || '🐱',
+          avatar_url: publicAvatarUrl,
           is_stealth: Boolean(isStealth)
         })
         .eq('user_id', appState.currentUser.id);
@@ -5334,6 +5357,37 @@ function initProfileCustomizationSystem() {
     btn.addEventListener('click', () => {
       const tabName = btn.dataset.tab;
       if (tabName) switchProfileTab(tabName);
+    });
+  });
+
+  // Avatar Submode Segmented Toggle (Custom Photo vs Emoji Stickers)
+  document.getElementById('btnSubmodePhoto')?.addEventListener('click', () => {
+    document.getElementById('btnSubmodePhoto')?.classList.add('active');
+    document.getElementById('btnSubmodeStickers')?.classList.remove('active');
+    document.getElementById('submodePhotoSection')?.classList.remove('hidden');
+    document.getElementById('submodeStickersSection')?.classList.add('hidden');
+  });
+
+  document.getElementById('btnSubmodeStickers')?.addEventListener('click', () => {
+    document.getElementById('btnSubmodeStickers')?.classList.add('active');
+    document.getElementById('btnSubmodePhoto')?.classList.remove('active');
+    document.getElementById('submodeStickersSection')?.classList.remove('hidden');
+    document.getElementById('submodePhotoSection')?.classList.add('hidden');
+  });
+
+  // Sticker Category Filter Pills
+  document.querySelectorAll('.sticker-cat-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('.sticker-cat-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      const cat = pill.dataset.cat;
+      document.querySelectorAll('#avatarPresetsGrid .avatar-preset-btn').forEach(btn => {
+        if (cat === 'all' || btn.dataset.cat === cat) {
+          btn.style.display = 'flex';
+        } else {
+          btn.style.display = 'none';
+        }
+      });
     });
   });
 
@@ -5844,10 +5898,8 @@ async function updateStudyPresence(isStudying = false) {
   ).slice(0, 50);
 
   const currentSub = appState.selectedSubject || { name: 'Focus Study', color: '#3b82f6' };
-  const avatarUrl = profile.avatarPreset || 
-                    appState.currentUser.user_metadata?.avatar_url || 
-                    appState.currentUser.user_metadata?.picture || 
-                    'assets/logo.png';
+  // Strict moderation gate: unapproved custom photos strictly fallback to sticker on public presence
+  const avatarUrl = getPublicLeaderboardAvatarUrl(profile);
 
   const shouldBeStudying = isStudying && currentMode !== 'break' && timerStatus === 'RUNNING';
 
@@ -5897,10 +5949,8 @@ async function syncStudyProgressToLeaderboard(incrementalSeconds = 0) {
   ).slice(0, 50);
 
   const currentSub = appState.selectedSubject || { name: 'Focus Study', color: '#3b82f6' };
-  const avatarUrl = profile.avatarPreset || 
-                    appState.currentUser.user_metadata?.avatar_url || 
-                    appState.currentUser.user_metadata?.picture || 
-                    'assets/logo.png';
+  // Strict moderation gate: unapproved custom photos strictly fallback to sticker on public progress sync
+  const avatarUrl = getPublicLeaderboardAvatarUrl(profile);
 
   const isStudying = timerStatus === 'RUNNING' && currentMode !== 'break';
   const clampedSeconds = Math.min(Math.max(incrementalSeconds, 0), 600);
@@ -5982,10 +6032,8 @@ async function logSessionToLeaderboard(durationSec, subject) {
                    appState.currentUser.user_metadata?.name || 
                    appState.currentUser.email?.split('@')[0] || 
                    'Student').slice(0, 50);
-  const avatarUrl = profile.avatarPreset || 
-                    appState.currentUser.user_metadata?.avatar_url || 
-                    appState.currentUser.user_metadata?.picture || 
-                    'assets/logo.png';
+  // Strict moderation gate: unapproved custom photos strictly fallback to sticker on recorded sessions
+  const avatarUrl = getPublicLeaderboardAvatarUrl(profile);
 
   try {
     await supabaseClient.rpc('record_study_session_leaderboard', {
@@ -6299,7 +6347,7 @@ function fallbackLocalLeaderboard(period = 'daily') {
 
   const profile = appState.userProfile || {};
   const userName = profile.displayName || appState.currentUser?.user_metadata?.full_name || 'You';
-  const avatar = profile.avatarPreset || appState.currentUser?.user_metadata?.avatar_url || '🐱';
+  const avatar = getPublicLeaderboardAvatarUrl(profile);
 
   if (totalSec > 0 || isUserStudying) {
     dummyRanks.push({
@@ -6514,7 +6562,7 @@ function updatePersonalUserBar(myEntry, localTotalSec) {
   const subName = appState.selectedSubject?.name || 'Focus';
   const profile = appState.userProfile || {};
   const currentName = profile.displayName || appState.currentUser.user_metadata?.full_name || 'You';
-  const avatar = profile.avatarPreset || appState.currentUser.user_metadata?.avatar_url || '🐱';
+  const avatar = getPublicLeaderboardAvatarUrl(profile);
   const currentRing = profile.avatarRing || 'glow-gold';
 
   if (userBarName) {

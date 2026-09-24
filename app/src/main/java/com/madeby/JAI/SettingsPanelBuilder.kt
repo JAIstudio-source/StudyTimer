@@ -774,37 +774,246 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     signInCard.addView(googleBtn)
                     profileContent.addView(signInCard)
                 } else {
+                    val currentProfile = ProfileManager.getProfile(this)
+
+                    // --- MODERATION STATUS BANNER ---
+                    when (currentProfile.moderationStatus) {
+                        ModerationStatus.PENDING_APPROVAL -> {
+                            val pendingCard = LinearLayout(this).apply {
+                                orientation = LinearLayout.VERTICAL
+                                background = themeCoordinator.createGlassChip(tintedColor(Color.parseColor("#F59E0B"), 45), 14f)
+                                setPadding(dp(14), dp(12), dp(14), dp(12))
+                                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                                    setMargins(0, 0, 0, dp(14))
+                                }
+                            }
+                            pendingCard.addView(TextView(this).apply {
+                                text = "⏳ Display Name Pending Approval"
+                                setTextColor(Color.parseColor("#F59E0B"))
+                                textSize = 13f
+                                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                            })
+                            pendingCard.addView(TextView(this).apply {
+                                val reqName = currentProfile.pendingDisplayName ?: "New Name"
+                                text = "Your requested name \"$reqName\" is being reviewed by moderators. Leaderboards will display \"${currentProfile.displayName}\" until approved."
+                                setTextColor(themeCoordinator.textColor)
+                                alpha = 0.75f
+                                textSize = 11.5f
+                                setPadding(0, dp(4), 0, 0)
+                            })
+                            profileContent.addView(pendingCard)
+                        }
+                        ModerationStatus.REJECTED -> {
+                            val rejectedCard = LinearLayout(this).apply {
+                                orientation = LinearLayout.VERTICAL
+                                background = themeCoordinator.createGlassChip(tintedColor(Color.parseColor("#EF4444"), 45), 14f)
+                                setPadding(dp(14), dp(12), dp(14), dp(12))
+                                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                                    setMargins(0, 0, 0, dp(14))
+                                }
+                            }
+                            rejectedCard.addView(TextView(this).apply {
+                                text = "⚠️ Display Name Change Rejected"
+                                setTextColor(Color.parseColor("#EF4444"))
+                                textSize = 13f
+                                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                            })
+                            rejectedCard.addView(TextView(this).apply {
+                                val reason = currentProfile.rejectionReason ?: "Name did not meet community guidelines."
+                                text = "$reason Please submit an alternate display name below."
+                                setTextColor(themeCoordinator.textColor)
+                                alpha = 0.75f
+                                textSize = 11.5f
+                                setPadding(0, dp(4), 0, 0)
+                            })
+                            profileContent.addView(rejectedCard)
+                        }
+                        else -> {
+                            // Approved status - already shown via accountBadge
+                        }
+                    }
+
+                    // --- DISPLAY NAME INPUT ---
+                    val nameLabel = TextView(this).apply {
+                        text = "DISPLAY NAME (PUBLIC)"
+                        setTextColor(themeCoordinator.textColor)
+                        alpha = 0.6f
+                        textSize = 11f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        setPadding(dp(2), 0, 0, dp(4))
+                    }
+                    profileContent.addView(nameLabel)
+
                     val editNameField = EditText(this).apply {
-                        hint = "Display Name"
-                        setText(userName)
+                        hint = "e.g. Alex_Studies"
+                        setText(currentProfile.pendingDisplayName ?: currentProfile.displayName)
                         setTextColor(themeCoordinator.textColor)
                         setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
-                        textSize = 13.5f
-                        background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 35), 12f)
-                        setPadding(dp(14), dp(10), dp(14), dp(10))
-                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                        textSize = 14f
+                        background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 12f)
+                        setPadding(dp(14), dp(11), dp(14), dp(11))
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                            setMargins(0, 0, 0, dp(12))
+                        }
+                        setSingleLine(true)
                     }
                     profileContent.addView(editNameField)
 
-                    val saveNameBtn = Button(this).apply {
-                        text = "Save Name"
+                    // --- TARGET EXAM / GOAL SELECTOR ---
+                    val examLabel = TextView(this).apply {
+                        text = "TARGET EXAM / FOCUS TRACK"
+                        setTextColor(themeCoordinator.textColor)
+                        alpha = 0.6f
+                        textSize = 11f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        setPadding(dp(2), 0, 0, dp(6))
+                    }
+                    profileContent.addView(examLabel)
+
+                    val examTracks = listOf("JEE / NEET", "UPSC / Govt", "Board Exams", "College / Uni", "Self-Study", "Programming")
+                    var selectedExam = currentProfile.targetExam.ifBlank { "Self-Study" }
+
+                    val chipsScroll = android.widget.HorizontalScrollView(this).apply {
+                        isHorizontalScrollBarEnabled = false
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                            setMargins(0, 0, 0, dp(12))
+                        }
+                    }
+                    val chipsLayout = LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                    }
+
+                    val chipViews = mutableListOf<TextView>()
+                    for (track in examTracks) {
+                        val isSelected = track.equals(selectedExam, ignoreCase = true)
+                        val chip = TextView(this).apply {
+                            text = track
+                            textSize = 12f
+                            typeface = Typeface.create("sans-serif-medium", if (isSelected) Typeface.BOLD else Typeface.NORMAL)
+                            setTextColor(if (isSelected) Color.WHITE else themeCoordinator.textColor)
+                            background = if (isSelected) {
+                                themeCoordinator.createButtonBackground(themeCoordinator.primaryColor)
+                            } else {
+                                themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 25), 10f)
+                            }
+                            setPadding(dp(12), dp(6), dp(12), dp(6))
+                            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                                setMargins(0, 0, dp(8), 0)
+                            }
+                            setOnClickListener {
+                                selectedExam = track
+                                for (c in chipViews) {
+                                    val sel = c.text == track
+                                    c.typeface = Typeface.create("sans-serif-medium", if (sel) Typeface.BOLD else Typeface.NORMAL)
+                                    c.setTextColor(if (sel) Color.WHITE else themeCoordinator.textColor)
+                                    c.background = if (sel) {
+                                        themeCoordinator.createButtonBackground(themeCoordinator.primaryColor)
+                                    } else {
+                                        themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 25), 10f)
+                                    }
+                                }
+                            }
+                        }
+                        chipViews.add(chip)
+                        chipsLayout.addView(chip)
+                    }
+                    chipsScroll.addView(chipsLayout)
+                    profileContent.addView(chipsScroll)
+
+                    // --- STUDENT BIO / MOTTO ---
+                    val bioLabel = TextView(this).apply {
+                        text = "STUDENT BIO & MOTTO"
+                        setTextColor(themeCoordinator.textColor)
+                        alpha = 0.6f
+                        textSize = 11f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        setPadding(dp(2), 0, 0, dp(4))
+                    }
+                    profileContent.addView(bioLabel)
+
+                    val editBioField = EditText(this).apply {
+                        hint = "e.g. Focused on daily consistency • Consistency is key"
+                        setText(currentProfile.bio)
+                        setTextColor(themeCoordinator.textColor)
+                        setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
+                        textSize = 13f
+                        background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 12f)
+                        setPadding(dp(14), dp(10), dp(14), dp(10))
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                            setMargins(0, 0, 0, dp(14))
+                        }
+                        maxLines = 2
+                    }
+                    profileContent.addView(editBioField)
+
+                    // --- SAVE PROFILE ACTION BUTTON ---
+                    val saveProfileBtn = Button(this).apply {
+                        text = "Save Profile Changes"
                         setTextColor(Color.WHITE)
-                        textSize = 12.5f
+                        textSize = 13.5f
                         typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                         background = themeCoordinator.createButtonBackground(themeCoordinator.primaryColor)
-                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(42)).apply {
-                            setMargins(0, dp(8), 0, 0)
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46)).apply {
+                            setMargins(0, dp(4), 0, 0)
                         }
                         setOnClickListener {
-                            val newName = editNameField.text.toString().trim()
-                            if (newName.isNotEmpty()) {
-                                AuthManager.updateUserName(this@with, newName)
-                                Toast.makeText(this@with, "Name saved!", Toast.LENGTH_SHORT).show()
-                                navigateToPanel(AppPanel.SETTINGS)
+                            val inputName = editNameField.text.toString().trim()
+                            val inputBio = editBioField.text.toString().trim()
+
+                            if (inputName.isBlank()) {
+                                Toast.makeText(this@with, "Please enter a valid display name.", Toast.LENGTH_SHORT).show()
+                                return@setOnClickListener
+                            }
+
+                            // Run local profanity pre-check
+                            val check = ProfanityFilter.checkName(inputName)
+                            if (!check.isClean) {
+                                androidx.appcompat.app.AlertDialog.Builder(this@with)
+                                    .setTitle("Inappropriate Name")
+                                    .setMessage(check.reason ?: "Display name contains prohibited words.")
+                                    .setPositiveButton("OK", null)
+                                    .show()
+                                return@setOnClickListener
+                            }
+
+                            isEnabled = false
+                            text = "Saving..."
+
+                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                                val result = ProfileSyncService.submitProfile(
+                                    context = this@with,
+                                    displayName = inputName,
+                                    bio = inputBio,
+                                    targetExam = selectedExam,
+                                    dailyGoalMinutes = currentProfile.dailyGoalMinutes,
+                                    avatarPresetId = currentProfile.avatarPresetId,
+                                    avatarUrl = currentProfile.avatarUrl
+                                )
+
+                                isEnabled = true
+                                text = "Save Profile Changes"
+
+                                when (result) {
+                                    is ProfileSyncService.SubmissionResult.Success -> {
+                                        Toast.makeText(this@with, result.message, Toast.LENGTH_LONG).show()
+                                        navigateToPanel(AppPanel.SETTINGS)
+                                    }
+                                    is ProfileSyncService.SubmissionResult.RejectedLocally -> {
+                                        androidx.appcompat.app.AlertDialog.Builder(this@with)
+                                            .setTitle("Name Not Allowed")
+                                            .setMessage(result.reason)
+                                            .setPositiveButton("OK", null)
+                                            .show()
+                                    }
+                                    is ProfileSyncService.SubmissionResult.NetworkError -> {
+                                        Toast.makeText(this@with, result.message, Toast.LENGTH_LONG).show()
+                                        navigateToPanel(AppPanel.SETTINGS)
+                                    }
+                                }
                             }
                         }
                     }
-                    profileContent.addView(saveNameBtn)
+                    profileContent.addView(saveProfileBtn)
                 }
 
                 profileCard.addView(profileContent)

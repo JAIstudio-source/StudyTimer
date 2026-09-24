@@ -181,12 +181,7 @@ object CloudSyncManager {
             val examJsonStr = examPrefs.getString("exams_list_json", "[]") ?: "[]"
             prefsJson.put("__exam_countdowns_data__", examJsonStr)
 
-            var userName: String = (AuthManager.getUserName(context) ?: "").trim().take(50)
-            val customNameFromPrefs = sharedPrefs.getString("custom_display_name", null)
-            if (!customNameFromPrefs.isNullOrBlank() && customNameFromPrefs != "Student" && customNameFromPrefs != "null") {
-                userName = customNameFromPrefs.trim().take(50)
-                AuthManager.updateUserName(context, userName)
-            }
+            var userName: String = ProfileManager.getEffectiveDisplayName(context).trim().take(50)
             val userEmail: String = (AuthManager.getUserEmail(context) ?: "").trim().take(100)
             val profileImg: String = (AuthManager.getProfileImageUri(context) ?: "").trim().take(300)
             val now = System.currentTimeMillis()
@@ -393,15 +388,19 @@ object CloudSyncManager {
                 }
                 editor.apply()
 
-                // Synchronize custom Display Name if available in cloud
+                // Synchronize custom Display Name and Profile from cloud
+                try {
+                    val pObj = JSONObject(cloudPrefsStr)
+                    val profileObj = pObj.optJSONObject("__user_profile__")
+                    if (profileObj != null) {
+                        ProfileManager.updateFromCloudJson(context, profileObj)
+                    }
+                } catch (_: Exception) {}
+
                 val cloudName = if (cloudRecord.has("user_name") && cloudRecord.optString("user_name").isNotBlank() && cloudRecord.optString("user_name") != "Student") {
                     cloudRecord.optString("user_name")
                 } else {
-                    try {
-                        val pObj = JSONObject(cloudPrefsStr)
-                        val profileObj = pObj.optJSONObject("__user_profile__")
-                        profileObj?.optString("displayName", "") ?: pObj.optString("auth_user_name", "")
-                    } catch (_: Exception) { "" }
+                    ProfileManager.getEffectiveDisplayName(context)
                 }
 
                 if (cloudName.isNotBlank() && cloudName != "Student" && cloudName != "null") {
@@ -594,6 +593,9 @@ object CloudSyncManager {
                     try {
                         val pObj = JSONObject(prefsStr)
                         val profileObj = pObj.optJSONObject("__user_profile__")
+                        if (profileObj != null) {
+                            ProfileManager.updateFromCloudJson(context, profileObj)
+                        }
                         val customName = profileObj?.optString("displayName", "") ?: ""
                         if (customName.isNotBlank() && customName != "null") {
                             finalUserName = customName

@@ -181,7 +181,12 @@ object CloudSyncManager {
             val examJsonStr = examPrefs.getString("exams_list_json", "[]") ?: "[]"
             prefsJson.put("__exam_countdowns_data__", examJsonStr)
 
-            val userName: String = (AuthManager.getUserName(context) ?: "").trim().take(50)
+            var userName: String = (AuthManager.getUserName(context) ?: "").trim().take(50)
+            val customNameFromPrefs = sharedPrefs.getString("custom_display_name", null)
+            if (!customNameFromPrefs.isNullOrBlank() && customNameFromPrefs != "Student" && customNameFromPrefs != "null") {
+                userName = customNameFromPrefs.trim().take(50)
+                AuthManager.updateUserName(context, userName)
+            }
             val userEmail: String = (AuthManager.getUserEmail(context) ?: "").trim().take(100)
             val profileImg: String = (AuthManager.getProfileImageUri(context) ?: "").trim().take(300)
             val now = System.currentTimeMillis()
@@ -387,6 +392,21 @@ object CloudSyncManager {
                     }
                 }
                 editor.apply()
+
+                // Synchronize custom Display Name if available in cloud
+                val cloudName = if (cloudRecord.has("user_name") && cloudRecord.optString("user_name").isNotBlank() && cloudRecord.optString("user_name") != "Student") {
+                    cloudRecord.optString("user_name")
+                } else {
+                    try {
+                        val pObj = JSONObject(cloudPrefsStr)
+                        val profileObj = pObj.optJSONObject("__user_profile__")
+                        profileObj?.optString("displayName", "") ?: pObj.optString("auth_user_name", "")
+                    } catch (_: Exception) { "" }
+                }
+
+                if (cloudName.isNotBlank() && cloudName != "Student" && cloudName != "null") {
+                    AuthManager.updateUserName(context, cloudName.trim().take(50))
+                }
             }
 
             // 3. Merge Subject Tags
@@ -569,8 +589,23 @@ object CloudSyncManager {
                 val recordUserName = record.optString("user_name")
                 val recordProfileImg = record.optString("profile_image_uri")
 
-                if (recordUserName.isNotEmpty()) {
-                    AuthManager.updateUserName(context, recordUserName)
+                var finalUserName = recordUserName
+                if (finalUserName.isBlank() || finalUserName == "Student" || finalUserName == "null") {
+                    try {
+                        val pObj = JSONObject(prefsStr)
+                        val profileObj = pObj.optJSONObject("__user_profile__")
+                        val customName = profileObj?.optString("displayName", "") ?: ""
+                        if (customName.isNotBlank() && customName != "null") {
+                            finalUserName = customName
+                        } else {
+                            val authName = pObj.optString("auth_user_name", "")
+                            if (authName.isNotBlank()) finalUserName = authName
+                        }
+                    } catch (_: Exception) {}
+                }
+
+                if (finalUserName.isNotBlank() && finalUserName != "null") {
+                    AuthManager.updateUserName(context, finalUserName.trim().take(50))
                 }
                 if (recordProfileImg.isNotEmpty()) {
                     AuthManager.saveProfileImageUri(context, recordProfileImg)

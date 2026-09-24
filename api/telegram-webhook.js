@@ -47,35 +47,76 @@ export default async function handler(req, res) {
           let targetAvatarUrl = '🐱';
           let targetRing = 'glow-gold';
           let targetName = 'Student';
+          let targetFlag = '🌐';
+          let profile = {};
 
           if (syncRow) {
-            let profile = {};
-            if (syncRow.custom_preferences && syncRow.custom_preferences.__user_profile__) {
+            // 1. Try reading from prefs_data
+            if (syncRow.prefs_data) {
               try {
-                profile = typeof syncRow.custom_preferences.__user_profile__ === 'string'
-                  ? JSON.parse(syncRow.custom_preferences.__user_profile__)
-                  : syncRow.custom_preferences.__user_profile__;
+                const parsedPrefs = typeof syncRow.prefs_data === 'string'
+                  ? JSON.parse(syncRow.prefs_data)
+                  : syncRow.prefs_data;
+                if (parsedPrefs && parsedPrefs.__user_profile__) {
+                  profile = typeof parsedPrefs.__user_profile__ === 'string'
+                    ? JSON.parse(parsedPrefs.__user_profile__)
+                    : parsedPrefs.__user_profile__;
+                }
               } catch (_) {}
             }
 
+            // 2. Fallback to pending_profile_json or custom_preferences
+            if ((!profile || !profile.avatarPreset) && syncRow.pending_profile_json) {
+              try {
+                const parsedPending = typeof syncRow.pending_profile_json === 'string'
+                  ? JSON.parse(syncRow.pending_profile_json)
+                  : syncRow.pending_profile_json;
+                if (parsedPending) profile = { ...profile, ...parsedPending };
+              } catch (_) {}
+            }
+
+            if ((!profile || !profile.avatarPreset) && syncRow.custom_preferences) {
+              try {
+                const parsedCustom = typeof syncRow.custom_preferences === 'string'
+                  ? JSON.parse(syncRow.custom_preferences)
+                  : syncRow.custom_preferences;
+                if (parsedCustom && parsedCustom.__user_profile__) {
+                  const customProf = typeof parsedCustom.__user_profile__ === 'string'
+                    ? JSON.parse(parsedCustom.__user_profile__)
+                    : parsedCustom.__user_profile__;
+                  if (customProf) profile = { ...profile, ...customProf };
+                }
+              } catch (_) {}
+            }
+
+            targetAvatarUrl = profile.avatarPreset || syncRow.profile_image_uri || '🐱';
+            targetRing = profile.avatarRing || 'glow-gold';
+            targetName = profile.displayName || syncRow.user_name || targetName;
+            targetFlag = profile.countryFlag || '🌐';
+
             profile.photoApproved = true;
             profile.profileStatus = 'approved';
-            targetAvatarUrl = profile.avatarPreset || targetAvatarUrl;
-            targetRing = profile.avatarRing || targetRing;
-            targetName = profile.displayName || syncRow.user_name || targetName;
+            profile.avatarPreset = targetAvatarUrl;
 
-            const updatedPrefs = {
-              ...(syncRow.custom_preferences || {}),
-              __user_profile__: profile
-            };
+            let updatedPrefs = {};
+            if (syncRow.prefs_data) {
+              try {
+                updatedPrefs = typeof syncRow.prefs_data === 'string'
+                  ? JSON.parse(syncRow.prefs_data)
+                  : (syncRow.prefs_data || {});
+              } catch (_) {}
+            }
+            updatedPrefs.__user_profile__ = profile;
 
             await supabase
               .from('user_sync_data')
               .update({
                 profile_status: 'approved',
                 user_name: targetName,
-                custom_preferences: updatedPrefs,
-                updated_at: new Date().toISOString()
+                profile_image_uri: targetAvatarUrl,
+                pending_profile_json: null,
+                prefs_data: JSON.stringify(updatedPrefs),
+                updated_at: Date.now()
               })
               .eq('user_id', userId);
           }
@@ -84,9 +125,11 @@ export default async function handler(req, res) {
           await supabase
             .from('daily_leaderboard')
             .update({
+              user_name: targetName,
               avatar_url: targetAvatarUrl,
               avatar_ring: targetRing,
-              is_stealth: false
+              country_flag: targetFlag,
+              is_stealth: Boolean(profile.isStealth)
             })
             .eq('user_id', userId);
 
@@ -124,7 +167,7 @@ export default async function handler(req, res) {
           // Reject action
           await supabase
             .from('user_sync_data')
-            .update({ profile_status: 'rejected', updated_at: new Date().toISOString() })
+            .update({ profile_status: 'rejected', updated_at: Date.now() })
             .eq('user_id', userId);
 
           await supabase

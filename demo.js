@@ -5339,6 +5339,12 @@ function openProfileModal() {
   updateProfileLivePreview();
   lockBodyScroll();
   modal.classList.remove('hidden');
+
+  // Ensure modal starts at the top showing the Hero Profile Card
+  const modalCard = document.getElementById('profileModalCard');
+  if (modalCard) modalCard.scrollTop = 0;
+  modal.scrollTop = 0;
+  window.scrollTo(0, 0);
 }
 
 function switchProfileTab(tabName) {

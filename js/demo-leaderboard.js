@@ -108,9 +108,6 @@ function openProfileModal() {
   }
 
   // Highlight active buttons
-  document.querySelectorAll('.avatar-preset-btn').forEach(btn => {
-    btn.classList.toggle('active', !isCustomPhoto && btn.dataset.avatar === selectedAvatarPreset);
-  });
   document.querySelectorAll('.banner-theme-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.banner === selectedBannerTheme);
   });
@@ -121,6 +118,12 @@ function openProfileModal() {
   updateProfileLivePreview();
   lockBodyScroll();
   modal.classList.remove('hidden');
+
+  // Ensure modal starts at the top showing the Hero Profile Card
+  const modalCard = document.getElementById('profileModalCard');
+  if (modalCard) modalCard.scrollTop = 0;
+  modal.scrollTop = 0;
+  window.scrollTo(0, 0);
 }
 
 function switchProfileTab(tabName) {
@@ -176,11 +179,11 @@ function updateProfileLivePreview() {
   }
   if (previewAvatarIcon) {
     const isUrl = /^(http|https|data:|assets\/|\/|blob:)/i.test((selectedAvatarPreset || '').trim());
+    const fallbackInit = escapeHtml((nameVal || 'S').trim().charAt(0).toUpperCase() || 'S');
     if (isUrl) {
-      const fallbackInit = escapeHtml((nameVal || 'S').trim().charAt(0).toUpperCase() || 'S');
       previewAvatarIcon.innerHTML = `<img src="${selectedAvatarPreset}" alt="Avatar Preview" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" onerror="this.outerHTML='<span class=&quot;avatar-initial&quot;>${fallbackInit}</span>'">`;
     } else {
-      previewAvatarIcon.textContent = (nameVal || 'S').trim().charAt(0).toUpperCase() || 'S';
+      previewAvatarIcon.innerHTML = `<span class="avatar-initial">${fallbackInit}</span>`;
     }
   }
   if (previewCountryFlag) previewCountryFlag.textContent = flagVal;

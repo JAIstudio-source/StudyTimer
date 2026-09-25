@@ -1117,9 +1117,12 @@ async function fetchLeaderboard(forceRefresh = false, showSpinning = false) {
   startResetCountdownTimer();
 
   const cached = leaderboardTimeframeCache[period];
-  if (!forceRefresh && cached && cached.data && (now - cached.timestamp < LEADERBOARD_CACHE_TTL_MS)) {
+  // 1. SWR: Instant render from cache to eliminate UI lag
+  if (cached && cached.data) {
     renderLeaderboard(cached.data, period);
-    return;
+    if (!forceRefresh && (now - cached.timestamp < LEADERBOARD_CACHE_TTL_MS)) {
+      return;
+    }
   }
 
   if (isLeaderboardFetchInProgress) return;
@@ -1130,86 +1133,94 @@ async function fetchLeaderboard(forceRefresh = false, showSpinning = false) {
     refreshBtn?.classList.add('spinning');
   }
 
+  const LB_SELECT_COLUMNS = 'user_id,user_name,avatar_url,avatar_ring,country_flag,status_mood,exam_tag,is_stealth,total_seconds,is_studying,current_subject,subject_color,last_active_at,study_date';
+
   try {
     if (supabaseClient) {
       const todayStr = getLocalDateStr();
       let rankings = null;
 
       if (period === 'daily') {
-        const { data: tableData, error: tableErr } = await supabaseClient
-          .from('daily_leaderboard')
-          .select('*')
-          .eq('study_date', todayStr)
-          .order('total_seconds', { ascending: false })
-          .limit(50);
+        const { data: rpcData, error: rpcErr } = await supabaseClient.rpc('get_daily_leaderboard', {
+          p_date: todayStr,
+          p_limit: 50
+        });
 
-        if (!tableErr && tableData && tableData.length > 0) {
-          rankings = aggregateLeaderboardEntries(tableData);
+        if (!rpcErr && rpcData && rpcData.length > 0) {
+          rankings = rpcData;
         } else {
-          const { data, error } = await supabaseClient.rpc('get_daily_leaderboard', {
-            p_date: todayStr,
-            p_limit: 50
-          });
-          if (!error && data) rankings = data;
+          const { data: tableData } = await supabaseClient
+            .from('daily_leaderboard')
+            .select(LB_SELECT_COLUMNS)
+            .eq('study_date', todayStr)
+            .order('total_seconds', { ascending: false })
+            .limit(50);
+          if (tableData && tableData.length > 0) {
+            rankings = aggregateLeaderboardEntries(tableData);
+          }
         }
       } else if (period === 'weekly') {
         const startWeekStr = getStartOfWeekDateStr();
-        const { data: tableData, error: tableErr } = await supabaseClient
-          .from('daily_leaderboard')
-          .select('*')
-          .gte('study_date', startWeekStr)
-          .lte('study_date', todayStr)
-          .order('total_seconds', { ascending: false })
-          .limit(100);
+        const { data: rpcData, error: rpcErr } = await supabaseClient.rpc('get_weekly_leaderboard', {
+          p_start_date: startWeekStr,
+          p_end_date: todayStr,
+          p_limit: 50
+        });
 
-        if (!tableErr && tableData && tableData.length > 0) {
-          rankings = aggregateLeaderboardEntries(tableData);
+        if (!rpcErr && rpcData && rpcData.length > 0) {
+          rankings = rpcData;
         } else {
-          const { data: rpcData, error: rpcErr } = await supabaseClient.rpc('get_weekly_leaderboard', {
-            p_start_date: startWeekStr,
-            p_end_date: todayStr,
-            p_limit: 50
-          });
-          if (!rpcErr && rpcData) rankings = rpcData;
+          const { data: tableData } = await supabaseClient
+            .from('daily_leaderboard')
+            .select(LB_SELECT_COLUMNS)
+            .gte('study_date', startWeekStr)
+            .lte('study_date', todayStr)
+            .order('total_seconds', { ascending: false })
+            .limit(50);
+          if (tableData && tableData.length > 0) {
+            rankings = aggregateLeaderboardEntries(tableData);
+          }
         }
       } else if (period === 'monthly') {
         const startMonthStr = getStartOfMonthDateStr();
-        const { data: tableData, error: tableErr } = await supabaseClient
-          .from('daily_leaderboard')
-          .select('*')
-          .gte('study_date', startMonthStr)
-          .lte('study_date', todayStr)
-          .order('total_seconds', { ascending: false })
-          .limit(150);
+        const { data: rpcData, error: rpcErr } = await supabaseClient.rpc('get_monthly_leaderboard', {
+          p_start_date: startMonthStr,
+          p_end_date: todayStr,
+          p_limit: 50
+        });
 
-        if (!tableErr && tableData && tableData.length > 0) {
-          rankings = aggregateLeaderboardEntries(tableData);
+        if (!rpcErr && rpcData && rpcData.length > 0) {
+          rankings = rpcData;
         } else {
-          const { data: rpcData, error: rpcErr } = await supabaseClient.rpc('get_monthly_leaderboard', {
-            p_start_date: startMonthStr,
-            p_end_date: todayStr,
-            p_limit: 50
-          });
-          if (!rpcErr && rpcData) rankings = rpcData;
+          const { data: tableData } = await supabaseClient
+            .from('daily_leaderboard')
+            .select(LB_SELECT_COLUMNS)
+            .gte('study_date', startMonthStr)
+            .lte('study_date', todayStr)
+            .order('total_seconds', { ascending: false })
+            .limit(50);
+          if (tableData && tableData.length > 0) {
+            rankings = aggregateLeaderboardEntries(tableData);
+          }
         }
       }
 
       if (rankings && Array.isArray(rankings)) {
         leaderboardTimeframeCache[period] = { data: rankings, timestamp: now };
         renderLeaderboard(rankings, period);
-      } else {
+      } else if (!cached?.data) {
         fallbackLocalLeaderboard(period);
       }
-    } else {
+    } else if (!cached?.data) {
       fallbackLocalLeaderboard(period);
     }
   } catch (err) {
-    console.warn('Leaderboard fetch exception:', err);
-    fallbackLocalLeaderboard(period);
+    console.warn('Leaderboard fetch notice:', err);
+    if (!cached?.data) fallbackLocalLeaderboard(period);
   } finally {
     isLeaderboardFetchInProgress = false;
     if (showSpinning) {
-      setTimeout(() => refreshBtn?.classList.remove('spinning'), 400);
+      setTimeout(() => refreshBtn?.classList.remove('spinning'), 300);
     }
   }
 }

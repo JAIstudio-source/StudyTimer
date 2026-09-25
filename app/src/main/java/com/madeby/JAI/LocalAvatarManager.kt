@@ -92,23 +92,59 @@ object LocalAvatarManager {
 
     fun getCircularAvatarBitmap(context: Context, targetSizePx: Int): Bitmap? {
         val file = getAvatarFile(context)
-        if (!file.exists() || file.length() == 0L) return null
+        if (file.exists() && file.length() > 0L) {
+            return try {
+                val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return null
+                val output = Bitmap.createBitmap(targetSizePx, targetSizePx, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(output)
+                val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+                val rect = Rect(0, 0, targetSizePx, targetSizePx)
+                val rectF = RectF(rect)
+
+                canvas.drawARGB(0, 0, 0, 0)
+                canvas.drawOval(rectF, paint)
+
+                paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+                canvas.drawBitmap(bitmap, Rect(0, 0, bitmap.width, bitmap.height), rect, paint)
+                output
+            } catch (_: Exception) {
+                null
+            }
+        }
+
+        // If local file not cached yet, check memory cache for remote avatar URL
+        val remoteUrl = AuthManager.getProfileImageUri(context)?.trim() ?: ""
+        if (remoteUrl.startsWith("http://") || remoteUrl.startsWith("https://")) {
+            val cacheKey = "${remoteUrl}_$targetSizePx"
+            remoteAvatarCache.get(cacheKey)?.let { return it }
+        }
+
+        return null
+    }
+
+    fun downloadAndSaveRemoteAvatar(context: Context, urlStr: String): Boolean {
+        if (urlStr.isBlank() || !urlStr.startsWith("http")) return false
         return try {
-            val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return null
-            val output = Bitmap.createBitmap(targetSizePx, targetSizePx, Bitmap.Config.ARGB_8888)
-            val canvas = Canvas(output)
-            val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-            val rect = Rect(0, 0, targetSizePx, targetSizePx)
-            val rectF = RectF(rect)
-
-            canvas.drawARGB(0, 0, 0, 0)
-            canvas.drawOval(rectF, paint)
-
-            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
-            canvas.drawBitmap(bitmap, Rect(0, 0, bitmap.width, bitmap.height), rect, paint)
-            output
+            val url = java.net.URL(urlStr)
+            val conn = url.openConnection() as java.net.HttpURLConnection
+            conn.connectTimeout = 8000
+            conn.readTimeout = 8000
+            conn.instanceFollowRedirects = true
+            conn.requestMethod = "GET"
+            if (conn.responseCode in 200..299) {
+                val bytes = conn.inputStream.use { it.readBytes() }
+                if (bytes.isNotEmpty()) {
+                    val file = getAvatarFile(context)
+                    FileOutputStream(file).use { fos ->
+                        fos.write(bytes)
+                        fos.flush()
+                    }
+                    AuthManager.saveProfileImageUri(context, file.absolutePath)
+                    true
+                } else false
+            } else false
         } catch (_: Exception) {
-            null
+            false
         }
     }
 

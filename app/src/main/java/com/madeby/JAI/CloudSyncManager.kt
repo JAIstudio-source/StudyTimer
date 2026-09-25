@@ -2,7 +2,9 @@ package com.madeby.JAI
 
 import android.content.Context
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -727,6 +729,23 @@ object CloudSyncManager {
                         AuthManager.saveProfileImageUri(context, cloudImg)
                     }
                     editor.commit()
+
+                    // Synchronize and restore User Profile from restored prefs JSON
+                    try {
+                        val profileObj = prefsObj.optJSONObject("__user_profile__")
+                        if (profileObj != null) {
+                            ProfileManager.updateFromCloudJson(context, profileObj)
+                        }
+                    } catch (_: Exception) {}
+                }
+
+                // Restore from Supabase record and download remote avatar if present
+                ProfileManager.updateFromCloudRecord(context, record)
+                val effectiveAvatar = ProfileManager.getEffectiveAvatarUrl(context)
+                if (effectiveAvatar.startsWith("http://") || effectiveAvatar.startsWith("https://")) {
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                        LocalAvatarManager.downloadAndSaveRemoteAvatar(context, effectiveAvatar)
+                    }
                 }
 
                 val subjectTagsStr = if (record.has("subject_tags_data") && record.optString("subject_tags_data").isNotEmpty()) {

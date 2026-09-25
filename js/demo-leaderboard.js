@@ -1422,7 +1422,14 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
     const crown = rankNum === 1 ? '<span class="podium-crown-badge">👑</span>' : '';
     const timeFormatted = formatLeaderboardTime(entry.total_seconds);
     const userAvatarVal = isCurrent 
-      ? (appState.userProfile?.avatarPreset || appState.userProfile?.avatarUrl || entry.avatar_url || '')
+      ? (
+          (appState.userProfile?.avatarUrl && /^(https?:\/\/|data:|blob:)/i.test(appState.userProfile.avatarUrl) ? appState.userProfile.avatarUrl : null) ||
+          (entry.avatar_url && /^(https?:\/\/|data:|blob:)/i.test(entry.avatar_url) ? entry.avatar_url : null) ||
+          (appState.userProfile?.avatarPreset && /^(https?:\/\/|data:|blob:)/i.test(appState.userProfile.avatarPreset) ? appState.userProfile.avatarPreset : null) ||
+          entry.avatar_url ||
+          appState.userProfile?.avatarPreset ||
+          ''
+        )
       : (entry.avatar_url || '');
     const avatarHtml = getAvatarElementHtml(userAvatarVal, entry.user_name, 'podium-avatar-img', ring);
 
@@ -1506,7 +1513,14 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
         const flagHtml = (flagEmoji && flagEmoji !== '🌐') ? `<span class="lb-flag-bottom" title="Region">${flagEmoji}</span>` : '';
         const timeFormatted = formatLeaderboardTime(r.total_seconds);
         const userAvatarVal = isCurrent
-          ? (appState.userProfile?.avatarPreset || appState.userProfile?.avatarUrl || r.avatar_url || '')
+          ? (
+              (appState.userProfile?.avatarUrl && /^(https?:\/\/|data:|blob:)/i.test(appState.userProfile.avatarUrl) ? appState.userProfile.avatarUrl : null) ||
+              (r.avatar_url && /^(https?:\/\/|data:|blob:)/i.test(r.avatar_url) ? r.avatar_url : null) ||
+              (appState.userProfile?.avatarPreset && /^(https?:\/\/|data:|blob:)/i.test(appState.userProfile.avatarPreset) ? appState.userProfile.avatarPreset : null) ||
+              r.avatar_url ||
+              appState.userProfile?.avatarPreset ||
+              ''
+            )
           : (r.avatar_url || '');
         const avatarHtml = getAvatarElementHtml(userAvatarVal, r.user_name, 'row-avatar-img', ring);
 
@@ -1571,7 +1585,11 @@ function updatePersonalUserBar(myEntry, localTotalSec) {
   const subName = appState.selectedSubject?.name || 'Focus';
   const profile = appState.userProfile || {};
   const currentName = profile.displayName || appState.currentUser.user_metadata?.full_name || 'You';
-  const avatar = profile.avatarPreset || appState.currentUser.user_metadata?.avatar_url || '';
+  const avatar = (profile.avatarUrl && /^(https?:\/\/|data:|blob:)/i.test(profile.avatarUrl) ? profile.avatarUrl : null) ||
+    (profile.avatarPreset && /^(https?:\/\/|data:|blob:)/i.test(profile.avatarPreset) ? profile.avatarPreset : null) ||
+    appState.currentUser.user_metadata?.avatar_url ||
+    profile.avatarPreset ||
+    '';
   const currentRing = profile.avatarRing || 'glow-gold';
 
   if (userBarName) {

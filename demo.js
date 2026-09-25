@@ -1214,7 +1214,15 @@ async function pushDataToCloud(silent = false, force = false) {
       : sanitizeString(appState.userProfile?.displayName || defaultAuthName, 50);
 
     const userEmail = sanitizeString(user.email || user.user_metadata?.email || '', 100);
-    const profileImg = sanitizeAvatar(user.user_metadata?.avatar_url || appState.userProfile?.avatarPreset || '');
+    const effectiveAvatar = (
+      appState.userProfile?.avatarUrl ||
+      appState.userProfile?.avatar_url ||
+      appState.userProfile?.profile_image_uri ||
+      user.user_metadata?.avatar_url ||
+      appState.userProfile?.avatarPreset ||
+      ''
+    );
+    const profileImg = sanitizeAvatar(effectiveAvatar);
 
     // Payload sanitization & safety caps
     const sanitizedSubjects = (Array.isArray(appState.subjects) ? appState.subjects : []).slice(0, 50);
@@ -5210,13 +5218,24 @@ function resolveAvatarSticker(val) {
 
 function getPublicLeaderboardAvatarUrl(profile) {
   if (!profile) return '';
-  const rawAvatar = (profile.avatarUrl || profile.avatar_url || profile.profile_image_uri || profile.avatarPreset || appState.currentUser?.user_metadata?.avatar_url || '').trim();
-  const isCustomPhoto = /^(http|https|data:|blob:)/i.test(rawAvatar);
+  const rawAvatar = (
+    profile.avatarUrl ||
+    profile.avatar_url ||
+    profile.profile_image_uri ||
+    (typeof profile.avatarPreset === 'string' && /^(https?:\/\/|data:|blob:)/i.test(profile.avatarPreset) ? profile.avatarPreset : '') ||
+    appState.currentUser?.user_metadata?.avatar_url ||
+    ''
+  ).trim();
 
-  if (isCustomPhoto && (profile.photoApproved === true || profile.profileStatus === 'approved')) {
-    return rawAvatar;
+  const isCustomPhoto = /^(https?:\/\/|data:|blob:)/i.test(rawAvatar);
+  if (isCustomPhoto) {
+    if (profile.photoApproved === true || profile.profileStatus === 'approved' || profile.moderationStatus === 'APPROVED') {
+      return rawAvatar;
+    }
+    // Gated: Unapproved custom photo must not leak to public leaderboard
+    return '';
   }
-  return '';
+  return rawAvatar;
 }
 
 const GOOGLE_AVATAR_PALETTE = [
@@ -6400,9 +6419,11 @@ function renderUserProfileUI() {
                appState.currentUser?.user_metadata?.name || 
                appState.currentUser?.email?.split('@')[0] || 
                'Student';
-  const avatar = profile.avatarPreset || 
+  const avatar = (profile.avatarUrl && /^(https?:\/\/|data:|blob:)/i.test(profile.avatarUrl) ? profile.avatarUrl : null) ||
+                 (profile.avatarPreset && /^(https?:\/\/|data:|blob:)/i.test(profile.avatarPreset) ? profile.avatarPreset : null) ||
                  appState.currentUser?.user_metadata?.avatar_url || 
                  appState.currentUser?.user_metadata?.picture || 
+                 profile.avatarPreset ||
                  '';
   const ring = profile.avatarRing || 'glow-gold';
 
@@ -6932,7 +6953,14 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
     const crown = rankNum === 1 ? '<span class="podium-crown-badge">👑</span>' : '';
     const timeFormatted = formatLeaderboardTime(entry.total_seconds);
     const userAvatarVal = isCurrent 
-      ? (appState.userProfile?.avatarPreset || appState.userProfile?.avatarUrl || entry.avatar_url || '')
+      ? (
+          (appState.userProfile?.avatarUrl && /^(https?:\/\/|data:|blob:)/i.test(appState.userProfile.avatarUrl) ? appState.userProfile.avatarUrl : null) ||
+          (entry.avatar_url && /^(https?:\/\/|data:|blob:)/i.test(entry.avatar_url) ? entry.avatar_url : null) ||
+          (appState.userProfile?.avatarPreset && /^(https?:\/\/|data:|blob:)/i.test(appState.userProfile.avatarPreset) ? appState.userProfile.avatarPreset : null) ||
+          entry.avatar_url ||
+          appState.userProfile?.avatarPreset ||
+          ''
+        )
       : (entry.avatar_url || '');
     const avatarHtml = getAvatarElementHtml(userAvatarVal, entry.user_name, 'podium-avatar-img', ring);
 
@@ -7016,7 +7044,14 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
         const flagHtml = (flagEmoji && flagEmoji !== '🌐') ? `<span class="lb-flag-bottom" title="Region">${flagEmoji}</span>` : '';
         const timeFormatted = formatLeaderboardTime(r.total_seconds);
         const userAvatarVal = isCurrent
-          ? (appState.userProfile?.avatarPreset || appState.userProfile?.avatarUrl || r.avatar_url || '')
+          ? (
+              (appState.userProfile?.avatarUrl && /^(https?:\/\/|data:|blob:)/i.test(appState.userProfile.avatarUrl) ? appState.userProfile.avatarUrl : null) ||
+              (r.avatar_url && /^(https?:\/\/|data:|blob:)/i.test(r.avatar_url) ? r.avatar_url : null) ||
+              (appState.userProfile?.avatarPreset && /^(https?:\/\/|data:|blob:)/i.test(appState.userProfile.avatarPreset) ? appState.userProfile.avatarPreset : null) ||
+              r.avatar_url ||
+              appState.userProfile?.avatarPreset ||
+              ''
+            )
           : (r.avatar_url || '');
         const avatarHtml = getAvatarElementHtml(userAvatarVal, r.user_name, 'row-avatar-img', ring);
 
@@ -7081,7 +7116,11 @@ function updatePersonalUserBar(myEntry, localTotalSec) {
   const subName = appState.selectedSubject?.name || 'Focus';
   const profile = appState.userProfile || {};
   const currentName = profile.displayName || appState.currentUser.user_metadata?.full_name || 'You';
-  const avatar = profile.avatarPreset || appState.currentUser.user_metadata?.avatar_url || '';
+  const avatar = (profile.avatarUrl && /^(https?:\/\/|data:|blob:)/i.test(profile.avatarUrl) ? profile.avatarUrl : null) ||
+    (profile.avatarPreset && /^(https?:\/\/|data:|blob:)/i.test(profile.avatarPreset) ? profile.avatarPreset : null) ||
+    appState.currentUser.user_metadata?.avatar_url ||
+    profile.avatarPreset ||
+    '';
   const currentRing = profile.avatarRing || 'glow-gold';
 
   if (userBarName) {

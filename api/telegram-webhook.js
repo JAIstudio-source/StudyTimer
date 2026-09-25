@@ -185,14 +185,28 @@ export default async function handler(req, res) {
               } catch (_) {}
             }
 
-            const rawTargetAvatar = profile.avatarPreset || syncRow.profile_image_uri || '';
+            const rawTargetAvatar = (
+              profile.avatarUrl ||
+              profile.avatar_url ||
+              profile.profile_image_uri ||
+              syncRow.profile_image_uri ||
+              profile.avatarPreset ||
+              profile.avatar_preset ||
+              ''
+            );
             targetAvatarUrl = resolveAvatarPresetToSticker(rawTargetAvatar);
-            targetRing = profile.avatarRing || 'glow-gold';
-            targetName = profile.displayName || syncRow.user_name || targetName;
-            targetFlag = profile.countryFlag || '🌐';
+            targetRing = profile.avatarRing || profile.avatar_ring || 'glow-gold';
+            targetName = profile.displayName || profile.display_name || syncRow.user_name || targetName;
+            targetFlag = profile.countryFlag || profile.country_flag || '🌐';
 
             profile.photoApproved = true;
             profile.profileStatus = 'approved';
+            profile.moderationStatus = 'APPROVED';
+            profile.displayName = targetName;
+            profile.display_name = targetName;
+            profile.avatarUrl = targetAvatarUrl;
+            profile.avatar_url = targetAvatarUrl;
+            profile.profile_image_uri = targetAvatarUrl;
             profile.avatarPreset = targetAvatarUrl;
 
             let updatedPrefs = {};
@@ -202,6 +216,7 @@ export default async function handler(req, res) {
               } catch (_) {}
             }
             updatedPrefs.__user_profile__ = JSON.stringify(profile);
+            updatedPrefs.custom_display_name = targetName;
 
             await Promise.all([
               supabase

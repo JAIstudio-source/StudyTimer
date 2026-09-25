@@ -559,7 +559,15 @@ async function pushDataToCloud(silent = false, force = false) {
       : sanitizeString(appState.userProfile?.displayName || defaultAuthName, 50);
 
     const userEmail = sanitizeString(user.email || user.user_metadata?.email || '', 100);
-    const profileImg = sanitizeAvatar(user.user_metadata?.avatar_url || appState.userProfile?.avatarPreset || '');
+    const effectiveAvatar = (
+      appState.userProfile?.avatarUrl ||
+      appState.userProfile?.avatar_url ||
+      appState.userProfile?.profile_image_uri ||
+      user.user_metadata?.avatar_url ||
+      appState.userProfile?.avatarPreset ||
+      ''
+    );
+    const profileImg = sanitizeAvatar(effectiveAvatar);
 
     // Payload sanitization & safety caps
     const sanitizedSubjects = (Array.isArray(appState.subjects) ? appState.subjects : []).slice(0, 50);

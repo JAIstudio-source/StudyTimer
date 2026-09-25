@@ -1739,9 +1739,11 @@ function renderUserProfileUI() {
                appState.currentUser?.user_metadata?.name || 
                appState.currentUser?.email?.split('@')[0] || 
                'Student';
-  const avatar = profile.avatarPreset || 
+  const avatar = (profile.avatarUrl && /^(https?:\/\/|data:|blob:)/i.test(profile.avatarUrl) ? profile.avatarUrl : null) ||
+                 (profile.avatarPreset && /^(https?:\/\/|data:|blob:)/i.test(profile.avatarPreset) ? profile.avatarPreset : null) ||
                  appState.currentUser?.user_metadata?.avatar_url || 
                  appState.currentUser?.user_metadata?.picture || 
+                 profile.avatarPreset ||
                  '';
   const ring = profile.avatarRing || 'glow-gold';
 

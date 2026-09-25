@@ -1728,17 +1728,17 @@ function initCountdownPresets() {
         openTimerSettingsModal();
         return;
       }
+      if (timerStatus === 'RUNNING' || (timerStatus === 'PAUSED' && accumulatedElapsedSec > 0)) {
+        showToast('Timer duration cannot be changed during an active session. Reset or stop first.', 'warning');
+        return;
+      }
       const min = parseInt(chip.dataset.min, 10);
       if (!isNaN(min) && min > 0) {
         timerConfig.customTimerMinutes = min;
         saveLocalState();
         updateCountdownPresetsUI();
         if (currentMode === 'timer') {
-          if (timerStatus === 'IDLE') {
-            resetTimer();
-          } else {
-            showToast(`Countdown set to ${min}m (will apply on reset)`, 'info');
-          }
+          resetTimer();
         }
       }
     });
@@ -1750,6 +1750,11 @@ function updateCountdownPresetsUI() {
   const row = document.getElementById('countdownPresetsRow');
   if (row) {
     row.style.display = currentMode === 'timer' ? 'flex' : 'none';
+    if (timerStatus === 'RUNNING' || (timerStatus === 'PAUSED' && accumulatedElapsedSec > 0)) {
+      row.classList.add('locked-active');
+    } else {
+      row.classList.remove('locked-active');
+    }
   }
   document.querySelectorAll('#countdownPresetsRow .cd-preset-chip[data-min]').forEach(chip => {
     const min = parseInt(chip.dataset.min, 10);
@@ -3323,6 +3328,7 @@ function updateTimerDisplay() {
 }
 
 function updateTimerControlsUI() {
+  updateCountdownPresetsUI();
   const isBreak = currentMode === 'break';
   const btnToggle = document.getElementById('btnToggleTimer');
   const btnToggleLabel = document.getElementById('btnToggleLabel');

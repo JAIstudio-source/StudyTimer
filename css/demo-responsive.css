@@ -726,5 +726,15 @@ textarea:focus-visible {
   font-size: 0.85rem;
 }
 
+#countdownPresetsRow.locked-active .cd-preset-chip:not(.active) {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+#countdownPresetsRow.locked-active .cd-preset-chip.active {
+  pointer-events: none;
+}
+
+
 
 

@@ -193,38 +193,54 @@ object LocalAvatarManager {
         return try {
             val url = java.net.URL(urlStr)
             val conn = url.openConnection() as java.net.HttpURLConnection
-            conn.connectTimeout = 6000
-            conn.readTimeout = 6000
+            conn.connectTimeout = 5000
+            conn.readTimeout = 5000
             conn.instanceFollowRedirects = true
             conn.requestMethod = "GET"
             conn.setRequestProperty("User-Agent", "StudyTimer-Android")
+            conn.setRequestProperty("Connection", "Keep-Alive")
 
             if (conn.responseCode in 200..299) {
-                val inputStream = conn.inputStream
-                val rawBitmap = BitmapFactory.decodeStream(inputStream)
-                inputStream.close()
-                if (rawBitmap != null) {
-                    val size = Math.min(rawBitmap.width, rawBitmap.height)
-                    val xOffset = (rawBitmap.width - size) / 2
-                    val yOffset = (rawBitmap.height - size) / 2
-                    val squareBitmap = Bitmap.createBitmap(rawBitmap, xOffset, yOffset, size, size)
-                    val scaledBitmap = if (size != targetSizePx) {
-                        Bitmap.createScaledBitmap(squareBitmap, targetSizePx, targetSizePx, true)
-                    } else {
-                        squareBitmap
-                    }
-                    val output = Bitmap.createBitmap(targetSizePx, targetSizePx, Bitmap.Config.ARGB_8888)
-                    val canvas = Canvas(output)
-                    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-                    val rect = Rect(0, 0, targetSizePx, targetSizePx)
-                    val rectF = RectF(rect)
-                    canvas.drawARGB(0, 0, 0, 0)
-                    canvas.drawOval(rectF, paint)
-                    paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
-                    canvas.drawBitmap(scaledBitmap, Rect(0, 0, scaledBitmap.width, scaledBitmap.height), rect, paint)
-                    remoteAvatarCache.put(cacheKey, output)
-                    output
-                } else null
+                val bytes = conn.inputStream.use { it.readBytes() }
+                if (bytes.isEmpty()) return null
+
+                // First decode bounds only for optimal memory footprint
+                val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+
+                val originalSize = Math.max(options.outWidth, options.outHeight)
+                var sampleSize = 1
+                while (originalSize / (sampleSize * 2) >= targetSizePx) {
+                    sampleSize *= 2
+                }
+
+                // Decode actual sampled bitmap
+                val decodeOptions = BitmapFactory.Options().apply {
+                    inSampleSize = sampleSize
+                    inPreferredConfig = Bitmap.Config.ARGB_8888
+                }
+                val rawBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOptions) ?: return null
+
+                val size = Math.min(rawBitmap.width, rawBitmap.height)
+                val xOffset = (rawBitmap.width - size) / 2
+                val yOffset = (rawBitmap.height - size) / 2
+                val squareBitmap = Bitmap.createBitmap(rawBitmap, xOffset, yOffset, size, size)
+                val scaledBitmap = if (size != targetSizePx) {
+                    Bitmap.createScaledBitmap(squareBitmap, targetSizePx, targetSizePx, true)
+                } else {
+                    squareBitmap
+                }
+                val output = Bitmap.createBitmap(targetSizePx, targetSizePx, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(output)
+                val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+                val rect = Rect(0, 0, targetSizePx, targetSizePx)
+                val rectF = RectF(rect)
+                canvas.drawARGB(0, 0, 0, 0)
+                canvas.drawOval(rectF, paint)
+                paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+                canvas.drawBitmap(scaledBitmap, Rect(0, 0, scaledBitmap.width, scaledBitmap.height), rect, paint)
+                remoteAvatarCache.put(cacheKey, output)
+                output
             } else {
                 null
             }

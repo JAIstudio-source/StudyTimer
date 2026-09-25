@@ -295,10 +295,11 @@ object CloudSyncManager {
                     val todayKeyFmt = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
                     val effectiveSecs = LeaderboardManager.getRealTimerFocusSecondsForDate(context, todayKeyFmt).toInt()
                     
+                    val publicAvatar = ProfileManager.getPublicAvatarUrl(context).ifBlank { userName.firstOrNull()?.uppercaseChar()?.toString() ?: "S" }
                     val lbPayload = JSONObject().apply {
                         put("user_id", userId as String)
                         put("user_name", if (userName.isNotBlank()) userName else "Student")
-                        put("avatar_url", if (profileImg.isNotBlank()) profileImg else (userName.firstOrNull()?.uppercaseChar()?.toString() ?: "S"))
+                        put("avatar_url", publicAvatar)
                         put("study_date", todayKeyFmt)
                         put("total_seconds", effectiveSecs)
                         put("is_studying", false)

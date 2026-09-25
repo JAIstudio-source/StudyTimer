@@ -166,59 +166,8 @@ object LocalAvatarManager {
     fun resolvePresetToEmoji(presetOrUrl: String?): String {
         if (presetOrUrl.isNullOrBlank()) return ""
         val trimmed = presetOrUrl.trim()
-        val map = mapOf(
-            "avatar_default" to "🎓",
-            "avatar_cat" to "🐱",
-            "avatar_fox" to "🦊",
-            "avatar_lion" to "🦁",
-            "avatar_panda" to "🐼",
-            "avatar_owl" to "🦉",
-            "avatar_rocket" to "🚀",
-            "avatar_fire" to "🔥",
-            "avatar_star" to "⭐",
-            "avatar_scholar" to "🎓",
-            "avatar_books" to "📚",
-            "avatar_brain" to "🧠",
-            "avatar_science" to "🔬",
-            "avatar_med" to "🩺",
-            "avatar_coder" to "💻",
-            "avatar_lightning" to "⚡",
-            "avatar_artist" to "🎨",
-            "avatar_lotus" to "🌸",
-            "avatar_forest" to "🌲",
-            "avatar_coffee" to "☕",
-            "avatar_moon" to "🌙",
-            "avatar_target" to "🎯",
-            "avatar_diamond" to "💎",
-            "avatar_champion" to "🏆",
-            "avatar_crown" to "👑",
-            "avatar_saturn" to "🪐",
-            "avatar_gamer" to "🎮",
-            "avatar_lofi" to "🎧",
-            "cat" to "🐱",
-            "fox" to "🦊",
-            "lion" to "🦁",
-            "panda" to "🐼",
-            "owl" to "🦉",
-            "rocket" to "🚀",
-            "fire" to "🔥",
-            "star" to "⭐",
-            "scholar" to "🎓",
-            "books" to "📚",
-            "brain" to "🧠",
-            "coder" to "💻",
-            "lightning" to "⚡",
-            "coffee" to "☕",
-            "target" to "🎯",
-            "diamond" to "💎",
-            "champion" to "🏆",
-            "crown" to "👑"
-        )
-        val lower = trimmed.lowercase()
-        if (map.containsKey(lower)) {
-            return map[lower]!!
-        }
-        return trimmed
+        if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("data:")) return trimmed
+        return ""
     }
 
     fun getCircularBitmapFromUrl(context: Context, urlStr: String, targetSizePx: Int): Bitmap? {

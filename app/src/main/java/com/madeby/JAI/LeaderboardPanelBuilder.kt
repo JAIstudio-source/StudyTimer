@@ -434,21 +434,14 @@ class LeaderboardPanelBuilder(private val host: MainActivity) {
 
         val rawAvatar = entry?.avatarUrl?.trim() ?: ""
         val initial = entry?.userName?.trim()?.take(1)?.uppercase()?.ifBlank { "S" } ?: "S"
-        val resolvedSticker = LocalAvatarManager.resolvePresetToEmoji(rawAvatar)
-        val label = if (resolvedSticker.isNotBlank() && (resolvedSticker.length <= 4 || resolvedSticker != rawAvatar)) {
-            resolvedSticker
-        } else {
-            initial
-        }
 
-        // FrameLayout with base initial/sticker TextView
         val container = FrameLayout(host).apply {
             layoutParams = FrameLayout.LayoutParams(sizePx, sizePx, Gravity.CENTER)
         }
 
         val baseTextView = TextView(host).apply {
-            text = label
-            textSize = (sizePx / density * 0.38f).coerceAtLeast(11f)
+            text = initial
+            textSize = (sizePx / density * 0.40f).coerceAtLeast(11f)
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
@@ -460,7 +453,6 @@ class LeaderboardPanelBuilder(private val host: MainActivity) {
         }
         container.addView(baseTextView)
 
-        // If avatar is a remote URL (Supabase storage or Google picture), load on top
         if (rawAvatar.startsWith("http://") || rawAvatar.startsWith("https://")) {
             val imageView = ImageView(host).apply {
                 layoutParams = FrameLayout.LayoutParams(sizePx, sizePx, Gravity.CENTER)

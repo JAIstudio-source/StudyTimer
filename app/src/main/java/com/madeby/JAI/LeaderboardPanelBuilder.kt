@@ -432,10 +432,45 @@ class LeaderboardPanelBuilder(private val host: MainActivity) {
             }
         }
 
-        val initial = entry?.userName?.trim()?.take(1)?.uppercase() ?: "-"
-        val label = if (entry != null && entry.avatarUrl.isNotBlank() && entry.avatarUrl.length <= 4) {
-            entry.avatarUrl
-        } else initial
+        val rawAvatar = entry?.avatarUrl?.trim() ?: ""
+        val initial = entry?.userName?.trim()?.take(1)?.uppercase()?.ifBlank { "S" } ?: "S"
+
+        // If avatar is a remote URL (Supabase storage or Google picture)
+        if (rawAvatar.startsWith("http://") || rawAvatar.startsWith("https://")) {
+            val imageView = ImageView(host).apply {
+                layoutParams = FrameLayout.LayoutParams(sizePx, sizePx, Gravity.CENTER)
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(accentColor)
+                    setStroke(dp(1), accentColor)
+                }
+            }
+
+            // Asynchronously load & cache circular bitmap
+            CoroutineScope(Dispatchers.IO).launch {
+                val bitmap = LocalAvatarManager.getCircularBitmapFromUrl(host, rawAvatar, sizePx)
+                if (bitmap != null) {
+                    withContext(Dispatchers.Main) {
+                        imageView.setImageBitmap(bitmap)
+                    }
+                } else {
+                    // Fallback to initial if network failed
+                    withContext(Dispatchers.Main) {
+                        imageView.setImageDrawable(null)
+                    }
+                }
+            }
+
+            return imageView
+        }
+
+        // Preset ID resolution (e.g. avatar_fox -> 🦊, avatar_owl -> 🦉)
+        val resolvedSticker = LocalAvatarManager.resolvePresetToEmoji(rawAvatar)
+        val label = if (resolvedSticker.isNotBlank() && (resolvedSticker.length <= 4 || resolvedSticker != rawAvatar)) {
+            resolvedSticker
+        } else {
+            initial
+        }
 
         return TextView(host).apply {
             text = label

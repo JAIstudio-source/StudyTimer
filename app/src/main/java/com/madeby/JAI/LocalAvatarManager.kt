@@ -113,6 +113,7 @@ object LocalAvatarManager {
     }
 
     private const val KEY_AVATAR_PENDING_UPLOAD = "avatar_pending_upload"
+    private val remoteAvatarCache = android.util.LruCache<String, Bitmap>(60)
 
     fun isAvatarPendingUpload(context: Context): Boolean {
         return context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
@@ -124,5 +125,91 @@ object LocalAvatarManager {
             .edit()
             .putBoolean(KEY_AVATAR_PENDING_UPLOAD, isPending)
             .apply()
+    }
+
+    fun resolvePresetToEmoji(presetOrUrl: String?): String {
+        if (presetOrUrl.isNullOrBlank()) return "🐱"
+        val trimmed = presetOrUrl.trim()
+        val map = mapOf(
+            "avatar_default" to "🐱",
+            "avatar_cat" to "🐱",
+            "avatar_fox" to "🦊",
+            "avatar_lion" to "🦁",
+            "avatar_panda" to "🐼",
+            "avatar_owl" to "🦉",
+            "avatar_rocket" to "🚀",
+            "avatar_fire" to "🔥",
+            "avatar_star" to "⭐",
+            "avatar_scholar" to "🎓",
+            "avatar_1" to "🐱",
+            "avatar_2" to "🦊",
+            "avatar_3" to "🦁",
+            "avatar_4" to "🐼",
+            "avatar_5" to "🦉",
+            "avatar_6" to "🚀",
+            "cat" to "🐱",
+            "fox" to "🦊",
+            "lion" to "🦁",
+            "panda" to "🐼",
+            "owl" to "🦉",
+            "rocket" to "🚀",
+            "fire" to "🔥",
+            "star" to "⭐",
+            "scholar" to "🎓",
+            "default" to "🐱"
+        )
+        val lower = trimmed.lowercase()
+        if (map.containsKey(lower)) {
+            return map[lower]!!
+        }
+        return trimmed
+    }
+
+    fun getCircularBitmapFromUrl(context: Context, urlStr: String, targetSizePx: Int): Bitmap? {
+        if (urlStr.isBlank()) return null
+        val cacheKey = "${urlStr}_$targetSizePx"
+        remoteAvatarCache.get(cacheKey)?.let { return it }
+
+        return try {
+            val url = java.net.URL(urlStr)
+            val conn = url.openConnection() as java.net.HttpURLConnection
+            conn.connectTimeout = 6000
+            conn.readTimeout = 6000
+            conn.instanceFollowRedirects = true
+            conn.requestMethod = "GET"
+            conn.setRequestProperty("User-Agent", "StudyTimer-Android")
+
+            if (conn.responseCode in 200..299) {
+                val inputStream = conn.inputStream
+                val rawBitmap = BitmapFactory.decodeStream(inputStream)
+                inputStream.close()
+                if (rawBitmap != null) {
+                    val size = Math.min(rawBitmap.width, rawBitmap.height)
+                    val xOffset = (rawBitmap.width - size) / 2
+                    val yOffset = (rawBitmap.height - size) / 2
+                    val squareBitmap = Bitmap.createBitmap(rawBitmap, xOffset, yOffset, size, size)
+                    val scaledBitmap = if (size != targetSizePx) {
+                        Bitmap.createScaledBitmap(squareBitmap, targetSizePx, targetSizePx, true)
+                    } else {
+                        squareBitmap
+                    }
+                    val output = Bitmap.createBitmap(targetSizePx, targetSizePx, Bitmap.Config.ARGB_8888)
+                    val canvas = Canvas(output)
+                    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+                    val rect = Rect(0, 0, targetSizePx, targetSizePx)
+                    val rectF = RectF(rect)
+                    canvas.drawARGB(0, 0, 0, 0)
+                    canvas.drawOval(rectF, paint)
+                    paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+                    canvas.drawBitmap(scaledBitmap, Rect(0, 0, scaledBitmap.width, scaledBitmap.height), rect, paint)
+                    remoteAvatarCache.put(cacheKey, output)
+                    output
+                } else null
+            } else {
+                null
+            }
+        } catch (_: Exception) {
+            null
+        }
     }
 }

@@ -71,7 +71,12 @@ object ProfileSyncService {
             }
         }
 
-        val effectivePublicAvatar = uploadedPublicPhotoUrl ?: currentProfile.avatarUrl.ifBlank { avatarPresetId }
+        val fallbackPresetEmoji = LocalAvatarManager.resolvePresetToEmoji(avatarPresetId)
+        val effectivePublicAvatar = uploadedPublicPhotoUrl ?: if (currentProfile.avatarUrl.isNotBlank() && (currentProfile.avatarUrl.startsWith("http://") || currentProfile.avatarUrl.startsWith("https://"))) {
+            currentProfile.avatarUrl
+        } else {
+            fallbackPresetEmoji
+        }
 
         val newStatus = if (isNameChanged || isPhotoChanged) ModerationStatus.PENDING_APPROVAL else currentProfile.moderationStatus
         val pendingName = if (isNameChanged) displayName.trim() else null
@@ -174,7 +179,7 @@ object ProfileSyncService {
         }
 
         val successMsg = if (isNameChanged || isPhotoChanged) {
-            "✓ Profile submitted for verification! Approval request sent to Telegram."
+            "✓ Profile submitted for review! Changes will update shortly."
         } else {
             "✓ Profile updated successfully."
         }

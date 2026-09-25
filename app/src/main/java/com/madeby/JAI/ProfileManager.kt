@@ -120,23 +120,17 @@ object ProfileManager {
             return custom
         }
         val preset = profile.avatarPresetId.trim()
-        val stickerMap = mapOf(
-            "avatar_default" to "🐱",
-            "avatar_cat" to "🐱",
-            "avatar_fox" to "🦊",
-            "avatar_lion" to "🦁",
-            "avatar_panda" to "🐼",
-            "avatar_owl" to "🦉",
-            "avatar_rocket" to "🚀",
-            "avatar_fire" to "🔥",
-            "avatar_star" to "⭐",
-            "avatar_scholar" to "🎓"
-        )
-        if (stickerMap.containsKey(preset)) {
-            return stickerMap[preset]!!
+        if (preset.isNotBlank()) {
+            val emoji = LocalAvatarManager.resolvePresetToEmoji(preset)
+            if (emoji != preset || emoji.length <= 4) {
+                return emoji
+            }
         }
-        if (preset.isNotBlank() && preset != "avatar_default") {
-            return preset
+        if (custom.isNotBlank()) {
+            val customEmoji = LocalAvatarManager.resolvePresetToEmoji(custom)
+            if (customEmoji != custom || customEmoji.length <= 4) {
+                return customEmoji
+            }
         }
         val authUri = AuthManager.getProfileImageUri(context) ?: ""
         if (authUri.startsWith("http://") || authUri.startsWith("https://")) {

@@ -4,7 +4,7 @@
  * Guarantees 100% offline functionality for the Pomodoro Web Studio & App Landing.
  */
 
-var CACHE_NAME = 'studytimer-web-v30';
+var CACHE_NAME = 'studytimer-web-v31';
 
 var CORE_ASSETS = [
     './',
@@ -12,6 +12,19 @@ var CORE_ASSETS = [
     './demo.html',
     './demo.css',
     './demo.js',
+    './js/demo-profanity.js',
+    './js/demo-quotes.js',
+    './js/demo-cloud-sync.js',
+    './js/demo-analytics.js',
+    './js/demo-leaderboard.js',
+    './js/demo-audio.js',
+    './css/demo-base.css',
+    './css/demo-workspace.css',
+    './css/demo-leaderboard.css',
+    './css/demo-themes.css',
+    './css/demo-audio.css',
+    './css/demo-sidebar.css',
+    './css/demo-responsive.css',
     './assets/supabase.js',
     './style.css',
     './script.js',

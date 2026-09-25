@@ -3690,7 +3690,10 @@ function switchInsightsTab(tabName) {
 function openMobileSidebar() {
   const sidebar = document.getElementById('appSidebar');
   const backdrop = document.getElementById('sidebarBackdrop');
-  sidebar?.classList.add('open');
+  if (sidebar) {
+    sidebar.classList.remove('collapsed');
+    sidebar.classList.add('open');
+  }
   backdrop?.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
 }
@@ -3704,6 +3707,11 @@ function closeMobileSidebar() {
 }
 
 function toggleSidebarCollapse() {
+  if (window.innerWidth <= 980) {
+    // On mobile / small screens, toggle acts as close drawer to prevent double-blur or stuck mini-sidebar
+    closeMobileSidebar();
+    return;
+  }
   const sidebar = document.getElementById('appSidebar');
   if (!sidebar) return;
   const isCollapsed = sidebar.classList.toggle('collapsed');

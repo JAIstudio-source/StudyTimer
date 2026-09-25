@@ -939,41 +939,7 @@
         <div class="profile-tab-panel active" id="panel-tab-avatar">
           
           <!-- Avatar Submode Segmented Toggle (Clean UI without clutter) -->
-          <div class="avatar-submode-nav">
-            <button type="button" class="avatar-submode-btn active" id="btnSubmodePhoto" data-submode="photo">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-              <span>Custom Photo</span>
-            </button>
-            <button type="button" class="avatar-submode-btn" id="btnSubmodeStickers" data-submode="stickers">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
-              <span>Emoji Stickers (24)</span>
-            </button>
           </div>
-
-          <!-- Submode 1: Real Profile Photo Upload Section -->
-          <div class="settings-section photo-upload-box" id="submodePhotoSection">
-            <div class="section-label-row">
-              <label class="settings-label">Upload Profile Picture</label>
-              <span class="section-sub-label">Select image from your device or paste web link</span>
-            </div>
-            <div class="photo-upload-container">
-              <div class="photo-upload-preview-wrap">
-                <div class="photo-upload-circle" id="customPhotoPreviewCircle" title="Live Profile Photo Preview">
-                  <span id="customPhotoPreviewFallback">📷</span>
-                  <img id="customPhotoPreviewImg" class="hidden" alt="Profile Photo Preview">
-                </div>
-                <div class="photo-upload-actions">
-                  <div class="photo-btn-group">
-                    <label for="inputProfilePhotoFile" class="btn btn-primary btn-sm photo-upload-btn">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                      <span>Choose Image</span>
-                    </label>
-                    <input type="file" id="inputProfilePhotoFile" accept="image/png, image/jpeg, image/webp, image/gif" style="display: none;">
-                    <button type="button" class="btn btn-ghost btn-sm hidden" id="btnRemoveCustomPhoto">Reset</button>
-                  </div>
-                  <span class="photo-upload-hint">Supports JPG, PNG, WebP, GIF • Auto-optimized</span>
-                </div>
-              </div>
               <div class="photo-url-row">
                 <div class="photo-url-input-wrap">
                   <input type="url" id="inputProfilePhotoUrl" placeholder="Or paste image link (https://...)" autocomplete="off">

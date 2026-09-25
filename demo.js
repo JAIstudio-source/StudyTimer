@@ -1013,7 +1013,7 @@ function mergeCloudDataIntoLocal(data) {
 
         const rawAvatarCandidate = (serverProfileStatus === 'pending' && localPendingAvatar)
           ? localPendingAvatar
-          : (customUrl || (loadedProfile.avatarPreset && loadedProfile.avatarPreset !== 'avatar_default' ? loadedProfile.avatarPreset : '') || loadedProfile.avatarUrl || data.profile_image_uri || appState.userProfile?.avatarPreset || '🐱');
+          : (customUrl || (loadedProfile.avatarPreset && loadedProfile.avatarPreset !== 'avatar_default' ? loadedProfile.avatarPreset : '') || loadedProfile.avatarUrl || data.profile_image_uri || appState.userProfile?.avatarPreset || '');
 
         const resolvedAvatar = sanitizeAvatar(rawAvatarCandidate);
 
@@ -1039,7 +1039,7 @@ function mergeCloudDataIntoLocal(data) {
     if (remoteVerifiedName && (!appState.userProfile?.displayName || appState.userProfile.displayName === 'Student')) {
       appState.userProfile.displayName = sanitizeString(remoteVerifiedName, 50);
     }
-    if (data.profile_image_uri && (!appState.userProfile?.avatarPreset || appState.userProfile.avatarPreset === '🐱')) {
+    if (data.profile_image_uri && (!appState.userProfile?.avatarPreset || appState.userProfile.avatarPreset === '')) {
       if (!appState.userProfile) appState.userProfile = {};
       appState.userProfile.avatarPreset = sanitizeAvatar(data.profile_image_uri);
     }
@@ -2053,7 +2053,7 @@ function setupEventListeners() {
     if (urlInput) urlInput.value = '';
 
     document.querySelectorAll('.avatar-preset-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.avatar === '🐱');
+      b.classList.toggle('active', b.dataset.avatar === '');
     });
     updateProfileLivePreview();
     showToast('Custom photo removed. Using default avatar sticker.', 'info');
@@ -5187,89 +5187,37 @@ function getCountryFlagEmoji(codeOrFlag) {
   return '🌐';
 }
 
-const AVATAR_PRESET_STICKER_MAP = {
-  'avatar_default': '🎓',
-  'avatar_cat': '🐱',
-  'avatar_fox': '🦊',
-  'avatar_lion': '🦁',
-  'avatar_panda': '🐼',
-  'avatar_owl': '🦉',
-  'avatar_rocket': '🚀',
-  'avatar_fire': '🔥',
-  'avatar_star': '⭐',
-  'avatar_scholar': '🎓',
-  'avatar_1': '🎓',
-  'avatar_2': '🦊',
-  'avatar_3': '🦁',
-  'avatar_4': '🐼',
-  'avatar_5': '🦉',
-  'avatar_6': '🚀',
-  'avatar_7': '📚',
-  'avatar_8': '🧠',
-  'avatar_9': '🔬',
-  'avatar_10': '🩺',
-  'avatar_11': '💻',
-  'avatar_12': '⚡',
-  'avatar_13': '🎨',
-  'avatar_14': '🌸',
-  'avatar_15': '☕',
-  'cat': '🐱',
-  'fox': '🦊',
-  'lion': '🦁',
-  'panda': '🐼',
-  'owl': '🦉',
-  'rocket': '🚀',
-  'fire': '🔥',
-  'star': '⭐',
-  'scholar': '🎓',
-  'default': '🎓'
-};
-
 function resolveAvatarSticker(val) {
   if (!val || typeof val !== 'string') return '';
   const trimmed = val.trim();
-  if (trimmed === '') return '';
-  const lower = trimmed.toLowerCase();
-  if (AVATAR_PRESET_STICKER_MAP[lower]) {
-    return AVATAR_PRESET_STICKER_MAP[lower];
-  }
-  return trimmed;
+  if (/^(http|https|data:|blob:|assets\/|\/)/i.test(trimmed)) return trimmed;
+  return '';
 }
 
 function getPublicLeaderboardAvatarUrl(profile) {
   if (!profile) return '';
-  const rawAvatar = resolveAvatarSticker(profile.avatarPreset || profile.avatar_url || profile.profile_image_uri || appState.currentUser?.user_metadata?.avatar_url || '');
-  const isCustomPhoto = /^(http|https|data:|blob:)/i.test((rawAvatar || '').trim());
+  const rawAvatar = (profile.avatarUrl || profile.avatar_url || profile.profile_image_uri || profile.avatarPreset || appState.currentUser?.user_metadata?.avatar_url || '').trim();
+  const isCustomPhoto = /^(http|https|data:|blob:)/i.test(rawAvatar);
 
-  // STRICT SECURITY & MODERATION GATE:
-  // Custom uploaded photos / URLs MUST NEVER appear on the public leaderboard, presence, or public RPCs
-  // until explicitly approved by admin in the Telegram Moderation Bot (photoApproved === true || profileStatus === 'approved')
-  if (isCustomPhoto) {
-    if (profile.photoApproved === true || profile.profileStatus === 'approved') {
-      return rawAvatar;
-    }
-    // Return safe fallback sticker/initial until admin explicitly approves
-    return resolveAvatarSticker(profile.fallbackSticker || '');
+  if (isCustomPhoto && (profile.photoApproved === true || profile.profileStatus === 'approved')) {
+    return rawAvatar;
   }
-
-  // Safe preset emoji stickers are allowed immediately
-  return rawAvatar || '';
+  return '';
 }
 
 function getAvatarElementHtml(avatarVal, userName, className = 'row-avatar-img', ringClass = '') {
-  const resolved = resolveAvatarSticker(avatarVal);
   const normalizedRing = ringClass ? normalizeRingClass(ringClass) : '';
-  const ringCls = normalizedRing ? ` ${normalizedRing}` : '';
-  const trimmed = typeof resolved === 'string' ? resolved.trim() : '';
-  const isUrl = /^(http|https|data:|assets\/|\/|blob:)/i.test(trimmed);
-  const fallbackInitial = (userName && userName.charAt(0).toUpperCase()) || 'S';
+  const ringCls = normalizedRing ? ' ' + normalizedRing : '';
+  const fallbackInitial = (userName && String(userName).trim().charAt(0).toUpperCase()) || 'S';
+  const trimmed = typeof avatarVal === 'string' ? avatarVal.trim() : '';
+  const isUrl = /^(https?:\/\/|data:|assets\/|\/|blob:)/i.test(trimmed);
 
   if (isUrl) {
-    return `<img src="${trimmed}" alt="${userName || 'Student'}" class="${className}${ringCls}" loading="eager" decoding="async" referrerpolicy="no-referrer" crossorigin="anonymous" onerror="this.onerror=null; this.outerHTML='<span class=\\'avatar-sticker ${className}${ringCls}\\'>${fallbackInitial}</span>';">`;
+    const escapedInitial = fallbackInitial.replace(/"/g, '&quot;');
+    const uName = (userName || 'Student').replace(/"/g, '&quot;');
+    return `<img src="${trimmed}" alt="${uName}" class="${className}${ringCls}" loading="eager" decoding="async" referrerpolicy="no-referrer" crossorigin="anonymous" onerror="this.onerror=null; this.outerHTML='<span class=&quot;avatar-sticker ${className}${ringCls}&quot;>${escapedInitial}</span>';">`;
   } else {
-    const isEmojiOrShort = trimmed.length > 0 && (trimmed.length <= 4 || /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}]/u.test(trimmed));
-    const displaySticker = isEmojiOrShort ? trimmed : fallbackInitial;
-    return `<span class="avatar-sticker ${className}${ringCls}">${displaySticker}</span>`;
+    return `<span class="avatar-sticker ${className}${ringCls}">${fallbackInitial}</span>`;
   }
 }
 
@@ -5449,9 +5397,10 @@ function updateProfileLivePreview() {
   if (previewAvatarIcon) {
     const isUrl = /^(http|https|data:|assets\/|\/|blob:)/i.test((selectedAvatarPreset || '').trim());
     if (isUrl) {
-      previewAvatarIcon.innerHTML = `<img src="${selectedAvatarPreset}" alt="Avatar Preview" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" onerror="this.outerHTML='🐱'">`;
+      const fallbackInit = escapeHtml((nameVal || 'S').trim().charAt(0).toUpperCase() || 'S');
+      previewAvatarIcon.innerHTML = `<img src="${selectedAvatarPreset}" alt="Avatar Preview" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" onerror="this.outerHTML='<span class=&quot;avatar-initial&quot;>${fallbackInit}</span>'">`;
     } else {
-      previewAvatarIcon.textContent = selectedAvatarPreset || (nameVal || 'S').trim().charAt(0).toUpperCase() || 'S';
+      previewAvatarIcon.textContent = (nameVal || 'S').trim().charAt(0).toUpperCase() || 'S';
     }
   }
   if (previewCountryFlag) previewCountryFlag.textContent = flagVal;
@@ -5557,8 +5506,8 @@ async function notifyAdminModerationWebhook(payload) {
     const newName = (display_name || 'Student').replace(/[<>&"]/g, '');
     const oldBio = (previous_bio || '').replace(/[<>&"]/g, '');
     const newBio = (status_mood || '').replace(/[<>&"]/g, '');
-    const oldAvatar = (previous_avatar || '🐱').replace(/[<>&"]/g, '');
-    const newAvatar = (avatar_url || '🐱').replace(/[<>&"]/g, '');
+    const oldAvatar = (previous_avatar || '').replace(/[<>&"]/g, '');
+    const newAvatar = (avatar_url || '').replace(/[<>&"]/g, '');
     const safeEmail = (email || '').replace(/[<>&"]/g, '');
 
     const nameChanged = Boolean(oldName && newName !== oldName);
@@ -5704,7 +5653,7 @@ async function handleSaveProfile(e) {
   }
 
   // Attempt Supabase Storage upload for custom base64 photo to reduce DB row bandwidth
-  let avatarValueToSave = sanitizeAvatar(selectedAvatarPreset || '🐱');
+  let avatarValueToSave = sanitizeAvatar(selectedAvatarPreset || '');
   if (avatarValueToSave.startsWith('data:image/') && supabaseClient && appState.currentUser) {
     const storageUrl = await uploadAvatarToSupabaseStorage(avatarValueToSave, appState.currentUser.id);
     if (storageUrl) {
@@ -5718,7 +5667,7 @@ async function handleSaveProfile(e) {
   // Retain previously approved avatar/sticker as fallback during safety review
   const previousApprovedAvatar = (appState.userProfile?.photoApproved === true && appState.userProfile?.avatarPreset)
     ? appState.userProfile.avatarPreset
-    : (appState.userProfile?.fallbackSticker || appState.approvedAvatar || '🐱');
+    : (appState.userProfile?.fallbackSticker || appState.approvedAvatar || '');
 
   const prevProfile = appState.userProfile || {};
   const photoChanged = isCustomPhoto && (avatarValueToSave !== prevProfile.avatarPreset);
@@ -5797,7 +5746,7 @@ async function handleSaveProfile(e) {
       status_mood: mood,
       previous_bio: prevProfile.mood || '',
       avatar_url: avatarValueToSave,
-      previous_avatar: prevProfile.avatarPreset || '🐱',
+      previous_avatar: prevProfile.avatarPreset || '',
       photo_changed: photoChanged
     });
   }
@@ -5866,37 +5815,6 @@ function initProfileCustomizationSystem() {
     });
   });
 
-  // Avatar Submode Segmented Toggle (Custom Photo vs Emoji Stickers)
-  document.getElementById('btnSubmodePhoto')?.addEventListener('click', () => {
-    document.getElementById('btnSubmodePhoto')?.classList.add('active');
-    document.getElementById('btnSubmodeStickers')?.classList.remove('active');
-    document.getElementById('submodePhotoSection')?.classList.remove('hidden');
-    document.getElementById('submodeStickersSection')?.classList.add('hidden');
-  });
-
-  document.getElementById('btnSubmodeStickers')?.addEventListener('click', () => {
-    document.getElementById('btnSubmodeStickers')?.classList.add('active');
-    document.getElementById('btnSubmodePhoto')?.classList.remove('active');
-    document.getElementById('submodeStickersSection')?.classList.remove('hidden');
-    document.getElementById('submodePhotoSection')?.classList.add('hidden');
-  });
-
-  // Sticker Category Filter Pills
-  document.querySelectorAll('.sticker-cat-pill').forEach(pill => {
-    pill.addEventListener('click', () => {
-      document.querySelectorAll('.sticker-cat-pill').forEach(p => p.classList.remove('active'));
-      pill.classList.add('active');
-      const cat = pill.dataset.cat;
-      document.querySelectorAll('#avatarPresetsGrid .avatar-preset-btn').forEach(btn => {
-        if (cat === 'all' || btn.dataset.cat === cat) {
-          btn.style.display = 'flex';
-        } else {
-          btn.style.display = 'none';
-        }
-      });
-    });
-  });
-
   // Photo URL Live Validation with debounce
   let photoUrlDebounceTimer = null;
 
@@ -5952,7 +5870,6 @@ function initProfileCustomizationSystem() {
         photoFallback.classList.add('hidden');
         btnRemovePhoto?.classList.remove('hidden');
       }
-      document.querySelectorAll('.avatar-preset-btn').forEach(b => b.classList.remove('active'));
       updateProfileLivePreview();
       if (typeof callback === 'function') callback(true);
     };
@@ -6022,7 +5939,6 @@ function initProfileCustomizationSystem() {
           if (statusDesc) statusDesc.textContent = `${file.name} (Auto-compressed)`;
         }
 
-        document.querySelectorAll('.avatar-preset-btn').forEach(b => b.classList.remove('active'));
         updateProfileLivePreview();
         showToast('Photo selected! Live preview updated.', 'info');
       };
@@ -6079,40 +5995,16 @@ function initProfileCustomizationSystem() {
     if (photoPreviewImg && photoFallback) {
       photoPreviewImg.src = '';
       photoPreviewImg.classList.add('hidden');
-      photoFallback.textContent = '🐱';
+      const nameVal = document.getElementById('inputProfileDisplayName')?.value || appState.userProfile?.displayName || 'Student';
+      photoFallback.textContent = nameVal.trim().charAt(0).toUpperCase() || 'S';
       photoFallback.classList.remove('hidden');
       btnRemovePhoto?.classList.add('hidden');
     }
     if (photoUrlInput) photoUrlInput.value = '';
     if (statusCard) statusCard.classList.add('hidden');
 
-    const firstPreset = document.querySelector('.avatar-preset-btn[data-avatar="🐱"]');
-    if (firstPreset) firstPreset.classList.add('active');
     updateProfileLivePreview();
-    showToast('Reset to default Lofi Cat sticker.', 'info');
-  });
-
-  // Avatar Presets
-  document.querySelectorAll('.avatar-preset-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.avatar-preset-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      selectedAvatarPreset = btn.dataset.avatar || '';
-
-      const photoPreviewImg = document.getElementById('customPhotoPreviewImg');
-      const photoFallback = document.getElementById('customPhotoPreviewFallback');
-      const btnRemovePhoto = document.getElementById('btnRemoveCustomPhoto');
-      if (photoPreviewImg && photoFallback) {
-        photoPreviewImg.src = '';
-        photoPreviewImg.classList.add('hidden');
-        photoFallback.classList.remove('hidden');
-        btnRemovePhoto?.classList.add('hidden');
-      }
-      const photoUrlInput = document.getElementById('inputProfilePhotoUrl');
-      if (photoUrlInput) photoUrlInput.value = '';
-
-      updateProfileLivePreview();
-    });
+    showToast('Profile photo removed. Initial letter will be shown.', 'info');
   });
 
   // Banner Theme Presets
@@ -6462,7 +6354,7 @@ function renderUserProfileUI() {
   const avatar = profile.avatarPreset || 
                  appState.currentUser?.user_metadata?.avatar_url || 
                  appState.currentUser?.user_metadata?.picture || 
-                 '🐱';
+                 '';
   const ring = profile.avatarRing || 'glow-gold';
 
   const userDisplayName = document.getElementById('userDisplayName');

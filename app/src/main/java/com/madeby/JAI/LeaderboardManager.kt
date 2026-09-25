@@ -352,8 +352,8 @@ object LeaderboardManager {
         val supabaseUrl = BuildConfig.SUPABASE_URL
         val anonKey = BuildConfig.SUPABASE_ANON_KEY
         val userId = AuthManager.getUserId(context)
-        val userName = (AuthManager.getUserName(context) ?: "Student").trim().take(30)
-        val avatarUrl = (AuthManager.getProfileImageUri(context) ?: "").take(250)
+        val userName = ProfileManager.getEffectiveDisplayName(context).trim().take(30)
+        val avatarUrl = ProfileManager.getPublicAvatarUrl(context).take(250)
         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
 
         if (supabaseUrl.isBlank() || anonKey.isBlank() || userId.isNullOrBlank()) {
@@ -420,8 +420,8 @@ object LeaderboardManager {
         val supabaseUrl = BuildConfig.SUPABASE_URL
         val anonKey = BuildConfig.SUPABASE_ANON_KEY
         val userId = AuthManager.getUserId(context)
-        val userName = AuthManager.getUserName(context) ?: "Student"
-        val avatarUrl = AuthManager.getProfileImageUri(context) ?: ""
+        val userName = ProfileManager.getEffectiveDisplayName(context).trim().take(30)
+        val avatarUrl = ProfileManager.getPublicAvatarUrl(context).take(250)
         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
 
         if (supabaseUrl.isBlank() || anonKey.isBlank() || userId.isNullOrBlank()) {

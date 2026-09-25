@@ -14,6 +14,10 @@ object AuthManager {
     private const val KEY_USER_ID = "user_id"
     private const val KEY_PROFILE_IMAGE_URI = "profile_image_uri"
     private const val KEY_LAST_ACTIVE_USER_ID = "last_active_user_id"
+    private const val KEY_TERMS_ACCEPTED_AT = "terms_accepted_at"
+    private const val KEY_TERMS_ACCEPTED_EPOCH = "terms_accepted_epoch"
+    private const val KEY_TERMS_VERSION = "terms_version"
+    const val CURRENT_TERMS_VERSION = "v1.0"
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
@@ -155,5 +159,40 @@ object AuthManager {
 
     fun deleteLocalUserData(context: Context) {
         logout(context)
+    }
+
+    fun hasAcceptedTerms(context: Context): Boolean {
+        val prefs = getPrefs(context)
+        return prefs.getLong(KEY_TERMS_ACCEPTED_EPOCH, 0L) > 0L
+    }
+
+    fun recordTermsConsent(
+        context: Context,
+        version: String = CURRENT_TERMS_VERSION,
+        isoTimestamp: String? = null,
+        epochMillis: Long = System.currentTimeMillis()
+    ) {
+        val iso = isoTimestamp ?: java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+            timeZone = java.util.TimeZone.getTimeZone("UTC")
+        }.format(java.util.Date(epochMillis))
+
+        getPrefs(context).edit().apply {
+            putString(KEY_TERMS_ACCEPTED_AT, iso)
+            putLong(KEY_TERMS_ACCEPTED_EPOCH, epochMillis)
+            putString(KEY_TERMS_VERSION, version)
+            apply()
+        }
+    }
+
+    fun getTermsAcceptedAt(context: Context): String? {
+        return getPrefs(context).getString(KEY_TERMS_ACCEPTED_AT, null)
+    }
+
+    fun getTermsAcceptedEpoch(context: Context): Long {
+        return getPrefs(context).getLong(KEY_TERMS_ACCEPTED_EPOCH, 0L)
+    }
+
+    fun getTermsVersion(context: Context): String {
+        return getPrefs(context).getString(KEY_TERMS_VERSION, CURRENT_TERMS_VERSION) ?: CURRENT_TERMS_VERSION
     }
 }

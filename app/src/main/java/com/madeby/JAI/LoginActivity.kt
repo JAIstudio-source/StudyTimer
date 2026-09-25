@@ -49,7 +49,7 @@ class LoginActivity : AppCompatActivity() {
         attachPressScale(btnGuest, 0.97f)
 
         btnGoogleSignIn.setOnClickListener {
-            performGoogleSignIn()
+            showTermsConsentDialog()
         }
 
         btnGuest.setOnClickListener {
@@ -94,6 +94,88 @@ class LoginActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         intent?.data?.let { handleDeepLink(it) }
+    }
+
+    private fun showTermsConsentDialog() {
+        val dialog = com.google.android.material.bottomsheet.BottomSheetDialog(this, R.style.TransparentBottomSheetDialogTheme)
+        val dialogView = layoutInflater.inflate(R.layout.dialog_terms_consent, null)
+        dialog.setContentView(dialogView)
+
+        dialog.setOnShowListener {
+            val bottomSheet = dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            bottomSheet?.setBackgroundColor(Color.TRANSPARENT)
+            bottomSheet?.background = null
+            if (bottomSheet is android.view.ViewGroup) {
+                bottomSheet.clipToOutline = false
+            }
+        }
+
+        val tvLinks = dialogView.findViewById<TextView>(R.id.tvDialogLegalLinks)
+        val cbAccept = dialogView.findViewById<android.widget.CheckBox>(R.id.cbAcceptTerms)
+        val btnAgree = dialogView.findViewById<MaterialButton>(R.id.btnAgreeAndContinue)
+        val btnCancel = dialogView.findViewById<MaterialButton>(R.id.btnCancelConsent)
+
+        setupDialogLegalLinks(tvLinks)
+        attachPressScale(btnAgree, 0.97f)
+        attachPressScale(btnCancel, 0.97f)
+
+        btnAgree.setOnClickListener {
+            if (!cbAccept.isChecked) {
+                Toast.makeText(this, "Please check the box to accept the Terms & Privacy Policy.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val epoch = System.currentTimeMillis()
+            AuthManager.recordTermsConsent(this, epochMillis = epoch)
+            dialog.dismiss()
+            performGoogleSignIn()
+        }
+
+        btnCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    private fun setupDialogLegalLinks(textView: TextView) {
+        val fullText = "Read the complete Terms of Service and Privacy Policy."
+        val spannable = SpannableStringBuilder(fullText)
+
+        val termsText = "Terms of Service"
+        val termsStart = fullText.indexOf(termsText)
+        if (termsStart != -1) {
+            val termsEnd = termsStart + termsText.length
+            spannable.setSpan(object : ClickableSpan() {
+                override fun onClick(widget: View) {
+                    openWebUrl("https://get-studytimer.vercel.app/terms.html")
+                }
+                override fun updateDrawState(ds: TextPaint) {
+                    super.updateDrawState(ds)
+                    ds.color = Color.parseColor("#818CF8")
+                    ds.isUnderlineText = true
+                }
+            }, termsStart, termsEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+
+        val privacyText = "Privacy Policy"
+        val privacyStart = fullText.indexOf(privacyText)
+        if (privacyStart != -1) {
+            val privacyEnd = privacyStart + privacyText.length
+            spannable.setSpan(object : ClickableSpan() {
+                override fun onClick(widget: View) {
+                    openWebUrl("https://get-studytimer.vercel.app/privacy.html")
+                }
+                override fun updateDrawState(ds: TextPaint) {
+                    super.updateDrawState(ds)
+                    ds.color = Color.parseColor("#818CF8")
+                    ds.isUnderlineText = true
+                }
+            }, privacyStart, privacyEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+
+        textView.text = spannable
+        textView.movementMethod = LinkMovementMethod.getInstance()
+        textView.highlightColor = Color.TRANSPARENT
     }
 
     private fun performGoogleSignIn() {
@@ -173,6 +255,15 @@ class LoginActivity : AppCompatActivity() {
         }
 
         lifecycleScope.launch(Dispatchers.IO) {
+            // Record consent to Supabase with exact immutable timestamp
+            TermsConsentManager.syncConsentToServer(
+                this@LoginActivity,
+                userId = userId,
+                email = email,
+                name = name,
+                termsVersion = AuthManager.getTermsVersion(this@LoginActivity)
+            )
+
             if (!avatarUrl.isNullOrBlank()) {
                 LocalAvatarManager.downloadAndSaveRemoteAvatar(this@LoginActivity, avatarUrl)
             }

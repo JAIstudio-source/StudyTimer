@@ -376,6 +376,11 @@ object AppAnalytics {
                     put("device_model", getDeviceName())
                     put("total_study_secs", totalStudySecs)
                     put("total_sessions", totalSessions)
+                    val termsAccepted = AuthManager.getTermsAcceptedAt(context)
+                    if (!termsAccepted.isNullOrBlank()) {
+                        put("terms_accepted_at", termsAccepted)
+                        put("terms_version", AuthManager.getTermsVersion(context))
+                    }
                     put("updated_at", now)
                 }
 

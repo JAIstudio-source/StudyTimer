@@ -47,7 +47,7 @@ class StatsEngine(private val context: Context) {
     }
 
     fun dayBlocks(dateStr: String): Pair<List<BlockInfo>, List<BlockInfo>> {
-        val entries = TimelineLogger.load(context).sortedBy { it.timestamp }
+        val entries = TimelineLogger.load(context)
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val parsedStart = runCatching { sdf.parse(dateStr)?.time }.getOrNull() ?: 0L
         val startCal = Calendar.getInstance().apply {
@@ -55,7 +55,8 @@ class StatsEngine(private val context: Context) {
             set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
         }
         val startMs = startCal.timeInMillis
-        val endMs = (startCal.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, 1) }.timeInMillis
+        startCal.add(Calendar.DAY_OF_YEAR, 1)
+        val endMs = startCal.timeInMillis
 
         val parsed = parseDayBlocks(entries)
         val sessions = ArrayList<BlockInfo>()
@@ -440,17 +441,16 @@ class StatsEngine(private val context: Context) {
             add(Calendar.DAY_OF_YEAR, -windowDays)
             set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
         }.timeInMillis
+        val loopCal = Calendar.getInstance()
         fun addFocusInterval(startMs: Long, endMs: Long) {
             var s = max(startMs, windowStart)
             val e = min(endMs, nowMs)
             while (s < e) {
-                val cal = Calendar.getInstance().apply { timeInMillis = s }
-                val block = cal.get(Calendar.HOUR_OF_DAY) / 2
-                val nextHour = Calendar.getInstance().apply {
-                    timeInMillis = s
-                    add(Calendar.HOUR_OF_DAY, 1)
-                    set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-                }.timeInMillis
+                loopCal.timeInMillis = s
+                val block = loopCal.get(Calendar.HOUR_OF_DAY) / 2
+                loopCal.add(Calendar.HOUR_OF_DAY, 1)
+                loopCal.set(Calendar.MINUTE, 0); loopCal.set(Calendar.SECOND, 0); loopCal.set(Calendar.MILLISECOND, 0)
+                val nextHour = loopCal.timeInMillis
                 val segEnd = min(e, nextHour)
                 arr[block] += (segEnd - s) / 1000L
                 s = segEnd

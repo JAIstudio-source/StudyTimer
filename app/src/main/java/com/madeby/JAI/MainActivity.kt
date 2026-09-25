@@ -133,6 +133,38 @@ class MainActivity : AppCompatActivity() {
             if (success) {
                 Toast.makeText(this, "Profile picture updated", Toast.LENGTH_SHORT).show()
                 navigateToPanel(AppPanel.SETTINGS)
+
+                // Immediately upload in background to Supabase Storage and publish presence/sync
+                CoroutineScope(Dispatchers.IO).launch {
+                    val avatarFile = LocalAvatarManager.getAvatarFile(this@MainActivity)
+                    val rawUserId = AuthManager.getUserId(this@MainActivity)
+                    val userId = if (!rawUserId.isNullOrBlank()) {
+                        rawUserId
+                    } else {
+                        val androidId = try {
+                            android.provider.Settings.Secure.getString(contentResolver, android.provider.Settings.Secure.ANDROID_ID)
+                        } catch (_: Exception) { null }
+                        "guest_${androidId ?: System.currentTimeMillis().toString()}"
+                    }
+                    val publicUrl = ProfileSyncService.uploadAvatarToSupabaseStorage(this@MainActivity, userId, avatarFile)
+                    if (!publicUrl.isNullOrBlank()) {
+                        val current = ProfileManager.getProfile(this@MainActivity)
+                        val updated = current.copy(avatarUrl = publicUrl, updatedAt = System.currentTimeMillis())
+                        ProfileManager.saveProfile(this@MainActivity, updated)
+                        AuthManager.saveProfileImageUri(this@MainActivity, publicUrl)
+                        LocalAvatarManager.markAvatarPendingUpload(this@MainActivity, false)
+
+                        // Publish presence to Supabase so other users see the avatar immediately!
+                        LeaderboardManager.updateStudyPresence(this@MainActivity, isStudying = false)
+                        CloudSyncManager.syncDataToCloud(this@MainActivity, force = true)
+
+                        withContext(Dispatchers.Main) {
+                            if (currentPanel == AppPanel.SETTINGS) {
+                                navigateToPanel(AppPanel.SETTINGS)
+                            }
+                        }
+                    }
+                }
             } else {
                 Toast.makeText(this, "Could not process image", Toast.LENGTH_SHORT).show()
             }

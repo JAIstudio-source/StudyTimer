@@ -128,10 +128,10 @@ object LocalAvatarManager {
     }
 
     fun resolvePresetToEmoji(presetOrUrl: String?): String {
-        if (presetOrUrl.isNullOrBlank()) return "🐱"
+        if (presetOrUrl.isNullOrBlank()) return ""
         val trimmed = presetOrUrl.trim()
         val map = mapOf(
-            "avatar_default" to "🐱",
+            "avatar_default" to "🎓",
             "avatar_cat" to "🐱",
             "avatar_fox" to "🦊",
             "avatar_lion" to "🦁",
@@ -141,12 +141,24 @@ object LocalAvatarManager {
             "avatar_fire" to "🔥",
             "avatar_star" to "⭐",
             "avatar_scholar" to "🎓",
-            "avatar_1" to "🐱",
-            "avatar_2" to "🦊",
-            "avatar_3" to "🦁",
-            "avatar_4" to "🐼",
-            "avatar_5" to "🦉",
-            "avatar_6" to "🚀",
+            "avatar_books" to "📚",
+            "avatar_brain" to "🧠",
+            "avatar_science" to "🔬",
+            "avatar_med" to "🩺",
+            "avatar_coder" to "💻",
+            "avatar_lightning" to "⚡",
+            "avatar_artist" to "🎨",
+            "avatar_lotus" to "🌸",
+            "avatar_forest" to "🌲",
+            "avatar_coffee" to "☕",
+            "avatar_moon" to "🌙",
+            "avatar_target" to "🎯",
+            "avatar_diamond" to "💎",
+            "avatar_champion" to "🏆",
+            "avatar_crown" to "👑",
+            "avatar_saturn" to "🪐",
+            "avatar_gamer" to "🎮",
+            "avatar_lofi" to "🎧",
             "cat" to "🐱",
             "fox" to "🦊",
             "lion" to "🦁",
@@ -156,7 +168,15 @@ object LocalAvatarManager {
             "fire" to "🔥",
             "star" to "⭐",
             "scholar" to "🎓",
-            "default" to "🐱"
+            "books" to "📚",
+            "brain" to "🧠",
+            "coder" to "💻",
+            "lightning" to "⚡",
+            "coffee" to "☕",
+            "target" to "🎯",
+            "diamond" to "💎",
+            "champion" to "🏆",
+            "crown" to "👑"
         )
         val lower = trimmed.lowercase()
         if (map.containsKey(lower)) {

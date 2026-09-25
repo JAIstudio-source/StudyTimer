@@ -298,7 +298,7 @@ object CloudSyncManager {
                     val lbPayload = JSONObject().apply {
                         put("user_id", userId as String)
                         put("user_name", if (userName.isNotBlank()) userName else "Student")
-                        put("avatar_url", if (profileImg.isNotBlank()) profileImg else "🐱")
+                        put("avatar_url", if (profileImg.isNotBlank()) profileImg else (userName.firstOrNull()?.uppercaseChar()?.toString() ?: "S"))
                         put("study_date", todayKeyFmt)
                         put("total_seconds", effectiveSecs)
                         put("is_studying", false)

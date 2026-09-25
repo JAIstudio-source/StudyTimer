@@ -119,24 +119,25 @@ object ProfileManager {
         if (custom.isNotBlank() && (custom.startsWith("http://") || custom.startsWith("https://") || custom.startsWith("data:"))) {
             return custom
         }
+        val authUri = AuthManager.getProfileImageUri(context)?.trim() ?: ""
+        if (authUri.startsWith("http://") || authUri.startsWith("https://")) {
+            return authUri
+        }
         val preset = profile.avatarPresetId.trim()
         if (preset.isNotBlank()) {
             val emoji = LocalAvatarManager.resolvePresetToEmoji(preset)
-            if (emoji != preset || emoji.length <= 4) {
+            if (emoji.isNotBlank() && (emoji != preset || emoji.length <= 4)) {
                 return emoji
             }
         }
         if (custom.isNotBlank()) {
             val customEmoji = LocalAvatarManager.resolvePresetToEmoji(custom)
-            if (customEmoji != custom || customEmoji.length <= 4) {
+            if (customEmoji.isNotBlank() && (customEmoji != custom || customEmoji.length <= 4)) {
                 return customEmoji
             }
         }
-        val authUri = AuthManager.getProfileImageUri(context) ?: ""
-        if (authUri.startsWith("http://") || authUri.startsWith("https://")) {
-            return authUri
-        }
-        return "🐱"
+        val initial = getEffectiveDisplayName(context).take(1).uppercase(java.util.Locale.ROOT).ifBlank { "S" }
+        return initial
     }
 
     fun updateFromCloudRecord(context: Context, cloudRecord: JSONObject): Boolean {

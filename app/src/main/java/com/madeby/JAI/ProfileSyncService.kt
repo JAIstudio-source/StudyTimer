@@ -230,7 +230,7 @@ object ProfileSyncService {
         return@withContext ProfileManager.getProfile(context)
     }
 
-    private fun uploadAvatarToSupabaseStorage(context: Context, userId: String, file: File): String? {
+    internal fun uploadAvatarToSupabaseStorage(context: Context, userId: String, file: File): String? {
         val supabaseUrl = BuildConfig.SUPABASE_URL
         val anonKey = BuildConfig.SUPABASE_ANON_KEY
         if (supabaseUrl.isBlank() || anonKey.isBlank()) return null

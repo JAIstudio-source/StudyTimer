@@ -64,8 +64,10 @@ object LeaderboardManager {
             conn.setRequestProperty("apikey", anonKey)
             conn.setRequestProperty("Authorization", "Bearer $anonKey")
             conn.setRequestProperty("Content-Type", "application/json")
-            conn.connectTimeout = 9000
-            conn.readTimeout = 9000
+            conn.setRequestProperty("Connection", "Keep-Alive")
+            conn.setRequestProperty("Accept-Encoding", "gzip, deflate")
+            conn.connectTimeout = 5000
+            conn.readTimeout = 5000
             conn.doOutput = true
 
             val body = JSONObject().apply {
@@ -103,7 +105,13 @@ object LeaderboardManager {
 
             val code = conn.responseCode
             if (code in 200..299) {
-                val responseStr = conn.inputStream.bufferedReader().use { it.readText() }
+                val encoding = conn.getHeaderField("Content-Encoding")
+                val stream = if (encoding != null && encoding.contains("gzip", ignoreCase = true)) {
+                    java.util.zip.GZIPInputStream(conn.inputStream)
+                } else {
+                    conn.inputStream
+                }
+                val responseStr = stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
                 val jsonArray = if (responseStr.isNotBlank()) JSONArray(responseStr) else JSONArray()
                 val list = mutableListOf<LeaderboardEntry>()
 

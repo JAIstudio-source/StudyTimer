@@ -5233,12 +5233,21 @@ function resolveAvatarSticker(val) {
 function getPublicLeaderboardAvatarUrl(profile) {
   if (!profile) return '';
   const rawAvatar = resolveAvatarSticker(profile.avatarPreset || profile.avatar_url || profile.profile_image_uri || appState.currentUser?.user_metadata?.avatar_url || '');
-  if (!rawAvatar) {
-    const defaultAuthAvatar = appState.currentUser?.user_metadata?.avatar_url || '';
-    if (defaultAuthAvatar) return defaultAuthAvatar;
-    return '';
+  const isCustomPhoto = /^(http|https|data:|blob:)/i.test((rawAvatar || '').trim());
+
+  // STRICT SECURITY & MODERATION GATE:
+  // Custom uploaded photos / URLs MUST NEVER appear on the public leaderboard, presence, or public RPCs
+  // until explicitly approved by admin in the Telegram Moderation Bot (photoApproved === true || profileStatus === 'approved')
+  if (isCustomPhoto) {
+    if (profile.photoApproved === true || profile.profileStatus === 'approved') {
+      return rawAvatar;
+    }
+    // Return safe fallback sticker/initial until admin explicitly approves
+    return resolveAvatarSticker(profile.fallbackSticker || '');
   }
-  return rawAvatar;
+
+  // Safe preset emoji stickers are allowed immediately
+  return rawAvatar || '';
 }
 
 function getAvatarElementHtml(avatarVal, userName, className = 'row-avatar-img', ringClass = '') {

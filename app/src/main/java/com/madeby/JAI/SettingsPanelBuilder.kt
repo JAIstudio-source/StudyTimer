@@ -28,6 +28,7 @@ import com.google.android.material.switchmaterial.SwitchMaterial
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -352,33 +353,56 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     gravity = Gravity.CENTER_VERTICAL
                 }
 
-                // Avatar bubble with local photo support
+                // Avatar bubble with local photo support and remote fallback
+                val avatarFrame = FrameLayout(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
+                }
+                val avatarCircle = TextView(this).apply {
+                    text = avatarInitials
+                    textSize = 20f
+                    gravity = Gravity.CENTER
+                    setTextColor(Color.WHITE)
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(if (isGoogleAuth) themeCoordinator.primaryColor else Color.parseColor("#475569"))
+                    }
+                    layoutParams = FrameLayout.LayoutParams(dp(48), dp(48), Gravity.CENTER)
+                }
+                avatarFrame.addView(avatarCircle)
+
+                val avatarImg = ImageView(this).apply {
+                    layoutParams = FrameLayout.LayoutParams(dp(48), dp(48), Gravity.CENTER)
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setStroke(dp(2), themeCoordinator.primaryColor)
+                    }
+                    visibility = View.GONE
+                }
+                avatarFrame.addView(avatarImg)
+
                 val customAvatarBitmap = LocalAvatarManager.getCircularAvatarBitmap(this, dp(48))
                 if (customAvatarBitmap != null) {
-                    val avatarImg = ImageView(this).apply {
-                        setImageBitmap(customAvatarBitmap)
-                        layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
-                        background = GradientDrawable().apply {
-                            shape = GradientDrawable.OVAL
-                            setStroke(dp(2), themeCoordinator.primaryColor)
-                        }
-                    }
-                    profileRow.addView(avatarImg)
+                    avatarImg.setImageBitmap(customAvatarBitmap)
+                    avatarImg.visibility = View.VISIBLE
+                    avatarCircle.visibility = View.GONE
                 } else {
-                    val avatarCircle = TextView(this).apply {
-                        text = avatarInitials
-                        textSize = 20f
-                        gravity = Gravity.CENTER
-                        setTextColor(Color.WHITE)
-                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                        background = GradientDrawable().apply {
-                            shape = GradientDrawable.OVAL
-                            setColor(if (isGoogleAuth) themeCoordinator.primaryColor else Color.parseColor("#475569"))
+                    val remoteUrl = ProfileManager.getEffectiveAvatarUrl(this)
+                    if (remoteUrl.startsWith("http://") || remoteUrl.startsWith("https://")) {
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                            val bitmap = LocalAvatarManager.getCircularBitmapFromUrl(this@SettingsPanelBuilder.host, remoteUrl, dp(48))
+                            if (bitmap != null) {
+                                LocalAvatarManager.downloadAndSaveRemoteAvatar(this@SettingsPanelBuilder.host, remoteUrl)
+                                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                    avatarImg.setImageBitmap(bitmap)
+                                    avatarImg.visibility = View.VISIBLE
+                                    avatarCircle.visibility = View.GONE
+                                }
+                            }
                         }
-                        layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
                     }
-                    profileRow.addView(avatarCircle)
                 }
+                profileRow.addView(avatarFrame)
 
                 val profileTextCol = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
@@ -658,31 +682,50 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     }
                 }
 
+                val avatarBigCircle = TextView(this).apply {
+                    text = avatarInitials
+                    textSize = 34f
+                    gravity = Gravity.CENTER
+                    setTextColor(Color.WHITE)
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(if (isGoogleAuth) themeCoordinator.primaryColor else Color.parseColor("#475569"))
+                    }
+                    layoutParams = FrameLayout.LayoutParams(dp(88), dp(88), Gravity.CENTER)
+                }
+                avatarWrapper.addView(avatarBigCircle)
+
+                val avatarLargeImg = ImageView(this).apply {
+                    layoutParams = FrameLayout.LayoutParams(dp(88), dp(88), Gravity.CENTER)
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setStroke(dp(2), themeCoordinator.primaryColor)
+                    }
+                    visibility = View.GONE
+                }
+                avatarWrapper.addView(avatarLargeImg)
+
                 val customAvatarLarge = LocalAvatarManager.getCircularAvatarBitmap(this, dp(88))
                 if (customAvatarLarge != null) {
-                    val avatarImg = ImageView(this).apply {
-                        setImageBitmap(customAvatarLarge)
-                        layoutParams = FrameLayout.LayoutParams(dp(88), dp(88), Gravity.CENTER)
-                        background = GradientDrawable().apply {
-                            shape = GradientDrawable.OVAL
-                            setStroke(dp(2), themeCoordinator.primaryColor)
-                        }
-                    }
-                    avatarWrapper.addView(avatarImg)
+                    avatarLargeImg.setImageBitmap(customAvatarLarge)
+                    avatarLargeImg.visibility = View.VISIBLE
+                    avatarBigCircle.visibility = View.GONE
                 } else {
-                    val avatarBigCircle = TextView(this).apply {
-                        text = avatarInitials
-                        textSize = 34f
-                        gravity = Gravity.CENTER
-                        setTextColor(Color.WHITE)
-                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                        background = GradientDrawable().apply {
-                            shape = GradientDrawable.OVAL
-                            setColor(if (isGoogleAuth) themeCoordinator.primaryColor else Color.parseColor("#475569"))
+                    val remoteUrl = ProfileManager.getEffectiveAvatarUrl(this)
+                    if (remoteUrl.startsWith("http://") || remoteUrl.startsWith("https://")) {
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                            val bitmap = LocalAvatarManager.getCircularBitmapFromUrl(this@SettingsPanelBuilder.host, remoteUrl, dp(88))
+                            if (bitmap != null) {
+                                LocalAvatarManager.downloadAndSaveRemoteAvatar(this@SettingsPanelBuilder.host, remoteUrl)
+                                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                    avatarLargeImg.setImageBitmap(bitmap)
+                                    avatarLargeImg.visibility = View.VISIBLE
+                                    avatarBigCircle.visibility = View.GONE
+                                }
+                            }
                         }
-                        layoutParams = FrameLayout.LayoutParams(dp(88), dp(88), Gravity.CENTER)
                     }
-                    avatarWrapper.addView(avatarBigCircle)
                 }
 
                 // Edit Camera Badge

@@ -92,7 +92,7 @@ class MainActivity : AppCompatActivity() {
     private var tabDragCommitSettingsTab = AppSettingsTab.SIMPLE
     internal class CachedTabPage(val view: View, val statsGen: Int, val themeSig: String)
     internal val tabPageCache = HashMap<String, CachedTabPage>()
-    private var selectedDaysFilter = 7
+    internal var selectedDaysFilter = 7
 
     internal var accumulatedStudy: Long = 0
     internal var currentBreakSeconds: Long = 0
@@ -126,6 +126,132 @@ class MainActivity : AppCompatActivity() {
     private var batteryOptDialogRef: android.app.Dialog? = null
     internal var settingsScrollViewRef: ScrollView? = null
     private var pendingSettingsScrollY = 0
+
+    internal fun getStatusBarHeight(): Int {
+        val resId = resources.getIdentifier("status_bar_height", "dimen", "android")
+        return if (resId > 0) resources.getDimensionPixelSize(resId) else 0
+    }
+
+    internal fun loadSessionGoalsFromJson(jsonStr: String): List<SessionGoal> {
+        return try {
+            val array = org.json.JSONArray(jsonStr)
+            val list = mutableListOf<SessionGoal>()
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                val subId = if (obj.has("subjectId") && !obj.isNull("subjectId")) obj.optString("subjectId").takeIf { it.isNotEmpty() } else null
+                list.add(SessionGoal(
+                    id = obj.optString("id", UUID.randomUUID().toString()),
+                    title = obj.optString("title", ""),
+                    note = obj.optString("note", ""),
+                    targetMinutes = obj.optInt("targetMinutes", 0),
+                    completed = obj.optBoolean("completed", false),
+                    checkedAt = obj.optLong("checkedAt", 0L),
+                    createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
+                    subjectId = subId
+                ))
+            }
+            list
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    internal fun saveSessionGoalsToJson(goals: List<SessionGoal>) {
+        val array = org.json.JSONArray()
+        for (goal in goals) {
+            val obj = org.json.JSONObject().apply {
+                put("id", goal.id)
+                put("title", goal.title)
+                put("note", goal.note)
+                put("targetMinutes", goal.targetMinutes)
+                put("completed", goal.completed)
+                put("checkedAt", goal.checkedAt)
+                put("createdAt", goal.createdAt)
+                if (goal.subjectId != null) {
+                    put("subjectId", goal.subjectId)
+                }
+            }
+            array.put(obj)
+        }
+        getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit().putString("session_goals_json", array.toString()).apply()
+    }
+
+    internal fun resolvePlannerColors(): Pair<Int, Int> {
+        val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        return when (prefs.getString("planner_theme_preset", "DEFAULT")) {
+            "EMERALD" -> Pair(0xFF10B981.toInt(), 0xFFF59E0B.toInt())
+            "VIOLET" -> Pair(0xFF8B5CF6.toInt(), 0xFF06B6D4.toInt())
+            "OCEAN" -> Pair(0xFF06B6D4.toInt(), 0xFFFF6B6B.toInt())
+            "SUNSET" -> Pair(0xFFF97316.toInt(), 0xFF10B981.toInt())
+            "MIDNIGHT" -> Pair(0xFFEAB308.toInt(), 0xFFEC4899.toInt())
+            else -> Pair(themeCoordinator.accentColor, themeCoordinator.secondaryColor)
+        }
+    }
+
+    internal fun resolvePlannerAccentColor(): Int = resolvePlannerColors().first
+
+    internal fun showPlannerThemePickerDialog() {
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = themeCoordinator.createDialogBackground(24f)
+            setPadding(dp(22), dp(20), dp(22), dp(20))
+        }
+
+        content.addView(TextView(this).apply {
+            text = "🎨 Planner Theme"
+            textSize = 18f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setTextColor(themeCoordinator.textColor)
+            setPadding(0, 0, 0, dp(14))
+        })
+
+        val presets = listOf(
+            "DEFAULT" to "Classic Theme",
+            "EMERALD" to "Emerald & Amber",
+            "VIOLET" to "Violet & Cyan",
+            "OCEAN" to "Ocean & Coral",
+            "SUNSET" to "Sunset & Mint",
+            "MIDNIGHT" to "Obsidian & Pink"
+        )
+
+        val currentPreset = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).getString("planner_theme_preset", "DEFAULT")
+
+        for ((key, name) in presets) {
+            val isSel = (key == currentPreset)
+            val btn = TextView(this).apply {
+                text = if (isSel) "✓ $name" else name
+                textSize = 14f
+                typeface = Typeface.create("sans-serif-medium", if (isSel) Typeface.BOLD else Typeface.NORMAL)
+                setTextColor(if (isSel) Color.WHITE else themeCoordinator.textColor)
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(12).toFloat()
+                    if (isSel) {
+                        setColor(themeCoordinator.primaryColor)
+                    } else {
+                        setColor(tintedColor(themeCoordinator.textColor, 15))
+                    }
+                }
+                setPadding(dp(16), dp(12), dp(16), dp(12))
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { setMargins(0, 0, 0, dp(8)) }
+                setOnClickListener {
+                    getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit().putString("planner_theme_preset", key).apply()
+                    dialog.dismiss()
+                    refreshStatsPanel()
+                }
+            }
+            content.addView(btn)
+        }
+
+        dialog.setContentView(content)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.show()
+    }
 
     private val pickAvatarLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
@@ -208,7 +334,7 @@ class MainActivity : AppCompatActivity() {
     private var lastZenModeState: Boolean? = null
     private var lastShowPauseState: Boolean? = null
     private var lastDayBucket: Long = -1L
-    private var cachedTodayStr = ""
+    internal var cachedTodayStr = ""
     private var lastStatsMinuteTick: Long = -1L
 
     internal lateinit var themeCoordinator: ThemeCoordinator
@@ -1187,7 +1313,7 @@ class MainActivity : AppCompatActivity() {
         return Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color))
     }
 
-    private fun darkenColor(color: Int, amount: Float): Int {
+    internal fun darkenColor(color: Int, amount: Float): Int {
         val hsv = FloatArray(3)
         Color.colorToHSV(color, hsv)
         hsv[2] = (hsv[2] * (1f - amount)).coerceIn(0f, 1f)
@@ -1276,7 +1402,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun dailyGoalSecs(): Long = statsEngine.dailyGoalSecs()
+    internal fun dailyGoalSecs(): Long = statsEngine.dailyGoalSecs()
 
     internal fun resolveGoalFor(dateStr: String): Long = statsEngine.resolveGoalFor(dateStr)
 
@@ -1984,9 +2110,7 @@ class MainActivity : AppCompatActivity() {
         StatsPanelBuilder(this).buildHeatmapFullscreenPanel()
     }
 
-    internal fun refreshHeatmapFilterChips() {
-        StatsPanelBuilder(this).refreshHeatmapFilterChips()
-    }
+    internal fun refreshHeatmapFilterChips() {}
 
     internal fun invalidateStatsCache() {
         StatsPanelBuilder(this).invalidateStatsCache()
@@ -2176,7 +2300,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private inner class BarTrackView(
+    internal inner class BarTrackView(
         private val ratio: Float,
         private val goalRatio: Float,
         private val trackColor: Int,
@@ -2398,6 +2522,11 @@ class MainActivity : AppCompatActivity() {
     internal fun renderViewToBitmap(view: View): android.graphics.Bitmap {
         return WeeklySummaryShareHelper(this).renderViewToBitmap(view)
     }
+
+    internal fun focusBlockLabels(): Array<String> = DayTimelineDialogHelper(this).focusBlockLabels()
+    internal fun focusBlockStartLabels(): Array<String> = DayTimelineDialogHelper(this).focusBlockStartLabels()
+    internal fun focusBlockRangeLabel(b: Int): String = DayTimelineDialogHelper(this).focusBlockRangeLabel(b)
+
 
     internal fun saveBitmapToMediaStore(bitmap: android.graphics.Bitmap): Uri? {
         return WeeklySummaryShareHelper(this).saveBitmapToMediaStore(bitmap)

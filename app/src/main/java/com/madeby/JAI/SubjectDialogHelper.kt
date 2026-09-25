@@ -104,7 +104,7 @@ class SubjectDialogHelper(private val host: MainActivity) {
                     setOnClickListener {
                         SubjectTagManager.setSelectedSubject(host, subj.id)
                         dialog.dismiss()
-                        host.buildFocusPanel()
+                        host.navigateToPanel(AppPanel.FOCUS)
                     }
                     setOnLongClickListener {
                         if (subj.id != "general") {
@@ -209,7 +209,7 @@ class SubjectDialogHelper(private val host: MainActivity) {
                 setOnClickListener {
                     SubjectTagManager.removeSubject(host, subj.id)
                     dialog.dismiss()
-                    host.buildFocusPanel()
+                    host.navigateToPanel(AppPanel.FOCUS)
                     showSubjectPickerDialog()
                 }
             }
@@ -356,7 +356,7 @@ class SubjectDialogHelper(private val host: MainActivity) {
                     if (name.isNotEmpty()) {
                         val created = SubjectTagManager.addCustomSubject(host, name, "📚", selectedColorHex)
                         dialog.dismiss()
-                        host.buildFocusPanel()
+                        host.navigateToPanel(AppPanel.FOCUS)
                         onSubjectCreated?.invoke(created)
                     }
                 }

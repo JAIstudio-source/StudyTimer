@@ -128,6 +128,10 @@ let accumulatedElapsedSec = 0;
 let timeRemaining = 25 * 60;
 let stopwatchElapsed = 0;
 let timerInterval = null;
+let timerWorker = null;
+let wakeLockSentinel = null;
+let lastAutoSavedMinute = 0;
+let defaultPageTitle = (typeof document !== 'undefined' && document.title) ? document.title : 'StudyTimer Web';
 
 // Anti-Cheat & Continuous Study Tracking
 const CONTINUOUS_STUDY_LIMIT_SEC = 12600; // 3.5 hours uninterrupted limit
@@ -209,11 +213,7 @@ async function initApp() {
   await initAuth();
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initApp);
-} else {
-  initApp();
-}
+
 
 // Theme Management
 function initTheme() {
@@ -2443,10 +2443,6 @@ function toggleTimer() {
 // ============================================================================
 // BACKGROUND WORKER TICKER & DESKTOP/ANDROID BACKGROUND SYNC
 // ============================================================================
-let timerWorker = null;
-let wakeLockSentinel = null;
-let lastAutoSavedMinute = 0;
-let defaultPageTitle = document.title || 'StudyTimer Web - Focus Timer & Habit Tracker for Students';
 
 // Native Lightweight Focus Chime (Zero external audio file dependencies)
 function playAlarmChime() {
@@ -6812,6 +6808,111 @@ async function fetchLeaderboard(forceRefresh = false, showSpinning = false) {
   }
 }
 
+
+// Client-side aggregator for table rows
+function aggregateLeaderboardEntries(rows) {
+  const userMap = new Map();
+  const threeMinsAgo = Date.now() - 3 * 60 * 1000;
+
+  (rows || []).forEach(row => {
+    if (!row || !row.user_id) return;
+    const uid = row.user_id;
+    const isRecentActive = row.last_active_at ? new Date(row.last_active_at).getTime() > threeMinsAgo : false;
+    const isStudyingNow = Boolean(row.is_studying && isRecentActive);
+    const ring = typeof normalizeRingClass === 'function' ? normalizeRingClass(row.avatar_ring) : (row.avatar_ring || 'glow-gold');
+
+    if (!userMap.has(uid)) {
+      userMap.set(uid, {
+        user_id: uid,
+        user_name: row.user_name || 'Student',
+        avatar_url: row.avatar_url || '',
+        avatar_ring: ring,
+        country_flag: row.country_flag || '🌐',
+        status_mood: row.status_mood || '',
+        exam_tag: row.exam_tag || '',
+        is_stealth: Boolean(row.is_stealth),
+        total_seconds: Number(row.total_seconds) || 0,
+        is_studying: isStudyingNow,
+        current_subject: row.current_subject || '',
+        subject_color: row.subject_color || '#3b82f6',
+        last_active_at: row.last_active_at || new Date().toISOString()
+      });
+    } else {
+      const existing = userMap.get(uid);
+      existing.total_seconds += (Number(row.total_seconds) || 0);
+      if (row.user_name && row.user_name !== 'Student') existing.user_name = row.user_name;
+      if (row.avatar_url) existing.avatar_url = row.avatar_url;
+      if (row.avatar_ring) existing.avatar_ring = ring;
+      if (row.country_flag) existing.country_flag = row.country_flag;
+      if (row.status_mood) existing.status_mood = row.status_mood;
+      if (row.exam_tag) existing.exam_tag = row.exam_tag;
+      if (row.is_stealth !== undefined) existing.is_stealth = Boolean(row.is_stealth);
+      if (isStudyingNow) {
+        existing.is_studying = true;
+        existing.current_subject = row.current_subject || existing.current_subject;
+        existing.subject_color = row.subject_color || existing.subject_color;
+      }
+      if (new Date(row.last_active_at) > new Date(existing.last_active_at)) {
+        existing.last_active_at = row.last_active_at;
+      }
+    }
+  });
+
+  const sorted = Array.from(userMap.values()).sort((a, b) => b.total_seconds - a.total_seconds);
+  return sorted.slice(0, 50);
+}
+
+function isCurrentUserEntry(entry) {
+  if (!entry) return false;
+  const currentUserId = appState.currentUser?.id;
+  const currentUserEmail = appState.currentUser?.email;
+
+  if (currentUserId && entry.user_id === currentUserId) return true;
+  if (currentUserEmail && (entry.user_id === currentUserEmail || entry.user_id === currentUserEmail.split('@')[0])) return true;
+  return false;
+}
+
+function calculateLocalFocusSecondsForPeriod(period) {
+  const todayKey = typeof getIsoDateStr === 'function' ? getIsoDateStr() : getLocalDateStr();
+  let totalSec = 0;
+
+  if (period === 'daily') {
+    (appState.todaySessions || []).forEach(s => {
+      if (s && typeof s.durationSec === 'number') totalSec += s.durationSec;
+    });
+    if (appState.dailyFocusTotals && appState.dailyFocusTotals[todayKey]) {
+      totalSec = Math.max(totalSec, Number(appState.dailyFocusTotals[todayKey]) || 0);
+    }
+  } else if (period === 'weekly') {
+    const startWeekStr = getStartOfWeekDateStr();
+    const totals = appState.dailyFocusTotals || {};
+    Object.keys(totals).forEach(k => {
+      if (k >= startWeekStr && k <= todayKey) {
+        totalSec += Number(totals[k]) || 0;
+      }
+    });
+    if (totalSec === 0) {
+      (appState.todaySessions || []).forEach(s => {
+        if (s && typeof s.durationSec === 'number') totalSec += s.durationSec;
+      });
+    }
+  } else if (period === 'monthly') {
+    const startMonthStr = getStartOfMonthDateStr();
+    const totals = appState.dailyFocusTotals || {};
+    Object.keys(totals).forEach(k => {
+      if (k >= startMonthStr && k <= todayKey) {
+        totalSec += Number(totals[k]) || 0;
+      }
+    });
+    if (totalSec === 0) {
+      (appState.todaySessions || []).forEach(s => {
+        if (s && typeof s.durationSec === 'number') totalSec += s.durationSec;
+      });
+    }
+  }
+  return totalSec;
+}
+
 function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
   const podiumContainer = document.getElementById('leaderboardPodium');
   const listContainer = document.getElementById('leaderboardListItems');
@@ -8938,3 +9039,15 @@ function closeStudioBgModal() {
 }
 
 
+
+
+// ============================================================================
+// APP ENTRY POINT (Executed after all modules and variables are initialized)
+// ============================================================================
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+  } else {
+    initApp();
+  }
+}

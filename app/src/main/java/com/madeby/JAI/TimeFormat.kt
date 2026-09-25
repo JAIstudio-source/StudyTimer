@@ -43,3 +43,19 @@ object TimeFormat {
         return formatHourMinute(context, cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE))
     }
 }
+
+fun formatDuration(totalSeconds: Long): String {
+    if (totalSeconds <= 0L) return "0m"
+    val hours = totalSeconds / 3600L
+    val mins = (totalSeconds % 3600L) / 60L
+    val secs = totalSeconds % 60L
+    return when {
+        hours > 0L && mins > 0L -> "${hours}h ${mins}m"
+        hours > 0L -> "${hours}h"
+        mins > 0L -> "${mins}m"
+        else -> "${secs}s"
+    }
+}
+
+fun formatDuration(totalSeconds: Int): String = formatDuration(totalSeconds.toLong())
+

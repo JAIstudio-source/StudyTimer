@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
@@ -29,10 +30,13 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import com.google.android.material.switchmaterial.SwitchMaterial
+import kotlinx.coroutines.*
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -58,15 +62,27 @@ class PlannerPanelBuilder(private val host: MainActivity) {
     private fun getStatusBarHeight() = host.getStatusBarHeight()
     private fun showSubjectPickerDialog() = host.showSubjectPickerDialog()
     private fun showAddCustomSubjectDialog(onCreated: ((SubjectTag) -> Unit)? = null) = host.showAddCustomSubjectDialog(onCreated)
+    private var isDevModeUnlocked get() = host.isDevModeUnlocked; set(v) { host.isDevModeUnlocked = v }
+    private var timerMode get() = host.timerMode; set(v) { host.timerMode = v }
+    private var statsDirty get() = host.statsDirty; set(v) { host.statsDirty = v }
+    private val tabPageCache get() = host.tabPageCache
+    private fun recalculateStreak() = host.recalculateStreak()
+    private fun refreshStatsPanel() = host.refreshStatsPanel()
+    private fun createSectionLabel(text: String): TextView = host.createSectionLabel(text)
+    private fun createDivider(): View = host.createDivider()
+    private fun showPlannerThemePickerDialog() = host.showPlannerThemePickerDialog()
+    private fun showConfirmDialog(title: String, message: String, confirmText: String = "Confirm", isDestructive: Boolean = false, onConfirm: () -> Unit) =
+        DeveloperToolsHelper.showThemedConfirmDialog(host, themeCoordinator, title, message, confirmText, isDestructive, onConfirm = onConfirm)
+    private fun getSystemService(name: String): Any? = host.getSystemService(name)
 
     internal fun renderPlannerTabContent(parent: LinearLayout, snap: StatsSnapshot) {
         val prefs = host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-        val goalsJson = prefs.host.getString("session_goals_json", "[]") ?: "[]"
+        val goalsJson = prefs.getString("session_goals_json", "[]") ?: "[]"
         val goalsList = loadSessionGoalsFromJson(goalsJson)
         val (plannerPrimary, plannerSecondary) = resolvePlannerColors()
 
         val todayStr = cachedTodayStr.ifEmpty { dateKeyFmt.format(Date()) }
-        val dailySubjectDurations = SubjectTagManager.(host, todayStr)
+        val dailySubjectDurations = SubjectTagManager.getSubjectDurationsForDate(host, todayStr)
         val todayFocusSecs = snap.todayFocus
 
         val progressMap = PlannerHistoryManager.calculateGoalProgress(goalsList, todayFocusSecs, dailySubjectDurations)
@@ -90,7 +106,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
         }
         if (goalsUpdated) {
             saveSessionGoalsToJson(activeGoalsList)
-            PlannerHistoryManager.snapshotToday(this, activeGoalsList)
+            PlannerHistoryManager.snapshotToday(host, activeGoalsList)
         }
 
         val trulyAchievedIds = mutableSetOf<String>()
@@ -352,7 +368,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
                     if (isChecked) paintFlags = paintFlags or android.graphics.Paint.STRIKE_THRU_TEXT_FLAG
                 })
                 if (!goal.subjectId.isNullOrBlank() && goal.subjectId != "all") {
-                    val sub = SubjectTagManager.(host, goal.subjectId)
+                    val sub = SubjectTagManager.getAllSubjects(host).find { it.id == goal.subjectId } ?: SubjectTagManager.DEFAULT_SUBJECTS[0]
                     val subBadge = TextView(host).apply {
                         text = "${sub.iconEmoji} ${sub.name}"
                         setTextColor(try { Color.parseColor(sub.colorHex) } catch (_: Exception) { plannerPrimary })
@@ -474,7 +490,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
         }
 
         // Planner Insights Section (always computed)
-        val overallInsights = PlannerHistoryManager.computeOverallPlannerInsights(this, activeGoalsList)
+        val overallInsights = PlannerHistoryManager.computeOverallPlannerInsights(host, activeGoalsList)
 
         parent.addView(createSectionLabel("Planner Insights"))
 
@@ -580,8 +596,8 @@ class PlannerPanelBuilder(private val host: MainActivity) {
 
         val isDark = themeCoordinator.isDarkMode()
         val (plannerPrimary, plannerSecondary) = resolvePlannerColors()
-        val historyDetailedMap = PlannerHistoryManager.loadGoalHistoryDetailed(this, goal.id)
-        val insights = PlannerHistoryManager.computeGoalInsights(this, goal.id)
+        val historyDetailedMap = PlannerHistoryManager.loadGoalHistoryDetailed(host, goal.id)
+        val insights = PlannerHistoryManager.computeGoalInsights(host, goal.id)
         var currentOffset = displayMonthOffset
 
         val content = LinearLayout(host).apply {
@@ -918,7 +934,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
 
         val (plannerPrimary, _) = resolvePlannerColors()
         val prefs = host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-        val dailySubjectDurations = SubjectTagManager.(host, yesterdayStr)
+        val dailySubjectDurations = SubjectTagManager.getSubjectDurationsForDate(host, yesterdayStr)
         val dayFocusSecs = prefs.getLong("${yesterdayStr}_focus_total", 0L)
         val yesterdayFocusMins = (dayFocusSecs / 60).toInt()
 
@@ -970,13 +986,13 @@ class PlannerPanelBuilder(private val host: MainActivity) {
         )
 
         val itemsList = mutableListOf<YesterdayGoalItem>()
-        val existingSnapshots = PlannerHistoryManager.loadDaySnapshot(this, yesterdayStr)
+        val existingSnapshots = PlannerHistoryManager.loadDaySnapshot(host, yesterdayStr)
         if (existingSnapshots.isNotEmpty()) {
             for (s in existingSnapshots) {
                 itemsList.add(YesterdayGoalItem(s.goalId, s.title, s.targetMinutes, s.completed, s.isAchieved, s.subjectId))
             }
         } else {
-            val currentGoals = loadSessionGoalsFromJson(prefs.host.getString("session_goals_json", "[]") ?: "[]")
+            val currentGoals = loadSessionGoalsFromJson(prefs.getString("session_goals_json", "[]") ?: "[]")
             val progressMap = PlannerHistoryManager.calculateGoalProgress(currentGoals, yesterdayFocusMins * 60L, dailySubjectDurations)
             for (g in currentGoals) {
                 val prog = progressMap[g.id]
@@ -1230,7 +1246,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
     }
 
     internal fun migrateHistoricalDailyGoals(context: Context) {
-        val prefs = context.host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
         val globalGoal = (prefs.all["daily_goal_secs"] as? Number)?.toLong() ?: 2700L
         val editor = prefs.edit()
         var modified = false
@@ -1257,14 +1273,13 @@ class PlannerPanelBuilder(private val host: MainActivity) {
 
     internal fun showPlannerMatrixDialog(startFullscreen: Boolean = false) {
         val isFullscreen = startFullscreen
-        val dialog = Dialog(
-            this,
+        val dialog = Dialog(host,
             if (isFullscreen) android.R.style.Theme_Black_NoTitleBar_Fullscreen else android.R.style.Theme_Dialog
         )
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
 
         val isDark = themeCoordinator.isDarkMode()
-        val goalsJson = host.getSharedPreferences("StudyTimerPrefs", MODE_PRIVATE).host.getString("session_goals_json", "[]") ?: "[]"
+        val goalsJson = host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).getString("session_goals_json", "[]") ?: "[]"
         val goalsList = loadSessionGoalsFromJson(goalsJson)
         val (plannerPrimary, plannerSecondary) = resolvePlannerColors()
 
@@ -1341,11 +1356,11 @@ class PlannerPanelBuilder(private val host: MainActivity) {
         }
 
         // Add past deleted goals from daily snapshots
-        val prefs = host.getSharedPreferences("StudyTimerPrefs", MODE_PRIVATE)
+        val prefs = host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
         for (key in prefs.all.keys) {
             if (key.endsWith("_planner_snapshot")) {
                 if (!prefs.contains(key)) continue
-                val snapshots = PlannerHistoryManager.loadDaySnapshot(this, key.removeSuffix("_planner_snapshot"))
+                val snapshots = PlannerHistoryManager.loadDaySnapshot(host, key.removeSuffix("_planner_snapshot"))
                 for (s in snapshots) {
                     if (s.goalId.isNotBlank() && !allGoalItemsMap.containsKey(s.goalId)) {
                         allGoalItemsMap[s.goalId] = MatrixGoalItem(s.goalId, if (s.title.isNotBlank()) s.title else "Deleted Goal", isDeleted = true)
@@ -1358,7 +1373,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
         val allDates = mutableSetOf<String>()
 
         val goalHistories = allGoalItems.associate { item ->
-            val h = PlannerHistoryManager.loadGoalHistoryDetailed(this, item.id)
+            val h = PlannerHistoryManager.loadGoalHistoryDetailed(host, item.id)
             allDates.addAll(h.keys)
             item.id to h
         }
@@ -2043,7 +2058,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
             } catch (_: Exception) { true }
 
             val prefs = host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-            val currentTimerState = prefs.host.getString("timerState", "IDLE") ?: "IDLE"
+            val currentTimerState = prefs.getString("timerState", "IDLE") ?: "IDLE"
             val selectedSub = try { SubjectTagManager.getSelectedSubject(host).name } catch (_: Exception) { "General" }
             val dm = host.resources.displayMetrics
             val freeRamMb = Runtime.getRuntime().freeMemory() / (1024 * 1024)
@@ -2461,7 +2476,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
             }
         }
 
-        val goalsJson = host.getSharedPreferences("StudyTimerPrefs", MODE_PRIVATE).host.getString("session_goals_json", "[]") ?: "[]"
+        val goalsJson = host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).getString("session_goals_json", "[]") ?: "[]"
         val goalsList = loadSessionGoalsFromJson(goalsJson)
         val activeGoal = goalsList.find { it.id == itemId }
         val noteText = if (activeGoal != null && activeGoal.note.isNotBlank()) activeGoal.note else itemNote
@@ -2662,8 +2677,8 @@ class PlannerPanelBuilder(private val host: MainActivity) {
             background = themeCoordinator.createGlassChip(Color.argb(40, 255, 82, 82), 16f)
             setOnClickListener {
                 dialog.dismiss()
-                val prefs = host.getSharedPreferences("StudyTimerPrefs", MODE_PRIVATE)
-                val activeJson = prefs.host.getString("session_goals_json", "[]") ?: "[]"
+                val prefs = host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+                val activeJson = prefs.getString("session_goals_json", "[]") ?: "[]"
                 val activeList = loadSessionGoalsFromJson(activeJson).filterNot { it.id == goalId }
                 saveSessionGoalsToJson(activeList)
 
@@ -2794,7 +2809,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
         })
 
         var selectedSubjectId: String? = null
-        val allSubjects = SubjectTagManager.(host)
+        val allSubjects = SubjectTagManager.getAllSubjects(host)
         val subjectChipScroll = HorizontalScrollView(host).apply {
             isHorizontalScrollBarEnabled = false
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
@@ -2883,7 +2898,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
                     val noteText = noteInput.text.toString().trim()
                     val rawMins = durationInput.text.toString().toIntOrNull() ?: 0
                     val targetMins = rawMins.coerceAtMost(1440)
-                    val currentGoals = loadSessionGoalsFromJson(host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).host.getString("session_goals_json", "[]") ?: "[]").toMutableList()
+                    val currentGoals = loadSessionGoalsFromJson(host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).getString("session_goals_json", "[]") ?: "[]").toMutableList()
                     currentGoals.add(PlannerGoal(title = titleText, note = noteText, targetMinutes = targetMins, subjectId = selectedSubjectId))
                     saveSessionGoalsToJson(currentGoals)
                     refreshStatsPanel()
@@ -3014,7 +3029,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
         })
 
         var selectedSubjectId: String? = goal.subjectId
-        val allSubjects = SubjectTagManager.(host)
+        val allSubjects = SubjectTagManager.getAllSubjects(host)
         val subjectChipScroll = HorizontalScrollView(host).apply {
             isHorizontalScrollBarEnabled = false
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
@@ -3104,7 +3119,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
                     val rawMins = durationInput.text.toString().toIntOrNull() ?: 0
                     val newTargetMins = rawMins.coerceAtMost(1440)
 
-                    val currentGoals = loadSessionGoalsFromJson(host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).host.getString("session_goals_json", "[]") ?: "[]").toMutableList()
+                    val currentGoals = loadSessionGoalsFromJson(host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).getString("session_goals_json", "[]") ?: "[]").toMutableList()
                     val idx = currentGoals.indexOfFirst { it.id == goal.id }
                     if (idx >= 0) {
                         val oldG = currentGoals[idx]
@@ -3168,11 +3183,11 @@ class PlannerPanelBuilder(private val host: MainActivity) {
             .apply()
 
         if (hasEnabled) {
-            val serviceIntent = Intent(this, TimerService::class.java)
+            val serviceIntent = Intent(host, TimerService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(serviceIntent)
+                host.startForegroundService(serviceIntent)
             } else {
-                startService(serviceIntent)
+                host.startService(serviceIntent)
             }
         }
     }
@@ -3212,7 +3227,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
         content.addView(topRow)
 
         val prefs = host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-        val items = loadLectureSchedulesFromJson(prefs.host.getString("lecture_schedules_json", "[]") ?: "[]")
+        val items = loadLectureSchedulesFromJson(prefs.getString("lecture_schedules_json", "[]") ?: "[]")
 
         fun formatScheduleTime(timeStr: String): String {
             val parts = timeStr.trim().split(":")
@@ -3265,7 +3280,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
                 })
                 row.addView(textCol)
 
-                val toggleSwitch = SwitchMaterial(this).apply {
+                val toggleSwitch = SwitchMaterial(host).apply {
                     isChecked = item.enabled
                     scaleX = 0.75f
                     scaleY = 0.75f
@@ -3534,8 +3549,8 @@ class PlannerPanelBuilder(private val host: MainActivity) {
                 setPadding(0, 0, 0, dp(4))
             })
 
-            val availableSubjects = SubjectTagManager.(host).toMutableList()
-            val initSubId = editItem?.subjectId ?: SubjectTagManager.(host).id
+            val availableSubjects = SubjectTagManager.getAllSubjects(host).toMutableList()
+            val initSubId = editItem?.subjectId ?: SubjectTagManager.getSelectedSubject(host).id
             var chosenSubId = initSubId
 
             val subjectRow = LinearLayout(host).apply {
@@ -3590,7 +3605,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
             }
 
             fun openSubjectPickerMenu() {
-                val popup = android.widget.PopupMenu(this, subjectSelectBtn)
+                val popup = android.widget.PopupMenu(host, subjectSelectBtn)
                 for (i in availableSubjects.indices) {
                     val s = availableSubjects[i]
                     popup.menu.add(0, i, i, "${s.iconEmoji} ${s.name}")
@@ -3668,7 +3683,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
                     val selectedSubjectId = chosenSubId
 
                     if (titleText.isNotBlank() && startText.isNotBlank() && endText.isNotBlank()) {
-                        val currentSchedules = loadLectureSchedulesFromJson(host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).host.getString("lecture_schedules_json", "[]") ?: "[]").toMutableList()
+                        val currentSchedules = loadLectureSchedulesFromJson(host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).getString("lecture_schedules_json", "[]") ?: "[]").toMutableList()
                         if (editItem != null) {
                             val idx = currentSchedules.indexOfFirst { it.id == editItem.id }
                             if (idx != -1) {
@@ -3681,9 +3696,9 @@ class PlannerPanelBuilder(private val host: MainActivity) {
 
                         val serviceIntent = Intent(host, TimerService::class.java)
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            startForegroundService(serviceIntent)
+                            host.startForegroundService(serviceIntent)
                         } else {
-                            startService(serviceIntent)
+                            host.startService(serviceIntent)
                         }
                     }
                     dialog.dismiss()

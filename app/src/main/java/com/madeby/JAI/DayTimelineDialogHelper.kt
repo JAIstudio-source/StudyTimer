@@ -221,17 +221,17 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
             }
             row.addView(icon)
 
-            val text = TextView(host).apply {
-                text = formatBlockRow(block.startMs, block.endMs, block.secs)
+            val blockTextView = TextView(host).apply {
+                this.text = formatBlockRow(block.startMs, block.endMs, block.secs)
                 textSize = 12.5f
                 setTextColor(themeCoordinator.textColor)
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
-            row.addView(text)
+            row.addView(blockTextView)
 
             if (onDelete != null) {
                 val delBtn = TextView(host).apply {
-                    text = "✕"
+                    this.text = "✕"
                     textSize = 12f
                     setTextColor(Color.parseColor("#EF4444"))
                     alpha = 0.7f
@@ -253,7 +253,7 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
             confirmText = "Delete",
             isDestructive = true
         ) {
-            TimelineLogger.removeBlock(host, block.startMs, block.endMs)
+            TimelineLogger.deleteBlock(host, block.startMs, block.endMs)
             reconcileDayTotals(dateStr)
             host.invalidateStatsCache()
             host.refreshStatsPanel()
@@ -270,7 +270,7 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
             confirmText = "Delete All",
             isDestructive = true
         ) {
-            TimelineLogger.removeDay(host, dateStr)
+            TimelineLogger.deleteDay(host, dateStr)
             reconcileDayTotals(dateStr)
             host.invalidateStatsCache()
             host.refreshStatsPanel()

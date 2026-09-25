@@ -43,6 +43,7 @@ import kotlin.math.min
 
 class StatsPanelBuilder(private val host: MainActivity) {
 
+    private val sharedPrefs get() = host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
     private val themeCoordinator get() = host.themeCoordinator
     private val statsEngine get() = host.statsEngine
     private val dateKeyFmt get() = host.dateKeyFmt
@@ -60,7 +61,33 @@ class StatsPanelBuilder(private val host: MainActivity) {
         get() = host.currentStatsTab
         set(value) { host.currentStatsTab = value }
     private val tabPageCache get() = host.tabPageCache
-    private var panelContainer get() = host.panelContainer
+    private val panelContainer get() = host.panelContainer
+
+    private var hasPlayedStatsEntranceAnimation
+        get() = host.hasPlayedStatsEntranceAnimation
+        set(value) { host.hasPlayedStatsEntranceAnimation = value }
+    private var selectedDaysFilter
+        get() = host.selectedDaysFilter
+        set(value) { host.selectedDaysFilter = value }
+    private var currentTimerState
+        get() = host.currentTimerState
+        set(value) { host.currentTimerState = value }
+    private var accumulatedStudy
+        get() = host.accumulatedStudy
+        set(value) { host.accumulatedStudy = value }
+    private val currentPanel get() = host.currentPanel
+    private fun statsTabKey(t: AppStatsTab): String = host.statsTabKey(t)
+    private fun dailyGoalSecs(): Long = host.dailyGoalSecs()
+    private fun formatGoalLabel(secs: Long): String = host.formatGoalLabel(secs)
+    private fun darkenColor(color: Int, amount: Float): Int = host.darkenColor(color, amount)
+    private fun lightenColor(color: Int, amount: Float): Int = host.lightenColor(color, amount)
+    private fun showDayDialog(dateStr: String, label: String) = host.showDayDialog(dateStr, label)
+    private fun showMonthDialog(mName: String, focusSecs: Long, breakSecs: Long) = host.showMonthDialog(mName, focusSecs, breakSecs)
+    private fun showPieChartDetailsModal(initialDateKey: String = SubjectTagManager.getTodayKey()) = host.showPieChartDetailsModal(initialDateKey)
+    private fun dayBlocks(dateStr: String): Pair<List<BlockInfo>, List<BlockInfo>> = host.dayBlocks(dateStr)
+    private fun focusBlockLabels(): Array<String> = host.focusBlockLabels()
+    private fun focusBlockStartLabels(): Array<String> = host.focusBlockStartLabels()
+    private fun focusBlockRangeLabel(b: Int): String = host.focusBlockRangeLabel(b)
 
     private fun dp(v: Int): Int = host.dp(v)
     private fun dp(v: Float): Int = host.dp(v.toInt())
@@ -104,7 +131,7 @@ class StatsPanelBuilder(private val host: MainActivity) {
 
     internal fun resolveSubjectGoalFor(subjectId: String, dateStr: String): Long {
         // 1. Check historical snapshot for the specific date
-        val snapshots = PlannerHistoryManager.loadDaySnapshot(this, dateStr)
+        val snapshots = PlannerHistoryManager.loadDaySnapshot(host, dateStr)
         val snapshotSubGoals = snapshots.filter { it.subjectId == subjectId && it.targetMinutes > 0 }
         if (snapshotSubGoals.isNotEmpty()) {
             val totalMins = snapshotSubGoals.sumOf { it.targetMinutes }
@@ -113,7 +140,7 @@ class StatsPanelBuilder(private val host: MainActivity) {
 
         // 2. Check active planner goals
         val prefs = host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-        val activeGoals = loadSessionGoalsFromJson(prefs.host.getString("session_goals_json", "[]") ?: "[]")
+        val activeGoals = loadSessionGoalsFromJson(prefs.getString("session_goals_json", "[]") ?: "[]")
         val activeSubGoals = activeGoals.filter { it.subjectId == subjectId && it.targetMinutes > 0 }
         if (activeSubGoals.isNotEmpty()) {
             val totalMins = activeSubGoals.sumOf { it.targetMinutes }
@@ -124,7 +151,7 @@ class StatsPanelBuilder(private val host: MainActivity) {
         return 90L * 60L
     }
 
-    private fun buildHeatmapFullscreenPanel() {
+    internal fun buildHeatmapFullscreenPanel() {
         val heatmapData = statsSnapshotCache?.heatmapData ?: buildHeatmapData()
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
@@ -252,7 +279,6 @@ class StatsPanelBuilder(private val host: MainActivity) {
     }
 
     internal fun showDeleteGoalDialog(dateStr: String, dateLabel: String) {
-        val sharedPrefs = host.getSharedPreferences("StudyTimerPrefs", MODE_PRIVATE)
         val focusSecs = sharedPrefs.getLong("day_focus_$dateStr", 0L)
         val dialog = Dialog(host)
         val root = LinearLayout(host).apply {
@@ -357,14 +383,13 @@ class StatsPanelBuilder(private val host: MainActivity) {
 
         when (tab) {
             AppStatsTab.OVERVIEW -> renderOverviewTabContent(content, snap)
-            AppStatsTab.TIMELINE -> CalendarTimeline(this).build(content, snap, todayStr)
-            AppStatsTab.PLANNER -> renderPlannerTabContent(content, snap)
+            AppStatsTab.TIMELINE -> CalendarTimeline(host).build(content, snap, todayStr)
+            AppStatsTab.PLANNER -> PlannerPanelBuilder(host).renderPlannerTabContent(content, snap)
         }
         return scroll
     }
 
     internal fun renderStatsContent(statsRoot: FrameLayout, snap: StatsSnapshot, tab: AppStatsTab = currentStatsTab) {
-        val sharedPrefs = host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val todayStr = sdf.format(Date())
 
@@ -566,7 +591,6 @@ class StatsPanelBuilder(private val host: MainActivity) {
     }
 
     internal fun renderOverviewTabContent(content: LinearLayout, snap: StatsSnapshot) {
-        val sharedPrefs = host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val todayStr = sdf.format(Date())
 
@@ -726,7 +750,7 @@ class StatsPanelBuilder(private val host: MainActivity) {
         val goalRingWrap = FrameLayout(host).apply {
             layoutParams = LinearLayout.LayoutParams(ringSize, ringSize)
         }
-        goalRingWrap.addView(SegmentRing(
+        goalRingWrap.addView(host.SegmentRing(
             listOf(heroGoalPct / 100f to goalRingColor),
             if (themeCoordinator.isDarkMode()) 0xFF1E212D.toInt() else 0xFFE2E8F0.toInt(),
             dp(7),
@@ -874,7 +898,7 @@ class StatsPanelBuilder(private val host: MainActivity) {
                         typeface = Typeface.create("sans-serif-medium", if (isToday) Typeface.BOLD else Typeface.NORMAL)
                         layoutParams = LinearLayout.LayoutParams(dp(110), LinearLayout.LayoutParams.WRAP_CONTENT)
                     })
-                    row.addView(BarTrackView(
+                    row.addView(host.BarTrackView(
                         ratio = if (scale > 0L) f.toFloat() / scale.toFloat() else 0f,
                         goalRatio = dayGoalRatio,
                         trackColor = tintedColor(themeCoordinator.textColor, 26),
@@ -918,7 +942,7 @@ class StatsPanelBuilder(private val host: MainActivity) {
                         typeface = Typeface.create("sans-serif-medium", if (isToday) Typeface.BOLD else Typeface.NORMAL)
                         layoutParams = LinearLayout.LayoutParams(dp(55), LinearLayout.LayoutParams.WRAP_CONTENT)
                     })
-                    row.addView(BarTrackView(
+                    row.addView(host.BarTrackView(
                         ratio = if (scale > 0L) f.toFloat() / scale.toFloat() else 0f,
                         goalRatio = dayGoalRatio,
                         trackColor = tintedColor(themeCoordinator.textColor, 26),
@@ -946,7 +970,7 @@ class StatsPanelBuilder(private val host: MainActivity) {
                     val mSecs = mb.focus
                     val row = LinearLayout(host).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(3), 0, dp(3)) }
                     row.addView(TextView(host).apply { text = mb.label; setTextColor(themeCoordinator.textColor); textSize = 13f; layoutParams = LinearLayout.LayoutParams(dp(75), LinearLayout.LayoutParams.WRAP_CONTENT) })
-                    row.addView(BarTrackView(
+                    row.addView(host.BarTrackView(
                         ratio = if (scale > 0L) mSecs.toFloat() / scale.toFloat() else 0f,
                         goalRatio = -1f,
                         trackColor = tintedColor(themeCoordinator.textColor, 26),
@@ -1278,7 +1302,7 @@ class StatsPanelBuilder(private val host: MainActivity) {
         val lifetimeDonutWrap = FrameLayout(host).apply {
             layoutParams = LinearLayout.LayoutParams(dp(96), dp(96))
         }
-        lifetimeDonutWrap.addView(SegmentRing(
+        lifetimeDonutWrap.addView(host.SegmentRing(
             listOf(focusFrac to themeCoordinator.primaryColor, breakFrac to themeCoordinator.secondaryColor),
             themeCoordinator.bgColor,
             dp(10),
@@ -1389,13 +1413,13 @@ class StatsPanelBuilder(private val host: MainActivity) {
         }
 
         val allAvailableKeys = listOf("WEEKLY_TREND", "ACTIVE_DAYS", "BEST_DAY", "RECORD_WEEK", "GOAL_SUCCESS", "AVG_SESSION")
-        val pinnedPrefsJson = sharedPrefs.host.getString("pinned_highlights_order", null)
+        val pinnedPrefsJson = sharedPrefs.getString("pinned_highlights_order", null)
         val pinnedKeys = if (!pinnedPrefsJson.isNullOrBlank()) {
             try {
-                val arr = org.json.JSONArray(pinnedPrefsJson)
+                val arr = org.json.JSONArray(pinnedPrefsJson!!)
                 val list = mutableListOf<String>()
                 for (i in 0 until arr.length()) {
-                    val k = arr.host.getString(i)
+                    val k = arr.getString(i)
                     if (allAvailableKeys.contains(k) && !list.contains(k)) list.add(k)
                 }
                 if (list.size >= 2) list else listOf("WEEKLY_TREND", "ACTIVE_DAYS", "BEST_DAY", "RECORD_WEEK")
@@ -1994,7 +2018,7 @@ class StatsPanelBuilder(private val host: MainActivity) {
     }
 
     internal fun checkAndResetGoalsForNewDay() {
-        val sharedPrefs = host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+
         val todayStr = dateKeyFmt.format(Date())
         val lastResetDate = sharedPrefs.getString("last_planner_reset_date", "") ?: ""
 

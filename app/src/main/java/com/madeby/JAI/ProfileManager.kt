@@ -113,6 +113,36 @@ object ProfileManager {
         }
     }
 
+    fun getPublicAvatarUrl(context: Context): String {
+        val profile = getProfile(context)
+        val custom = profile.avatarUrl.trim()
+        // If pending moderation or rejected, guard public leaderboard from unapproved custom photos
+        if (profile.moderationStatus == ModerationStatus.APPROVED) {
+            if (custom.isNotBlank() && (custom.startsWith("http://") || custom.startsWith("https://") || custom.startsWith("data:"))) {
+                return custom
+            }
+            val authUri = AuthManager.getProfileImageUri(context)?.trim() ?: ""
+            if (authUri.startsWith("http://") || authUri.startsWith("https://")) {
+                return authUri
+            }
+        }
+        val preset = profile.avatarPresetId.trim()
+        if (preset.isNotBlank()) {
+            val emoji = LocalAvatarManager.resolvePresetToEmoji(preset)
+            if (emoji.isNotBlank() && (emoji != preset || emoji.length <= 4)) {
+                return emoji
+            }
+        }
+        if (custom.isNotBlank() && !custom.startsWith("http://") && !custom.startsWith("https://")) {
+            val customEmoji = LocalAvatarManager.resolvePresetToEmoji(custom)
+            if (customEmoji.isNotBlank() && (customEmoji != custom || customEmoji.length <= 4)) {
+                return customEmoji
+            }
+        }
+        val initial = getEffectiveDisplayName(context).take(1).uppercase(java.util.Locale.ROOT).ifBlank { "S" }
+        return initial
+    }
+
     fun getEffectiveAvatarUrl(context: Context): String {
         val profile = getProfile(context)
         val custom = profile.avatarUrl.trim()

@@ -228,6 +228,11 @@ object CloudSyncManager {
             payload.put("profile_image_uri", profileImg)
             payload.put("prefs_data", prefsJson.toString())
             payload.put("timeline_data", timelineJsonStr)
+            val termsAccepted = AuthManager.getTermsAcceptedAt(context)
+            if (!termsAccepted.isNullOrBlank()) {
+                payload.put("terms_accepted_at", termsAccepted)
+                payload.put("terms_version", AuthManager.getTermsVersion(context))
+            }
             payload.put("updated_at", maxOf(localLastMod, now))
 
             val payloadString = payload.toString()

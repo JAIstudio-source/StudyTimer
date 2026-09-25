@@ -876,7 +876,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         }
                     }
 
-                    var selectedAvatarId = currentProfile.avatarPresetId.ifBlank { "avatar_cat" }
+                    var selectedAvatarId = ""
 
                     // --- DISPLAY NAME INPUT ---
                     val nameLabel = TextView(this).apply {

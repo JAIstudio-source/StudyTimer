@@ -84,7 +84,12 @@ object AppAnalytics {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         var id = prefs.getString(KEY_ANON_ID, null)
         if (id.isNullOrBlank()) {
-            id = UUID.randomUUID().toString()
+            val hwId = getHardwareDeviceId(context)
+            id = if (hwId.isNotBlank() && hwId != "unknown_device") {
+                "anon_$hwId"
+            } else {
+                UUID.randomUUID().toString()
+            }
             prefs.edit().putString(KEY_ANON_ID, id).apply()
         }
         return id
@@ -96,7 +101,12 @@ object AppAnalytics {
         var id = prefs.getString(KEY_ANON_ID, null)
         val editor = prefs.edit()
         if (id.isNullOrBlank()) {
-            id = UUID.randomUUID().toString()
+            val hwId = getHardwareDeviceId(context)
+            id = if (hwId.isNotBlank() && hwId != "unknown_device") {
+                "anon_$hwId"
+            } else {
+                UUID.randomUUID().toString()
+            }
             editor.putString(KEY_ANON_ID, id)
             editor.putLong(KEY_FIRST_SEEN, now)
         }

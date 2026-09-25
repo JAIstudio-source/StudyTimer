@@ -180,11 +180,13 @@ function updateProfileLivePreview() {
   if (previewAvatarIcon) {
     const isUrl = /^(http|https|data:|assets\/|\/|blob:)/i.test((selectedAvatarPreset || '').trim());
     const fallbackInit = escapeHtml((nameVal || 'S').trim().charAt(0).toUpperCase() || 'S');
+    const bgColor = getGoogleAvatarColor(nameVal);
     if (isUrl) {
-      previewAvatarIcon.innerHTML = `<img src="${selectedAvatarPreset}" alt="Avatar Preview" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" onerror="this.outerHTML='<span class=&quot;avatar-initial&quot;>${fallbackInit}</span>'">`;
+      previewAvatarIcon.innerHTML = `<img src="${selectedAvatarPreset}" alt="Avatar Preview" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" onerror="this.outerHTML='<span class=&quot;avatar-initial&quot; style=&quot;background:${bgColor};color:#ffffff;font-weight:700;&quot;>${fallbackInit}</span>'">`;
     } else {
-      previewAvatarIcon.innerHTML = `<span class="avatar-initial">${fallbackInit}</span>`;
+      previewAvatarIcon.innerHTML = `<span class="avatar-initial" style="background:${bgColor};color:#ffffff;font-weight:700;display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:50%;">${fallbackInit}</span>`;
     }
+  }
   }
   if (previewCountryFlag) previewCountryFlag.textContent = flagVal;
   if (previewDisplayName) previewDisplayName.textContent = nameVal;

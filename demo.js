@@ -5319,7 +5319,8 @@ function openProfileModal() {
     } else {
       photoPreviewImg.src = '';
       photoPreviewImg.classList.add('hidden');
-      photoFallback.textContent = selectedAvatarPreset || (profile.displayName || 'S').trim().charAt(0).toUpperCase() || 'S';
+      const curDisplayName = profile.displayName || appState.currentUser?.user_metadata?.full_name || 'Student';
+      photoFallback.textContent = curDisplayName.trim().charAt(0).toUpperCase() || 'S';
       photoFallback.classList.remove('hidden');
       btnRemovePhoto?.classList.add('hidden');
       if (photoUrlInput) photoUrlInput.value = '';
@@ -5328,9 +5329,6 @@ function openProfileModal() {
   }
 
   // Highlight active buttons
-  document.querySelectorAll('.avatar-preset-btn').forEach(btn => {
-    btn.classList.toggle('active', !isCustomPhoto && btn.dataset.avatar === selectedAvatarPreset);
-  });
   document.querySelectorAll('.banner-theme-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.banner === selectedBannerTheme);
   });
@@ -5396,11 +5394,11 @@ function updateProfileLivePreview() {
   }
   if (previewAvatarIcon) {
     const isUrl = /^(http|https|data:|assets\/|\/|blob:)/i.test((selectedAvatarPreset || '').trim());
+    const fallbackInit = escapeHtml((nameVal || 'S').trim().charAt(0).toUpperCase() || 'S');
     if (isUrl) {
-      const fallbackInit = escapeHtml((nameVal || 'S').trim().charAt(0).toUpperCase() || 'S');
       previewAvatarIcon.innerHTML = `<img src="${selectedAvatarPreset}" alt="Avatar Preview" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" onerror="this.outerHTML='<span class=&quot;avatar-initial&quot;>${fallbackInit}</span>'">`;
     } else {
-      previewAvatarIcon.textContent = (nameVal || 'S').trim().charAt(0).toUpperCase() || 'S';
+      previewAvatarIcon.innerHTML = `<span class="avatar-initial">${fallbackInit}</span>`;
     }
   }
   if (previewCountryFlag) previewCountryFlag.textContent = flagVal;

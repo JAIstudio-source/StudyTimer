@@ -1005,9 +1005,15 @@ function mergeCloudDataIntoLocal(data) {
           ? appState.userProfile.avatarPreset
           : null;
 
+        const customUrl = (data.profile_image_uri && /^(https?:\/\/|data:|blob:)/i.test(data.profile_image_uri))
+          ? data.profile_image_uri
+          : (loadedProfile.avatarUrl && /^(https?:\/\/|data:|blob:)/i.test(loadedProfile.avatarUrl)
+              ? loadedProfile.avatarUrl
+              : (loadedProfile.avatarPreset && /^(https?:\/\/|data:|blob:)/i.test(loadedProfile.avatarPreset) ? loadedProfile.avatarPreset : ''));
+
         const rawAvatarCandidate = (serverProfileStatus === 'pending' && localPendingAvatar)
           ? localPendingAvatar
-          : (loadedProfile.avatarPreset || data.profile_image_uri || appState.userProfile?.avatarPreset || '🐱');
+          : (customUrl || (loadedProfile.avatarPreset && loadedProfile.avatarPreset !== 'avatar_default' ? loadedProfile.avatarPreset : '') || loadedProfile.avatarUrl || data.profile_image_uri || appState.userProfile?.avatarPreset || '🐱');
 
         const resolvedAvatar = sanitizeAvatar(rawAvatarCandidate);
 

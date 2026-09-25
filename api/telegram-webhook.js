@@ -36,9 +36,9 @@ const AVATAR_PRESET_STICKER_MAP = {
 };
 
 function resolveAvatarPresetToSticker(val) {
-  if (!val || typeof val !== 'string') return '🐱';
+  if (!val || typeof val !== 'string') return '';
   const trimmed = val.trim();
-  if (trimmed === '') return '🐱';
+  if (trimmed === '') return '';
   const lower = trimmed.toLowerCase();
   if (AVATAR_PRESET_STICKER_MAP[lower]) {
     return AVATAR_PRESET_STICKER_MAP[lower];
@@ -196,7 +196,7 @@ export default async function handler(req, res) {
           if (syncRow) {
             await createProfileSnapshot(userId, 'approve', syncRow);
             
-            let targetAvatarUrl = '🐱';
+            let targetAvatarUrl = '';
             let targetRing = 'glow-gold';
             let targetName = 'Student';
             let targetFlag = '🌐';
@@ -218,7 +218,7 @@ export default async function handler(req, res) {
               } catch (_) {}
             }
 
-            const rawTargetAvatar = profile.avatarPreset || syncRow.profile_image_uri || '🐱';
+            const rawTargetAvatar = profile.avatarPreset || syncRow.profile_image_uri || '';
             targetAvatarUrl = resolveAvatarPresetToSticker(rawTargetAvatar);
             targetRing = profile.avatarRing || 'glow-gold';
             targetName = profile.displayName || syncRow.user_name || targetName;
@@ -303,7 +303,7 @@ export default async function handler(req, res) {
 
           profileObj.photoApproved = false;
           profileObj.profileStatus = 'rejected';
-          profileObj.avatarPreset = profileObj.fallbackSticker || '🐱';
+          profileObj.avatarPreset = profileObj.fallbackSticker || '';
           userPrefs.__user_profile__ = JSON.stringify(profileObj);
 
           await Promise.all([
@@ -392,7 +392,7 @@ function buildProfileReviewCard(userId, oldUser, pendingData, source = "Website"
   const oldBio = (oldUser && (oldUser.mood || oldUser.bio || oldUser.motto)) || "";
   const newBio = (pendingData && (pendingData.mood || pendingData.bio || pendingData.motto)) || "";
 
-  const oldAvatar = (oldUser && (oldUser.profile_image_uri || oldUser.avatarPreset || oldUser.avatar_preset)) || "🐱";
+  const oldAvatar = (oldUser && (oldUser.profile_image_uri || oldUser.avatarPreset || oldUser.avatar_preset)) || "";
   const newAvatar = (pendingData && (pendingData.avatar_preset || pendingData.avatarPreset || pendingData.avatar_url)) || oldAvatar;
 
   const isCustomPhoto = Boolean(newAvatar && /^(http|https|data:|blob:)/i.test(String(newAvatar).trim()));
@@ -481,7 +481,7 @@ async function handleQueueCommand(chatId) {
     const oldUser = {
       user_name: item.user_name || existingProfile.displayName || 'Student',
       mood: existingProfile.mood || existingProfile.bio || '',
-      profile_image_uri: item.profile_image_uri || existingProfile.avatarPreset || '🐱',
+      profile_image_uri: item.profile_image_uri || existingProfile.avatarPreset || '',
       email: item.user_email || ''
     };
 

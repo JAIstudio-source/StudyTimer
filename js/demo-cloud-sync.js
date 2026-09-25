@@ -37,13 +37,13 @@ function sanitizeUrl(url) {
 }
 
 function sanitizeAvatar(avatar) {
-  if (!avatar || typeof avatar !== 'string') return '🐱';
+  if (!avatar || typeof avatar !== 'string') return '';
   const trimmed = avatar.trim();
-  if (!trimmed) return '🐱';
+  if (!trimmed) return '';
   if (/^(https?:\/\/|assets\/|\/|blob:|data:image\/)/i.test(trimmed)) {
-    return sanitizeUrl(trimmed) || '🐱';
+    return sanitizeUrl(trimmed) || '';
   }
-  return sanitizeString(trimmed, 30) || '🐱';
+  return sanitizeString(trimmed, 30) || '';
 }
 
 function parseSafeStringSet(val) {
@@ -352,7 +352,7 @@ function mergeCloudDataIntoLocal(data) {
 
         const rawAvatarCandidate = (serverProfileStatus === 'pending' && localPendingAvatar)
           ? localPendingAvatar
-          : (loadedProfile.avatarPreset || data.profile_image_uri || appState.userProfile?.avatarPreset || '🐱');
+          : (loadedProfile.avatarPreset || data.profile_image_uri || appState.userProfile?.avatarPreset || '');
 
         const resolvedAvatar = sanitizeAvatar(rawAvatarCandidate);
 

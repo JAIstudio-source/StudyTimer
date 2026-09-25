@@ -141,7 +141,7 @@ function getCountryFlagEmoji(codeOrFlag) {
 }
 
 const AVATAR_PRESET_STICKER_MAP = {
-  'avatar_default': '🐱',
+  'avatar_default': '🎓',
   'avatar_cat': '🐱',
   'avatar_fox': '🦊',
   'avatar_lion': '🦁',
@@ -151,12 +151,24 @@ const AVATAR_PRESET_STICKER_MAP = {
   'avatar_fire': '🔥',
   'avatar_star': '⭐',
   'avatar_scholar': '🎓',
-  'avatar_1': '🐱',
-  'avatar_2': '🦊',
-  'avatar_3': '🦁',
-  'avatar_4': '🐼',
-  'avatar_5': '🦉',
-  'avatar_6': '🚀',
+  'avatar_books': '📚',
+  'avatar_brain': '🧠',
+  'avatar_science': '🔬',
+  'avatar_med': '🩺',
+  'avatar_coder': '💻',
+  'avatar_lightning': '⚡',
+  'avatar_artist': '🎨',
+  'avatar_lotus': '🌸',
+  'avatar_forest': '🌲',
+  'avatar_coffee': '☕',
+  'avatar_moon': '🌙',
+  'avatar_target': '🎯',
+  'avatar_diamond': '💎',
+  'avatar_champion': '🏆',
+  'avatar_crown': '👑',
+  'avatar_saturn': '🪐',
+  'avatar_gamer': '🎮',
+  'avatar_lofi': '🎧',
   'cat': '🐱',
   'fox': '🦊',
   'lion': '🦁',
@@ -166,13 +178,22 @@ const AVATAR_PRESET_STICKER_MAP = {
   'fire': '🔥',
   'star': '⭐',
   'scholar': '🎓',
-  'default': '🐱'
+  'books': '📚',
+  'brain': '🧠',
+  'coder': '💻',
+  'lightning': '⚡',
+  'coffee': '☕',
+  'target': '🎯',
+  'diamond': '💎',
+  'champion': '🏆',
+  'crown': '👑',
+  'default': '🎓'
 };
 
 function resolveAvatarSticker(val) {
-  if (!val || typeof val !== 'string') return '🐱';
+  if (!val || typeof val !== 'string') return '';
   const trimmed = val.trim();
-  if (trimmed === '') return '🐱';
+  if (trimmed === '') return '';
   const lower = trimmed.toLowerCase();
   if (AVATAR_PRESET_STICKER_MAP[lower]) {
     return AVATAR_PRESET_STICKER_MAP[lower];
@@ -181,38 +202,29 @@ function resolveAvatarSticker(val) {
 }
 
 function getPublicLeaderboardAvatarUrl(profile) {
-  if (!profile) return '🐱';
-  const rawAvatar = resolveAvatarSticker(profile.avatarPreset || profile.avatar_url || appState.currentUser?.user_metadata?.avatar_url || '🐱');
-  const isCustomPhoto = /^(http|https|data:|blob:)/i.test((rawAvatar || '').trim());
-  
-  // STRICT SECURITY & MODERATION GATE:
-  // Custom uploaded photos / URLs MUST NEVER appear on the public leaderboard, presence, or public RPCs
-  // until explicitly approved by admin (photoApproved === true || profileStatus === 'approved')
-  if (isCustomPhoto) {
-    if (profile.photoApproved === true || profile.profileStatus === 'approved') {
-      return rawAvatar;
-    }
-    // Return safe fallback sticker until admin explicitly approves
-    return resolveAvatarSticker(profile.fallbackSticker || '🐱');
+  if (!profile) return '';
+  const rawAvatar = resolveAvatarSticker(profile.avatarPreset || profile.avatar_url || profile.profile_image_uri || appState.currentUser?.user_metadata?.avatar_url || '');
+  if (!rawAvatar) {
+    const defaultAuthAvatar = appState.currentUser?.user_metadata?.avatar_url || '';
+    if (defaultAuthAvatar) return defaultAuthAvatar;
+    return '';
   }
-  
-  // Safe preset emoji stickers are allowed immediately
-  return rawAvatar || '🐱';
+  return rawAvatar;
 }
 
 function getAvatarElementHtml(avatarVal, userName, className = 'row-avatar-img', ringClass = '') {
   const resolved = resolveAvatarSticker(avatarVal);
   const normalizedRing = ringClass ? normalizeRingClass(ringClass) : '';
   const ringCls = normalizedRing ? ` ${normalizedRing}` : '';
-  const trimmed = typeof resolved === 'string' ? resolved.trim() : '🐱';
+  const trimmed = typeof resolved === 'string' ? resolved.trim() : '';
   const isUrl = /^(http|https|data:|assets\/|\/|blob:)/i.test(trimmed);
+  const fallbackInitial = (userName && userName.charAt(0).toUpperCase()) || 'S';
+
   if (isUrl) {
-    const fallbackInitial = (userName && userName.charAt(0).toUpperCase()) || '🐱';
     return `<img src="${trimmed}" alt="${userName || 'Student'}" class="${className}${ringCls}" loading="eager" decoding="async" referrerpolicy="no-referrer" crossorigin="anonymous" onerror="this.onerror=null; this.outerHTML='<span class=\\'avatar-sticker ${className}${ringCls}\\'>${fallbackInitial}</span>';">`;
   } else {
-    // If not an emoji/short symbol (e.g. legacy long text), show clean initial rather than raw words
-    const isEmojiOrShort = trimmed.length <= 4 || /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}]/u.test(trimmed);
-    const displaySticker = isEmojiOrShort ? trimmed : ((userName && userName.charAt(0).toUpperCase()) || '🐱');
+    const isEmojiOrShort = trimmed.length > 0 && (trimmed.length <= 4 || /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}]/u.test(trimmed));
+    const displaySticker = isEmojiOrShort ? trimmed : fallbackInitial;
     return `<span class="avatar-sticker ${className}${ringCls}">${displaySticker}</span>`;
   }
 }

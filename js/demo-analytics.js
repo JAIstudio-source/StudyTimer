@@ -1421,7 +1421,7 @@ const LEADERBOARD_CACHE_TTL_MS = 60000; // 60-second client cache to conserve da
 let resetCountdownInterval = null;
 
 // Profile Customization State
-let selectedAvatarPreset = '🐱';
+let selectedAvatarPreset = '';
 let selectedAvatarRing = 'glow-gold';
 let selectedBannerTheme = 'banner-midnight';
 let selectedCountryFlag = '🌐';
@@ -1718,7 +1718,7 @@ function renderDayPieHistoryModal(dateStr) {
 function renderUserProfileUI() {
   const profile = appState.userProfile || {
     displayName: 'Student',
-    avatarPreset: '🐱',
+    avatarPreset: '',
     avatarRing: 'glow-gold',
     countryFlag: '🌐',
     motto: '🎯 Deep focus & daily consistency',
@@ -1734,7 +1734,7 @@ function renderUserProfileUI() {
   const avatar = profile.avatarPreset || 
                  appState.currentUser?.user_metadata?.avatar_url || 
                  appState.currentUser?.user_metadata?.picture || 
-                 '🐱';
+                 '';
   const ring = profile.avatarRing || 'glow-gold';
 
   const userDisplayName = document.getElementById('userDisplayName');

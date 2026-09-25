@@ -163,7 +163,7 @@ function getCleanInitialState(user = null) {
     userProfile: {
       displayName: name,
       avatarPreset: avatar,
-      fallbackSticker: isGoogleAvatar ? avatar : '🐱',
+      fallbackSticker: isGoogleAvatar ? avatar : '',
       photoApproved: isGoogleAvatar, // Auto-approve trusted Google profile photos
       motto: '🎯 Deep focus & daily consistency',
       primarySubjectId: 'general',
@@ -988,7 +988,7 @@ function setupEventListeners() {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.avatar-preset-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      selectedAvatarPreset = btn.dataset.avatar || '🐱';
+      selectedAvatarPreset = btn.dataset.avatar || '';
 
       // Clear custom photo preview if user chooses a sticker
       const photoPreviewImg = document.getElementById('customPhotoPreviewImg');
@@ -1087,7 +1087,7 @@ function setupEventListeners() {
 
   // Remove Photo Button
   document.getElementById('btnRemoveCustomPhoto')?.addEventListener('click', () => {
-    selectedAvatarPreset = '🐱';
+    selectedAvatarPreset = '';
     const photoPreviewImg = document.getElementById('customPhotoPreviewImg');
     const photoFallback = document.getElementById('customPhotoPreviewFallback');
     const btnRemovePhoto = document.getElementById('btnRemoveCustomPhoto');
@@ -1098,16 +1098,19 @@ function setupEventListeners() {
       photoPreviewImg.src = '';
       photoPreviewImg.classList.add('hidden');
     }
-    if (photoFallback) photoFallback.classList.remove('hidden');
+    if (photoFallback) {
+      photoFallback.textContent = (appState.userProfile?.displayName || 'S').trim().charAt(0).toUpperCase() || 'S';
+      photoFallback.classList.remove('hidden');
+    }
     if (btnRemovePhoto) btnRemovePhoto.classList.add('hidden');
     if (pFileInput) pFileInput.value = '';
     if (urlInput) urlInput.value = '';
 
     document.querySelectorAll('.avatar-preset-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.avatar === '🐱');
+      b.classList.remove('active');
     });
     updateProfileLivePreview();
-    showToast('Custom photo removed. Using default avatar sticker.', 'info');
+    showToast('Custom photo removed.', 'info');
   });
 
   // Banner Theme Picker

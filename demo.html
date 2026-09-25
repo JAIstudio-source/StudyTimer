@@ -52,8 +52,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   
   <!-- Main & Demo Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=4.3.2">
-  <link rel="stylesheet" href="demo.css?v=4.3.2">
+  <link rel="stylesheet" href="style.css?v=4.3.3">
+  <link rel="stylesheet" href="demo.css?v=4.3.3">
 
   <!-- Vercel Web Analytics & Speed Insights -->
   <script>
@@ -1156,61 +1156,7 @@
        DAY-BY-DAY SUBJECT PIE CHART & TIMELINE HISTORY MODAL
        (Matches Android showPieChartDetailsModal in MainActivity.kt)
        ======================================================== -->
-  <div class="modal-overlay hidden" id="dayPieHistoryModalOverlay">
-    <div class="modal-card modal-card-day-history" id="dayPieHistoryModalCard">
-      <button class="modal-close-btn" id="btnCloseDayPieHistoryModal" aria-label="Close Day History">&times;</button>
-      
-      <div class="modal-header">
-        <div class="modal-icon-wrap" style="background: rgba(59, 130, 246, 0.12); color: #3b82f6;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="16" y1="2" x2="16" y2="6"></line>
-            <line x1="8" y1="2" x2="8" y2="6"></line>
-            <line x1="3" y1="10" x2="21" y2="10"></line>
-          </svg>
-        </div>
-        <h3 class="modal-title">Subject Breakdown History</h3>
-        <p class="modal-subtitle">Browse past days' subject distribution and session breakdown.</p>
-      </div>
-
-      <!-- Date Navigator Row (◄ Prev Day | Date Display | Next Day ► | Today) -->
-      <div class="day-history-nav-row">
-        <button class="day-nav-arrow-btn" id="btnHistoryPrevDay" title="Previous Day">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
-          <span>Prev</span>
-        </button>
-        <button class="day-history-date-display-btn" id="btnHistoryDateDisplay" title="Click to choose a date">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="day-date-cal-icon"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-          <span id="historyModalDateTitle">Today (Sep 20, 2026)</span>
-        </button>
-        <input type="date" id="historyNativeDatePicker" style="display: none;" />
-        <button class="day-nav-arrow-btn" id="btnHistoryNextDay" title="Next Day">
-          <span>Next</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
-        </button>
-        <button class="day-nav-today-btn" id="btnHistoryJumpToday" title="Jump to Today">Today</button>
-      </div>
-
-      <!-- Modal Body with Scroll -->
-      <div class="modal-body day-history-modal-body" id="dayPieHistoryModalBody">
-        <!-- Interactive Donut / Pie Chart for the Selected Day -->
-        <div class="history-chart-card">
-          <div class="donut-chart-container">
-            <div class="donut-chart-svg-wrap" id="historyDonutSvgWrap" title="Hover or click a slice to inspect details">
-              <svg class="donut-chart-svg" viewBox="0 0 200 200" id="historySubjectDonutSvg">
-                <circle cx="100" cy="100" r="70" class="donut-bg-track"></circle>
-              </svg>
-              <div class="donut-center-stat" id="historyDonutCenterStat">
-                <span class="donut-center-sub" id="historyDonutCenterSub">Studied</span>
-                <span class="donut-center-val" id="historyDonutCenterVal">0m</span>
-                <span class="donut-center-pct hidden" id="historyDonutCenterPct">100%</span>
-              </div>
-            </div>
-            <div class="donut-legend-list" id="historyDonutLegendList">
-              <!-- Injected dynamically -->
-            </div>
-          </div>
-        </div>
+  
 
         <!-- Selected Date Sessions Timeline Section -->
         <div class="history-sessions-card">
@@ -1369,189 +1315,7 @@
   </div>
 
   <!-- 5. ADD SUBJECT MODAL -->
-  <div class="modal-overlay hidden" id="subjectModalOverlay">
-    <div class="modal-card modal-card-sm" id="subjectModalCard">
-      <button class="modal-close-btn" id="btnCloseSubjectModal" aria-label="Close modal">&times;</button>
-      
-      <div class="modal-header">
-        <h3 class="modal-title">Add Study Subject</h3>
-        <p class="modal-subtitle">Create a custom subject tag for your focus blocks.</p>
-      </div>
-
-      <form class="modal-body" id="addSubjectForm">
-        <div class="input-group">
-          <label for="customSubjectName">Subject Name</label>
-          <input type="text" id="customSubjectName" placeholder="e.g. Organic Chemistry, History" maxlength="30" required>
-        </div>
-
-        <div class="input-group">
-          <label>Select Color Badge</label>
-          <div class="color-picker-palette" id="colorPickerPalette">
-            <button type="button" class="color-choice-btn active" data-color="#3b82f6" style="background-color: #3b82f6;"></button>
-            <button type="button" class="color-choice-btn" data-color="#10b981" style="background-color: #10b981;"></button>
-            <button type="button" class="color-choice-btn" data-color="#8b5cf6" style="background-color: #8b5cf6;"></button>
-            <button type="button" class="color-choice-btn" data-color="#f59e0b" style="background-color: #f59e0b;"></button>
-            <button type="button" class="color-choice-btn" data-color="#ef4444" style="background-color: #ef4444;"></button>
-            <button type="button" class="color-choice-btn" data-color="#ec4899" style="background-color: #ec4899;"></button>
-            <button type="button" class="color-choice-btn" data-color="#06b6d4" style="background-color: #06b6d4;"></button>
-          </div>
-        </div>
-
-        <button type="submit" class="btn btn-primary btn-full">
-          <span>Add Subject</span>
-        </button>
-      </form>
-    </div>
-  </div>
-
-  <!-- 6. ADD & EDIT PLANNER GOAL MODAL -->
-  <div class="modal-overlay hidden" id="plannerGoalModalOverlay">
-    <div class="modal-card modal-card-sm" id="plannerGoalModalCard">
-      <button class="modal-close-btn" id="btnCloseGoalModal" aria-label="Close modal">&times;</button>
-      
-      <div class="modal-header">
-        <div class="modal-icon-wrap" style="background: rgba(16, 185, 129, 0.12); color: #10b981;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-        </div>
-        <h3 class="modal-title" id="plannerGoalModalTitle">Add Study Goal</h3>
-        <p class="modal-subtitle" id="plannerGoalModalSubtitle">Set custom daily targets &amp; habits synced with your Android app.</p>
-      </div>
-
-      <form class="modal-body" id="addGoalForm">
-        <input type="hidden" id="editingGoalId" value="">
-
-        <div class="input-group">
-          <label for="inputGoalTitle">Goal Name / Task</label>
-          <input type="text" id="inputGoalTitle" placeholder="e.g. Solve 25 Calculus PYQs, Chemistry Practice" maxlength="60" required>
-        </div>
-
-        <div class="input-group">
-          <label for="inputGoalNote">Notes &amp; Details <span class="input-optional">(optional)</span></label>
-          <input type="text" id="inputGoalNote" placeholder="e.g. Chapter 4 &amp; 5, formula review" maxlength="120">
-        </div>
-
-        <div class="input-group">
-          <label for="goalSubjectSelect">Subject</label>
-          <select id="goalSubjectSelect" class="form-select-styled" required>
-            <!-- Dynamically populated in JS -->
-          </select>
-        </div>
-
-        <div class="input-group">
-          <label for="goalMinutesInput">Daily Target (Minutes)</label>
-          <input type="number" id="goalMinutesInput" min="0" max="1440" value="60" required>
-          
-          <!-- 1-Tap Quick Presets Row -->
-          <div class="quick-presets-row" id="goalDurationPresetsRow">
-            <button type="button" class="preset-chip-btn" data-mins="15">15m</button>
-            <button type="button" class="preset-chip-btn" data-mins="25">25m</button>
-            <button type="button" class="preset-chip-btn" data-mins="45">45m</button>
-            <button type="button" class="preset-chip-btn active" data-mins="60">60m</button>
-            <button type="button" class="preset-chip-btn" data-mins="90">90m</button>
-            <button type="button" class="preset-chip-btn" data-mins="120">120m</button>
-            <button type="button" class="preset-chip-btn" data-mins="0">Habit (0m)</button>
-          </div>
-        </div>
-
-        <div class="modal-actions-row" style="display: flex; gap: 10px; margin-top: 18px;">
-          <button type="button" class="btn btn-secondary flex-1" id="btnCancelGoalModal">Cancel</button>
-          <button type="submit" class="btn btn-primary flex-1" id="btnSaveGoalModal">
-            <span>Save Goal</span>
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- 6B. EDIT OVERALL DAILY FOCUS TARGET MODAL -->
-  <div class="modal-overlay hidden" id="dailyGoalModalOverlay">
-    <div class="modal-card modal-card-sm" id="dailyGoalModalCard">
-      <button class="modal-close-btn" id="btnCloseDailyGoalModal" aria-label="Close modal">&times;</button>
-      
-      <div class="modal-header">
-        <div class="modal-icon-wrap" style="background: rgba(59, 130, 246, 0.12); color: #3b82f6;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
-        </div>
-        <h3 class="modal-title">Edit Daily Study Target</h3>
-        <p class="modal-subtitle">Set your overall daily focus time goal across all subjects.</p>
-      </div>
-
-      <form class="modal-body" id="dailyGoalEditForm">
-        <div class="input-group">
-          <label for="inputDailyGoalMinutes">Daily Target (Minutes)</label>
-          <input type="number" id="inputDailyGoalMinutes" min="15" max="1440" value="120" required>
-          
-          <div class="quick-presets-row" id="dailyTargetPresetsRow">
-            <button type="button" class="preset-chip-btn" data-mins="60">1 Hour</button>
-            <button type="button" class="preset-chip-btn active" data-mins="120">2 Hours</button>
-            <button type="button" class="preset-chip-btn" data-mins="180">3 Hours</button>
-            <button type="button" class="preset-chip-btn" data-mins="240">4 Hours</button>
-            <button type="button" class="preset-chip-btn" data-mins="360">6 Hours</button>
-            <button type="button" class="preset-chip-btn" data-mins="480">8 Hours</button>
-          </div>
-        </div>
-
-        <div class="modal-actions-row" style="display: flex; gap: 10px; margin-top: 18px;">
-          <button type="button" class="btn btn-secondary flex-1" id="btnCancelDailyGoalModal">Cancel</button>
-          <button type="submit" class="btn btn-primary flex-1">
-            <span>Update Daily Target</span>
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- 5. DEDICATED FULL SCREEN FOCUS TIMER VIEW (No distractions, pure timer) -->
-  <div class="zen-timer-overlay hidden" id="zenTimerOverlay" aria-modal="true" role="dialog">
-    <!-- Exit Fullscreen Button -->
-    <button class="zen-exit-btn" id="btnExitZen" title="Exit Full Screen (Esc)" aria-label="Exit Full Screen">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-      <span class="zen-exit-label">Exit Full Screen</span>
-    </button>
-
-    <!-- Center Giant Minimal Full Screen Timer -->
-    <div class="zen-timer-canvas" id="zenTimerCanvas">
-      <!-- Minimal Glowing Circular Ring -->
-      <div class="zen-ring-container">
-        <svg class="zen-timer-svg" viewBox="0 0 400 400">
-          <defs>
-            <linearGradient id="zenTimerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#3b82f6"/>
-              <stop offset="100%" stop-color="#60a5fa"/>
-            </linearGradient>
-          </defs>
-          <circle class="zen-timer-track" cx="200" cy="200" r="180"></circle>
-          <circle class="zen-timer-indicator" id="zenTimerIndicator" cx="200" cy="200" r="180"></circle>
-        </svg>
-
-        <div class="zen-timer-content">
-          <div class="zen-state-badge" id="zenStateBadge">READY TO FOCUS</div>
-          <div class="zen-digital-display" id="zenTimerDisplay">25:00</div>
-          
-          <!-- Fullscreen Subject Selector -->
-          <div class="zen-subject-wrapper" id="zenSubjectWrapper">
-            <button class="timer-current-subject-btn" id="zenSubjectDisplay" title="Click to change subject">
-              <span class="subject-color-dot" id="zenSubjectDot" style="background-color: #3b82f6;"></span>
-              <span class="subject-name-label" id="zenSubjectName">Mathematics</span>
-              <svg class="subject-inline-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </button>
-            <div class="subject-dropdown-menu hidden" id="zenSubjectDropdownMenu">
-              <div class="subject-menu-header">
-                <span class="subject-menu-title">Select Subject</span>
-                <button class="subject-menu-add-btn" id="btnZenAddSubject" title="Add New Subject">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                  <span>New Subject</span>
-                </button>
-              </div>
-              <div class="subject-menu-items" id="zenSubjectMenuItems">
-                <!-- Dynamically rendered list -->
-              </div>
-            </div>
-          </div>
-
-          <div class="zen-hint-text">Tap background to Play / Pause</div>
-        </div>
-      </div>
+  
 
       <!-- Minimal Bottom Controls: Focus Toggle & Save Session -->
       <div class="zen-controls-bar">
@@ -1569,79 +1333,15 @@
   </div>
 
   <!-- 7. GOAL DELETE CONFIRMATION MODAL -->
-  <div class="modal-overlay hidden" id="deleteGoalModalOverlay">
-    <div class="modal-card" style="max-width: 400px; text-align: center;">
-      <button class="modal-close-btn" id="btnCloseDeleteGoalModal" aria-label="Close modal">&times;</button>
-      <div class="modal-header" style="justify-content: center; text-align: center; flex-direction: column; gap: 8px;">
-        <div class="modal-icon-wrap" style="background: rgba(239, 68, 68, 0.12); color: var(--accent-red); margin: 0 auto;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-        </div>
-        <h3 class="modal-title">Delete Subject Target?</h3>
-        <p class="modal-subtitle" id="deleteGoalModalSubtitle">Are you sure you want to remove this daily target?</p>
-      </div>
-      <div class="modal-body" style="padding-top: 10px;">
-        <div class="modal-actions-row" style="display: flex; gap: 10px;">
-          <button type="button" class="btn btn-secondary flex-1" id="btnCancelDeleteGoal">Cancel</button>
-          <button type="button" class="btn btn-danger flex-1" id="btnConfirmDeleteGoal">Delete Target</button>
-        </div>
-      </div>
-    </div>
+  
   </div>
 
   <!-- 8. POST-SESSION COMPLETE & SUBJECT SWITCH MODAL -->
-  <div class="modal-overlay hidden" id="sessionCompleteModalOverlay">
-    <div class="modal-card" style="max-width: 440px;">
-      <button class="modal-close-btn" id="btnCloseSessionCompleteModal" aria-label="Close modal">&times;</button>
-      <div class="modal-header">
-        <div class="modal-icon-wrap" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald);">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-        </div>
-        <div>
-          <h3 class="modal-title" id="sessionCompleteTitle">Session Completed!</h3>
-          <p class="modal-subtitle" id="sessionCompleteSubtitle">+25m saved to your focus history</p>
-        </div>
-      </div>
-      <div class="modal-body" style="padding-top: 10px;">
-        <div class="input-group" style="margin-bottom: 16px;">
-          <label for="nextSessionSubjectSelect">Choose Subject for Next Focus Round:</label>
-          <select id="nextSessionSubjectSelect" class="form-select"></select>
-        </div>
-        <div class="modal-actions-row" style="display: flex; gap: 10px;">
-          <button type="button" class="btn btn-secondary flex-1" id="btnKeepSameSubject">
-            <span>Keep Subject</span>
-          </button>
-          <button type="button" class="btn btn-primary flex-1" id="btnApplyNextSubject">
-            <span>Switch Subject</span>
-          </button>
-        </div>
-      </div>
-    </div>
+  
   </div>
 
   <!-- 9. DELETE ALL LOCAL DATA MODAL -->
-  <div class="modal-overlay hidden" id="deleteAllDataModalOverlay">
-    <div class="modal-card" style="max-width: 450px;">
-      <button class="modal-close-btn" id="btnCloseDeleteAllDataModal" aria-label="Close modal">&times;</button>
-      <div class="modal-header">
-        <div class="modal-icon-wrap" style="background: rgba(239, 68, 68, 0.15); color: var(--accent-red);">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-        </div>
-        <div>
-          <h3 class="modal-title">Erase All Local Data?</h3>
-          <p class="modal-subtitle">Clear all local sessions, goals, streaks, and custom subjects.</p>
-        </div>
-      </div>
-      <div class="modal-body">
-        <div class="delete-warning-box">
-          <p><strong>Warning:</strong> This will completely wipe all local study sessions, timeline records, streaks, and subject target goals from your browser storage.</p>
-          <p style="margin-top: 8px; font-size: 0.85rem; color: var(--text-muted);">To request permanent cloud account and remote database erasure, visit the <a href="delete-account.html" style="color: var(--accent-red); text-decoration: underline;">Account Deletion Portal</a>.</p>
-        </div>
-        <div class="modal-actions-row" style="display: flex; gap: 10px; margin-top: 18px;">
-          <button type="button" class="btn btn-secondary flex-1" id="btnCancelDeleteAllData">Cancel</button>
-          <button type="button" class="btn btn-danger flex-1" id="btnConfirmDeleteAllData">Wipe Local Data</button>
-        </div>
-      </div>
-    </div>
+  
   </div>
 
   <!-- 10. CUSTOM CONFIRMATION DIALOG MODAL -->
@@ -1673,96 +1373,7 @@
     </div>
   </div>
   <!-- 11. STUDIO BACKGROUND CUSTOMIZER MODAL -->
-  <div class="modal-overlay hidden" id="studioBgModalOverlay" style="z-index: 10000015;">
-    <div class="modal-card modal-card-md">
-      <button class="modal-close-btn" id="btnCloseStudioBgModal" aria-label="Close background modal">&times;</button>
-      <div class="modal-header">
-        <div class="modal-icon-wrap" style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
-            <circle cx="8.5" cy="8.5" r="1.5"></circle>
-            <path d="m21 15-5-5L5 21"></path>
-          </svg>
-        </div>
-        <div>
-          <h3 class="modal-title">Studio Ambience &amp; Background</h3>
-          <p class="modal-subtitle">Choose aesthetic themes, upload custom wallpapers, paste image links, or adjust glass dimming.</p>
-        </div>
-      </div>
-      <div class="modal-body">
-        <div class="bg-section-label">Preset Aesthetic Wallpapers</div>
-        <div class="bg-preset-grid">
-          <button type="button" class="bg-preset-card" data-bg="default">
-            <div class="bg-preset-preview default-bg"></div>
-            <span>Minimal Dark</span>
-          </button>
-          <button type="button" class="bg-preset-card" data-bg="lofi">
-            <div class="bg-preset-preview lofi-bg"></div>
-            <span>Lofi Study Room</span>
-          </button>
-          <button type="button" class="bg-preset-card" data-bg="rain">
-            <div class="bg-preset-preview rain-bg"></div>
-            <span>Rainy Window</span>
-          </button>
-          <button type="button" class="bg-preset-card" data-bg="library">
-            <div class="bg-preset-preview library-bg"></div>
-            <span>Cozy Library</span>
-          </button>
-          <button type="button" class="bg-preset-card" data-bg="space">
-            <div class="bg-preset-preview space-bg"></div>
-            <span>Deep Cosmos</span>
-          </button>
-          <button type="button" class="bg-preset-card" data-bg="forest">
-            <div class="bg-preset-preview forest-bg"></div>
-            <span>Misty Forest</span>
-          </button>
-          <button type="button" class="bg-preset-card" data-bg="tokyo">
-            <div class="bg-preset-preview tokyo-bg"></div>
-            <span>Tokyo Neon</span>
-          </button>
-          <button type="button" class="bg-preset-card active" data-bg="sunset">
-            <div class="bg-preset-preview sunset-bg"></div>
-            <span>Sunset Clouds</span>
-          </button>
-          <button type="button" class="bg-preset-card" data-bg="cafe">
-            <div class="bg-preset-preview cafe-bg"></div>
-            <span>Warm Cafe</span>
-          </button>
-          <button type="button" class="bg-preset-card" data-bg="amoled">
-            <div class="bg-preset-preview amoled-bg"></div>
-            <span>AMOLED Black</span>
-          </button>
-        </div>
-
-        <div class="bg-section-label" style="margin-top: 18px;">Custom Wallpaper Selector</div>
-        <div class="bg-upload-zone" id="bgUploadZone">
-          <div class="bg-upload-options-row">
-            <input type="file" id="bgImageFileInput" accept="image/png, image/jpeg, image/webp, image/gif" style="display:none;">
-            <button type="button" class="btn btn-secondary btn-sm" id="btnTriggerBgUpload">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-              <span>Upload Local Image / GIF</span>
-            </button>
-            <button type="button" class="btn btn-ghost btn-xs text-muted" id="btnResetCustomBg" style="display:none;">Reset to Default</button>
-          </div>
-          
-          <div class="bg-url-input-wrap">
-            <input type="url" id="bgUrlInput" class="form-input" placeholder="Or paste image / GIF URL (https://...)" style="font-size:0.82rem; padding: 7px 12px;">
-            <button type="button" class="btn btn-secondary btn-xs" id="btnApplyBgUrl" style="white-space:nowrap;">Apply URL</button>
-          </div>
-
-          <!-- Live Image / GIF URL Preview Card -->
-          <div class="bg-url-preview-card hidden" id="bgUrlPreviewCard">
-            <div class="bg-url-preview-thumb-wrap">
-              <img id="bgUrlPreviewImg" src="" alt="Wallpaper Preview" class="bg-url-preview-thumb hidden">
-              <div class="bg-url-preview-placeholder" id="bgUrlPreviewPlaceholder">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>
-              </div>
-            </div>
-            <div class="bg-url-preview-info">
-              <div class="bg-url-preview-status" id="bgUrlPreviewStatus">Checking format...</div>
-              <div class="bg-url-preview-msg" id="bgUrlPreviewMsg">Paste an image or animated GIF link</div>
-            </div>
-          </div>
+  
         </div>
 
         <div class="bg-section-label" style="margin-top: 18px;">Atmosphere &amp; Glass Adjustments</div>
@@ -1787,61 +1398,7 @@
   </div>
 
   <!-- 12. CUSTOM YOUTUBE STREAM MODAL -->
-  <div class="modal-overlay hidden" id="customYoutubeModalOverlay" style="z-index: 10000016;">
-    <div class="modal-card modal-card-sm">
-      <button class="modal-close-btn" id="btnCloseCustomYoutubeModal" aria-label="Close dialog">&times;</button>
-      <div class="modal-header">
-        <div class="modal-icon-wrap" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-          </svg>
-        </div>
-        <div>
-          <h3 class="modal-title">Custom YouTube Stream</h3>
-          <p class="modal-subtitle">Paste any YouTube video or livestream link.</p>
-        </div>
-      </div>
-      <div class="modal-body">
-        <div class="input-group">
-          <label for="customYoutubeUrlInput" class="input-label">YouTube URL or ID</label>
-          <input type="text" id="customYoutubeUrlInput" class="form-input" placeholder="https://www.youtube.com/watch?v=4.3.2">
-        </div>
-
-        <!-- Quick 1-Tap Popular Suggestions -->
-        <div class="yt-suggestions-label">Popular Focus Streams</div>
-        <div class="yt-suggestions-grid">
-          <button type="button" class="yt-suggestion-chip" data-id="5yx6BWlEVcY">🎧 Lofi Chill</button>
-          <button type="button" class="yt-suggestion-chip" data-id="vCTRNKPJr40">⛏️ Minecraft Tracks</button>
-          <button type="button" class="yt-suggestion-chip" data-id="FjHGZj2IjBk">🎹 Study Piano</button>
-          <button type="button" class="yt-suggestion-chip" data-id="4xDzrJKXOOY">🌆 Synthwave</button>
-          <button type="button" class="yt-suggestion-chip" data-id="mPZkdNFkNps">🌧️ Rain Storm</button>
-          <button type="button" class="yt-suggestion-chip" data-id="gaGrHUekGdc">☕ Coffee Shop</button>
-          <button type="button" class="yt-suggestion-chip" data-id="WPni755-Krg">🧠 432Hz Alpha</button>
-          <button type="button" class="yt-suggestion-chip" data-id="jgpJVI3tDbY">🎻 Classical</button>
-        </div>
-
-        <!-- Dedicated Audio Music Preview Card (Music Format with Cover Thumbnail, Click to Play) -->
-        <div class="custom-music-preview-card" id="customMusicPreviewCard" title="Click to Play this track">
-          <div class="music-preview-cover-wrap">
-            <img src="https://img.youtube.com/vi/5yx6BWlEVcY/hqdefault.jpg" alt="Music Cover" class="music-preview-thumb" id="customMusicPreviewThumb">
-            <div class="music-preview-vinyl-groove"></div>
-            <div class="music-preview-audio-icon">
-              <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
-            </div>
-          </div>
-          <div class="music-preview-meta">
-            <span class="music-preview-format-tag" id="customMusicPreviewBadge">▶ Click to Play Stream</span>
-            <h4 class="music-preview-title" id="customMusicPreviewTitle">Lofi Chill Beats — Focus & Study</h4>
-            <span class="music-preview-channel" id="customMusicPreviewChannel">Focus Ambience • Official YouTube Stream</span>
-          </div>
-        </div>
-
-        <div class="modal-actions-row" style="display: flex; gap: 10px; margin-top: 16px;">
-          <button type="button" class="btn btn-secondary flex-1" id="btnCancelCustomYoutube">Cancel</button>
-          <button type="button" class="btn btn-primary flex-1" id="btnLoadCustomYoutube">Load &amp; Play</button>
-        </div>
-      </div>
-    </div>
+  
   </div>
 
   <!-- YouTube Audio Embed Anchor (Positioned with layout footprint and zero visual disturbance to satisfy browser media policies) -->
@@ -1851,7 +1408,7 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- APPLICATION SCRIPT BUNDLE -->
-  <script src="demo.js?v=4.3.2"></script>
+  <script src="demo.js?v=4.3.3"></script>
   <!-- Service Worker Registration for 100% Offline Capability -->
   <script>
     if ('serviceWorker' in navigator) {

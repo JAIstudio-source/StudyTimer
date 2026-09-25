@@ -4,7 +4,7 @@
  * Guarantees 100% offline functionality for the Pomodoro Web Studio & App Landing.
  */
 
-var CACHE_NAME = 'studytimer-web-v37';
+var CACHE_NAME = 'studytimer-web-v38';
 
 var CORE_ASSETS = [
     './',

@@ -19,6 +19,57 @@ object LocalAvatarManager {
     private const val MAX_DIMENSION = 512
     private const val COMPRESS_QUALITY = 88
 
+    private val GOOGLE_PALETTE = intArrayOf(
+        0xFFE53935.toInt(), // Red
+        0xFFD81B60.toInt(), // Pink
+        0xFF8E24AA.toInt(), // Purple
+        0xFF5E35B1.toInt(), // Deep Purple
+        0xFF3949AB.toInt(), // Indigo
+        0xFF1E88E5.toInt(), // Blue
+        0xFF0288D1.toInt(), // Light Blue
+        0xFF00897B.toInt(), // Teal
+        0xFF43A047.toInt(), // Green
+        0xFF7CB342.toInt(), // Light Green
+        0xFFF4511E.toInt(), // Deep Orange
+        0xFFFB8C00.toInt(), // Orange
+        0xFF6D4C41.toInt(), // Brown
+        0xFF546E7A.toInt()  // Blue Grey
+    )
+
+    fun getGoogleAvatarColor(name: String?): Int {
+        if (name.isNullOrBlank()) return GOOGLE_PALETTE[0]
+        val hash = Math.abs(name.trim().lowercase().hashCode())
+        return GOOGLE_PALETTE[hash % GOOGLE_PALETTE.size]
+    }
+
+    fun getLetterAvatarBitmap(name: String?, targetSizePx: Int): Bitmap {
+        val letter = name?.trim()?.firstOrNull()?.uppercaseChar()?.toString() ?: "S"
+        val bgColor = getGoogleAvatarColor(name)
+        val bitmap = Bitmap.createBitmap(targetSizePx, targetSizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        // Draw Google-colored Circle
+        val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = bgColor
+            style = Paint.Style.FILL
+        }
+        val radius = targetSizePx / 2f
+        canvas.drawCircle(radius, radius, radius, bgPaint)
+
+        // Draw Bold White Letter
+        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.WHITE
+            textSize = targetSizePx * 0.48f
+            typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
+            textAlign = Paint.Align.CENTER
+        }
+        val fontMetrics = textPaint.fontMetrics
+        val yOffset = radius - (fontMetrics.ascent + fontMetrics.descent) / 2f
+        canvas.drawText(letter, radius, yOffset, textPaint)
+
+        return bitmap
+    }
+
     fun getAvatarFile(context: Context): File {
         return File(context.filesDir, AVATAR_FILE_NAME)
     }

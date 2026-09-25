@@ -153,7 +153,7 @@ class LoginActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
-    private fun completeLoginAndSync(email: String, name: String, accessToken: String?, userId: String) {
+    private fun completeLoginAndSync(email: String, name: String, accessToken: String?, userId: String, avatarUrl: String? = null) {
         val backupMgr = BackupManager(this)
         val wasGuest = AuthManager.isGuest(this)
         val hasLocalData = backupMgr.hasLocalStudyData()
@@ -168,8 +168,14 @@ class LoginActivity : AppCompatActivity() {
         }
 
         AuthManager.saveUserSession(this, email, name, accessToken, userId)
+        if (!avatarUrl.isNullOrBlank()) {
+            AuthManager.saveProfileImageUri(this, avatarUrl)
+        }
 
         lifecycleScope.launch(Dispatchers.IO) {
+            if (!avatarUrl.isNullOrBlank()) {
+                LocalAvatarManager.downloadAndSaveRemoteAvatar(this@LoginActivity, avatarUrl)
+            }
             val (remoteMeta, rawRecord) = CloudSyncManager.fetchRemoteMetadata(this@LoginActivity)
             if (remoteMeta != null && remoteMeta.updatedAt > 0L && rawRecord != null) {
                 if (wasGuest && hasLocalData) {
@@ -230,9 +236,12 @@ class LoginActivity : AppCompatActivity() {
                         ?: googleEmail.substringBefore("@")
                     val email = userObj?.optString("email")?.takeIf { it.isNotBlank() } ?: googleEmail
                     val userId = userObj?.optString("id")?.takeIf { it.isNotBlank() } ?: email
+                    val avatarUrl = metaObj?.optString("avatar_url")?.takeIf { it.isNotBlank() }
+                        ?: metaObj?.optString("picture")?.takeIf { it.isNotBlank() }
+                        ?: metaObj?.optString("avatar")?.takeIf { it.isNotBlank() }
 
                     withContext(Dispatchers.Main) {
-                        completeLoginAndSync(email, fetchedName, accessToken, userId)
+                        completeLoginAndSync(email, fetchedName, accessToken, userId, avatarUrl)
                     }
                 } else {
                     withContext(Dispatchers.Main) {
@@ -272,6 +281,7 @@ class LoginActivity : AppCompatActivity() {
             var userId = ""
             var email = ""
             var name = ""
+            var avatarUrl: String? = null
 
             if (supabaseUrl.isNotBlank() && anonKey.isNotBlank()) {
                 try {
@@ -292,6 +302,8 @@ class LoginActivity : AppCompatActivity() {
                         name = meta?.optString("full_name")?.takeIf { it.isNotBlank() }
                             ?: meta?.optString("name")?.takeIf { it.isNotBlank() }
                             ?: email.substringBefore("@")
+                        avatarUrl = meta?.optString("avatar_url")?.takeIf { it.isNotBlank() }
+                            ?: meta?.optString("picture")?.takeIf { it.isNotBlank() }
                     }
                 } catch (e: Exception) {
                     Log.w("LoginActivity", "Failed to fetch user from Supabase auth endpoint", e)
@@ -322,7 +334,7 @@ class LoginActivity : AppCompatActivity() {
             if (name.isBlank()) name = email.substringBefore("@")
 
             withContext(Dispatchers.Main) {
-                completeLoginAndSync(email, name, accessToken, userId)
+                completeLoginAndSync(email, name, accessToken, userId, avatarUrl)
             }
         }
     }

@@ -140,65 +140,13 @@ function getCountryFlagEmoji(codeOrFlag) {
   return '🌐';
 }
 
-const AVATAR_PRESET_STICKER_MAP = {
-  'avatar_default': '🎓',
-  'avatar_cat': '🐱',
-  'avatar_fox': '🦊',
-  'avatar_lion': '🦁',
-  'avatar_panda': '🐼',
-  'avatar_owl': '🦉',
-  'avatar_rocket': '🚀',
-  'avatar_fire': '🔥',
-  'avatar_star': '⭐',
-  'avatar_scholar': '🎓',
-  'avatar_books': '📚',
-  'avatar_brain': '🧠',
-  'avatar_science': '🔬',
-  'avatar_med': '🩺',
-  'avatar_coder': '💻',
-  'avatar_lightning': '⚡',
-  'avatar_artist': '🎨',
-  'avatar_lotus': '🌸',
-  'avatar_forest': '🌲',
-  'avatar_coffee': '☕',
-  'avatar_moon': '🌙',
-  'avatar_target': '🎯',
-  'avatar_diamond': '💎',
-  'avatar_champion': '🏆',
-  'avatar_crown': '👑',
-  'avatar_saturn': '🪐',
-  'avatar_gamer': '🎮',
-  'avatar_lofi': '🎧',
-  'cat': '🐱',
-  'fox': '🦊',
-  'lion': '🦁',
-  'panda': '🐼',
-  'owl': '🦉',
-  'rocket': '🚀',
-  'fire': '🔥',
-  'star': '⭐',
-  'scholar': '🎓',
-  'books': '📚',
-  'brain': '🧠',
-  'coder': '💻',
-  'lightning': '⚡',
-  'coffee': '☕',
-  'target': '🎯',
-  'diamond': '💎',
-  'champion': '🏆',
-  'crown': '👑',
-  'default': '🎓'
-};
+
 
 function resolveAvatarSticker(val) {
   if (!val || typeof val !== 'string') return '';
   const trimmed = val.trim();
-  if (trimmed === '') return '';
-  const lower = trimmed.toLowerCase();
-  if (AVATAR_PRESET_STICKER_MAP[lower]) {
-    return AVATAR_PRESET_STICKER_MAP[lower];
-  }
-  return trimmed;
+  if (/^(http|https|data:|blob:|assets\/|\/)/i.test(trimmed)) return trimmed;
+  return '';
 }
 
 function getPublicLeaderboardAvatarUrl(profile) {
@@ -213,19 +161,18 @@ function getPublicLeaderboardAvatarUrl(profile) {
 }
 
 function getAvatarElementHtml(avatarVal, userName, className = 'row-avatar-img', ringClass = '') {
-  const resolved = resolveAvatarSticker(avatarVal);
   const normalizedRing = ringClass ? normalizeRingClass(ringClass) : '';
-  const ringCls = normalizedRing ? ` ${normalizedRing}` : '';
-  const trimmed = typeof resolved === 'string' ? resolved.trim() : '';
-  const isUrl = /^(http|https|data:|assets\/|\/|blob:)/i.test(trimmed);
-  const fallbackInitial = (userName && userName.charAt(0).toUpperCase()) || 'S';
+  const ringCls = normalizedRing ? ' ' + normalizedRing : '';
+  const fallbackInitial = (userName && String(userName).trim().charAt(0).toUpperCase()) || 'S';
+  const trimmed = typeof avatarVal === 'string' ? avatarVal.trim() : '';
+  const isUrl = /^(https?:\/\/|data:|assets\/|\/|blob:)/i.test(trimmed);
 
   if (isUrl) {
-    return `<img src="${trimmed}" alt="${userName || 'Student'}" class="${className}${ringCls}" loading="eager" decoding="async" referrerpolicy="no-referrer" crossorigin="anonymous" onerror="this.onerror=null; this.outerHTML='<span class=\\'avatar-sticker ${className}${ringCls}\\'>${fallbackInitial}</span>';">`;
+    const escapedInitial = fallbackInitial.replace(/"/g, '&quot;');
+    const uName = (userName || 'Student').replace(/"/g, '&quot;');
+    return `<img src="${trimmed}" alt="${uName}" class="${className}${ringCls}" loading="eager" decoding="async" referrerpolicy="no-referrer" crossorigin="anonymous" onerror="this.onerror=null; this.outerHTML='<span class=&quot;avatar-sticker ${className}${ringCls}&quot;>${escapedInitial}</span>';">`;
   } else {
-    const isEmojiOrShort = trimmed.length > 0 && (trimmed.length <= 4 || /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}]/u.test(trimmed));
-    const displaySticker = isEmojiOrShort ? trimmed : fallbackInitial;
-    return `<span class="avatar-sticker ${className}${ringCls}">${displaySticker}</span>`;
+    return `<span class="avatar-sticker ${className}${ringCls}">${fallbackInitial}</span>`;
   }
 }
 

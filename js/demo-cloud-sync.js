@@ -358,7 +358,7 @@ function mergeCloudDataIntoLocal(data) {
 
         const rawAvatarCandidate = (serverProfileStatus === 'pending' && localPendingAvatar)
           ? localPendingAvatar
-          : (customUrl || (loadedProfile.avatarPreset && loadedProfile.avatarPreset !== 'avatar_default' ? loadedProfile.avatarPreset : '') || loadedProfile.avatarUrl || data.profile_image_uri || appState.userProfile?.avatarPreset || '🐱');
+          : (customUrl || (loadedProfile.avatarPreset && loadedProfile.avatarPreset !== 'avatar_default' ? loadedProfile.avatarPreset : '') || loadedProfile.avatarUrl || data.profile_image_uri || appState.userProfile?.avatarPreset || '');
 
         const resolvedAvatar = sanitizeAvatar(rawAvatarCandidate);
 
@@ -384,7 +384,7 @@ function mergeCloudDataIntoLocal(data) {
     if (remoteVerifiedName && (!appState.userProfile?.displayName || appState.userProfile.displayName === 'Student')) {
       appState.userProfile.displayName = sanitizeString(remoteVerifiedName, 50);
     }
-    if (data.profile_image_uri && (!appState.userProfile?.avatarPreset || appState.userProfile.avatarPreset === '🐱')) {
+    if (data.profile_image_uri && (!appState.userProfile?.avatarPreset || appState.userProfile.avatarPreset === '')) {
       if (!appState.userProfile) appState.userProfile = {};
       appState.userProfile.avatarPreset = sanitizeAvatar(data.profile_image_uri);
     }

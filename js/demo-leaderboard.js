@@ -178,9 +178,9 @@ function updateProfileLivePreview() {
     const isUrl = /^(http|https|data:|assets\/|\/|blob:)/i.test((selectedAvatarPreset || '').trim());
     if (isUrl) {
       const fallbackInit = escapeHtml((nameVal || 'S').trim().charAt(0).toUpperCase() || 'S');
-      previewAvatarIcon.innerHTML = `<img src="${selectedAvatarPreset}" alt="Avatar Preview" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" onerror="this.outerHTML='<span class=\\'avatar-initial\\'>${fallbackInit}</span>'">`;
+      previewAvatarIcon.innerHTML = `<img src="${selectedAvatarPreset}" alt="Avatar Preview" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" onerror="this.outerHTML='<span class=&quot;avatar-initial&quot;>${fallbackInit}</span>'">`;
     } else {
-      previewAvatarIcon.textContent = selectedAvatarPreset || (nameVal || 'S').trim().charAt(0).toUpperCase() || 'S';
+      previewAvatarIcon.textContent = (nameVal || 'S').trim().charAt(0).toUpperCase() || 'S';
     }
   }
   if (previewCountryFlag) previewCountryFlag.textContent = flagVal;

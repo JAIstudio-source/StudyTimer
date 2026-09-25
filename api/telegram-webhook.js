@@ -6,6 +6,46 @@ const TELEGRAM_MODERATION_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8755792
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+const AVATAR_PRESET_STICKER_MAP = {
+  'avatar_default': '🐱',
+  'avatar_cat': '🐱',
+  'avatar_fox': '🦊',
+  'avatar_lion': '🦁',
+  'avatar_panda': '🐼',
+  'avatar_owl': '🦉',
+  'avatar_rocket': '🚀',
+  'avatar_fire': '🔥',
+  'avatar_star': '⭐',
+  'avatar_scholar': '🎓',
+  'avatar_1': '🐱',
+  'avatar_2': '🦊',
+  'avatar_3': '🦁',
+  'avatar_4': '🐼',
+  'avatar_5': '🦉',
+  'avatar_6': '🚀',
+  'cat': '🐱',
+  'fox': '🦊',
+  'lion': '🦁',
+  'panda': '🐼',
+  'owl': '🦉',
+  'rocket': '🚀',
+  'fire': '🔥',
+  'star': '⭐',
+  'scholar': '🎓',
+  'default': '🐱'
+};
+
+function resolveAvatarPresetToSticker(val) {
+  if (!val || typeof val !== 'string') return '🐱';
+  const trimmed = val.trim();
+  if (trimmed === '') return '🐱';
+  const lower = trimmed.toLowerCase();
+  if (AVATAR_PRESET_STICKER_MAP[lower]) {
+    return AVATAR_PRESET_STICKER_MAP[lower];
+  }
+  return trimmed;
+}
+
 // Send message helper
 async function sendTelegramMessage(chatId, text, replyMarkup = null) {
   const payload = { chat_id: chatId, text, parse_mode: 'HTML' };
@@ -178,7 +218,8 @@ export default async function handler(req, res) {
               } catch (_) {}
             }
 
-            targetAvatarUrl = profile.avatarPreset || syncRow.profile_image_uri || '🐱';
+            const rawTargetAvatar = profile.avatarPreset || syncRow.profile_image_uri || '🐱';
+            targetAvatarUrl = resolveAvatarPresetToSticker(rawTargetAvatar);
             targetRing = profile.avatarRing || 'glow-gold';
             targetName = profile.displayName || syncRow.user_name || targetName;
             targetFlag = profile.countryFlag || '🌐';

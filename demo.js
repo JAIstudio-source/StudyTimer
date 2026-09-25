@@ -5185,20 +5185,60 @@ function getCountryFlagEmoji(codeOrFlag) {
   return '🌐';
 }
 
+const AVATAR_PRESET_STICKER_MAP = {
+  'avatar_default': '🐱',
+  'avatar_cat': '🐱',
+  'avatar_fox': '🦊',
+  'avatar_lion': '🦁',
+  'avatar_panda': '🐼',
+  'avatar_owl': '🦉',
+  'avatar_rocket': '🚀',
+  'avatar_fire': '🔥',
+  'avatar_star': '⭐',
+  'avatar_scholar': '🎓',
+  'avatar_1': '🐱',
+  'avatar_2': '🦊',
+  'avatar_3': '🦁',
+  'avatar_4': '🐼',
+  'avatar_5': '🦉',
+  'avatar_6': '🚀',
+  'cat': '🐱',
+  'fox': '🦊',
+  'lion': '🦁',
+  'panda': '🐼',
+  'owl': '🦉',
+  'rocket': '🚀',
+  'fire': '🔥',
+  'star': '⭐',
+  'scholar': '🎓',
+  'default': '🐱'
+};
+
+function resolveAvatarSticker(val) {
+  if (!val || typeof val !== 'string') return '🐱';
+  const trimmed = val.trim();
+  if (trimmed === '') return '🐱';
+  const lower = trimmed.toLowerCase();
+  if (AVATAR_PRESET_STICKER_MAP[lower]) {
+    return AVATAR_PRESET_STICKER_MAP[lower];
+  }
+  return trimmed;
+}
+
 function getPublicLeaderboardAvatarUrl(profile) {
   if (!profile) return '🐱';
-  const rawAvatar = profile.avatarPreset || appState.currentUser?.user_metadata?.avatar_url || '🐱';
+  const rawAvatar = resolveAvatarSticker(profile.avatarPreset || profile.avatar_url || appState.currentUser?.user_metadata?.avatar_url || '🐱');
   const isCustomPhoto = /^(http|https|data:|blob:)/i.test((rawAvatar || '').trim());
   
   // STRICT SECURITY & MODERATION GATE:
   // Custom uploaded photos / URLs MUST NEVER appear on the public leaderboard, presence, or public RPCs
-  // until explicitly approved by admin (photoApproved === true && profileStatus === 'approved')
+  // until explicitly approved by admin (photoApproved === true || profileStatus === 'approved')
   if (isCustomPhoto) {
-    if (profile.photoApproved === true && profile.profileStatus === 'approved') {
+    if (profile.photoApproved === true || profile.profileStatus === 'approved') {
       return rawAvatar;
     }
     // Return safe fallback sticker until admin explicitly approves
-    return profile.fallbackSticker || '🐱';
+    return resolveAvatarSticker(profile.fallbackSticker || '🐱');
   }
   
   // Safe preset emoji stickers are allowed immediately
@@ -5206,17 +5246,19 @@ function getPublicLeaderboardAvatarUrl(profile) {
 }
 
 function getAvatarElementHtml(avatarVal, userName, className = 'row-avatar-img', ringClass = '') {
-  if (!avatarVal || (typeof avatarVal === 'string' && avatarVal.trim() === '')) {
-    avatarVal = '🐱';
-  }
+  const resolved = resolveAvatarSticker(avatarVal);
   const normalizedRing = ringClass ? normalizeRingClass(ringClass) : '';
   const ringCls = normalizedRing ? ` ${normalizedRing}` : '';
-  const trimmed = typeof avatarVal === 'string' ? avatarVal.trim() : '🐱';
+  const trimmed = typeof resolved === 'string' ? resolved.trim() : '🐱';
   const isUrl = /^(http|https|data:|assets\/|\/|blob:)/i.test(trimmed);
   if (isUrl) {
-    return `<img src="${trimmed}" alt="${userName || 'Student'}" class="${className}${ringCls}" loading="eager" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null; this.outerHTML='<span class=\\'avatar-sticker ${className}${ringCls}\\'>🐱</span>';">`;
+    const fallbackInitial = (userName && userName.charAt(0).toUpperCase()) || '🐱';
+    return `<img src="${trimmed}" alt="${userName || 'Student'}" class="${className}${ringCls}" loading="eager" decoding="async" referrerpolicy="no-referrer" crossorigin="anonymous" onerror="this.onerror=null; this.outerHTML='<span class=\\'avatar-sticker ${className}${ringCls}\\'>${fallbackInitial}</span>';">`;
   } else {
-    return `<span class="avatar-sticker ${className}${ringCls}">${trimmed}</span>`;
+    // If not an emoji/short symbol (e.g. legacy long text), show clean initial rather than raw words
+    const isEmojiOrShort = trimmed.length <= 4 || /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}]/u.test(trimmed);
+    const displaySticker = isEmojiOrShort ? trimmed : ((userName && userName.charAt(0).toUpperCase()) || '🐱');
+    return `<span class="avatar-sticker ${className}${ringCls}">${displaySticker}</span>`;
   }
 }
 
@@ -5435,19 +5477,6 @@ function dataURLtoBlob(dataurl) {
     console.warn('Error converting dataURL to Blob:', err);
     return null;
   }
-}
-
-function getPublicLeaderboardAvatarUrl(profile) {
-  if (!profile) return '🐱';
-  const custom = (profile.avatarPreset || profile.avatar_url || '').trim();
-  const isApproved = profile.photoApproved === true || profile.profileStatus === 'approved';
-  const isCustomPhoto = /^(http|https|data:|blob:)/i.test(custom);
-
-  if (isCustomPhoto) {
-    if (isApproved) return custom;
-    return profile.fallbackSticker || '🐱';
-  }
-  return custom || '🐱';
 }
 
 async function uploadAvatarToSupabaseStorage(dataUrlOrFile, userId) {
@@ -6965,7 +6994,7 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
     const crown = rankNum === 1 ? '<span class="podium-crown-badge">👑</span>' : '';
     const timeFormatted = formatLeaderboardTime(entry.total_seconds);
     const userAvatarVal = isCurrent 
-      ? (appState.userProfile?.avatarPreset || entry.avatar_url || '🐱')
+      ? (appState.userProfile?.avatarPreset || appState.userProfile?.avatarUrl || entry.avatar_url || '🐱')
       : (entry.avatar_url || '🐱');
     const avatarHtml = getAvatarElementHtml(userAvatarVal, entry.user_name, 'podium-avatar-img', ring);
 
@@ -7049,7 +7078,7 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
         const flagHtml = (flagEmoji && flagEmoji !== '🌐') ? `<span class="lb-flag-bottom" title="Region">${flagEmoji}</span>` : '';
         const timeFormatted = formatLeaderboardTime(r.total_seconds);
         const userAvatarVal = isCurrent
-          ? (appState.userProfile?.avatarPreset || r.avatar_url || '🐱')
+          ? (appState.userProfile?.avatarPreset || appState.userProfile?.avatarUrl || r.avatar_url || '🐱')
           : (r.avatar_url || '🐱');
         const avatarHtml = getAvatarElementHtml(userAvatarVal, r.user_name, 'row-avatar-img', ring);
 

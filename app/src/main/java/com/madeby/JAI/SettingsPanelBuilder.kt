@@ -365,7 +365,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                     background = GradientDrawable().apply {
                         shape = GradientDrawable.OVAL
-                        setColor(if (isGoogleAuth) themeCoordinator.primaryColor else Color.parseColor("#475569"))
+                        setColor(LocalAvatarManager.getGoogleAvatarColor(userName))
                     }
                     layoutParams = FrameLayout.LayoutParams(dp(48), dp(48), Gravity.CENTER)
                 }
@@ -690,7 +690,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                     background = GradientDrawable().apply {
                         shape = GradientDrawable.OVAL
-                        setColor(if (isGoogleAuth) themeCoordinator.primaryColor else Color.parseColor("#475569"))
+                        setColor(LocalAvatarManager.getGoogleAvatarColor(userName))
                     }
                     layoutParams = FrameLayout.LayoutParams(dp(88), dp(88), Gravity.CENTER)
                 }

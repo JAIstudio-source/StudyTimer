@@ -39,9 +39,9 @@ object CloudSyncManager {
 
         try {
             val encodedUserId = java.net.URLEncoder.encode(userId, "UTF-8")
-            val queryParams = "user_id=eq.$encodedUserId&order=updated_at.desc&select=*"
-            val url = URL("$supabaseUrl/rest/v1/user_sync_data?$queryParams")
-            val conn = url.openConnection() as HttpURLConnection
+            var queryParams = "user_id=eq.$encodedUserId&order=updated_at.desc&select=*"
+            var url = URL("$supabaseUrl/rest/v1/user_sync_data?$queryParams")
+            var conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
             conn.setRequestProperty("apikey", anonKey)
             conn.setRequestProperty("Authorization", "Bearer $anonKey")
@@ -49,28 +49,48 @@ object CloudSyncManager {
             conn.connectTimeout = 8000
             conn.readTimeout = 8000
 
-            val code = conn.responseCode
-            if (code in 200..299) {
-                val responseStr = conn.inputStream.bufferedReader().use { it.readText() }
-                val jsonArray = if (responseStr.isNotEmpty()) org.json.JSONArray(responseStr) else org.json.JSONArray()
-                if (jsonArray.length() > 0) {
-                    val record = jsonArray.getJSONObject(0)
-                    val updatedAt = record.optLong("updated_at", 0L)
-                    val schemaVer = record.optInt("schema_version", 1)
-                    val lastMod = record.optLong("last_modified_timestamp", updatedAt)
-                    val uName = record.optString("user_name", "")
-                    val pImg = record.optString("profile_image_uri", "")
-                    val meta = CloudRecordMetadata(
-                        userId = userId,
-                        updatedAt = updatedAt,
-                        lastModifiedTimestamp = if (lastMod > 0L) lastMod else updatedAt,
-                        schemaVersion = schemaVer,
-                        userName = uName,
-                        profileImageUri = pImg
-                    )
-                    ProfileManager.updateFromCloudRecord(context, record)
-                    return@withContext Pair(meta, record)
+            var code = conn.responseCode
+            var responseStr = if (code in 200..299) conn.inputStream.bufferedReader().use { it.readText() } else ""
+            var jsonArray = if (responseStr.isNotEmpty()) org.json.JSONArray(responseStr) else org.json.JSONArray()
+
+            // If not found by user_id, fallback to search by user_email to seamlessly link previous accounts
+            val userEmail = AuthManager.getUserEmail(context)
+            if (jsonArray.length() == 0 && !userEmail.isNullOrBlank() && userEmail != userId) {
+                val encodedEmail = java.net.URLEncoder.encode(userEmail, "UTF-8")
+                val fallbackParams = "or=(user_id.eq.$encodedEmail,user_email.eq.$encodedEmail)&order=updated_at.desc&select=*"
+                val fallbackUrl = URL("$supabaseUrl/rest/v1/user_sync_data?$fallbackParams")
+                val fallbackConn = fallbackUrl.openConnection() as HttpURLConnection
+                fallbackConn.requestMethod = "GET"
+                fallbackConn.setRequestProperty("apikey", anonKey)
+                fallbackConn.setRequestProperty("Authorization", "Bearer $anonKey")
+                fallbackConn.setRequestProperty("Content-Type", "application/json")
+                fallbackConn.connectTimeout = 8000
+                fallbackConn.readTimeout = 8000
+                if (fallbackConn.responseCode in 200..299) {
+                    val fallbackStr = fallbackConn.inputStream.bufferedReader().use { it.readText() }
+                    if (fallbackStr.isNotEmpty()) {
+                        jsonArray = org.json.JSONArray(fallbackStr)
+                    }
                 }
+            }
+
+            if (jsonArray.length() > 0) {
+                val record = jsonArray.getJSONObject(0)
+                val updatedAt = record.optLong("updated_at", 0L)
+                val schemaVer = record.optInt("schema_version", 1)
+                val lastMod = record.optLong("last_modified_timestamp", updatedAt)
+                val uName = record.optString("user_name", "")
+                val pImg = record.optString("profile_image_uri", "")
+                val meta = CloudRecordMetadata(
+                    userId = userId,
+                    updatedAt = updatedAt,
+                    lastModifiedTimestamp = if (lastMod > 0L) lastMod else updatedAt,
+                    schemaVersion = schemaVer,
+                    userName = uName,
+                    profileImageUri = pImg
+                )
+                ProfileManager.updateFromCloudRecord(context, record)
+                return@withContext Pair(meta, record)
             }
         } catch (e: Exception) {
             Log.e("CloudSyncManager", "fetchRemoteMetadata error", e)
@@ -599,6 +619,27 @@ object CloudSyncManager {
 
             var responseStr = if (code in 200..299) conn.inputStream.bufferedReader().use { it.readText() } else ""
             var jsonArray = if (responseStr.isNotEmpty()) org.json.JSONArray(responseStr) else org.json.JSONArray()
+
+            // If not found by user_id, fallback to search by user_email
+            val userEmail = AuthManager.getUserEmail(context)
+            if (jsonArray.length() == 0 && !userEmail.isNullOrBlank() && userEmail != userId) {
+                val encodedEmail = java.net.URLEncoder.encode(userEmail, "UTF-8")
+                val fallbackParams = "or=(user_id.eq.$encodedEmail,user_email.eq.$encodedEmail)&order=updated_at.desc&select=*"
+                val fallbackUrl = URL("$supabaseUrl/rest/v1/user_sync_data?$fallbackParams")
+                val fallbackConn = fallbackUrl.openConnection() as HttpURLConnection
+                fallbackConn.requestMethod = "GET"
+                fallbackConn.setRequestProperty("apikey", anonKey)
+                fallbackConn.setRequestProperty("Authorization", "Bearer $anonKey")
+                fallbackConn.setRequestProperty("Content-Type", "application/json")
+                fallbackConn.connectTimeout = 8000
+                fallbackConn.readTimeout = 8000
+                if (fallbackConn.responseCode in 200..299) {
+                    val fallbackStr = fallbackConn.inputStream.bufferedReader().use { it.readText() }
+                    if (fallbackStr.isNotEmpty()) {
+                        jsonArray = org.json.JSONArray(fallbackStr)
+                    }
+                }
+            }
 
             if (jsonArray.length() > 0) {
                 val record = jsonArray.getJSONObject(0)

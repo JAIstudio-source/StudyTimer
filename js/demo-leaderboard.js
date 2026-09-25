@@ -187,7 +187,6 @@ function updateProfileLivePreview() {
       previewAvatarIcon.innerHTML = `<span class="avatar-initial" style="background:${bgColor};color:#ffffff;font-weight:700;display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:50%;">${fallbackInit}</span>`;
     }
   }
-  }
   if (previewCountryFlag) previewCountryFlag.textContent = flagVal;
   if (previewDisplayName) previewDisplayName.textContent = nameVal;
   if (previewRolePill) previewRolePill.textContent = isStealth ? 'Stealth' : 'Scholar';

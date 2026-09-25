@@ -11,7 +11,7 @@ function openProfileModal() {
 
   const profile = appState.userProfile || {
     displayName: 'Student',
-    avatarPreset: '🐱',
+    avatarPreset: '',
     avatarRing: 'glow-gold',
     bannerTheme: 'banner-midnight',
     countryFlag: '🌐',
@@ -23,7 +23,7 @@ function openProfileModal() {
     isPublicLeaderboard: true
   };
 
-  selectedAvatarPreset = profile.avatarPreset || '🐱';
+  selectedAvatarPreset = profile.avatarPreset || '';
   selectedAvatarRing = profile.avatarRing || 'glow-gold';
   selectedBannerTheme = profile.bannerTheme || 'banner-midnight';
   selectedCountryFlag = profile.countryFlag || '🌐';
@@ -99,7 +99,7 @@ function openProfileModal() {
     } else {
       photoPreviewImg.src = '';
       photoPreviewImg.classList.add('hidden');
-      photoFallback.textContent = selectedAvatarPreset || '🐱';
+      photoFallback.textContent = selectedAvatarPreset || (profile.displayName || 'S').trim().charAt(0).toUpperCase() || 'S';
       photoFallback.classList.remove('hidden');
       btnRemovePhoto?.classList.add('hidden');
       if (photoUrlInput) photoUrlInput.value = '';
@@ -177,9 +177,10 @@ function updateProfileLivePreview() {
   if (previewAvatarIcon) {
     const isUrl = /^(http|https|data:|assets\/|\/|blob:)/i.test((selectedAvatarPreset || '').trim());
     if (isUrl) {
-      previewAvatarIcon.innerHTML = `<img src="${selectedAvatarPreset}" alt="Avatar Preview" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" onerror="this.outerHTML='🐱'">`;
+      const fallbackInit = escapeHtml((nameVal || 'S').trim().charAt(0).toUpperCase() || 'S');
+      previewAvatarIcon.innerHTML = `<img src="${selectedAvatarPreset}" alt="Avatar Preview" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" onerror="this.outerHTML='<span class=\\'avatar-initial\\'>${fallbackInit}</span>'">`;
     } else {
-      previewAvatarIcon.textContent = selectedAvatarPreset || '🐱';
+      previewAvatarIcon.textContent = selectedAvatarPreset || (nameVal || 'S').trim().charAt(0).toUpperCase() || 'S';
     }
   }
   if (previewCountryFlag) previewCountryFlag.textContent = flagVal;
@@ -285,8 +286,8 @@ async function notifyAdminModerationWebhook(payload) {
     const newName = (display_name || 'Student').replace(/[<>&"]/g, '');
     const oldBio = (previous_bio || '').replace(/[<>&"]/g, '');
     const newBio = (status_mood || '').replace(/[<>&"]/g, '');
-    const oldAvatar = (previous_avatar || '🐱').replace(/[<>&"]/g, '');
-    const newAvatar = (avatar_url || '🐱').replace(/[<>&"]/g, '');
+    const oldAvatar = (previous_avatar || '').replace(/[<>&"]/g, '');
+    const newAvatar = (avatar_url || '').replace(/[<>&"]/g, '');
     const safeEmail = (email || '').replace(/[<>&"]/g, '');
 
     const nameChanged = Boolean(oldName && newName !== oldName);
@@ -432,7 +433,7 @@ async function handleSaveProfile(e) {
   }
 
   // Attempt Supabase Storage upload for custom base64 photo to reduce DB row bandwidth
-  let avatarValueToSave = sanitizeAvatar(selectedAvatarPreset || '🐱');
+  let avatarValueToSave = sanitizeAvatar(selectedAvatarPreset || '');
   if (avatarValueToSave.startsWith('data:image/') && supabaseClient && appState.currentUser) {
     const storageUrl = await uploadAvatarToSupabaseStorage(avatarValueToSave, appState.currentUser.id);
     if (storageUrl) {
@@ -446,7 +447,7 @@ async function handleSaveProfile(e) {
   // Retain previously approved avatar/sticker as fallback during safety review
   const previousApprovedAvatar = (appState.userProfile?.photoApproved === true && appState.userProfile?.avatarPreset)
     ? appState.userProfile.avatarPreset
-    : (appState.userProfile?.fallbackSticker || appState.approvedAvatar || '🐱');
+    : (appState.userProfile?.fallbackSticker || appState.approvedAvatar || '');
 
   const prevProfile = appState.userProfile || {};
   const photoChanged = isCustomPhoto && (avatarValueToSave !== prevProfile.avatarPreset);
@@ -525,7 +526,7 @@ async function handleSaveProfile(e) {
       status_mood: mood,
       previous_bio: prevProfile.mood || '',
       avatar_url: avatarValueToSave,
-      previous_avatar: prevProfile.avatarPreset || '🐱',
+      previous_avatar: prevProfile.avatarPreset || '',
       photo_changed: photoChanged
     });
   }
@@ -797,7 +798,7 @@ function initProfileCustomizationSystem() {
 
   // Remove Photo / Reset
   document.getElementById('btnRemoveCustomPhoto')?.addEventListener('click', () => {
-    selectedAvatarPreset = '🐱';
+    selectedAvatarPreset = '';
     const photoPreviewImg = document.getElementById('customPhotoPreviewImg');
     const photoFallback = document.getElementById('customPhotoPreviewFallback');
     const btnRemovePhoto = document.getElementById('btnRemoveCustomPhoto');
@@ -807,17 +808,16 @@ function initProfileCustomizationSystem() {
     if (photoPreviewImg && photoFallback) {
       photoPreviewImg.src = '';
       photoPreviewImg.classList.add('hidden');
-      photoFallback.textContent = '🐱';
+      photoFallback.textContent = (appState.userProfile?.displayName || 'S').trim().charAt(0).toUpperCase() || 'S';
       photoFallback.classList.remove('hidden');
       btnRemovePhoto?.classList.add('hidden');
     }
     if (photoUrlInput) photoUrlInput.value = '';
     if (statusCard) statusCard.classList.add('hidden');
 
-    const firstPreset = document.querySelector('.avatar-preset-btn[data-avatar="🐱"]');
-    if (firstPreset) firstPreset.classList.add('active');
+    document.querySelectorAll('.avatar-preset-btn').forEach(b => b.classList.remove('active'));
     updateProfileLivePreview();
-    showToast('Reset to default Lofi Cat sticker.', 'info');
+    showToast('Profile photo removed.', 'info');
   });
 
   // Avatar Presets
@@ -825,7 +825,7 @@ function initProfileCustomizationSystem() {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.avatar-preset-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      selectedAvatarPreset = btn.dataset.avatar || '🐱';
+      selectedAvatarPreset = btn.dataset.avatar || '';
 
       const photoPreviewImg = document.getElementById('customPhotoPreviewImg');
       const photoFallback = document.getElementById('customPhotoPreviewFallback');
@@ -1230,7 +1230,7 @@ function aggregateLeaderboardEntries(rows) {
       userMap.set(uid, {
         user_id: uid,
         user_name: row.user_name || 'Student',
-        avatar_url: row.avatar_url || '🐱',
+        avatar_url: row.avatar_url || '',
         avatar_ring: ring,
         country_flag: row.country_flag || '🌐',
         status_mood: row.status_mood || '',
@@ -1407,8 +1407,8 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
     const crown = rankNum === 1 ? '<span class="podium-crown-badge">👑</span>' : '';
     const timeFormatted = formatLeaderboardTime(entry.total_seconds);
     const userAvatarVal = isCurrent 
-      ? (appState.userProfile?.avatarPreset || appState.userProfile?.avatarUrl || entry.avatar_url || '🐱')
-      : (entry.avatar_url || '🐱');
+      ? (appState.userProfile?.avatarPreset || appState.userProfile?.avatarUrl || entry.avatar_url || '')
+      : (entry.avatar_url || '');
     const avatarHtml = getAvatarElementHtml(userAvatarVal, entry.user_name, 'podium-avatar-img', ring);
 
     let statusChip = '';
@@ -1491,8 +1491,8 @@ function renderLeaderboard(rankings, period = currentLeaderboardPeriod) {
         const flagHtml = (flagEmoji && flagEmoji !== '🌐') ? `<span class="lb-flag-bottom" title="Region">${flagEmoji}</span>` : '';
         const timeFormatted = formatLeaderboardTime(r.total_seconds);
         const userAvatarVal = isCurrent
-          ? (appState.userProfile?.avatarPreset || appState.userProfile?.avatarUrl || r.avatar_url || '🐱')
-          : (r.avatar_url || '🐱');
+          ? (appState.userProfile?.avatarPreset || appState.userProfile?.avatarUrl || r.avatar_url || '')
+          : (r.avatar_url || '');
         const avatarHtml = getAvatarElementHtml(userAvatarVal, r.user_name, 'row-avatar-img', ring);
 
         const moodHtml = r.status_mood ? `<span class="preview-mood-pill" style="font-size:0.68rem; padding:1px 6px;">${r.status_mood}</span>` : '';
@@ -1556,7 +1556,7 @@ function updatePersonalUserBar(myEntry, localTotalSec) {
   const subName = appState.selectedSubject?.name || 'Focus';
   const profile = appState.userProfile || {};
   const currentName = profile.displayName || appState.currentUser.user_metadata?.full_name || 'You';
-  const avatar = profile.avatarPreset || appState.currentUser.user_metadata?.avatar_url || '🐱';
+  const avatar = profile.avatarPreset || appState.currentUser.user_metadata?.avatar_url || '';
   const currentRing = profile.avatarRing || 'glow-gold';
 
   if (userBarName) {

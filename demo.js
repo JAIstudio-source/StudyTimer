@@ -5205,19 +5205,49 @@ function getPublicLeaderboardAvatarUrl(profile) {
   return '';
 }
 
+const GOOGLE_AVATAR_PALETTE = [
+  '#E53935', // Red
+  '#D81B60', // Pink
+  '#8E24AA', // Purple
+  '#5E35B1', // Deep Purple
+  '#3949AB', // Indigo
+  '#1E88E5', // Blue
+  '#0288D1', // Light Blue
+  '#00897B', // Teal
+  '#43A047', // Green
+  '#7CB342', // Light Green
+  '#F4511E', // Deep Orange
+  '#FB8C00', // Orange
+  '#6D4C41', // Brown
+  '#546E7A'  // Blue Grey
+];
+
+function getGoogleAvatarColor(name) {
+  if (!name || typeof name !== 'string') return GOOGLE_AVATAR_PALETTE[0];
+  let hash = 0;
+  const str = name.trim().toLowerCase();
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  const idx = Math.abs(hash) % GOOGLE_AVATAR_PALETTE.length;
+  return GOOGLE_AVATAR_PALETTE[idx];
+}
+
 function getAvatarElementHtml(avatarVal, userName, className = 'row-avatar-img', ringClass = '') {
   const normalizedRing = ringClass ? normalizeRingClass(ringClass) : '';
   const ringCls = normalizedRing ? ' ' + normalizedRing : '';
   const fallbackInitial = (userName && String(userName).trim().charAt(0).toUpperCase()) || 'S';
   const trimmed = typeof avatarVal === 'string' ? avatarVal.trim() : '';
   const isUrl = /^(https?:\/\/|data:|assets\/|\/|blob:)/i.test(trimmed);
+  const bgColor = getGoogleAvatarColor(userName);
+  const escapedInitial = fallbackInitial.replace(/"/g, '&quot;');
+  const uName = (userName || 'Student').replace(/"/g, '&quot;');
 
   if (isUrl) {
-    const escapedInitial = fallbackInitial.replace(/"/g, '&quot;');
-    const uName = (userName || 'Student').replace(/"/g, '&quot;');
-    return `<img src="${trimmed}" alt="${uName}" class="${className}${ringCls}" loading="eager" decoding="async" referrerpolicy="no-referrer" crossorigin="anonymous" onerror="this.onerror=null; this.outerHTML='<span class=&quot;avatar-sticker ${className}${ringCls}&quot;>${escapedInitial}</span>';">`;
+    return `<img src="${trimmed}" alt="${uName}" class="${className}${ringCls}" loading="eager" decoding="async" referrerpolicy="no-referrer" crossorigin="anonymous" onerror="this.onerror=null; this.outerHTML='<span class=&quot;avatar-sticker avatar-initial ${className}${ringCls}&quot; style=&quot;background:${bgColor};color:#ffffff;font-weight:700;&quot;>${escapedInitial}</span>';">`;
   } else {
-    return `<span class="avatar-sticker ${className}${ringCls}">${fallbackInitial}</span>`;
+    return `<span class="avatar-sticker avatar-initial ${className}${ringCls}" style="background:${bgColor};color:#ffffff;font-weight:700;">${escapedInitial}</span>`;
   }
 }
 
@@ -5401,11 +5431,13 @@ function updateProfileLivePreview() {
   if (previewAvatarIcon) {
     const isUrl = /^(http|https|data:|assets\/|\/|blob:)/i.test((selectedAvatarPreset || '').trim());
     const fallbackInit = escapeHtml((nameVal || 'S').trim().charAt(0).toUpperCase() || 'S');
+    const bgColor = getGoogleAvatarColor(nameVal);
     if (isUrl) {
-      previewAvatarIcon.innerHTML = `<img src="${selectedAvatarPreset}" alt="Avatar Preview" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" onerror="this.outerHTML='<span class=&quot;avatar-initial&quot;>${fallbackInit}</span>'">`;
+      previewAvatarIcon.innerHTML = `<img src="${selectedAvatarPreset}" alt="Avatar Preview" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" onerror="this.outerHTML='<span class=&quot;avatar-initial&quot; style=&quot;background:${bgColor};color:#ffffff;font-weight:700;&quot;>${fallbackInit}</span>'">`;
     } else {
-      previewAvatarIcon.innerHTML = `<span class="avatar-initial">${fallbackInit}</span>`;
+      previewAvatarIcon.innerHTML = `<span class="avatar-initial" style="background:${bgColor};color:#ffffff;font-weight:700;display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:50%;">${fallbackInit}</span>`;
     }
+  }
   }
   if (previewCountryFlag) previewCountryFlag.textContent = flagVal;
   if (previewDisplayName) previewDisplayName.textContent = nameVal;

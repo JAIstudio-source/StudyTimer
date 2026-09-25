@@ -151,10 +151,21 @@ function resolveAvatarSticker(val) {
 
 function getPublicLeaderboardAvatarUrl(profile) {
   if (!profile) return '';
-  const rawAvatar = resolveAvatarSticker(profile.avatarPreset || profile.avatar_url || profile.profile_image_uri || appState.currentUser?.user_metadata?.avatar_url || '');
-  if (!rawAvatar) {
-    const defaultAuthAvatar = appState.currentUser?.user_metadata?.avatar_url || '';
-    if (defaultAuthAvatar) return defaultAuthAvatar;
+  const rawAvatar = (
+    profile.avatarUrl ||
+    profile.avatar_url ||
+    profile.profile_image_uri ||
+    (typeof profile.avatarPreset === 'string' && /^(https?:\/\/|data:|blob:)/i.test(profile.avatarPreset) ? profile.avatarPreset : '') ||
+    appState.currentUser?.user_metadata?.avatar_url ||
+    ''
+  ).trim();
+
+  const isCustomPhoto = /^(https?:\/\/|data:|blob:)/i.test(rawAvatar);
+  if (isCustomPhoto) {
+    if (profile.photoApproved === true || profile.profileStatus === 'approved' || profile.moderationStatus === 'APPROVED') {
+      return rawAvatar;
+    }
+    // Gated: Unapproved custom photo must not leak to public leaderboard
     return '';
   }
   return rawAvatar;

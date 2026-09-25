@@ -6196,7 +6196,7 @@ class MainActivity : AppCompatActivity() {
                             .putLong("last_feedback_submission_epoch", System.currentTimeMillis())
                             .putInt("submissions_count_$todayDateKey", dailyCount + 1)
                             .apply()
-                        Toast.makeText(this@MainActivity, "🎉 Report submitted successfully to database!", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@MainActivity, "🎉 Report submitted successfully! Thank you for your feedback.", Toast.LENGTH_LONG).show()
                         dialog.dismiss()
                     } else {
                         sendBtn.isEnabled = true
@@ -6229,13 +6229,13 @@ class MainActivity : AppCompatActivity() {
                         }
 
                         try {
-                            Toast.makeText(this@MainActivity, "Database unavailable ($errorMessage). Opening email client...", Toast.LENGTH_LONG).show()
+                            Toast.makeText(this@MainActivity, "Opening email client to send your feedback...", Toast.LENGTH_LONG).show()
                             startActivity(Intent.createChooser(emailIntent, "Send Feedback via Email..."))
                             dialog.dismiss()
                         } catch (_: Exception) {
                             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                             clipboard.setPrimaryClip(android.content.ClipData.newPlainText("StudyTimer Feedback", "To: $devEmail\nSubject: $emailSubject\n\n$emailBody"))
-                            Toast.makeText(this@MainActivity, "Feedback copied to clipboard! (Server unavailable & no email app)", Toast.LENGTH_LONG).show()
+                            Toast.makeText(this@MainActivity, "Feedback copied to clipboard! Please email to studytimer737@gmail.com", Toast.LENGTH_LONG).show()
                             dialog.dismiss()
                         }
                     }

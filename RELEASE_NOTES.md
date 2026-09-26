@@ -1,8 +1,7 @@
-# StudyTimer 2.9.9 (versionCode 31)
+# StudyTimer 3.1.0 (versionCode 33)
 
-### What's New in Version 2.9.9 🚀
-• New profile system
-• Minor improvements
+### What's New in Version 3.1.0 🚀
+• fixed known issues.
 
 ---
 
@@ -10,4 +9,5 @@
 - Android 9 (API 28) through Android 16 (API 36)
 
 ## Installation
-Install `StudyTimer-release.apk` (v2.9.9). Updating preserves all your study logs, streaks, and settings.
+Install `StudyTimer-release.apk` (v3.1.0). Updating preserves all your study logs, streaks, and settings.
+

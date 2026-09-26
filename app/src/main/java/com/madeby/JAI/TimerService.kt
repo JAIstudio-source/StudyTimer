@@ -202,6 +202,10 @@ class TimerService : Service() {
                 currentTimerState = TimerState.STUDYING
                 accumulatedStudy = 0L
                 currentBreakSeconds = 0L
+                continuousStudySecs = 0L
+                isPendingActivityConfirmation = false
+                activityConfirmationPromptTime = 0L
+                cancelInactivityCheckNotification()
                 val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
                 val savedRemaining = prefs.getLong("focus_remaining_secs", 0L)
                 val savedLectureEnabled = prefs.getBoolean("lecture_mode_enabled", false)
@@ -231,6 +235,10 @@ class TimerService : Service() {
             }
             TimerState.STUDYING -> {
                 currentTimerState = TimerState.BREAK
+                continuousStudySecs = 0L
+                isPendingActivityConfirmation = false
+                activityConfirmationPromptTime = 0L
+                cancelInactivityCheckNotification()
                 val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
                 if (timerMode == "LECTURE" || lectureModeEnabled) {
                     // Save remaining focus countdown if lecture is ongoing
@@ -248,6 +256,10 @@ class TimerService : Service() {
                 android.util.Log.d("TimerService", "handleToggle: STUDYING → BREAK (mode=$timerMode)")
             }
             TimerState.LECTURE_ENDED -> {
+                continuousStudySecs = 0L
+                isPendingActivityConfirmation = false
+                activityConfirmationPromptTime = 0L
+                cancelInactivityCheckNotification()
                 if (timerMode == "LECTURE") {
                     android.util.Log.d("TimerService", "handleToggle: LECTURE_ENDED → STUDYING fresh (lecture mode)")
                     currentTimerState = TimerState.STUDYING
@@ -265,6 +277,10 @@ class TimerService : Service() {
             }
             TimerState.BREAK -> {
                 currentTimerState = TimerState.STUDYING
+                continuousStudySecs = 0L
+                isPendingActivityConfirmation = false
+                activityConfirmationPromptTime = 0L
+                cancelInactivityCheckNotification()
                 val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
                 val savedRemaining = prefs.getLong("focus_remaining_secs", 0L)
                 if (timerMode == "COUNTDOWN") {
@@ -394,6 +410,10 @@ class TimerService : Service() {
         breakCountdownSecs = 0L
         breakRemainingSecs = 0L
         lectureModeEnabled = false
+        continuousStudySecs = 0L
+        isPendingActivityConfirmation = false
+        activityConfirmationPromptTime = 0L
+        cancelInactivityCheckNotification()
         TimelineLogger.record(this, TimerState.IDLE)
         saveState()
 
@@ -414,6 +434,10 @@ class TimerService : Service() {
         breakCountdownSecs = 0L
         breakRemainingSecs = 0L
         lectureModeEnabled = false
+        continuousStudySecs = 0L
+        isPendingActivityConfirmation = false
+        activityConfirmationPromptTime = 0L
+        cancelInactivityCheckNotification()
         getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit()
             .putLong("focus_remaining_secs", 0L)
             .putLong("break_countdown_secs", 0L)
@@ -487,6 +511,14 @@ class TimerService : Service() {
         triggerVibrationPattern(longArrayOf(0, 600, 250, 600, 250, 600))
     }
 
+    private fun triggerInactivityVibration() {
+        triggerVibrationPattern(longArrayOf(0, 600))
+    }
+
+    private fun triggerBreakEndVibration() {
+        triggerVibrationPattern(longArrayOf(0, 500, 250, 500))
+    }
+
     private fun triggerGoalVibration() {
         triggerVibrationPattern(longArrayOf(0, 300, 150, 300, 150, 500))
     }
@@ -558,6 +590,10 @@ class TimerService : Service() {
                 lectureModeEnabled = false
                 lecturePromptTimestamp = nowSecs
                 focusRemainingSecs = 0L
+                continuousStudySecs = 0L
+                isPendingActivityConfirmation = false
+                activityConfirmationPromptTime = 0L
+                cancelInactivityCheckNotification()
                 lastTimestamp = nowSecs
                 triggerVibration()
                 TimelineLogger.record(this, TimerState.LECTURE_ENDED)
@@ -619,6 +655,10 @@ class TimerService : Service() {
     private fun handleStartBreak(breakSecs: Long = 300L) {
         val now = System.currentTimeMillis() / 1000
         currentTimerState = TimerState.BREAK
+        continuousStudySecs = 0L
+        isPendingActivityConfirmation = false
+        activityConfirmationPromptTime = 0L
+        cancelInactivityCheckNotification()
         CoroutineScope(Dispatchers.IO).launch {
             LeaderboardManager.updateStudyPresence(this@TimerService, false)
         }
@@ -655,6 +695,10 @@ class TimerService : Service() {
                     currentTimerState = TimerState.BREAK
                     focusRemainingSecs = 0L
                     lectureModeEnabled = false
+                    continuousStudySecs = 0L
+                    isPendingActivityConfirmation = false
+                    activityConfirmationPromptTime = 0L
+                    cancelInactivityCheckNotification()
                     lastTimestamp = now
                     TimelineLogger.record(this, TimerState.BREAK)
                     saveState()
@@ -679,7 +723,7 @@ class TimerService : Service() {
                                     .putLong("inactivity_prompt_timestamp", now)
                                     .apply()
                                 postInactivityCheckNotification()
-                                triggerVibration()
+                                triggerInactivityVibration()
                             }
 
                             // Anti-Cheat: Auto-pause if unconfirmed after 5 minutes (300s)
@@ -738,6 +782,10 @@ class TimerService : Service() {
                                         currentTimerState = TimerState.LECTURE_ENDED
                                         lecturePromptTimestamp = now
                                         focusRemainingSecs = 0L
+                                        continuousStudySecs = 0L
+                                        isPendingActivityConfirmation = false
+                                        activityConfirmationPromptTime = 0L
+                                        cancelInactivityCheckNotification()
                                         lastTimestamp = now
                                         TimelineLogger.record(this, TimerState.LECTURE_ENDED)
                                         saveState()
@@ -760,6 +808,10 @@ class TimerService : Service() {
                                         } else {
                                             val autoBreak = prefs.getBoolean("pomodoro_auto_break", true)
                                             prefs.edit().putLong("focus_remaining_secs", 0L).apply()
+                                            continuousStudySecs = 0L
+                                            isPendingActivityConfirmation = false
+                                            activityConfirmationPromptTime = 0L
+                                            cancelInactivityCheckNotification()
                                             if (autoBreak) {
                                                 currentTimerState = TimerState.BREAK
                                                 focusRemainingSecs = 0L
@@ -802,7 +854,7 @@ class TimerService : Service() {
                                     currentTimerState = TimerState.IDLE
                                     breakRemainingSecs = 0L
                                     lastTimestamp = 0L
-                                    triggerVibration()
+                                    triggerBreakEndVibration()
                                     TimelineLogger.record(this, TimerState.IDLE)
                                     saveState()
                                     updateForegroundNotification()
@@ -1029,6 +1081,12 @@ class TimerService : Service() {
                 }
                 else -> {}
             }
+        }
+        if (currentTimerState != TimerState.STUDYING) {
+            continuousStudySecs = 0L
+            isPendingActivityConfirmation = false
+            activityConfirmationPromptTime = 0L
+            cancelInactivityCheckNotification()
         }
         android.util.Log.d("TimerService", "loadSavedState: state=$currentTimerState mode=$timerMode lectureEnabled=$lectureModeEnabled focusRemaining=$focusRemainingSecs continuousStudySecs=$continuousStudySecs")
     }

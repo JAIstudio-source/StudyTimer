@@ -507,11 +507,13 @@ class PlannerPanelBuilder(private val host: MainActivity) {
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(0, dp(8), 0, dp(8))
             }
-            row.addView(TextView(host).apply {
-                text = icon
-                textSize = 20f
-                setPadding(0, 0, dp(12), 0)
-            })
+            if (icon.isNotEmpty()) {
+                row.addView(TextView(host).apply {
+                    text = icon
+                    textSize = 20f
+                    setPadding(0, 0, dp(12), 0)
+                })
+            }
             val textCol = LinearLayout(host).apply {
                 orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -539,14 +541,14 @@ class PlannerPanelBuilder(private val host: MainActivity) {
             insightsCard.addView(row)
         }
 
-        addInsightRow("🔥", "Best Streak", if (overallInsights.bestStreakDays > 0) "${overallInsights.bestStreakDays}d" else "0d", if (overallInsights.bestStreakDays > 0) overallInsights.bestStreakGoalTitle else "No streak yet")
+        addInsightRow("", "Best Streak", if (overallInsights.bestStreakDays > 0) "${overallInsights.bestStreakDays}d" else "0d", if (overallInsights.bestStreakDays > 0) overallInsights.bestStreakGoalTitle else "No streak yet")
         insightsCard.addView(createDivider())
-        addInsightRow("📈", "Most Consistent", if (overallInsights.mostConsistentPct > 0) "${overallInsights.mostConsistentPct}%" else "0%", if (overallInsights.mostConsistentPct > 0) overallInsights.mostConsistentGoalTitle else "No track yet")
+        addInsightRow("", "Most Consistent", if (overallInsights.mostConsistentPct > 0) "${overallInsights.mostConsistentPct}%" else "0%", if (overallInsights.mostConsistentPct > 0) overallInsights.mostConsistentGoalTitle else "No track yet")
         insightsCard.addView(createDivider())
 
         val isDark = themeCoordinator.isDarkMode()
         val matrixBtn = TextView(host).apply {
-            text = "📊 Goal & Habit Grid"
+            text = "Goal & Habit Grid"
             setTextColor(if (isDark) Color.WHITE else 0xFF0F172A.toInt())
             textSize = 14f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
@@ -567,7 +569,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
         insightsCard.addView(matrixBtn)
 
         val themeBtn = TextView(host).apply {
-            text = "🎨 Planner Theme"
+            text = "Planner Theme"
             setTextColor(if (isDark) Color.WHITE else 0xFF0F172A.toInt())
             textSize = 14f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
@@ -1791,7 +1793,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
 
         // Header Title
         val titleText = TextView(host).apply {
-            text = "💬 Report a Problem & Feedback"
+            text = "Report a Problem & Feedback"
             setTextColor(themeCoordinator.textColor)
             textSize = 18f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
@@ -1836,9 +1838,9 @@ class PlannerPanelBuilder(private val host: MainActivity) {
         categories.forEach { cat ->
             val chip = TextView(host).apply {
                 text = when (cat) {
-                    "Bug Report" -> "🐛 Bug"
-                    "Feature Request" -> "💡 Feature"
-                    else -> "💭 Feedback"
+                    "Bug Report" -> "Bug"
+                    "Feature Request" -> "Feature"
+                    else -> "Feedback"
                 }
                 textSize = 12f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
@@ -1913,8 +1915,9 @@ class PlannerPanelBuilder(private val host: MainActivity) {
         }
 
         val checkIcon = TextView(host).apply {
-            text = "☑️"
+            text = "✓"
             textSize = 15f
+            setTextColor(themeCoordinator.primaryColor)
             setPadding(0, 0, dp(8), 0)
         }
         toggleRow.addView(checkIcon)
@@ -1930,7 +1933,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
 
         toggleRow.setOnClickListener {
             includeDiagnostics = !includeDiagnostics
-            checkIcon.text = if (includeDiagnostics) "☑️" else "⬜"
+            checkIcon.text = if (includeDiagnostics) "✓" else "○"
         }
         content.addView(toggleRow)
 
@@ -1975,7 +1978,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
 
         // Submit Feedback Action Button
         val sendBtn = Button(host).apply {
-            text = "🚀 Submit Report"
+            text = "Submit Report"
             setTextColor(Color.WHITE)
             textSize = 13.5f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
@@ -2166,11 +2169,11 @@ class PlannerPanelBuilder(private val host: MainActivity) {
                             .putLong("last_feedback_submission_epoch", System.currentTimeMillis())
                             .putInt("submissions_count_$todayDateKey", dailyCount + 1)
                             .apply()
-                        Toast.makeText(host, "🎉 Report submitted successfully! Thank you for your feedback.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(host, "Report submitted successfully! Thank you for your feedback.", Toast.LENGTH_LONG).show()
                         dialog.dismiss()
                     } else {
                         sendBtn.isEnabled = true
-                        sendBtn.text = "🚀 Submit Report"
+                        sendBtn.text = "Submit Report"
                         android.util.Log.w("FeedbackSubmission", "HTTP Failed: $errorMessage. Triggering email fallback.")
 
                         val devEmail = "studytimer737@gmail.com"
@@ -2255,7 +2258,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
         }
 
         val titleText = TextView(host).apply {
-            text = "⚡ StudyTimer — How to Use Summary"
+            text = "StudyTimer — How to Use Summary"
             setTextColor(themeCoordinator.textColor)
             textSize = 19f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
@@ -2273,7 +2276,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
             orientation = LinearLayout.VERTICAL
         }
 
-        fun createGuideCard(sectionNumber: String, sectionTitle: String, icon: String, bullets: List<Pair<String, String>>) {
+        fun createGuideCard(sectionNumber: String, sectionTitle: String, bullets: List<Pair<String, String>>) {
             val card = LinearLayout(host).apply {
                 orientation = LinearLayout.VERTICAL
                 background = GradientDrawable().apply {
@@ -2292,18 +2295,12 @@ class PlannerPanelBuilder(private val host: MainActivity) {
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(0, 0, 0, dp(10))
             }
-            val iconView = TextView(host).apply {
-                text = icon
-                textSize = 18f
-                setPadding(0, 0, dp(8), 0)
-            }
             val titleView = TextView(host).apply {
                 text = "$sectionNumber. $sectionTitle"
                 setTextColor(themeCoordinator.primaryColor)
                 textSize = 15f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             }
-            headerRow.addView(iconView)
             headerRow.addView(titleView)
             card.addView(headerRow)
 
@@ -2344,7 +2341,6 @@ class PlannerPanelBuilder(private val host: MainActivity) {
         createGuideCard(
             "1",
             "Timer Modes & Focus Flow",
-            "⏱️",
             listOf(
                 "Subject-Wise Timer" to "Tag each session with subjects, custom color badges & icons to track detailed subject breakdowns.",
                 "Pomodoro & White Mode" to "Focus intervals with automatic short/long breaks. Includes an optional Minimal White Background & Black Timer theme.",
@@ -2358,7 +2354,6 @@ class PlannerPanelBuilder(private val host: MainActivity) {
         createGuideCard(
             "2",
             "Planner, Goals & Habit Grid",
-            "📋",
             listOf(
                 "Daily Habit Checklist" to "Create daily study goals, link subjects, set target minutes, and reorder via hold-and-drag.",
                 "Goal Completion Grid & History" to "Tap any goal to inspect its monthly calendar history with checkmark completion or view the multi-day matrix.",
@@ -2370,7 +2365,6 @@ class PlannerPanelBuilder(private val host: MainActivity) {
         createGuideCard(
             "3",
             "Insights, Heatmap & Calendar",
-            "📊",
             listOf(
                 "Daily & Weekly Analytics" to "Comprehensive overview of total focus hours, subject distribution pie chart, and daily study rhythms.",
                 "Activity Heatmap" to "6-month visual consistency grid highlighting your daily study intensity and habit trends.",
@@ -2382,7 +2376,6 @@ class PlannerPanelBuilder(private val host: MainActivity) {
         createGuideCard(
             "4",
             "Themes, Display & Widgets",
-            "🎨",
             listOf(
                 "Curated Theme Palettes" to "Sleek Dark, OLED True Black, and High-Contrast Light theme with custom vibrant accents.",
                 "Fullscreen Digital Clock" to "Distraction-free full-screen clock with immersive status and navigation bar integration.",
@@ -2394,7 +2387,6 @@ class PlannerPanelBuilder(private val host: MainActivity) {
         createGuideCard(
             "5",
             "Offline Privacy & Cloud Backup",
-            "☁️",
             listOf(
                 "100% Offline-First" to "Fast local database ensures all your study logs, streak records, and habits remain strictly private on device.",
                 "Google Cloud Sync" to "Optional cloud backup to safely preserve, sync, and restore records across your devices seamlessly.",
@@ -3588,7 +3580,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
             subjectSelectBtn.addView(subjectArrowTv)
 
             val addQuickSubBtn = TextView(host).apply {
-                text = "➕ Add"
+                text = "+ Add"
                 textSize = 12f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                 setTextColor(themeCoordinator.primaryColor)
@@ -3610,7 +3602,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
                     val s = availableSubjects[i]
                     popup.menu.add(0, i, i, "${s.iconEmoji} ${s.name}")
                 }
-                popup.menu.add(0, 9999, 9999, "➕ Add New Subject...")
+                popup.menu.add(0, 9999, 9999, "+ Add New Subject...")
                 popup.setOnMenuItemClickListener { menuItem ->
                     if (menuItem.itemId == 9999) {
                         showAddCustomSubjectDialog { newSub ->

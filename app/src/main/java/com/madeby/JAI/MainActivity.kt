@@ -201,7 +201,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         content.addView(TextView(this).apply {
-            text = "🎨 Planner Theme"
+            text = "Planner Theme"
             textSize = 18f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             setTextColor(themeCoordinator.textColor)
@@ -511,7 +511,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         content.addView(TextView(this).apply {
-            text = "⚠️ SEVERE WARNING • PERMANENT DELETION"
+            text = "SEVERE WARNING • PERMANENT DELETION"
             setTextColor(Color.parseColor("#EF4444"))
             textSize = 11.5f
             letterSpacing = 0.18f
@@ -546,7 +546,7 @@ class MainActivity : AppCompatActivity() {
         content.addView(confirmInput)
 
         val webInfoText = TextView(this).apply {
-            text = "🌐 Web Deletion Portal: https://get-studytimer.vercel.app/delete-account.html"
+            text = "Web Deletion Portal: https://get-studytimer.vercel.app/delete-account.html"
             setTextColor(themeCoordinator.primaryColor)
             alpha = 0.8f
             textSize = 11.5f
@@ -649,7 +649,7 @@ class MainActivity : AppCompatActivity() {
         })
         content.addView(TextView(this).apply {
             text = if (isOlderThanLocal) {
-                "⚠️ Warning: This backup file was created on $backupDateStr, which is OLDER than your current study data. Importing this will revert recent local progress."
+                "Warning: This backup file was created on $backupDateStr, which is OLDER than your current study data. Importing this will revert recent local progress."
             } else {
                 "Backup from: $backupDateStr\n${getString(R.string.restore_backup_message)}"
             }
@@ -720,7 +720,7 @@ class MainActivity : AppCompatActivity() {
                             showSyncConflictDialog(syncResult.localTimestamp, syncResult.cloudTimestamp, syncResult.cloudRecord)
                         }
                         is CloudSyncManager.SyncCheckResult.Success -> {
-                            Toast.makeText(this@MainActivity, "☁️ Cloud sync updated successfully", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@MainActivity, "Cloud sync updated successfully", Toast.LENGTH_SHORT).show()
                             recreate()
                         }
                         else -> {
@@ -769,7 +769,7 @@ class MainActivity : AppCompatActivity() {
 
         // Option 1: Keep Newer Cloud Data (Recommended)
         val keepCloudBtn = Button(this).apply {
-            text = "⚡ Keep Newer Cloud Data (Recommended)"
+            text = "Keep Newer Cloud Data (Recommended)"
             setTextColor(Color.WHITE)
             textSize = 12.5f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
@@ -786,7 +786,7 @@ class MainActivity : AppCompatActivity() {
                     kotlinx.coroutines.runBlocking {
                         CloudSyncManager.restoreDataFromCloud(this@MainActivity)
                         runOnUiThread {
-                            Toast.makeText(this@MainActivity, "☁️ Restored newer cloud data", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@MainActivity, "Restored newer cloud data", Toast.LENGTH_SHORT).show()
                             tabPageCache.clear()
                             recreate()
                         }
@@ -798,7 +798,7 @@ class MainActivity : AppCompatActivity() {
 
         // Option 2: Merge Both
         val mergeBtn = Button(this).apply {
-            text = "🔀 Merge Both (Combine Records)"
+            text = "Merge Both (Combine Records)"
             setTextColor(themeCoordinator.textColor)
             textSize = 12f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
@@ -813,7 +813,7 @@ class MainActivity : AppCompatActivity() {
                         val merged = CloudSyncManager.mergeCloudAndLocalData(this@MainActivity, cloudRecord)
                         runOnUiThread {
                             if (merged) {
-                                Toast.makeText(this@MainActivity, "🔀 Merged local and cloud data", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(this@MainActivity, "Merged local and cloud data", Toast.LENGTH_SHORT).show()
                             } else {
                                 Toast.makeText(this@MainActivity, "Merge failed, keeping local state", Toast.LENGTH_SHORT).show()
                             }
@@ -828,7 +828,7 @@ class MainActivity : AppCompatActivity() {
 
         // Option 3: Overwrite Cloud with Local
         val overwriteBtn = Button(this).apply {
-            text = "⚠️ Overwrite Cloud with Local Data"
+            text = "Overwrite Cloud with Local Data"
             setTextColor(Color.parseColor("#EF4444"))
             textSize = 11.5f
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)

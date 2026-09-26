@@ -199,7 +199,7 @@ class SubjectPieChartView(context: Context) : View(context) {
             val otherSum = otherItems.sumOf { it.value }
 
             slices.addAll(topItems)
-            slices.add(PieSlice("Others", "📂", otherSum, "#64748B", otherItems.size))
+            slices.add(PieSlice("Others", "", otherSum, "#64748B", otherItems.size))
         } else {
             slices.addAll(rawItems)
         }
@@ -614,8 +614,9 @@ class SubjectPieChartView(context: Context) : View(context) {
                 insideBadgePaint.textSize = dp(11f)
                 insideSubBadgePaint.textSize = dp(9.5f)
 
+                val prefix = if (slice.emoji.isNotBlank()) "${slice.emoji} " else ""
                 if (words.size >= 2) {
-                    val line1 = "${slice.emoji} ${words[0]}"
+                    val line1 = "$prefix${words[0]}"
                     val line2 = "${words.drop(1).joinToString(" ")} $pct%"
                     val el1 = ellipsizeText(line1, insideBadgePaint, maxInsideW)
                     val el2 = ellipsizeText(line2, insideSubBadgePaint, maxInsideW)
@@ -623,7 +624,7 @@ class SubjectPieChartView(context: Context) : View(context) {
                     canvas.drawText(el1, labelX, labelY - dp(3f), insideBadgePaint)
                     canvas.drawText(el2, labelX, labelY + dp(10f), insideSubBadgePaint)
                 } else {
-                    val displayTitle = if (slice.subCount > 1) "${slice.emoji} ${slice.label} (${slice.subCount})" else "${slice.emoji} ${slice.label}"
+                    val displayTitle = if (slice.subCount > 1) "$prefix${slice.label} (${slice.subCount})" else "$prefix${slice.label}"
                     val elTitle = ellipsizeText(displayTitle, insideBadgePaint, maxInsideW)
 
                     canvas.drawText(elTitle, labelX, labelY - dp(3f), insideBadgePaint)
@@ -631,7 +632,7 @@ class SubjectPieChartView(context: Context) : View(context) {
                 }
             } else if (sweepAngle >= 26f) {
                 insideBadgePaint.textSize = dp(11f)
-                val badgeText = "${slice.emoji} $pct%"
+                val badgeText = if (slice.emoji.isNotBlank()) "${slice.emoji} $pct%" else "$pct%"
                 val fontMetrics = insideBadgePaint.fontMetrics
                 val baseline = labelY - (fontMetrics.ascent + fontMetrics.descent) / 2f
                 canvas.drawText(badgeText, labelX, baseline, insideBadgePaint)
@@ -639,7 +640,8 @@ class SubjectPieChartView(context: Context) : View(context) {
                 insideBadgePaint.textSize = dp(12f)
                 val fontMetrics = insideBadgePaint.fontMetrics
                 val baseline = labelY - (fontMetrics.ascent + fontMetrics.descent) / 2f
-                canvas.drawText(slice.emoji, labelX, baseline, insideBadgePaint)
+                val smallBadge = if (slice.emoji.isNotBlank()) slice.emoji else "$pct%"
+                canvas.drawText(smallBadge, labelX, baseline, insideBadgePaint)
             }
         }
     }

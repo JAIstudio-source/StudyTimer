@@ -45,7 +45,7 @@ class SubjectDialogHelper(private val host: MainActivity) {
             }
 
             val title = TextView(host).apply {
-                text = "🏷️ Select Study Subject"
+                text = "Select Study Subject"
                 textSize = 18f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                 setTextColor(themeCoordinator.textColor)
@@ -123,7 +123,7 @@ class SubjectDialogHelper(private val host: MainActivity) {
             container.addView(scrollContainer)
 
             val addBtn = Button(host).apply {
-                text = "➕ Add Custom Subject"
+                text = "Add Custom Subject"
                 textSize = 13.5f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                 setTextColor(themeCoordinator.primaryColor)
@@ -236,7 +236,7 @@ class SubjectDialogHelper(private val host: MainActivity) {
             }
 
             val title = TextView(host).apply {
-                text = "➕ Add New Subject"
+                text = "Add New Subject"
                 textSize = 17f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                 setTextColor(themeCoordinator.textColor)
@@ -315,7 +315,7 @@ class SubjectDialogHelper(private val host: MainActivity) {
 
             // Custom Hue Color Slider Bar
             val hueLabel = TextView(host).apply {
-                text = "🎨 Custom Hue Bar"
+                text = "Custom Hue Slider"
                 setTextColor(themeCoordinator.textColor)
                 alpha = 0.6f
                 textSize = 11.5f
@@ -410,7 +410,7 @@ class SubjectDialogHelper(private val host: MainActivity) {
         }
 
         headerRow.addView(TextView(host).apply {
-            text = "📊 Subject Details"
+            text = "Subject Details"
             setTextColor(themeCoordinator.textColor)
             textSize = 20f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
@@ -418,7 +418,7 @@ class SubjectDialogHelper(private val host: MainActivity) {
         })
 
         val closeBtn = TextView(host).apply {
-            text = "✕ Close"
+            text = "Close"
             setTextColor(themeCoordinator.primaryColor)
             textSize = 14f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
@@ -483,7 +483,7 @@ class SubjectDialogHelper(private val host: MainActivity) {
 
         fun updateDateView() {
             val parsedDate = try { sdfKey.parse(currentDateKey) } catch (_: Exception) { Date() } ?: Date()
-            val formattedTitle = if (currentDateKey == todayKey) "📅 Today (${sdfDisplay.format(parsedDate)})" else "📅 ${sdfDisplay.format(parsedDate)}"
+            val formattedTitle = if (currentDateKey == todayKey) "Today (${sdfDisplay.format(parsedDate)})" else sdfDisplay.format(parsedDate)
             dateTitleBtn.text = formattedTitle
 
             val isToday = (currentDateKey == todayKey)

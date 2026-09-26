@@ -295,7 +295,13 @@ class BreakAndLectureDialogHelper(private val host: MainActivity) {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46)).apply {
                 setMargins(0, 0, 0, dp(8))
             }
-            setOnClickListener { dialog.dismiss() }
+            setOnClickListener {
+                dialog.dismiss()
+                val confirmIntent = Intent(host, TimerService::class.java).apply {
+                    action = TimerService.ACTION_CONFIRM_ACTIVITY
+                }
+                host.startService(confirmIntent)
+            }
         }
         content.addView(btnKeep)
 
@@ -307,10 +313,18 @@ class BreakAndLectureDialogHelper(private val host: MainActivity) {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44))
             setOnClickListener {
                 dialog.dismiss()
+                val confirmIntent = Intent(host, TimerService::class.java).apply {
+                    action = TimerService.ACTION_CONFIRM_ACTIVITY
+                }
+                host.startService(confirmIntent)
                 host.handleStartBreak()
             }
         }
         content.addView(btnBreak)
+
+        dialog.setOnDismissListener {
+            host.onInactivityDialogDismissed()
+        }
 
         dialog.setContentView(content)
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)

@@ -3719,10 +3719,17 @@ class MainActivity : AppCompatActivity() {
 
     internal fun showScheduledLecturePromptDialog(item: LectureScheduleItem, remainingSecs: Long, skipKey: String) = BreakAndLectureDialogHelper(this).showScheduledLecturePromptDialog(item, remainingSecs, skipKey)
 
-    private var inactivityCheckDialogShowing = false
-    private var inactivityCheckDialog: Dialog? = null
+    internal var inactivityCheckDialogShowing = false
+    internal var inactivityCheckDialog: Dialog? = null
 
-    internal fun showInactivityCheckDialog() = BreakAndLectureDialogHelper(this).showInactivityCheckDialog()
+    internal fun showInactivityCheckDialog() {
+        inactivityCheckDialogShowing = true
+        BreakAndLectureDialogHelper(this).showInactivityCheckDialog()
+    }
+
+    internal fun onInactivityDialogDismissed() {
+        inactivityCheckDialogShowing = false
+    }
 
     override fun onStart() {
         super.onStart()

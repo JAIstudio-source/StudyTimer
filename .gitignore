@@ -25,3 +25,5 @@
 /cardtest/tools/classes/
 *debug*.apk
 StudyTimer-debug.apk
+!debug/
+!debug/*.apk

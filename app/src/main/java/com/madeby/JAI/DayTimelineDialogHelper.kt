@@ -2,13 +2,15 @@ package com.madeby.JAI
 
 import android.app.Dialog
 import android.content.Context
-import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -17,6 +19,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.math.max
 
 class DayTimelineDialogHelper(private val host: MainActivity) {
 
@@ -29,7 +32,6 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
     fun dayBlocks(dateStr: String): Pair<List<BlockInfo>, List<BlockInfo>> = statsEngine.dayBlocks(dateStr)
 
     fun reconcileDayTotals(dateStr: String) {
-        // Reconcile aggregated day totals from granular timeline
         val (sessions, breaks) = dayBlocks(dateStr)
         val fSecs = sessions.sumOf { it.secs }
         val bSecs = breaks.sumOf { it.secs }
@@ -56,6 +58,9 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
         reconcileDayTotals(dateStr)
         host.invalidateStatsCache()
         host.refreshStatsPanel()
+        host.recalculateStreak()
+        host.checkCelebration()
+        StudyWidgetProvider.refresh(host)
     }
 
     fun showBlockEditDialog(dateStr: String, block: BlockInfo, isBreak: Boolean, onApplied: (() -> Unit)? = null) {
@@ -167,11 +172,10 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
         dialog.show()
         val width = (host.resources.displayMetrics.widthPixels * 0.90f).toInt().coerceAtMost(dp(380))
-        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+        dialog.window?.setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
     fun showDevTimelineEditor() {
-        // Timeline developer editor trigger
         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         showDayDialog(todayStr, "Today's Timeline")
     }
@@ -195,12 +199,41 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
         container: LinearLayout,
         sessions: List<BlockInfo>,
         breaks: List<BlockInfo>,
+        dateStr: String? = null,
         onDelete: ((BlockInfo, Boolean) -> Unit)? = null
     ) {
         container.removeAllViews()
-        val allItems = (sessions.map { it to false } + breaks.map { it to true }).sortedBy { it.first.startMs }
+        val rows = ArrayList<Pair<BlockInfo, Boolean>>()
+        for (s in sessions) rows.add(Pair(s, false))
+        for (b in breaks) rows.add(Pair(b, true))
+        rows.sortBy { it.first.startMs }
 
-        for ((block, isBreak) in allItems) {
+        var prevWasBreak = false
+        for ((b, isBreak) in rows) {
+            val blockLabel: String
+            val blockColor: Int
+            if (isBreak) {
+                blockLabel = if (b.manual) "☕ Break (Manual)" else "☕ Break"
+                blockColor = themeCoordinator.secondaryColor
+            } else {
+                val matchedSub = if (b.subjectId != null || (!b.subjectName.isNullOrBlank() && b.subjectName != "Focus")) {
+                    SubjectTagManager.resolveSubject(host, b.subjectId, b.subjectName, b.subjectColor)
+                } else null
+
+                blockLabel = if (matchedSub != null) {
+                    "${matchedSub.iconEmoji} ${matchedSub.name}"
+                } else {
+                    if (b.manual) "⏱ Focus (Manual)" else "⏱ Focus"
+                }
+
+                blockColor = try {
+                    if (matchedSub != null && matchedSub.colorHex.isNotEmpty()) Color.parseColor(matchedSub.colorHex)
+                    else themeCoordinator.primaryColor
+                } catch (_: Exception) {
+                    themeCoordinator.primaryColor
+                }
+            }
+
             val row = LinearLayout(host).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
@@ -210,53 +243,70 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply {
-                    setMargins(0, 0, 0, dp(4))
+                    setMargins(0, if (prevWasBreak) dp(8) else dp(4), 0, 0)
                 }
             }
 
-            val icon = TextView(host).apply {
-                text = if (isBreak) "☕" else "⏱️"
-                textSize = 14f
-                setPadding(0, 0, dp(8), 0)
-            }
-            row.addView(icon)
-
             val blockTextView = TextView(host).apply {
-                this.text = formatBlockRow(block.startMs, block.endMs, block.secs)
-                textSize = 12.5f
-                setTextColor(themeCoordinator.textColor)
+                text = "$blockLabel  ${formatBlockRow(b.startMs, b.endMs, b.secs)}"
+                textSize = 12f
+                typeface = Typeface.MONOSPACE
+                setTextColor(blockColor)
+                alpha = 0.95f
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
             row.addView(blockTextView)
 
-            if (onDelete != null) {
+            if (onDelete != null && !b.running) {
                 val delBtn = TextView(host).apply {
-                    this.text = "✕"
+                    text = "✕"
                     textSize = 12f
                     setTextColor(Color.parseColor("#EF4444"))
                     alpha = 0.7f
-                    setPadding(dp(8), dp(4), dp(8), dp(4))
-                    setOnClickListener { onDelete(block, isBreak) }
+                    setPadding(dp(10), dp(4), dp(4), dp(4))
+                    setOnClickListener { onDelete(b, isBreak) }
                 }
                 row.addView(delBtn)
             }
+
+            if (dateStr != null && !b.running) {
+                row.setOnClickListener {
+                    showBlockEditDialog(dateStr, b, isBreak) {
+                        // refresh handled by caller
+                    }
+                }
+            }
+
             container.addView(row)
+            prevWasBreak = isBreak
         }
     }
 
     fun confirmDeleteBlock(dateStr: String, block: BlockInfo, isBreak: Boolean, onDone: () -> Unit = {}) {
+        val kind = if (isBreak) "break" else "focus"
         DeveloperToolsHelper.showThemedConfirmDialog(
             activity = host,
             themeCoordinator = themeCoordinator,
-            title = "Delete Interval?",
-            message = "Remove interval from ${TimeFormat.formatWallClock(host, block.startMs)} to ${TimeFormat.formatWallClock(host, block.endMs)}?",
+            title = "Delete $kind Interval?",
+            message = "Remove interval from ${TimeFormat.formatWallClock(host, block.startMs)} to ${TimeFormat.formatWallClock(host, block.endMs)} (${formatDuration(block.secs)})?",
             confirmText = "Delete",
             isDestructive = true
         ) {
             TimelineLogger.deleteBlock(host, block.startMs, block.endMs)
             reconcileDayTotals(dateStr)
+            if (!isBreak) {
+                val subId = block.subjectId ?: SubjectTagManager.getSelectedSubject(host).id
+                val curSubjMap = SubjectTagManager.getSubjectDurationsForDate(host, dateStr)
+                val curSubjSecs = curSubjMap[subId] ?: 0L
+                val deduct = Math.min(curSubjSecs, block.secs)
+                if (deduct > 0) SubjectTagManager.adjustSubjectStudyTime(host, subId, -deduct, dateStr)
+            }
             host.invalidateStatsCache()
             host.refreshStatsPanel()
+            host.recalculateStreak()
+            host.checkCelebration()
+            StudyWidgetProvider.refresh(host)
+            Toast.makeText(host, "Interval deleted", Toast.LENGTH_SHORT).show()
             onDone()
         }
     }
@@ -270,38 +320,58 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
             confirmText = "Delete All",
             isDestructive = true
         ) {
+            host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit().apply {
+                remove("${dateStr}_focus_total")
+                remove("${dateStr}_break_total")
+                remove("${dateStr}_focus_manual")
+                remove("${dateStr}_break_manual")
+            }.apply()
             TimelineLogger.deleteDay(host, dateStr)
+            SubjectTagManager.clearTodaySubjectDurations(host, dateStr)
             reconcileDayTotals(dateStr)
             host.invalidateStatsCache()
             host.refreshStatsPanel()
+            host.recalculateStreak()
+            Toast.makeText(host, "Day records deleted", Toast.LENGTH_SHORT).show()
         }
     }
 
     fun showDayDialog(dateStr: String, label: String) {
+        val shared = host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val todayStr = host.dateKeyFmt.format(Date())
+        val focusSecs = shared.getLong("${dateStr}_focus_total", 0L) + (if (dateStr == todayStr) host.accumulatedStudy else 0L)
+        val breakSecs = shared.getLong("${dateStr}_break_total", 0L) + (if (dateStr == todayStr) host.currentBreakSeconds else 0L)
+        val (allSessions, allBreaks) = dayBlocks(dateStr)
+        val sessions = allSessions.filter { it.secs >= 60L }
+        val longest = sessions.maxOfOrNull { it.secs } ?: 0L
+        val goal = host.resolveGoalFor(dateStr)
+        val goalReached = goal > 0L && focusSecs >= goal
+        val goalColor = if (goalReached) 0xFF43D36E.toInt() else 0xFFFF4D4D.toInt()
+
         val dialog = Dialog(host)
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
 
         val content = LinearLayout(host).apply {
             orientation = LinearLayout.VERTICAL
             background = themeCoordinator.createDialogBackground(28f)
-            setPadding(dp(22), dp(20), dp(22), dp(20))
+            setPadding(dp(20), dp(20), dp(20), dp(18))
         }
 
+        // Header Row with Date Label & Close Button
         val headerRow = LinearLayout(host).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, 0, 0, dp(12))
+            setPadding(0, 0, 0, dp(4))
         }
-
         headerRow.addView(TextView(host).apply {
             text = "📅 $label"
-            textSize = 18f
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 16f
+            letterSpacing = 0.08f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setTextColor(themeCoordinator.textColor)
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         })
-
-        val closeBtn = TextView(host).apply {
+        val closeTopBtn = TextView(host).apply {
             text = "✕"
             textSize = 15f
             setTextColor(themeCoordinator.textColor)
@@ -309,74 +379,200 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
             setPadding(dp(6), dp(4), dp(6), dp(4))
             setOnClickListener { dialog.dismiss() }
         }
-        headerRow.addView(closeBtn)
+        headerRow.addView(closeTopBtn)
         content.addView(headerRow)
 
-        val (sessions, breaks) = dayBlocks(dateStr)
-        val fTotal = sessions.sumOf { it.secs }
-        val bTotal = breaks.sumOf { it.secs }
+        // Daily Goal details & status
+        val goalLabel = host.formatGoalLabel(goal)
+        val focusLabel = if (focusSecs >= 3600) "${focusSecs / 3600}h ${(focusSecs % 3600) / 60}m" else "${(focusSecs % 3600) / 60}m"
+        val pct = if (goal > 0L) (focusSecs.toFloat() / goal.toFloat() * 100f).toInt() else 0
 
-        val summaryText = TextView(host).apply {
-            text = "Total Focus: ${formatDuration(fTotal)} · Total Break: ${formatDuration(bTotal)}"
-            textSize = 12.5f
-            setTextColor(themeCoordinator.primaryColor)
+        content.addView(TextView(host).apply {
+            text = if (goalReached) {
+                "🎯 Daily Goal: $goalLabel • Reached ($focusLabel, $pct%)"
+            } else if (goal > 0L) {
+                val remaining = max(0L, goal - focusSecs)
+                val toGo = "${host.formatGoalLabel(remaining)} left"
+                "Daily Goal: $goalLabel • $pct% ($toGo)"
+            } else {
+                "Total Study: $focusLabel (No goal set)"
+            }
+            setTextColor(goalColor)
+            textSize = 13.5f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(0, 0, 0, dp(12))
-        }
-        content.addView(summaryText)
+            setPadding(0, dp(6), 0, 0)
+        })
 
-        val scroll = ScrollView(host).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(220))
-        }
-        val rowsBox = LinearLayout(host).apply { orientation = LinearLayout.VERTICAL }
-
-        fun refreshRows() {
-            val (curSessions, curBreaks) = dayBlocks(dateStr)
-            fillBlockRows(rowsBox, curSessions, curBreaks) { b, isBrk ->
-                confirmDeleteBlock(dateStr, b, isBrk) {
-                    refreshRows()
+        // Progress bar for daily goal
+        if (goal > 0L) {
+            val barPct = (focusSecs.toFloat() / goal.toFloat()).coerceIn(0f, 1f)
+            val bar = FrameLayout(host).apply {
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(4).toFloat()
+                    setColor(tintedColor(themeCoordinator.textColor, 26))
+                }
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(8)).apply {
+                    setMargins(0, dp(7), 0, 0)
                 }
             }
+            val fill = View(host).apply {
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(4).toFloat()
+                    setColor(goalColor)
+                }
+            }
+            bar.addView(fill, FrameLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, Gravity.START))
+            bar.post {
+                val target = (bar.width * barPct).toInt()
+                if (target > 0) {
+                    val lp = fill.layoutParams as FrameLayout.LayoutParams
+                    lp.width = target.coerceAtLeast(dp(6))
+                    fill.layoutParams = lp
+                }
+            }
+            content.addView(bar)
         }
-        refreshRows()
-        scroll.addView(rowsBox)
-        content.addView(scroll)
 
-        val btnRow = LinearLayout(host).apply {
+        // Focus & Break Summary
+        content.addView(TextView(host).apply {
+            text = host.getString(R.string.focus_break_summary, focusSecs / 3600, (focusSecs % 3600) / 60, breakSecs / 3600, (breakSecs % 3600) / 60)
+            setTextColor(themeCoordinator.textColor)
+            textSize = 14.5f
+            typeface = Typeface.MONOSPACE
+            setPadding(0, dp(8), 0, 0)
+        })
+
+        // Sessions count & longest session
+        content.addView(TextView(host).apply {
+            text = host.getString(R.string.sessions_summary, sessions.size, longest / 3600, (longest % 3600) / 60)
+            setTextColor(themeCoordinator.textColor)
+            alpha = 0.6f
+            textSize = 12f
+            setPadding(0, dp(2), 0, dp(4))
+        })
+
+        // Expandable Session Logs dropdown
+        if (allSessions.isEmpty() && allBreaks.isEmpty()) {
+            content.addView(TextView(host).apply {
+                text = host.getString(R.string.no_session_log_day)
+                setTextColor(themeCoordinator.textColor)
+                alpha = 0.45f
+                textSize = 12f
+                setPadding(0, dp(10), 0, 0)
+            })
+        } else {
+            val logsRow = LinearLayout(host).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, dp(10), 0, dp(4))
+            }
+            val logsChevron = TextView(host).apply {
+                text = "▾"
+                textSize = 13f
+                setTextColor(themeCoordinator.primaryColor)
+            }
+            logsRow.addView(TextView(host).apply {
+                text = host.getString(R.string.cal_see_logs)
+                setTextColor(themeCoordinator.primaryColor)
+                textSize = 13.5f
+                letterSpacing = 0.08f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            })
+            logsRow.addView(LinearLayout(host).apply { layoutParams = LinearLayout.LayoutParams(dp(6), 0) })
+            logsRow.addView(logsChevron)
+
+            val logsScroll = ScrollView(host).apply {
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(180))
+                visibility = View.GONE
+            }
+            val logsBox = LinearLayout(host).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(0, dp(4), 0, 0)
+            }
+            logsScroll.addView(logsBox)
+
+            fun refreshLogs() {
+                val (curSessions, curBreaks) = dayBlocks(dateStr)
+                fillBlockRows(logsBox, curSessions, curBreaks, dateStr = dateStr, onDelete = { b, isBrk ->
+                    confirmDeleteBlock(dateStr, b, isBrk) {
+                        refreshLogs()
+                    }
+                })
+            }
+            refreshLogs()
+
+            logsRow.setOnClickListener {
+                val show = logsScroll.visibility != View.VISIBLE
+                logsScroll.visibility = if (show) View.VISIBLE else View.GONE
+                logsChevron.text = if (show) "▴" else "▾"
+            }
+
+            content.addView(logsRow)
+            content.addView(logsScroll)
+        }
+
+        // View Subject Breakdown Button
+        val seePieChartBtn = TextView(host).apply {
+            text = "📊 View Subject Breakdown"
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 13.5f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 40), 16f)
+            setPadding(dp(16), dp(10), dp(16), dp(10))
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, dp(14), 0, 0)
+            }
+            setOnClickListener {
+                dialog.dismiss()
+                host.showPieChartDetailsModal(dateStr)
+            }
+        }
+        content.addView(seePieChartBtn)
+
+        // Bottom Action Buttons (Clear Day & Close)
+        val bottomRow = LinearLayout(host).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.END
-            setPadding(0, dp(14), 0, 0)
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(10), 0, 0)
         }
 
         val delDayBtn = Button(host).apply {
             text = "Clear Day"
             setTextColor(Color.parseColor("#EF4444"))
+            textSize = 12.5f
             background = null
             setOnClickListener {
                 dialog.dismiss()
                 confirmDeleteDay(dateStr, label)
             }
         }
-        btnRow.addView(delDayBtn)
+        bottomRow.addView(delDayBtn)
 
-        val doneBtn = Button(host).apply {
-            text = "Done"
-            setTextColor(Color.WHITE)
+        bottomRow.addView(View(host).apply { layoutParams = LinearLayout.LayoutParams(0, 0, 1f) })
+
+        val closeBtn = TextView(host).apply {
+            text = "Close"
+            gravity = Gravity.CENTER
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 12.5f
+            letterSpacing = 0.12f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             background = GradientDrawable().apply {
-                cornerRadius = dp(12).toFloat()
-                setColor(themeCoordinator.primaryColor)
+                cornerRadius = dp(20).toFloat()
+                setColor(tintedColor(themeCoordinator.primaryColor, 26))
             }
+            setPadding(dp(20), dp(8), dp(20), dp(8))
             setOnClickListener { dialog.dismiss() }
         }
-        btnRow.addView(doneBtn)
-        content.addView(btnRow)
+        bottomRow.addView(closeBtn)
+        content.addView(bottomRow)
 
         dialog.setContentView(content)
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         dialog.show()
-        val width = (host.resources.displayMetrics.widthPixels * 0.90f).toInt().coerceAtMost(dp(380))
-        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+        val width = (host.resources.displayMetrics.widthPixels * 0.88f).toInt().coerceAtMost(dp(400))
+        dialog.window?.setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
     fun showMonthDialog(mName: String, focusSecs: Long, breakSecs: Long) {
@@ -386,86 +582,106 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
         val content = LinearLayout(host).apply {
             orientation = LinearLayout.VERTICAL
             background = themeCoordinator.createDialogBackground(28f)
-            setPadding(dp(22), dp(20), dp(22), dp(20))
+            setPadding(dp(20), dp(20), dp(20), dp(18))
         }
 
         content.addView(TextView(host).apply {
-            text = "🗓️ $mName Overview"
-            textSize = 18f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setTextColor(themeCoordinator.textColor)
-        })
-
-        content.addView(TextView(host).apply {
-            text = "Monthly focus time and break statistics breakdown:"
-            textSize = 12.5f
-            setTextColor(themeCoordinator.textColor)
-            alpha = 0.6f
-            setPadding(0, dp(3), 0, dp(14))
-        })
-
-        val fCard = LinearLayout(host).apply {
-            orientation = LinearLayout.VERTICAL
-            background = themeCoordinator.createCardBackground(14f)
-            setPadding(dp(14), dp(12), dp(14), dp(12))
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                setMargins(0, 0, 0, dp(8))
-            }
-        }
-        fCard.addView(TextView(host).apply {
-            text = "TOTAL FOCUS TIME"
-            textSize = 11f
+            text = "🗓️ $mName"
             setTextColor(themeCoordinator.primaryColor)
+            textSize = 15f
+            letterSpacing = 0.1f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         })
-        fCard.addView(TextView(host).apply {
-            text = formatDuration(focusSecs)
-            textSize = 18f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setTextColor(themeCoordinator.textColor)
-            setPadding(0, dp(4), 0, 0)
-        })
-        content.addView(fCard)
 
-        val bCard = LinearLayout(host).apply {
-            orientation = LinearLayout.VERTICAL
-            background = themeCoordinator.createCardBackground(14f)
-            setPadding(dp(14), dp(12), dp(14), dp(12))
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                setMargins(0, 0, 0, dp(14))
+        content.addView(TextView(host).apply {
+            text = host.getString(R.string.focus_break_summary, focusSecs / 3600, (focusSecs % 3600) / 60, breakSecs / 3600, (breakSecs % 3600) / 60)
+            setTextColor(themeCoordinator.textColor)
+            textSize = 14.5f
+            typeface = Typeface.MONOSPACE
+            setPadding(0, dp(8), 0, 0)
+        })
+
+        val shared = host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val daySdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val dayLabelSdf = SimpleDateFormat("dd MMM", Locale.getDefault())
+        val todayStr = daySdf.format(Date())
+        val monthSdf = SimpleDateFormat("MMM yyyy", Locale.getDefault())
+        val monthLongSdf = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+        val days = shared.all.keys
+            .filter { it.endsWith("_focus_total") }
+            .mapNotNull { key ->
+                val dStr = key.removeSuffix("_focus_total")
+                val parsed = try { daySdf.parse(dStr) } catch (_: Exception) { null }
+                if (parsed != null && (monthSdf.format(parsed) == mName || monthLongSdf.format(parsed) == mName)) dStr to parsed else null
+            }
+            .sortedBy { it.second.time }
+
+        val dayList = LinearLayout(host).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(8), 0, 0) }
+        if (days.isEmpty()) {
+            dayList.addView(TextView(host).apply {
+                text = host.getString(R.string.no_days_this_month)
+                setTextColor(themeCoordinator.textColor)
+                alpha = 0.45f
+                textSize = 12f
+                setPadding(0, dp(8), 0, 0)
+            })
+        } else {
+            for ((dStr, parsed) in days) {
+                var f = shared.getLong("${dStr}_focus_total", 0L)
+                var b = shared.getLong("${dStr}_break_total", 0L)
+                if (dStr == todayStr) {
+                    f += host.accumulatedStudy
+                    b += host.currentBreakSeconds
+                }
+                if (f <= 0L && b <= 0L) continue
+                val row = LinearLayout(host).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    setPadding(0, dp(5), 0, dp(5))
+                }
+                row.addView(TextView(host).apply {
+                    text = host.getString(R.string.day_row_summary, dayLabelSdf.format(parsed), f / 3600, (f % 3600) / 60, b / 3600, (b % 3600) / 60)
+                    setTextColor(themeCoordinator.textColor)
+                    textSize = 12f
+                    typeface = Typeface.MONOSPACE
+                    alpha = 0.85f
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                })
+                row.setOnClickListener {
+                    dialog.dismiss()
+                    showDayDialog(dStr, dayLabelSdf.format(parsed))
+                }
+                dayList.addView(row)
             }
         }
-        bCard.addView(TextView(host).apply {
-            text = "TOTAL BREAK TIME"
-            textSize = 11f
-            setTextColor(themeCoordinator.secondaryColor)
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-        })
-        bCard.addView(TextView(host).apply {
-            text = formatDuration(breakSecs)
-            textSize = 18f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setTextColor(themeCoordinator.textColor)
-            setPadding(0, dp(4), 0, 0)
-        })
-        content.addView(bCard)
+        val dayScroll = ScrollView(host).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(200))
+            isVerticalScrollBarEnabled = false
+        }
+        dayScroll.addView(dayList)
+        content.addView(dayScroll)
 
-        val closeBtn = Button(host).apply {
+        content.addView(TextView(host).apply {
             text = "Close"
-            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            setTextColor(themeCoordinator.primaryColor)
+            textSize = 12f
+            letterSpacing = 0.18f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             background = GradientDrawable().apply {
-                cornerRadius = dp(12).toFloat()
-                setColor(themeCoordinator.primaryColor)
+                cornerRadius = dp(20).toFloat()
+                setColor(tintedColor(themeCoordinator.primaryColor, 26))
+            }
+            setPadding(dp(16), dp(10), dp(16), dp(10))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, dp(14), 0, 0)
             }
             setOnClickListener { dialog.dismiss() }
-        }
-        content.addView(closeBtn)
+        })
 
         dialog.setContentView(content)
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         dialog.show()
-        val width = (host.resources.displayMetrics.widthPixels * 0.90f).toInt().coerceAtMost(dp(380))
-        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+        val width = (host.resources.displayMetrics.widthPixels * 0.85f).toInt().coerceAtMost(dp(380))
+        dialog.window?.setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 }

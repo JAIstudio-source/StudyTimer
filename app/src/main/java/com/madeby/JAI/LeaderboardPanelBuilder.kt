@@ -539,16 +539,33 @@ class LeaderboardPanelBuilder(private val host: MainActivity) {
         } else {
             entry.bio
         }
-        if (bioText.isNotBlank()) {
-            val mottoView = TextView(host).apply {
-                text = "\"$bioText\""
-                textSize = 12.5f
-                alpha = 0.8f
-                setTextColor(host.themeCoordinator.textColor)
-                gravity = Gravity.CENTER
-                setPadding(0, 0, 0, dp(12))
+        val mottoView = TextView(host).apply {
+            text = if (bioText.isNotBlank()) "\"$bioText\"" else ""
+            textSize = 12.5f
+            alpha = 0.8f
+            setTextColor(host.themeCoordinator.textColor)
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, dp(12))
+            visibility = if (bioText.isNotBlank()) View.VISIBLE else View.GONE
+        }
+        dialogRoot.addView(mottoView)
+
+        // If not current user, ensure latest motto & target exam are fetched from server
+        if (!isCurrent && entry.userId.isNotBlank()) {
+            CoroutineScope(Dispatchers.IO).launch {
+                val pubProfile = LeaderboardManager.fetchUserProfile(host, entry.userId)
+                if (pubProfile != null) {
+                    withContext(Dispatchers.Main) {
+                        if (pubProfile.targetExam.isNotBlank()) {
+                            trackPill.text = "🎯 ${pubProfile.targetExam}"
+                        }
+                        if (pubProfile.bio.isNotBlank()) {
+                            mottoView.text = "\"${pubProfile.bio}\""
+                            mottoView.visibility = View.VISIBLE
+                        }
+                    }
+                }
             }
-            dialogRoot.addView(mottoView)
         }
 
         // Stats Summary Grid

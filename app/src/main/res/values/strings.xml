@@ -241,13 +241,6 @@
     <string name="cd_open_insights">Open insights</string>
     <string name="streak_label">Streak</string>
     <string name="below_threshold">&lt; %1$s</string>
-    <string name="color_white">White</string>
-    <string name="color_rose">Rose</string>
-    <string name="color_lavender">Lavender</string>
-    <string name="color_sky">Sky</string>
-    <string name="color_orange">Orange</string>
-    <string name="color_mint">Mint</string>
-
     <!-- Timer states -->
     <string name="break_prefix">Break: %1$s</string>
     <string name="resume_deep_focus">Resume Studying</string>
@@ -258,14 +251,6 @@
     <string name="break_in_progress">Break Time</string>
     <string name="paused">Paused</string>
     <string name="resume">Resume</string>
-
-    <!-- Onboarding -->
-    <string name="welcome">Welcome to StudyTimer</string>
-    <string name="get_started">Get Started</string>
-    <string name="onb_step_1">Tap Start Studying to begin tracking your study session</string>
-    <string name="onb_step_2">Take breaks whenever you need — they won\'t break your streak</string>
-    <string name="onb_step_3">Visit Insights to see your consistency heatmap and subject charts</string>
-    <string name="onb_step_4">Set up an evening reminder in Settings to stay on track with your goals</string>
 
     <!-- Timer service notifications -->
     <string name="notif_title_studying">Studying</string>
@@ -280,7 +265,7 @@
     <string name="notif_complete_title">Session complete!</string>
     <string name="notif_complete_text">Great job! Take a quick break or jump back in when you\'re ready.</string>
     <string name="notif_goal_title">Daily goal achieved!</string>
-    <string name="notif_goal_text">You reached your study goal of %1$sh %2$sm today. Amazing work!</string>
+    <string name="notif_goal_text">You reached your study goal of %1$dh %2$dm today. Amazing work!</string>
     <string name="channel_completion_name">Study Session Complete</string>
     <string name="channel_completion_desc">Notifies you when your study timer countdown finishes</string>
     <string name="channel_control_name">Active Study Timer</string>
@@ -290,10 +275,9 @@
     <string name="goal_channel_name">Study Goal Reminders</string>
     <string name="goal_channel_desc">Evening reminder when your daily study goal is almost complete</string>
     <string name="goal_reminder_title">Your daily study goal is waiting</string>
-    <string name="goal_reminder_text">You\'ve studied %1$sh %2$sm so far today. Your goal is %3$s.</string>
+    <string name="goal_reminder_text">You\'ve studied %1$dh %2$dm so far today. Your goal is %3$s.</string>
 
     <!-- Widget -->
     <string name="widget_today">Today: %1$dh %2$dm</string>
     <string name="widget_streak">%1$d-day streak</string>
-    <string name="widget_stop_focus">Finish</string>
 </resources>

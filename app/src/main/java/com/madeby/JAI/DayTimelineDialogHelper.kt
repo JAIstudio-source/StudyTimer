@@ -185,14 +185,13 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
     }
 
     fun formatDuration(secs: Long): String {
-        if (secs <= 0L) return "0m"
+        if (secs < 60L) return "0m"
         val h = secs / 3600L
         val m = (secs % 3600L) / 60L
         return when {
             h > 0L && m > 0L -> "${h}h ${m}m"
             h > 0L -> "${h}h"
-            m > 0L -> "${m}m"
-            else -> "<1m"
+            else -> "${m}m"
         }
     }
 
@@ -208,9 +207,11 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
         onDelete: ((BlockInfo, Boolean) -> Unit)? = null
     ) {
         container.removeAllViews()
+        val validSessions = sessions.filter { it.secs >= 60L }
+        val validBreaks = breaks.filter { it.secs >= 60L }
         val rows = ArrayList<Pair<BlockInfo, Boolean>>()
-        for (s in sessions) rows.add(Pair(s, false))
-        for (b in breaks) rows.add(Pair(b, true))
+        for (s in validSessions) rows.add(Pair(s, false))
+        for (b in validBreaks) rows.add(Pair(b, true))
         rows.sortBy { it.first.startMs }
 
         var prevWasBreak = false
@@ -348,6 +349,7 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
         val breakSecs = shared.getLong("${dateStr}_break_total", 0L) + (if (dateStr == todayStr) host.currentBreakSeconds else 0L)
         val (allSessions, allBreaks) = dayBlocks(dateStr)
         val sessions = allSessions.filter { it.secs >= 60L }
+        val breaks = allBreaks.filter { it.secs >= 60L }
         val longest = sessions.maxOfOrNull { it.secs } ?: 0L
         val goal = host.resolveGoalFor(dateStr)
         val goalReached = goal > 0L && focusSecs >= goal
@@ -457,7 +459,7 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
         })
 
         // Expandable Session Logs dropdown
-        if (allSessions.isEmpty() && allBreaks.isEmpty()) {
+        if (sessions.isEmpty() && breaks.isEmpty()) {
             content.addView(TextView(host).apply {
                 text = host.getString(R.string.no_session_log_day)
                 setTextColor(themeCoordinator.textColor)

@@ -2,11 +2,11 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://vkveimpvrpnzelbsvdrg.supabase.co';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_Aec72P1pUF1I6eeO-C5vcA_i2jQgEx6';
-const TELEGRAM_MODERATION_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8755792560:AAFrTNyOjveVTV9vtRgwVD6tkNMwfRBDG2k';
+const TELEGRAM_MODERATION_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
+const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET || '';
+const TELEGRAM_ADMIN_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-
 
 function resolveAvatarPresetToSticker(val) {
   if (!val || typeof val !== 'string') return '';
@@ -15,6 +15,7 @@ function resolveAvatarPresetToSticker(val) {
 
 // Send message helper
 async function sendTelegramMessage(chatId, text, replyMarkup = null) {
+  if (!TELEGRAM_MODERATION_BOT_TOKEN) return false;
   const payload = { chat_id: chatId, text, parse_mode: 'HTML' };
   if (replyMarkup) payload.reply_markup = replyMarkup;
   try {
@@ -44,17 +45,23 @@ async function createProfileSnapshot(userId, actionType, previousRow) {
   }
 }
 
-const TELEGRAM_ADMIN_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '6326462250';
-
 function isAuthorized(userId, chatId) {
   const adminId = String(TELEGRAM_ADMIN_CHAT_ID || '').trim();
-  if (!adminId) return true;
+  if (!adminId) return false;
   return String(userId) === adminId || String(chatId) === adminId;
 }
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(200).json({ ok: true, message: 'StudyTimer Telegram Admin Controller Live' });
+  }
+
+  // 1. Webhook Secret Token Verification (Telegram X-Telegram-Bot-Api-Secret-Token)
+  if (TELEGRAM_WEBHOOK_SECRET) {
+    const incomingSecret = req.headers['x-telegram-bot-api-secret-token'];
+    if (incomingSecret !== TELEGRAM_WEBHOOK_SECRET) {
+      return res.status(401).json({ ok: false, error: 'Unauthorized: Invalid secret token' });
+    }
   }
 
   const update = req.body || {};
@@ -65,8 +72,8 @@ export default async function handler(req, res) {
   const senderId = callbackQuery?.from?.id || message?.from?.id || message?.chat?.id;
   const chatId = callbackQuery?.message?.chat?.id || message?.chat?.id;
 
-  if (senderId && !isAuthorized(senderId, chatId)) {
-    if (callbackQuery) {
+  if (!isAuthorized(senderId, chatId)) {
+    if (callbackQuery && TELEGRAM_MODERATION_BOT_TOKEN) {
       fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/answerCallbackQuery`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

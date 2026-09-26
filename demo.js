@@ -5376,8 +5376,8 @@ function openProfileModal() {
         statusCard.className = 'photo-url-status-card is-valid';
         statusCard.classList.remove('hidden');
         if (statusIcon) statusIcon.textContent = '✓';
-        if (statusTitle) statusTitle.textContent = 'Current Profile Photo';
-        if (statusDesc) statusDesc.textContent = profile.photoApproved ? 'Approved & active on global leaderboard' : 'In review / safety verification';
+        if (statusTitle) statusTitle.textContent = 'Photo Active';
+        if (statusDesc) statusDesc.textContent = profile.photoApproved ? 'Verified' : 'In review';
       }
     } else {
       photoPreviewImg.src = '';
@@ -5403,11 +5403,12 @@ function openProfileModal() {
   lockBodyScroll();
   modal.classList.remove('hidden');
 
-  // Ensure modal starts at the top showing the Hero Profile Card
+  // Ensure modal and form start at the top showing the Hero Profile Card
   const modalCard = document.getElementById('profileModalCard');
+  const formBody = document.getElementById('profileCustomizationForm');
+  if (formBody) formBody.scrollTop = 0;
   if (modalCard) modalCard.scrollTop = 0;
   modal.scrollTop = 0;
-  window.scrollTo(0, 0);
 }
 
 function switchProfileTab(tabName) {
@@ -5437,6 +5438,7 @@ function updateProfileLivePreview() {
   const stealthToggle = document.getElementById('checkStealthScholar');
 
   const previewCard = document.getElementById('previewProfileCard');
+  const previewBanner = document.getElementById('previewCardBanner');
   const previewAvatarRing = document.getElementById('previewAvatarRing');
   const previewAvatarIcon = document.getElementById('previewAvatarIcon');
   const previewCountryFlag = document.getElementById('previewCountryFlag');
@@ -5457,6 +5459,9 @@ function updateProfileLivePreview() {
 
   if (previewCard) {
     previewCard.className = `profile-hero-showcase ${selectedBannerTheme}`;
+  }
+  if (previewBanner) {
+    previewBanner.className = `hero-showcase-bg ${selectedBannerTheme}`;
   }
   if (previewAvatarRing) {
     previewAvatarRing.className = `hero-avatar-ring ${selectedAvatarRing}`;

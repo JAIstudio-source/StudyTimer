@@ -33,12 +33,10 @@ DROP POLICY IF EXISTS "Allow public read for leaderboard" ON public.daily_leader
 DROP POLICY IF EXISTS "Allow anon upsert for leaderboard" ON public.daily_leaderboard;
 DROP POLICY IF EXISTS "Allow anon update for leaderboard" ON public.daily_leaderboard;
 
--- RLS Policies
+-- RLS Policies: Public read-only; all mutations MUST go through rate-clamped SECURITY DEFINER RPC functions
 CREATE POLICY "Allow public read for leaderboard" ON public.daily_leaderboard 
     FOR SELECT USING (true);
 
-CREATE POLICY "Allow anon upsert for leaderboard" ON public.daily_leaderboard 
-    FOR ALL USING (true) WITH CHECK (true);
 
 -- =========================================================================
 -- 4. RPC FUNCTION: Update Live Study Presence & Heartbeat

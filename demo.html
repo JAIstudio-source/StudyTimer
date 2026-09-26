@@ -882,21 +882,21 @@
           </svg>
         </div>
         <h3 class="modal-title">Customize Profile</h3>
-        <p class="modal-subtitle">Personalize your student identity, custom photo &amp; study motto. Custom photos undergo safety verification before public display.</p>
+        <p class="modal-subtitle">Personalize your student identity &amp; card.</p>
       </div>
 
       <form class="modal-body profile-modal-body" id="profileCustomizationForm">
         
         <!-- Hero Avatar Showcase Circle & Live Identity Banner (At Top) -->
         <div class="profile-hero-showcase banner-midnight" id="previewProfileCard">
-          <div class="hero-showcase-bg" id="previewCardBanner"></div>
+          <div class="hero-showcase-bg banner-midnight" id="previewCardBanner"></div>
           <div class="hero-showcase-content">
-            <div class="hero-avatar-circle-wrap" id="heroAvatarCircleWrap" title="Click to Change Profile Photo">
+            <div class="hero-avatar-circle-wrap" id="heroAvatarCircleWrap" title="Click to Change Photo">
               <div class="hero-avatar-ring glow-gold" id="previewAvatarRing">
                 <span class="hero-avatar-icon" id="previewAvatarIcon"><span class="avatar-initial">S</span></span>
               </div>
               <span class="hero-flag-badge" id="previewCountryFlag">🌐</span>
-              <button type="button" class="hero-avatar-edit-badge" id="btnHeroQuickChangePhoto" title="Change Profile Photo" aria-label="Change Profile Photo">
+              <button type="button" class="hero-avatar-edit-badge" id="btnHeroQuickChangePhoto" title="Change Photo" aria-label="Change Photo">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
               </button>
             </div>
@@ -926,7 +926,7 @@
           </button>
           <button type="button" class="profile-tab-btn" data-tab="tab-themes" role="tab" aria-selected="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"></circle><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"></circle><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"></circle><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"></path></svg>
-            <span>Theme &amp; Ring</span>
+            <span>Theme</span>
           </button>
           <button type="button" class="profile-tab-btn" data-tab="tab-privacy" role="tab" aria-selected="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
@@ -934,7 +934,7 @@
           </button>
         </div>
 
-        <!-- Tab 1: Profile Photo Management (Clean Pro UI) -->
+        <!-- Tab 1: Profile Photo -->
         <div class="profile-tab-panel active" id="panel-tab-avatar">
           <div class="photo-upload-box">
             <div class="photo-upload-container">
@@ -955,23 +955,23 @@
                       <span>Remove</span>
                     </button>
                   </div>
-                  <span class="input-hint-sub">PNG, JPG, WebP or GIF (Auto-cropped to circle)</span>
+                  <span class="input-hint-sub">PNG, JPG, WebP, GIF</span>
                 </div>
               </div>
 
               <!-- URL Input Row -->
               <div class="photo-url-row">
                 <div class="photo-url-input-wrap">
-                  <input type="url" id="inputProfilePhotoUrl" placeholder="Or paste direct image URL (https://...)" autocomplete="off">
-                  <button type="button" class="btn btn-secondary btn-sm" id="btnApplyPhotoUrl">Apply Link</button>
+                  <input type="url" id="inputProfilePhotoUrl" placeholder="Or paste image URL..." autocomplete="off">
+                  <button type="button" class="btn btn-secondary btn-sm" id="btnApplyPhotoUrl">Apply</button>
                 </div>
-                <!-- Live Image Validation & Support Status Card -->
+                <!-- Live Image Validation Status Card -->
                 <div class="photo-url-status-card hidden" id="photoUrlStatusCard">
                   <div class="photo-url-status-left">
                     <span class="photo-url-status-indicator" id="photoUrlStatusIcon">✓</span>
                     <div class="photo-url-status-text">
-                      <strong id="photoUrlStatusTitle">Valid Image Link</strong>
-                      <span id="photoUrlStatusDesc">Image verified successfully</span>
+                      <strong id="photoUrlStatusTitle">Photo Active</strong>
+                      <span id="photoUrlStatusDesc">Verified</span>
                     </div>
                   </div>
                 </div>
@@ -980,15 +980,15 @@
           </div>
         </div>
 
-        <!-- Tab 2: Identity & Bio -->
+        <!-- Tab 2: Identity -->
         <div class="profile-tab-panel hidden" id="panel-tab-identity">
           <div class="input-row-grid">
             <div class="input-group flex-2">
-              <label for="inputProfileDisplayName">Display Name / Handle</label>
-              <input type="text" id="inputProfileDisplayName" maxlength="24" placeholder="e.g. Alex StudyMaster" required autocomplete="off">
+              <label for="inputProfileDisplayName">Display Name</label>
+              <input type="text" id="inputProfileDisplayName" maxlength="24" placeholder="Your name" required autocomplete="off">
             </div>
             <div class="input-group flex-1">
-              <label for="selectProfileCountryFlag">Region Flag</label>
+              <label for="selectProfileCountryFlag">Country</label>
               <select id="selectProfileCountryFlag" class="form-select">
                 <option value="🌐" selected>🌐 Global</option>
                 <option value="🇺🇸">🇺🇸 USA</option>
@@ -1007,25 +1007,22 @@
 
           <div class="input-row-grid">
             <div class="input-group">
-              <label for="inputProfileMood">Live Status / Mood</label>
-              <input type="text" id="inputProfileMood" maxlength="40" placeholder="e.g. Cramming Organic Chem ☕" autocomplete="off">
-              <span class="input-hint-sub">Current study mood or session goal (max 40 chars)</span>
+              <label for="inputProfileMood">Status / Mood</label>
+              <input type="text" id="inputProfileMood" maxlength="40" placeholder="e.g. Deep Focus ☕" autocomplete="off">
             </div>
             <div class="input-group">
-              <label for="inputProfileExam">Target Exam / Goal</label>
-              <input type="text" id="inputProfileExam" maxlength="30" placeholder="e.g. MCAT 2026, SAT 1550+" autocomplete="off">
-              <span class="input-hint-sub">Exam target badge on leaderboard (max 30 chars)</span>
+              <label for="inputProfileExam">Target Goal / Exam</label>
+              <input type="text" id="inputProfileExam" maxlength="30" placeholder="e.g. SAT 1550+, MCAT" autocomplete="off">
             </div>
           </div>
 
           <div class="input-group">
-            <label for="inputProfileMotto">Study Motto / Bio</label>
-            <input type="text" id="inputProfileMotto" maxlength="60" placeholder="e.g. Aiming for 6h daily | CS Major" autocomplete="off">
-            <span class="input-hint-sub">Your personal quote (max 60 chars)</span>
+            <label for="inputProfileMotto">Bio / Motto</label>
+            <input type="text" id="inputProfileMotto" maxlength="60" placeholder="e.g. Consistency over intensity" autocomplete="off">
           </div>
 
           <div class="input-group">
-            <label for="selectProfilePrimarySubject">Primary Focus Subject</label>
+            <label for="selectProfilePrimarySubject">Focus Subject</label>
             <select id="selectProfilePrimarySubject" class="form-select">
               <!-- Dynamically populated in JS -->
             </select>
@@ -1034,72 +1031,66 @@
 
         <!-- Tab 3: Themes & Rings -->
         <div class="profile-tab-panel hidden" id="panel-tab-themes">
-          <!-- Card Banner Theme Picker -->
+          <!-- Banner Theme -->
           <div class="settings-section">
-            <div class="section-label-row">
-              <label class="settings-label">Card Banner Theme</label>
-              <span class="section-sub-label">Header gradient aura</span>
-            </div>
+            <label class="settings-label">Banner Theme</label>
             <div class="banner-themes-grid" id="bannerThemesGrid">
-              <button type="button" class="banner-theme-btn active" data-banner="banner-midnight" title="Lofi Midnight">
+              <button type="button" class="banner-theme-btn active" data-banner="banner-midnight" title="Midnight">
                 <span class="banner-theme-swatch banner-midnight"></span>
                 <span class="banner-theme-name">Midnight</span>
               </button>
-              <button type="button" class="banner-theme-btn" data-banner="banner-sunset" title="Sunset Glow">
+              <button type="button" class="banner-theme-btn" data-banner="banner-sunset" title="Sunset">
                 <span class="banner-theme-swatch banner-sunset"></span>
                 <span class="banner-theme-name">Sunset</span>
               </button>
-              <button type="button" class="banner-theme-btn" data-banner="banner-emerald" title="Emerald Forest">
+              <button type="button" class="banner-theme-btn" data-banner="banner-emerald" title="Emerald">
                 <span class="banner-theme-swatch banner-emerald"></span>
                 <span class="banner-theme-name">Emerald</span>
               </button>
-              <button type="button" class="banner-theme-btn" data-banner="banner-cosmic" title="Cosmic Nebula">
+              <button type="button" class="banner-theme-btn" data-banner="banner-cosmic" title="Cosmic">
                 <span class="banner-theme-swatch banner-cosmic"></span>
                 <span class="banner-theme-name">Cosmic</span>
               </button>
-              <button type="button" class="banner-theme-btn" data-banner="banner-matrix" title="Cyber Matrix">
+              <button type="button" class="banner-theme-btn" data-banner="banner-matrix" title="Cyber">
                 <span class="banner-theme-swatch banner-matrix"></span>
                 <span class="banner-theme-name">Cyber</span>
               </button>
-              <button type="button" class="banner-theme-btn" data-banner="banner-slate" title="Minimal Slate">
+              <button type="button" class="banner-theme-btn" data-banner="banner-slate" title="Slate">
                 <span class="banner-theme-swatch banner-slate"></span>
                 <span class="banner-theme-name">Slate</span>
               </button>
             </div>
           </div>
 
-          <!-- Avatar Glow Ring Picker -->
+          <!-- Avatar Glow Ring -->
           <div class="settings-section">
-            <div class="section-label-row">
-              <label class="settings-label">Avatar Glow Ring</label>
-              <span class="section-sub-label">Glowing aura on profile &amp; leaderboards</span>
-            </div>
+            <label class="settings-label">Avatar Glow</label>
             <div class="glow-rings-grid" id="glowRingsGrid">
-              <button type="button" class="glow-ring-btn active" data-ring="glow-gold" title="Gold Aura">
+              <button type="button" class="glow-ring-btn active" data-ring="glow-gold" title="Gold">
                 <span class="glow-ring-swatch glow-gold"></span>
                 <span class="glow-ring-name">Gold</span>
               </button>
-              <button type="button" class="glow-ring-btn" data-ring="glow-cyan" title="Cyber Neon">
+              <button type="button" class="glow-ring-btn" data-ring="glow-cyan" title="Cyan">
                 <span class="glow-ring-swatch glow-cyan"></span>
                 <span class="glow-ring-name">Cyan</span>
               </button>
-              <button type="button" class="glow-ring-btn" data-ring="glow-emerald" title="Emerald Scholar">
+              <button type="button" class="glow-ring-btn" data-ring="glow-emerald" title="Emerald">
                 <span class="glow-ring-swatch glow-emerald"></span>
                 <span class="glow-ring-name">Emerald</span>
               </button>
-              <button type="button" class="glow-ring-btn" data-ring="glow-violet" title="Violet Mystic">
+              <button type="button" class="glow-ring-btn" data-ring="glow-violet" title="Violet">
                 <span class="glow-ring-swatch glow-violet"></span>
                 <span class="glow-ring-name">Violet</span>
               </button>
-              <button type="button" class="glow-ring-btn" data-ring="glow-rose" title="Rose Sunset">
+              <button type="button" class="glow-ring-btn" data-ring="glow-rose" title="Rose">
                 <span class="glow-ring-swatch glow-rose"></span>
                 <span class="glow-ring-name">Rose</span>
               </button>
-              <button type="button" class="glow-ring-btn" data-ring="glow-blue" title="Ocean Blue">
+              <button type="button" class="glow-ring-btn" data-ring="glow-blue" title="Ocean">
                 <span class="glow-ring-swatch glow-blue"></span>
                 <span class="glow-ring-name">Ocean</span>
               </button>
-              <button type="button" class="glow-ring-btn" data-ring="glow-slate" title="Minimal Silver">
+              <button type="button" class="glow-ring-btn" data-ring="glow-slate" title="Silver">
                 <span class="glow-ring-swatch glow-slate"></span>
                 <span class="glow-ring-name">Silver</span>
               </button>
@@ -1107,13 +1098,13 @@
           </div>
         </div>
 
-        <!-- Tab 4: Privacy & Visibility -->
+        <!-- Tab 4: Privacy -->
         <div class="profile-tab-panel hidden" id="panel-tab-privacy">
-          <!-- Stealth Mode Toggle -->
+          <!-- Anonymous Mode Toggle -->
           <div class="privacy-toggle-row">
             <div class="privacy-toggle-info">
-              <strong>Stealth Scholar (Anonymous Mode)</strong>
-              <p>Appear as <code>Stealth Scholar #XXXX</code> on public leaderboards while keeping your stats synced</p>
+              <strong>Anonymous Mode</strong>
+              <p>Hide your real name on public leaderboards</p>
             </div>
             <label class="toggle-switch">
               <input type="checkbox" id="checkStealthScholar">
@@ -1124,8 +1115,8 @@
           <!-- Leaderboard Visibility Toggle -->
           <div class="privacy-toggle-row">
             <div class="privacy-toggle-info">
-              <strong>Public Leaderboard Ranking</strong>
-              <p>Show your study time and active focus on the global leaderboard</p>
+              <strong>Leaderboard Visibility</strong>
+              <p>Show your rank on the global leaderboard</p>
             </div>
             <label class="toggle-switch">
               <input type="checkbox" id="checkLeaderboardPublic" checked>
@@ -1134,12 +1125,12 @@
           </div>
         </div>
 
-        <!-- Moderation Notice Banner (At bottom) -->
+        <!-- Moderation Notice Banner -->
         <div class="moderation-notice-banner">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="notice-shield-icon">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
           </svg>
-          <span>Your personal profile updates immediately. Custom photos and public tags are verified before displaying on the global leaderboard 🛡️</span>
+          <span>Profile updates instantly. Moderated for safety 🛡️</span>
         </div>
 
         <!-- Modal Actions -->

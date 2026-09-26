@@ -1,32 +1,48 @@
 /* ========================================================
    6 BANNER GRADIENT THEMES
    ======================================================== */
+.profile-hero-showcase {
+  background: var(--bg-card, #18181b) !important;
+}
+
 .banner-midnight,
+.hero-showcase-bg.banner-midnight,
+.profile-hero-showcase.banner-midnight .hero-showcase-bg,
 .banner-theme-swatch.banner-midnight {
   background: linear-gradient(135deg, #1e1b4b 0%, #4338ca 50%, #6366f1 100%);
 }
 
 .banner-sunset,
+.hero-showcase-bg.banner-sunset,
+.profile-hero-showcase.banner-sunset .hero-showcase-bg,
 .banner-theme-swatch.banner-sunset {
   background: linear-gradient(135deg, #4c0519 0%, #e11d48 50%, #fb923c 100%);
 }
 
 .banner-emerald,
+.hero-showcase-bg.banner-emerald,
+.profile-hero-showcase.banner-emerald .hero-showcase-bg,
 .banner-theme-swatch.banner-emerald {
   background: linear-gradient(135deg, #064e3b 0%, #059669 50%, #34d399 100%);
 }
 
 .banner-cosmic,
+.hero-showcase-bg.banner-cosmic,
+.profile-hero-showcase.banner-cosmic .hero-showcase-bg,
 .banner-theme-swatch.banner-cosmic {
   background: linear-gradient(135deg, #2e1065 0%, #7c3aed 50%, #06b6d4 100%);
 }
 
 .banner-matrix,
+.hero-showcase-bg.banner-matrix,
+.profile-hero-showcase.banner-matrix .hero-showcase-bg,
 .banner-theme-swatch.banner-matrix {
   background: linear-gradient(135deg, #09090b 0%, #18181b 50%, #0d9488 100%);
 }
 
 .banner-slate,
+.hero-showcase-bg.banner-slate,
+.profile-hero-showcase.banner-slate .hero-showcase-bg,
 .banner-theme-swatch.banner-slate {
   background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #64748b 100%);
 }

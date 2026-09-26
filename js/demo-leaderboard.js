@@ -351,64 +351,74 @@ async function notifyAdminModerationWebhook(payload) {
       ]
     };
 
-    // Forward notification to Cloudflare Worker as well
-    fetch(APPROVAL_WORKER_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id,
-        display_name: newName,
-        previous_name: oldName,
-        bio: newBio,
-        previous_bio: oldBio,
-        avatar_url: newAvatar,
-        previous_avatar: oldAvatar,
-        email: safeEmail,
-        source: 'Website'
-      })
-    }).catch(() => {});
+    // Primary: Forward notification to Cloudflare Worker (single clean dispatch)
+    let workerSuccess = false;
+    try {
+      const workerRes = await fetch(APPROVAL_WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id,
+          display_name: newName,
+          previous_name: oldName,
+          bio: newBio,
+          previous_bio: oldBio,
+          avatar_url: newAvatar,
+          previous_avatar: oldAvatar,
+          email: safeEmail,
+          source: 'Website'
+        })
+      });
+      if (workerRes.ok) {
+        workerSuccess = true;
+      }
+    } catch (workerErr) {
+      console.debug('Approval worker dispatch offline, using fallback:', workerErr);
+    }
 
-    // Direct Telegram Dispatch
-    if (isCustomPhoto) {
-      if (avatar_url.startsWith('data:image/')) {
-        const photoBlob = dataURLtoBlob(avatar_url);
-        if (photoBlob) {
-          const formData = new FormData();
-          formData.append('chat_id', TELEGRAM_MODERATION_CHAT_ID);
-          formData.append('photo', photoBlob, 'avatar.jpg');
-          formData.append('caption', caption);
-          formData.append('parse_mode', 'HTML');
-          formData.append('reply_markup', JSON.stringify(keyboard));
+    // Fallback: Direct Telegram Dispatch only if Cloudflare Worker is unreachable
+    if (!workerSuccess) {
+      if (isCustomPhoto) {
+        if (avatar_url.startsWith('data:image/')) {
+          const photoBlob = dataURLtoBlob(avatar_url);
+          if (photoBlob) {
+            const formData = new FormData();
+            formData.append('chat_id', TELEGRAM_MODERATION_CHAT_ID);
+            formData.append('photo', photoBlob, 'avatar.jpg');
+            formData.append('caption', caption);
+            formData.append('parse_mode', 'HTML');
+            formData.append('reply_markup', JSON.stringify(keyboard));
 
+            fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/sendPhoto`, {
+              method: 'POST',
+              body: formData
+            }).catch(err => console.debug('Direct Telegram sendPhoto (Blob) error:', err));
+          }
+        } else if (avatar_url.startsWith('http://') || avatar_url.startsWith('https://')) {
           fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/sendPhoto`, {
             method: 'POST',
-            body: formData
-          }).catch(err => console.debug('Direct Telegram sendPhoto (Blob) error:', err));
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: TELEGRAM_MODERATION_CHAT_ID,
+              photo: avatar_url,
+              caption: caption,
+              parse_mode: 'HTML',
+              reply_markup: keyboard
+            })
+          }).catch(err => console.debug('Direct Telegram sendPhoto (URL) error:', err));
         }
-      } else if (avatar_url.startsWith('http://') || avatar_url.startsWith('https://')) {
-        fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/sendPhoto`, {
+      } else {
+        fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             chat_id: TELEGRAM_MODERATION_CHAT_ID,
-            photo: avatar_url,
-            caption: caption,
+            text: caption,
             parse_mode: 'HTML',
             reply_markup: keyboard
           })
-        }).catch(err => console.debug('Direct Telegram sendPhoto (URL) error:', err));
+        }).catch(err => console.debug('Direct Telegram sendMessage error:', err));
       }
-    } else {
-      fetch(`https://api.telegram.org/bot${TELEGRAM_MODERATION_BOT_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: TELEGRAM_MODERATION_CHAT_ID,
-          text: caption,
-          parse_mode: 'HTML',
-          reply_markup: keyboard
-        })
-      }).catch(err => console.debug('Direct Telegram sendMessage error:', err));
     }
   } catch (e) {
     console.debug('Moderation webhook exception:', e);

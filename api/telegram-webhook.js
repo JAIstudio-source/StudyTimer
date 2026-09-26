@@ -4,7 +4,8 @@ const SUPABASE_URL = process.env.SUPABASE_URL || 'https://vkveimpvrpnzelbsvdrg.s
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_Aec72P1pUF1I6eeO-C5vcA_i2jQgEx6';
 const TELEGRAM_MODERATION_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET || '';
-const TELEGRAM_ADMIN_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '';
+const ALLOWED_USER_ID = process.env.ALLOWED_USER_ID || process.env.TELEGRAM_CHAT_ID || '6326462250';
+const TELEGRAM_ADMIN_CHAT_ID = ALLOWED_USER_ID;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -45,10 +46,13 @@ async function createProfileSnapshot(userId, actionType, previousRow) {
   }
 }
 
+/**
+ * Global Authorization Check: Restricts bot access strictly to ALLOWED_USER_ID
+ */
 function isAuthorized(userId, chatId) {
-  const adminId = String(TELEGRAM_ADMIN_CHAT_ID || '').trim();
-  if (!adminId) return false;
-  return String(userId) === adminId || String(chatId) === adminId;
+  const allowedId = String(ALLOWED_USER_ID || '').trim();
+  if (!allowedId) return false;
+  return String(userId) === allowedId || String(chatId) === allowedId;
 }
 
 export default async function handler(req, res) {

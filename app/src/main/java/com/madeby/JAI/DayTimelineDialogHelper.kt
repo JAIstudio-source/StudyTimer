@@ -74,7 +74,7 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
         }
 
         content.addView(TextView(host).apply {
-            text = if (isBreak) "☕ Edit Break Interval" else "⏱️ Edit Study Session"
+            text = if (isBreak) "Edit Break Interval" else "Edit Study Session"
             textSize = 17f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             setTextColor(themeCoordinator.textColor)
@@ -219,7 +219,7 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
             val blockLabel: String
             val blockColor: Int
             if (isBreak) {
-                blockLabel = if (b.manual) "☕ Break (Manual)" else "☕ Break"
+                blockLabel = if (b.manual) "Break (Manual)" else "Break"
                 blockColor = themeCoordinator.secondaryColor
             } else {
                 val matchedSub = if (b.subjectId != null || (!b.subjectName.isNullOrBlank() && b.subjectName != "Focus")) {
@@ -229,7 +229,7 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
                 blockLabel = if (matchedSub != null) {
                     "${matchedSub.iconEmoji} ${matchedSub.name}"
                 } else {
-                    if (b.manual) "⏱ Focus (Manual)" else "⏱ Focus"
+                    if (b.manual) "Focus (Manual)" else "Focus"
                 }
 
                 blockColor = try {
@@ -371,7 +371,7 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
             setPadding(0, 0, 0, dp(4))
         }
         headerRow.addView(TextView(host).apply {
-            text = "📅 $label"
+            text = label
             setTextColor(themeCoordinator.primaryColor)
             textSize = 16f
             letterSpacing = 0.08f
@@ -396,7 +396,7 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
 
         content.addView(TextView(host).apply {
             text = if (goalReached) {
-                "🎯 Daily Goal: $goalLabel • Reached ($focusLabel, $pct%)"
+                "Daily Goal: $goalLabel • Reached ($focusLabel, $pct%)"
             } else if (goal > 0L) {
                 val remaining = max(0L, goal - focusSecs)
                 val toGo = "${host.formatGoalLabel(remaining)} left"
@@ -520,7 +520,7 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
 
         // View Subject Breakdown Button
         val seePieChartBtn = TextView(host).apply {
-            text = "📊 View Subject Breakdown"
+            text = "View Subject Breakdown"
             setTextColor(themeCoordinator.primaryColor)
             textSize = 13.5f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
@@ -593,7 +593,7 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
         }
 
         content.addView(TextView(host).apply {
-            text = "🗓️ $mName"
+            text = mName
             setTextColor(themeCoordinator.primaryColor)
             textSize = 15f
             letterSpacing = 0.1f

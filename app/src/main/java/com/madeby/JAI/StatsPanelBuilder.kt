@@ -220,7 +220,7 @@ class StatsPanelBuilder(private val host: MainActivity) {
             subjectRow.removeAllViews()
             val isAll = activeHeatmapSubjectId == null
             val allChip = TextView(host).apply {
-                text = "🌐 All Subjects"
+                text = "All Subjects"
                 textSize = 11.5f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                 setTextColor(if (isAll) Color.WHITE else themeCoordinator.textColor)
@@ -440,7 +440,8 @@ class StatsPanelBuilder(private val host: MainActivity) {
                 }
             }
             quoteRibbon.addView(TextView(host).apply {
-                text = "✨"
+                text = "“"
+                setTextColor(themeCoordinator.primaryColor)
                 textSize = 14f
                 setPadding(0, 0, dp(8), 0)
             })
@@ -1195,13 +1196,13 @@ class StatsPanelBuilder(private val host: MainActivity) {
                     }
 
                     if (deepSecs > 0L) {
-                        slicesList.add(SubjectPieChartView.PieSlice("Deep Focus (≥40m)", "🔥", deepSecs.toDouble(), "#10B981"))
+                        slicesList.add(SubjectPieChartView.PieSlice("Deep Focus (≥40m)", "", deepSecs.toDouble(), "#10B981"))
                     }
                     if (stdSecs > 0L) {
-                        slicesList.add(SubjectPieChartView.PieSlice("Standard Focus (15-40m)", "⚡", stdSecs.toDouble(), "#3B82F6"))
+                        slicesList.add(SubjectPieChartView.PieSlice("Standard Focus (15-40m)", "", stdSecs.toDouble(), "#3B82F6"))
                     }
                     if (lightSecs > 0L) {
-                        slicesList.add(SubjectPieChartView.PieSlice("Light Focus (<15m)", "☕", lightSecs.toDouble(), "#F59E0B"))
+                        slicesList.add(SubjectPieChartView.PieSlice("Light Focus (<15m)", "", lightSecs.toDouble(), "#F59E0B"))
                     }
 
                     pieView.setData(slicesList)

@@ -37,9 +37,11 @@ function initQuoteManager() {
       quoteText.style.transform = 'translateY(-4px)';
       quoteText.style.transition = 'all 0.2s ease';
       setTimeout(() => {
-        quoteText.textContent = `"${MOTIVATIONAL_QUOTES[index]}"`;
+        const fullQuote = `"${MOTIVATIONAL_QUOTES[index]}"`;
+        quoteText.textContent = fullQuote;
         quoteText.style.opacity = '1';
         quoteText.style.transform = 'translateY(0)';
+        quoteContainer?.setAttribute('title', `${fullQuote} • Click for next quote`);
       }, 200);
     }
   }
@@ -50,7 +52,9 @@ function initQuoteManager() {
   }
 
   if (quoteText) {
-    quoteText.textContent = `"${MOTIVATIONAL_QUOTES[currentQuoteIndex]}"`;
+    const initQuote = `"${MOTIVATIONAL_QUOTES[currentQuoteIndex]}"`;
+    quoteText.textContent = initQuote;
+    quoteContainer?.setAttribute('title', `${initQuote} • Click for next quote`);
   }
 
   nextBtn?.addEventListener('click', (e) => {

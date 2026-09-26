@@ -1148,14 +1148,17 @@ body.has-custom-bg .app-sidebar {
 @media (max-width: 680px) {
   .daily-quote-capsule {
     flex: 1 1 auto;
-    max-width: 220px;
+    max-width: none;
     padding: 4px 10px;
     font-size: 0.74rem;
+    min-width: 0;
   }
 
   .daily-quote-capsule .quote-text {
     font-size: 0.72rem;
-    max-width: 160px;
+    max-width: none;
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .topbar-actions {
@@ -1172,24 +1175,24 @@ body.has-custom-bg .app-sidebar {
   .daily-quote-capsule {
     display: inline-flex !important;
     align-items: center !important;
-    gap: 4px !important;
+    gap: 6px !important;
     flex: 1 1 auto !important;
-    max-width: 175px !important;
+    max-width: none !important;
+    min-width: 0 !important;
     padding: 4px 8px !important;
     font-size: 0.68rem !important;
     border-radius: var(--radius-pill) !important;
-    background: rgba(255, 255, 255, 0.12) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
     backdrop-filter: blur(12px) !important;
     -webkit-backdrop-filter: blur(12px) !important;
     border: 1px solid var(--border-subtle) !important;
     margin: 0 4px !important;
     overflow: hidden !important;
-    white-space: nowrap !important;
-    text-overflow: ellipsis !important;
     cursor: pointer !important;
   }
 
-  .daily-quote-capsule .quote-icon {
+  .daily-quote-capsule .quote-icon,
+  .daily-quote-capsule .quote-sparkle-icon {
     font-size: 0.70rem !important;
     flex-shrink: 0 !important;
   }
@@ -1199,7 +1202,9 @@ body.has-custom-bg .app-sidebar {
     overflow: hidden !important;
     white-space: nowrap !important;
     text-overflow: ellipsis !important;
-    max-width: 140px !important;
+    max-width: none !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
   }
 
   .topbar-pill-btn span {

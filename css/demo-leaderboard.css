@@ -916,9 +916,9 @@
 
 .hero-showcase-body {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
-  padding: 0 14px 10px 14px;
+  padding: 4px 14px 12px 14px;
   background: #141416;
   position: relative;
   z-index: 2;
@@ -926,7 +926,7 @@
 
 .hero-avatar-col {
   flex-shrink: 0;
-  margin-top: -24px;
+  margin-top: -10px;
   position: relative;
   z-index: 3;
 }
@@ -1020,7 +1020,7 @@
   gap: 3px;
   min-width: 0;
   flex: 1;
-  padding-top: 4px;
+  padding-top: 2px;
 }
 
 .hero-name-row {

@@ -182,8 +182,8 @@ object CelebrationEngine {
             }
 
             val iconTv = TextView(activity).apply {
-                text = if (isGoalAchieved) "🎉 🎯 🎉" else "🔥 🏆 🔥"
-                textSize = 34f
+                text = if (isGoalAchieved) "🎉" else "🏆"
+                textSize = 42f
                 gravity = Gravity.CENTER
             }
 

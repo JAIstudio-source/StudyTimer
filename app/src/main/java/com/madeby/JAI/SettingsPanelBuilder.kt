@@ -49,6 +49,9 @@ import kotlin.math.max
  */
 class SettingsPanelBuilder(private val host: MainActivity) {
 
+    private fun dp(v: Int): Int = host.dp(v)
+    private fun dpF(v: Float): Float = v * host.resources.displayMetrics.density
+
     fun build(target: android.view.ViewGroup = host.panelContainer, captureScrollRef: Boolean = true) {
         with(host) {
             val sharedPrefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
@@ -223,12 +226,14 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     theme.resolveAttribute(android.R.attr.selectableItemBackground, outVal, true)
                     setBackgroundResource(outVal.resourceId)
                 }
-                val iconView = TextView(this).apply {
-                    text = icon
-                    textSize = 20f
-                    setPadding(0, 0, dp(14), 0)
+                if (icon.isNotEmpty()) {
+                    val iconView = TextView(this).apply {
+                        text = icon
+                        textSize = 20f
+                        setPadding(0, 0, dp(14), 0)
+                    }
+                    row.addView(iconView)
                 }
-                row.addView(iconView)
                 val textCol = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
                     layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -251,6 +256,122 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     row.addView(trailingView)
                 }
                 return row
+            }
+
+            fun createCategoryVectorIcon(tab: AppSettingsTab): View {
+                return object : View(this) {
+                    private val bgPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                        style = android.graphics.Paint.Style.FILL
+                    }
+                    private val borderPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                        style = android.graphics.Paint.Style.STROKE
+                        strokeWidth = dpF(1.2f)
+                    }
+                    private val iconPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                        style = android.graphics.Paint.Style.STROKE
+                        strokeWidth = dpF(2f)
+                        strokeCap = android.graphics.Paint.Cap.ROUND
+                        strokeJoin = android.graphics.Paint.Join.ROUND
+                    }
+                    private val fillPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                        style = android.graphics.Paint.Style.FILL
+                    }
+                    private val bgRect = android.graphics.RectF()
+                    private val path = android.graphics.Path()
+
+                    override fun onDraw(canvas: android.graphics.Canvas) {
+                        super.onDraw(canvas)
+                        val w = width.toFloat()
+                        val h = height.toFloat()
+                        val r = dpF(10f)
+                        bgRect.set(dpF(1f), dpF(1f), w - dpF(1f), h - dpF(1f))
+
+                        val (accentColor, bgColor) = when (tab) {
+                            AppSettingsTab.TIMER -> 0xFF818CF8.toInt() to 0x226366F1.toInt()
+                            AppSettingsTab.ANALYTICS -> 0xFFF59E0B.toInt() to 0x22F59E0B.toInt()
+                            AppSettingsTab.THEME -> 0xFFC084FC.toInt() to 0x22A855F7.toInt()
+                            AppSettingsTab.CLOUD -> 0xFF38BDF8.toInt() to 0x220EA5E9.toInt()
+                            AppSettingsTab.DEVELOPER -> 0xFF34D399.toInt() to 0x2210B981.toInt()
+                            else -> 0xFF94A3B8.toInt() to 0x2264748B.toInt()
+                        }
+
+                        bgPaint.color = bgColor
+                        borderPaint.color = tintedColor(accentColor, 75)
+                        canvas.drawRoundRect(bgRect, r, r, bgPaint)
+                        canvas.drawRoundRect(bgRect, r, r, borderPaint)
+
+                        iconPaint.color = accentColor
+                        fillPaint.color = accentColor
+
+                        val cx = w / 2f
+                        val cy = h / 2f
+
+                        when (tab) {
+                            AppSettingsTab.TIMER -> {
+                                val dialR = dpF(7.5f)
+                                val dialCy = cy + dpF(1.2f)
+                                canvas.drawCircle(cx, dialCy, dialR, iconPaint)
+                                canvas.drawLine(cx, dialCy - dialR - dpF(2.5f), cx, dialCy - dialR, iconPaint)
+                                canvas.drawLine(cx, dialCy, cx + dpF(3.5f), dialCy - dpF(3.5f), iconPaint)
+                            }
+                            AppSettingsTab.ANALYTICS -> {
+                                val outerR = dpF(7.5f)
+                                val innerR = dpF(4f)
+                                canvas.drawCircle(cx, cy, outerR, iconPaint)
+                                canvas.drawCircle(cx, cy, innerR, iconPaint)
+                                canvas.drawCircle(cx, cy, dpF(1.8f), fillPaint)
+                            }
+                            AppSettingsTab.THEME -> {
+                                val pr = dpF(7.5f)
+                                canvas.drawCircle(cx, cy, pr, iconPaint)
+                                fillPaint.color = 0xFFEC4899.toInt()
+                                canvas.drawCircle(cx - dpF(3f), cy - dpF(2.5f), dpF(1.4f), fillPaint)
+                                fillPaint.color = 0xFFF59E0B.toInt()
+                                canvas.drawCircle(cx + dpF(2.8f), cy - dpF(2.8f), dpF(1.4f), fillPaint)
+                                fillPaint.color = 0xFF38BDF8.toInt()
+                                canvas.drawCircle(cx + dpF(3.2f), cy + dpF(2.2f), dpF(1.4f), fillPaint)
+                                fillPaint.color = 0xFF10B981.toInt()
+                                canvas.drawCircle(cx - dpF(2.5f), cy + dpF(3f), dpF(1.4f), fillPaint)
+                            }
+                            AppSettingsTab.CLOUD -> {
+                                path.reset()
+                                val cw = dpF(7f)
+                                val ch = dpF(4.5f)
+                                val cloudCy = cy - dpF(1.5f)
+                                val cloudRect = android.graphics.RectF(cx - cw, cloudCy - ch, cx + cw, cloudCy + ch)
+                                canvas.drawRoundRect(cloudRect, ch, ch, iconPaint)
+                                val arrowY = cy + dpF(4.5f)
+                                canvas.drawLine(cx - dpF(4.5f), arrowY, cx + dpF(4.5f), arrowY, iconPaint)
+                                canvas.drawLine(cx + dpF(2.5f), arrowY - dpF(2f), cx + dpF(4.5f), arrowY, iconPaint)
+                            }
+                            AppSettingsTab.DEVELOPER -> {
+                                path.reset()
+                                path.moveTo(cx - dpF(3f), cy - dpF(4.5f))
+                                path.lineTo(cx - dpF(6.5f), cy)
+                                path.lineTo(cx - dpF(3f), cy + dpF(4.5f))
+                                canvas.drawPath(path, iconPaint)
+
+                                canvas.drawLine(cx - dpF(1f), cy + dpF(5f), cx + dpF(1f), cy - dpF(5f), iconPaint)
+
+                                path.reset()
+                                path.moveTo(cx + dpF(3f), cy - dpF(4.5f))
+                                path.lineTo(cx + dpF(6.5f), cy)
+                                path.lineTo(cx + dpF(3f), cy + dpF(4.5f))
+                                canvas.drawPath(path, iconPaint)
+                            }
+                            else -> {
+                                val ir = dpF(7.5f)
+                                canvas.drawCircle(cx, cy, ir, iconPaint)
+                                canvas.drawCircle(cx, cy - dpF(3.2f), dpF(1.2f), fillPaint)
+                                canvas.drawLine(cx, cy - dpF(0.8f), cx, cy + dpF(3.8f), iconPaint)
+                            }
+                        }
+                    }
+                }.apply {
+                    layoutParams = LinearLayout.LayoutParams(dp(36), dp(36)).apply {
+                        setMargins(0, 0, dp(14), 0)
+                    }
+                }
             }
 
             fun createCustomDonutIcon(): View {
@@ -453,7 +574,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 layout.addView(profileTopCard)
 
                 // --- CATEGORIZED NAVIGATION ROW BUILDER ---
-                fun addHubRowToCard(card: LinearLayout, icon: String, title: String, subtitle: String, targetTab: AppSettingsTab) {
+                fun addHubRowToCard(card: LinearLayout, title: String, subtitle: String, targetTab: AppSettingsTab) {
                     val chevron = TextView(this).apply {
                         text = "›"
                         textSize = 22f
@@ -461,7 +582,8 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         alpha = 0.35f
                         setPadding(dp(8), 0, 0, 0)
                     }
-                    val row = createSettingsRow(icon, title, subtitle, chevron)
+                    val iconView = createCategoryVectorIcon(targetTab)
+                    val row = createSettingsRowWithView(iconView, title, subtitle, chevron)
                     val outVal = android.util.TypedValue()
                     theme.resolveAttribute(android.R.attr.selectableItemBackground, outVal, true)
                     row.setBackgroundResource(outVal.resourceId)
@@ -488,17 +610,17 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 // 1. UNIFIED PREFERENCES CARD GROUP
                 layout.addView(createSectionLabel("PREFERENCES"))
                 val prefsCard = createSettingsCard()
-                addHubRowToCard(prefsCard, "⏱️", "Timer & Focus", timerSub, AppSettingsTab.TIMER)
+                addHubRowToCard(prefsCard, "Timer & Focus", timerSub, AppSettingsTab.TIMER)
                 prefsCard.addView(createDivider())
-                addHubRowToCard(prefsCard, "📊", "Goals & Reminders", analyticsSub, AppSettingsTab.ANALYTICS)
+                addHubRowToCard(prefsCard, "Goals & Reminders", analyticsSub, AppSettingsTab.ANALYTICS)
                 prefsCard.addView(createDivider())
-                addHubRowToCard(prefsCard, "🎨", "Theme & Appearance", themeSub, AppSettingsTab.THEME)
+                addHubRowToCard(prefsCard, "Theme & Appearance", themeSub, AppSettingsTab.THEME)
                 prefsCard.addView(createDivider())
-                addHubRowToCard(prefsCard, "☁️", "Cloud, Sync & Backups", cloudSub, AppSettingsTab.CLOUD)
+                addHubRowToCard(prefsCard, "Cloud, Sync & Backups", cloudSub, AppSettingsTab.CLOUD)
 
                 if (BuildConfig.DEBUG && isDevModeUnlocked) {
                     prefsCard.addView(createDivider())
-                    addHubRowToCard(prefsCard, "🛠️", "Developer Tools", "Diagnostic tools & debug settings", AppSettingsTab.DEVELOPER)
+                    addHubRowToCard(prefsCard, "Developer Tools", "Diagnostic tools & debug settings", AppSettingsTab.DEVELOPER)
                 }
                 layout.addView(prefsCard)
 
@@ -521,10 +643,11 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     visibility = if (isAboutExpanded) View.VISIBLE else View.GONE
                 }
 
-                val headerRowToggle = createSettingsRow(
-                    "ℹ️",
+                val aboutHeaderIcon = createCategoryVectorIcon(AppSettingsTab.PROFILE)
+                val headerRowToggle = createSettingsRowWithView(
+                    aboutHeaderIcon,
                     "About, Support & Policies",
-                    if (isAboutExpanded) "Tap to collapse" else "Version v${currentVersionName()} • Guide, feedback & legal terms",
+                    if (isAboutExpanded) "Tap to collapse" else "StudyTimer v${currentVersionName()} • Guide, feedback & legal terms",
                     expandChevron
                 )
                 headerRowToggle.isClickable = true
@@ -540,14 +663,14 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 // Items inside expandedContent
                 expandedContent.addView(createDivider())
 
-                val guideRow = createSettingsRow("📖", "How to Use / App Guide", "User manual, timer modes & feature walkthrough")
+                val guideRow = createSettingsRow("", "How to Use & App Guide", "User manual, timer modes & feature walkthrough")
                 guideRow.setOnClickListener {
                     showAppGuideDialog()
                 }
                 expandedContent.addView(guideRow)
                 expandedContent.addView(createDivider())
 
-                val feedbackRow = createSettingsRow("💬", "Report a Problem & Feedback", "Send bug reports, feature suggestions or contact us")
+                val feedbackRow = createSettingsRow("", "Feedback & Bug Reports", "Send feature suggestions, questions or issues")
                 feedbackRow.setOnClickListener {
                     showFeedbackReportDialog()
                 }
@@ -566,8 +689,8 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 } else null
 
                 val versionRow = createSettingsRow(
-                    "🚀",
-                    "Version v${currentVersionName()} (Build ${currentVersionCodeLong()})",
+                    "",
+                    "StudyTimer v${currentVersionName()}",
                     if (AppConfig.ENABLE_GITHUB_UPDATE_CHECK) "Check for the latest release & changelog" else "StudyTimer for Android",
                     updateChip
                 )
@@ -581,7 +704,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 expandedContent.addView(versionRow)
                 expandedContent.addView(createDivider())
 
-                val privacyRow = createSettingsRow("🛡️", "Privacy Policy", "Read our data collection, analytics & privacy practices")
+                val privacyRow = createSettingsRow("", "Privacy Policy", "Read our data collection, analytics & privacy practices")
                 privacyRow.setOnClickListener {
                     try {
                         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://get-studytimer.vercel.app/privacy.html")))
@@ -592,7 +715,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 expandedContent.addView(privacyRow)
                 expandedContent.addView(createDivider())
 
-                val termsRow = createSettingsRow("📜", "Terms of Service", "Review our terms, usage guidelines & licensing")
+                val termsRow = createSettingsRow("", "Terms of Service", "Review our terms, usage guidelines & licensing")
                 termsRow.setOnClickListener {
                     try {
                         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://get-studytimer.vercel.app/terms.html")))
@@ -603,7 +726,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 expandedContent.addView(termsRow)
                 expandedContent.addView(createDivider())
 
-                val deleteWebRow = createSettingsRow("🗑️", "Account Deletion Web Portal", "Request permanent deletion of data online (Play Store policy)")
+                val deleteWebRow = createSettingsRow("", "Account Deletion Web Portal", "Request permanent deletion of data online (Play Store policy)")
                 deleteWebRow.setOnClickListener {
                     try {
                         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://get-studytimer.vercel.app/delete-account.html")))
@@ -1306,7 +1429,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     }
                 }
 
-                val stopwatchRow = createSettingsRow("⏱", getString(R.string.mode_stopwatch), getString(R.string.mode_stopwatch_sub), modeRadio(isStopwatch))
+                val stopwatchRow = createSettingsRow("", getString(R.string.mode_stopwatch), getString(R.string.mode_stopwatch_sub), modeRadio(isStopwatch))
                 stopwatchRow.setOnClickListener {
                     sharedPrefs.edit().putString("timer_mode", "STOPWATCH").putBoolean("lecture_mode_enabled", false).apply()
                     timerMode = "STOPWATCH"
@@ -1318,7 +1441,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 timerModeCard.addView(stopwatchRow)
                 timerModeCard.addView(createDivider())
 
-                val countdownRow = createSettingsRow("⏳", getString(R.string.mode_pomodoro), getString(R.string.mode_pomodoro_sub), modeRadio(isCountdown))
+                val countdownRow = createSettingsRow("", getString(R.string.mode_pomodoro), getString(R.string.mode_pomodoro_sub), modeRadio(isCountdown))
                 countdownRow.setOnClickListener {
                     val pomoMins = sharedPrefs.safeLong("study_interval_minutes", 25L)
                     val pomoSecs = pomoMins * 60L
@@ -1337,7 +1460,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 timerModeCard.addView(countdownRow)
                 timerModeCard.addView(createDivider())
 
-                val subjectRow = createSettingsRow("📚", "Subject Focus", "Pick a subject and track your study time", modeRadio(isSubject))
+                val subjectRow = createSettingsRow("", "Subject Focus", "Pick a subject and track your study time", modeRadio(isSubject))
                 subjectRow.setOnClickListener {
                     val pomoMins = sharedPrefs.safeLong("study_interval_minutes", 25L)
                     val pomoSecs = pomoMins * 60L
@@ -1357,7 +1480,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 timerModeCard.addView(subjectRow)
                 timerModeCard.addView(createDivider())
 
-                val lectureRow = createSettingsRow("🎓", "Class Schedule", "Follow your custom class timetable", modeRadio(isLecture))
+                val lectureRow = createSettingsRow("", "Class Schedule", "Follow your custom class timetable", modeRadio(isLecture))
                 lectureRow.setOnClickListener {
                     val isConfigured = !sharedPrefs.getString("lecture_schedules_json", "").isNullOrEmpty() && sharedPrefs.getString("lecture_schedules_json", "[]") != "[]"
                     sharedPrefs.edit().putString("timer_mode", "LECTURE").putBoolean("lecture_mode_enabled", true).apply()
@@ -1385,7 +1508,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                             navigateToPanel(AppPanel.SETTINGS)
                         }
                     }
-                    intervalCard.addView(createSettingsRow("🚀", "Continuous Timer Mode", "Study continuously without automatic breaks or session limits", freedomSwitch))
+                    intervalCard.addView(createSettingsRow("", "Continuous Timer Mode", "Study continuously without automatic breaks or session limits", freedomSwitch))
                     intervalCard.addView(createDivider())
 
                     fun formatIntervalValue(valMinutes: Long, unit: String): String {
@@ -1540,7 +1663,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                             }
                         }
                     }
-                    intervalCard.addView(createSettingsRow("⚪", "Pure White Theme for Pomodoro", "Minimalist pure white background with black timer ring & numerals (Timer screen only)", pureWhiteSwitch))
+                    intervalCard.addView(createSettingsRow("", "Pure White Theme for Pomodoro", "Minimalist pure white background with black timer ring & numerals (Timer screen only)", pureWhiteSwitch))
                     layout.addView(intervalCard)
                 }
 
@@ -1554,7 +1677,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         updateKeepScreenOn()
                     }
                 }
-                displayCard.addView(createSettingsRow("💡", getString(R.string.keep_screen_on), getString(R.string.keep_screen_on_sub), keepScreenOnSwitch))
+                displayCard.addView(createSettingsRow("", getString(R.string.keep_screen_on), getString(R.string.keep_screen_on_sub), keepScreenOnSwitch))
                 displayCard.addView(createDivider())
 
                 val isPauseButtonEnabled = sharedPrefs.getBoolean("show_pause_button", true)
@@ -1565,7 +1688,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         if (currentPanel == AppPanel.FOCUS) updateVisualStyles()
                     }
                 }
-                displayCard.addView(createSettingsRow("⏸", getString(R.string.pause_button), getString(R.string.pause_button_sub), pauseButtonSwitch))
+                displayCard.addView(createSettingsRow("", getString(R.string.pause_button), getString(R.string.pause_button_sub), pauseButtonSwitch))
                 displayCard.addView(createDivider())
 
                 val isLandscapeStopwatchEnabled = sharedPrefs.getBoolean("is_landscape_mode_enabled", sharedPrefs.getBoolean("true_fullscreen_landscape", true))
@@ -1582,7 +1705,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         }
                     }
                 }
-                displayCard.addView(createSettingsRow("📱", "Landscape Fullscreen", "Rotate your phone sideways for a distraction-free fullscreen clock", landscapeSwitch))
+                displayCard.addView(createSettingsRow("", "Landscape Fullscreen", "Rotate your phone sideways for a distraction-free fullscreen clock", landscapeSwitch))
                 displayCard.addView(createDivider())
 
                 val isPureWhite = sharedPrefs.getBoolean("pureWhiteTimer", false)
@@ -1594,12 +1717,12 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         tabPageCache.clear()
                     }
                 }
-                displayCard.addView(createSettingsRow("○", "Pure White Clock", "Keep timer numbers clean white instead of using your accent color", pureWhiteSwitch))
+                displayCard.addView(createSettingsRow("", "Pure White Clock", "Keep timer numbers clean white instead of using your accent color", pureWhiteSwitch))
                 layout.addView(displayCard)
 
                 layout.addView(createSectionLabel("ADJUST STUDY TIME"))
                 val adjustCard = createSettingsCard()
-                val adjustRow = createSettingsRow("⏱", "Adjust Today's Study Time", "Add missed study minutes or correct your total for today")
+                val adjustRow = createSettingsRow("", "Adjust Today's Study Time", "Add missed study minutes or correct your total for today")
                 adjustRow.setOnClickListener {
                     DeveloperToolsHelper.showAdjustTodayTimeDialog(host, themeCoordinator, isDeveloperExtended = false)
                 }
@@ -1625,7 +1748,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         }
                     }
                 }
-                reminderCard.addView(createSettingsRow("🔔", "Daily Goal Reminder", "Get a friendly evening reminder if you haven't reached your study goal", reminderSwitch))
+                reminderCard.addView(createSettingsRow("", "Daily Goal Reminder", "Get a friendly evening reminder if you haven't reached your study goal", reminderSwitch))
                 reminderCard.addView(createDivider())
 
                 val remHour = sharedPrefs.safeInt("reminder_hour", 20)
@@ -1736,9 +1859,9 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         sharedPrefs.edit().putBoolean("streak_uses_daily_goal", isChecked).apply()
                     }
                 }
-                goalCard.addView(createSettingsRow("🔥", getString(R.string.streak_uses_goal), getString(R.string.streak_uses_goal_sub), streakGoalSwitch))
+                goalCard.addView(createSettingsRow("", getString(R.string.streak_uses_goal), getString(R.string.streak_uses_goal_sub), streakGoalSwitch))
                 goalCard.addView(createDivider())
-                val adjustStatsRow = createSettingsRow("⏱", "Adjust Today's Study Time", "Add missed study minutes or correct your total for today")
+                val adjustStatsRow = createSettingsRow("", "Adjust Today's Study Time", "Add missed study minutes or correct your total for today")
                 adjustStatsRow.setOnClickListener {
                     DeveloperToolsHelper.showAdjustTodayTimeDialog(host, themeCoordinator, isDeveloperExtended = false)
                 }
@@ -1756,7 +1879,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         tabPageCache.clear()
                     }
                 }
-                chartsCard.addView(createSettingsRow("🗓", getString(R.string.focus_heatmap_setting), getString(R.string.focus_heatmap_setting_sub), heatmapSwitch))
+                chartsCard.addView(createSettingsRow("", getString(R.string.focus_heatmap_setting), getString(R.string.focus_heatmap_setting_sub), heatmapSwitch))
                 chartsCard.addView(createDivider())
 
                 val isPieChartEnabled = sharedPrefs.safeBoolean("show_subject_pie_chart", true)
@@ -1768,7 +1891,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         tabPageCache.clear()
                     }
                 }
-                chartsCard.addView(createSettingsRow("📊", "Subject Breakdown Chart", "Show your subject time charts in Stats", pieChartSwitch))
+                chartsCard.addView(createSettingsRow("", "Subject Breakdown Chart", "Show your subject time charts in Stats", pieChartSwitch))
                 chartsCard.addView(createDivider())
 
                 val isDonutEnabled = sharedPrefs.safeBoolean("use_donut_chart", true)
@@ -1792,7 +1915,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         tabPageCache.clear()
                     }
                 }
-                chartsCard.addView(createSettingsRow("🕒", getString(R.string.focus_pattern_setting), getString(R.string.focus_pattern_setting_sub), patternSwitch))
+                chartsCard.addView(createSettingsRow("", getString(R.string.focus_pattern_setting), getString(R.string.focus_pattern_setting_sub), patternSwitch))
                 layout.addView(chartsCard)
 
                 layout.addView(createSectionLabel("LEADERBOARD & PRIVACY"))
@@ -1835,14 +1958,14 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         } else {
                             // User turned ON
                             sharedPrefs.edit().putBoolean("leaderboard_participate", true).apply()
-                            android.widget.Toast.makeText(host, "Participating in Leaderboard! 🚀", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(host, "Leaderboard participation active", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
                 participateSwitchRef = participateSwitch
 
                 val participateRow = createSettingsRow(
-                    "🏆",
+                    "",
                     "Participate in Leaderboard",
                     "Sync study hours and compete on the global student rankings (On by default)",
                     participateSwitch
@@ -1854,7 +1977,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     } else {
                         sharedPrefs.edit().putBoolean("leaderboard_participate", true).apply()
                         participateSwitch.isChecked = true
-                        android.widget.Toast.makeText(host, "Participating in Leaderboard! 🚀", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(host, "Leaderboard participation active", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }
                 leaderboardCard.addView(participateRow)
@@ -1876,7 +1999,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     }
                 }
                 val liveStatusRow = createSettingsRow(
-                    "🟢",
+                    "",
                     "Share Live Study Status",
                     "Show a live studying badge and current subject to others while focusing (On by default)",
                     liveStatusSwitch
@@ -1908,7 +2031,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 val isGoogleAuth = AuthManager.isLoggedIn(this)
                 val userEmail = AuthManager.getUserEmail(this) ?: "Not Signed In"
 
-                val authRow = createSettingsRow("☁", "Cloud Account", userEmail)
+                val authRow = createSettingsRow("", "Cloud Account", userEmail)
                 authRow.setOnClickListener {
                     if (!isGoogleAuth) {
                         startActivity(Intent(this, LoginActivity::class.java))
@@ -1979,7 +2102,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
                 layout.addView(createSectionLabel("LOCAL DATA & BACKUPS"))
                 val dataCard = createSettingsCard()
-                val exportRow = createSettingsRow("📤", getString(R.string.export_logs), getString(R.string.export_logs_sub))
+                val exportRow = createSettingsRow("", getString(R.string.export_logs), getString(R.string.export_logs_sub))
                 exportRow.setOnClickListener {
                     val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                         addCategory(Intent.CATEGORY_OPENABLE)
@@ -1992,7 +2115,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 dataCard.addView(exportRow)
                 dataCard.addView(createDivider())
 
-                val importRow = createSettingsRow("📥", getString(R.string.import_data), getString(R.string.import_data_sub))
+                val importRow = createSettingsRow("", getString(R.string.import_data), getString(R.string.import_data_sub))
                 importRow.setOnClickListener {
                     val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
                         type = "application/json"
@@ -2003,7 +2126,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 dataCard.addView(importRow)
                 dataCard.addView(createDivider())
 
-                val csvRow = createSettingsRow("📊", getString(R.string.export_csv), getString(R.string.export_csv_sub))
+                val csvRow = createSettingsRow("", getString(R.string.export_csv), getString(R.string.export_csv_sub))
                 csvRow.setOnClickListener {
                     val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                         addCategory(Intent.CATEGORY_OPENABLE)
@@ -2037,7 +2160,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     }
                 }
 
-                val oledRow = createSettingsRow("⬛", getString(R.string.theme_amoled), "Pure pitch AMOLED #000000 background", modeRadio(!isEclipse && !isLight))
+                val oledRow = createSettingsRow("", getString(R.string.theme_amoled), "Pure pitch black background for OLED screens", modeRadio(!isEclipse && !isLight))
                 oledRow.setOnClickListener {
                     sharedPrefs.edit().putString("activeBgMode", "OLED").apply()
                     themeCoordinator.applyThemeCoordinates()
@@ -2046,7 +2169,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 modeCard.addView(oledRow)
                 modeCard.addView(createDivider())
 
-                val eclipseRow = createSettingsRow("🌙", getString(R.string.theme_slate), getString(R.string.theme_slate_sub), modeRadio(isEclipse))
+                val eclipseRow = createSettingsRow("", getString(R.string.theme_slate), getString(R.string.theme_slate_sub), modeRadio(isEclipse))
                 eclipseRow.setOnClickListener {
                     sharedPrefs.edit().putString("activeBgMode", "ECLIPSE").apply()
                     themeCoordinator.applyThemeCoordinates()
@@ -2055,7 +2178,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 modeCard.addView(eclipseRow)
                 modeCard.addView(createDivider())
 
-                val lightRow = createSettingsRow("☀️", getString(R.string.theme_light), getString(R.string.theme_light_sub), modeRadio(isLight))
+                val lightRow = createSettingsRow("", getString(R.string.theme_light), getString(R.string.theme_light_sub), modeRadio(isLight))
                 lightRow.setOnClickListener {
                     sharedPrefs.edit().putString("activeBgMode", "LIGHT").apply()
                     themeCoordinator.applyThemeCoordinates()
@@ -2069,7 +2192,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 val isBubble = themeCoordinator.isBubbleStyle()
                 val isGlass = themeCoordinator.isGlassStyle()
 
-                val glassRow = createSettingsRow("✨", getString(R.string.style_glass), getString(R.string.style_glass_sub), modeRadio(isGlass))
+                val glassRow = createSettingsRow("", getString(R.string.style_glass), getString(R.string.style_glass_sub), modeRadio(isGlass))
                 glassRow.setOnClickListener {
                     sharedPrefs.edit().putString("ui_style", "GLASS").apply()
                     themeCoordinator.applyThemeCoordinates()
@@ -2078,7 +2201,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 styleCard.addView(glassRow)
                 styleCard.addView(createDivider())
 
-                val bubbleRow = createSettingsRow("🔮", "3D Soft Depth", "Soft elevated cards with smooth depth", modeRadio(isBubble))
+                val bubbleRow = createSettingsRow("", "3D Soft Depth", "Soft elevated cards with smooth depth", modeRadio(isBubble))
                 bubbleRow.setOnClickListener {
                     sharedPrefs.edit().putString("ui_style", "BUBBLE").apply()
                     themeCoordinator.applyThemeCoordinates()
@@ -2087,7 +2210,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 styleCard.addView(bubbleRow)
                 styleCard.addView(createDivider())
 
-                val classicRow = createSettingsRow("◽", getString(R.string.style_classic), getString(R.string.style_classic_sub), modeRadio(!isGlass && !isBubble))
+                val classicRow = createSettingsRow("", getString(R.string.style_classic), getString(R.string.style_classic_sub), modeRadio(!isGlass && !isBubble))
                 classicRow.setOnClickListener {
                     sharedPrefs.edit().putString("ui_style", "CLASSIC").apply()
                     themeCoordinator.applyThemeCoordinates()
@@ -2110,7 +2233,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     setPadding(dp(14), dp(6), dp(14), dp(6))
                 }
                 val randomRow = createSettingsRow(
-                    "🎲",
+                    "",
                     "Random Accent Colors",
                     "Generate clean, matching colors for Study & Break",
                     rollBtn

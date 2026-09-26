@@ -635,28 +635,30 @@ class SubjectDialogHelper(private val host: MainActivity) {
 
                     subjCard.addView(headerRowSubj)
 
-                    val timingStr = if (matchedSessions.isNotEmpty()) {
-                        val firstMs = matchedSessions.minOf { it.startMs }
-                        val lastMs = matchedSessions.maxOf { it.endMs }
-                        "${TimeFormat.formatWallClock(host, firstMs)} \u2013 ${TimeFormat.formatWallClock(host, lastMs)}"
-                    } else if (daySessions.isNotEmpty()) {
-                        val firstMs = daySessions.minOf { it.startMs }
-                        val lastMs = daySessions.maxOf { it.endMs }
+                    val validMatchedSessions = matchedSessions.filter { it.secs >= 60L }
+                    val timingStr = if (validMatchedSessions.isNotEmpty()) {
+                        val firstMs = validMatchedSessions.minOf { it.startMs }
+                        val lastMs = validMatchedSessions.maxOf { it.endMs }
                         "${TimeFormat.formatWallClock(host, firstMs)} \u2013 ${TimeFormat.formatWallClock(host, lastMs)}"
                     } else {
-                        "N/A"
+                        val validDaySessions = daySessions.filter { it.secs >= 60L }
+                        if (validDaySessions.isNotEmpty()) {
+                            val firstMs = validDaySessions.minOf { it.startMs }
+                            val lastMs = validDaySessions.maxOf { it.endMs }
+                            "${TimeFormat.formatWallClock(host, firstMs)} \u2013 ${TimeFormat.formatWallClock(host, lastMs)}"
+                        } else {
+                            "N/A"
+                        }
                     }
 
                     val hrs = secs / 3600L
                     val mins = (secs % 3600L) / 60L
-                    val remSecs = secs % 60L
-                    val focusTimeStr = if (hrs > 0) "${hrs}h ${mins}m ${remSecs}s" else "${mins}m ${remSecs}s"
+                    val focusTimeStr = if (hrs > 0) "${hrs}h ${mins}m" else "${mins}m"
 
                     val bSecs = subjectBreakDurations[subj.id] ?: 0L
                     val bHrs = bSecs / 3600L
                     val bMins = (bSecs % 3600L) / 60L
-                    val bRemSecs = bSecs % 60L
-                    val breakTimeStr = if (bHrs > 0) "${bHrs}h ${bMins}m ${bRemSecs}s" else "${bMins}m ${bRemSecs}s"
+                    val breakTimeStr = if (bHrs > 0) "${bHrs}h ${bMins}m" else "${bMins}m"
 
                     val detailsText = TextView(host).apply {
                         text = "Study Duration: $focusTimeStr\nBreak Duration: $breakTimeStr\nTime Window: $timingStr"

@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://vkveimpvrpnzelbsvdrg.supabase.co';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '[REDACTED_SUPABASE_ANON_KEY]';
-const TELEGRAM_MODERATION_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
-const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET || '';
+const TELEGRAM_MODERATION_BOT_TOKEN = process.env.TELEGRAM_MODERATION_BOT_TOKEN || '[REDACTED_TELEGRAM_BOT_TOKEN]';
+const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET || '[REDACTED_TELEGRAM_WEBHOOK_SECRET]';
 const ALLOWED_USER_ID = process.env.ALLOWED_USER_ID || process.env.TELEGRAM_CHAT_ID || '6326462250';
 const TELEGRAM_ADMIN_CHAT_ID = ALLOWED_USER_ID;
 

@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://vkveimpvrpnzelbsvdrg.supabase.co';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_Aec72P1pUF1I6eeO-C5vcA_i2jQgEx6';
-const TELEGRAM_MODERATION_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
-const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET || '';
+const TELEGRAM_MODERATION_BOT_TOKEN = process.env.TELEGRAM_MODERATION_BOT_TOKEN || '8755792560:AAFrTNyOjveVTV9vtRgwVD6tkNMwfRBDG2k';
+const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET || 'StudyTimerapp01website01';
 const ALLOWED_USER_ID = process.env.ALLOWED_USER_ID || process.env.TELEGRAM_CHAT_ID || '6326462250';
 const TELEGRAM_ADMIN_CHAT_ID = ALLOWED_USER_ID;
 

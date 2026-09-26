@@ -162,14 +162,14 @@ class SubjectPieChartView(context: Context) : View(context) {
     private fun dp(value: Float): Float = value * resources.displayMetrics.density
 
     private fun formatDuration(secs: Long): String {
+        if (secs <= 0L) return "0m"
         val h = secs / 3600
         val m = (secs % 3600) / 60
-        val s = secs % 60
         return when {
             h > 0 && m > 0 -> "${h}h ${m}m"
             h > 0 -> "${h}h"
             m > 0 -> "${m}m"
-            else -> "${s}s"
+            else -> "<1m"
         }
     }
 

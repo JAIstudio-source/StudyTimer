@@ -185,10 +185,15 @@ class DayTimelineDialogHelper(private val host: MainActivity) {
     }
 
     fun formatDuration(secs: Long): String {
-        val h = secs / 3600
-        val m = (secs % 3600) / 60
-        val s = secs % 60
-        return if (h > 0) "${h}h ${m}m ${s}s" else "${m}m ${s}s"
+        if (secs <= 0L) return "0m"
+        val h = secs / 3600L
+        val m = (secs % 3600L) / 60L
+        return when {
+            h > 0L && m > 0L -> "${h}h ${m}m"
+            h > 0L -> "${h}h"
+            m > 0L -> "${m}m"
+            else -> "<1m"
+        }
     }
 
     fun focusBlockLabels(): Array<String> = Array(24) { h -> "${h}:00 – ${(h + 1) % 24}:00" }

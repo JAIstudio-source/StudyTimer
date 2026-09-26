@@ -149,10 +149,12 @@ object LeaderboardManager {
                     }
                 }
 
+                val enrichedList = enrichLeaderboardWithProfiles(supabaseUrl, anonKey, list)
+
                 synchronized(cache) {
-                    cache[period] = CacheRecord(now, list)
+                    cache[period] = CacheRecord(now, enrichedList)
                 }
-                Result.success(list)
+                Result.success(enrichedList)
             } else {
                 val errBody = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
                 Log.w(TAG, "Fetch leaderboard ($period) failed: HTTP $code: $errBody")
@@ -162,6 +164,143 @@ object LeaderboardManager {
             Log.e(TAG, "Error fetching leaderboard ($period)", e)
             Result.failure(e)
         }
+    }
+
+    data class PublicUserProfile(
+        val userId: String,
+        val bio: String = "",
+        val targetExam: String = ""
+    )
+
+    private val userProfileCache = java.util.concurrent.ConcurrentHashMap<String, PublicUserProfile>()
+
+    private fun parseProfileData(prefsDataStr: String?, pendingJsonStr: String?): Pair<String, String> {
+        var bio = ""
+        var examTarget = ""
+
+        if (!pendingJsonStr.isNullOrBlank()) {
+            try {
+                val pj = JSONObject(pendingJsonStr)
+                bio = pj.optString("bio", pj.optString("mood", "")).trim()
+                examTarget = pj.optString("targetExam", pj.optString("exam_target", "")).trim()
+            } catch (_: Exception) {}
+        }
+
+        if (!prefsDataStr.isNullOrBlank()) {
+            try {
+                val prefs = JSONObject(prefsDataStr)
+                val profStr = prefs.optString("__user_profile__", "")
+                if (profStr.isNotBlank()) {
+                    val prof = JSONObject(profStr)
+                    if (bio.isBlank()) {
+                        bio = prof.optString("bio", "").trim()
+                    }
+                    if (examTarget.isBlank()) {
+                        examTarget = prof.optString("targetExam", "").trim()
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        return Pair(bio, examTarget)
+    }
+
+    private fun enrichLeaderboardWithProfiles(supabaseUrl: String, anonKey: String, entries: List<LeaderboardEntry>): List<LeaderboardEntry> {
+        if (entries.isEmpty()) return entries
+
+        val neededUserIds = entries.mapNotNull { e ->
+            val uid = e.userId.trim()
+            if (uid.isNotBlank() && !uid.startsWith("guest_")) uid else null
+        }.distinct()
+
+        if (neededUserIds.isEmpty()) return entries
+
+        try {
+            val idsParam = neededUserIds.joinToString(",") { it }
+            val url = URL("$supabaseUrl/rest/v1/user_sync_data?user_id=in.($idsParam)&select=user_id,prefs_data,pending_profile_json")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "GET"
+            conn.setRequestProperty("apikey", anonKey)
+            conn.setRequestProperty("Authorization", "Bearer $anonKey")
+            conn.setRequestProperty("Accept", "application/json")
+            conn.connectTimeout = 4000
+            conn.readTimeout = 4000
+
+            if (conn.responseCode in 200..299) {
+                val respText = conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                if (respText.isNotBlank()) {
+                    val arr = JSONArray(respText)
+                    for (i in 0 until arr.length()) {
+                        val row = arr.getJSONObject(i)
+                        val uid = row.optString("user_id", "")
+                        if (uid.isNotBlank()) {
+                            val prefsData = row.optString("prefs_data", "")
+                            val pendingJson = row.optString("pending_profile_json", "")
+                            val (bio, exam) = parseProfileData(prefsData, pendingJson)
+                            userProfileCache[uid] = PublicUserProfile(uid, bio, exam)
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Non-fatal: failed to batch enrich leaderboard profiles", e)
+        }
+
+        return entries.map { entry ->
+            val cached = userProfileCache[entry.userId.trim()]
+            if (cached != null) {
+                entry.copy(
+                    bio = if (cached.bio.isNotBlank()) cached.bio else entry.bio,
+                    examTarget = if (cached.targetExam.isNotBlank()) cached.targetExam else entry.examTarget
+                )
+            } else {
+                entry
+            }
+        }
+    }
+
+    suspend fun fetchUserProfile(context: Context, userId: String): PublicUserProfile? = withContext(Dispatchers.IO) {
+        val cleanId = userId.trim()
+        if (cleanId.isBlank()) return@withContext null
+
+        val cached = userProfileCache[cleanId]
+        if (cached != null && (cached.bio.isNotBlank() || cached.targetExam.isNotBlank())) {
+            return@withContext cached
+        }
+
+        val supabaseUrl = BuildConfig.SUPABASE_URL
+        val anonKey = BuildConfig.SUPABASE_ANON_KEY
+        if (supabaseUrl.isBlank() || anonKey.isBlank()) return@withContext cached
+
+        try {
+            val url = URL("$supabaseUrl/rest/v1/user_sync_data?user_id=eq.$cleanId&select=user_id,prefs_data,pending_profile_json")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "GET"
+            conn.setRequestProperty("apikey", anonKey)
+            conn.setRequestProperty("Authorization", "Bearer $anonKey")
+            conn.setRequestProperty("Accept", "application/json")
+            conn.connectTimeout = 4000
+            conn.readTimeout = 4000
+
+            if (conn.responseCode in 200..299) {
+                val respText = conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                if (respText.isNotBlank()) {
+                    val arr = JSONArray(respText)
+                    if (arr.length() > 0) {
+                        val row = arr.getJSONObject(0)
+                        val prefsData = row.optString("prefs_data", "")
+                        val pendingJson = row.optString("pending_profile_json", "")
+                        val (bio, exam) = parseProfileData(prefsData, pendingJson)
+                        val result = PublicUserProfile(cleanId, bio, exam)
+                        userProfileCache[cleanId] = result
+                        return@withContext result
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error fetching user profile for $cleanId", e)
+        }
+        return@withContext cached
     }
 
     fun isParticipating(context: Context): Boolean {

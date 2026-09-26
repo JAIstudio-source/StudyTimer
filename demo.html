@@ -874,66 +874,77 @@
     <div class="modal-card modal-card-profile" id="profileModalCard">
       <button class="modal-close-btn" id="btnCloseProfileModal" aria-label="Close Profile Settings">&times;</button>
       
-      <div class="modal-header">
-        <div class="modal-icon-wrap" style="background: rgba(139, 92, 246, 0.12); color: #8b5cf6;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-            <circle cx="12" cy="7" r="4"></circle>
-          </svg>
+      <!-- Pinned Top Header, Live Profile Card Preview & Tabs Navigation -->
+      <div class="profile-modal-top-pinned">
+        <div class="modal-header">
+          <div class="modal-icon-wrap" style="background: rgba(139, 92, 246, 0.12); color: #8b5cf6;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </div>
+          <div>
+            <h3 class="modal-title">Customize Profile</h3>
+            <p class="modal-subtitle">Personalize your student identity &amp; card.</p>
+          </div>
         </div>
-        <h3 class="modal-title">Customize Profile</h3>
-        <p class="modal-subtitle">Personalize your student identity &amp; card.</p>
-      </div>
 
-      <form class="modal-body profile-modal-body" id="profileCustomizationForm">
-        
-        <!-- Hero Avatar Showcase Circle & Live Identity Banner (At Top) -->
-        <div class="profile-hero-showcase banner-midnight" id="previewProfileCard">
-          <div class="hero-showcase-bg banner-midnight" id="previewCardBanner"></div>
-          <div class="hero-showcase-content">
-            <div class="hero-avatar-circle-wrap" id="heroAvatarCircleWrap" title="Click to Change Photo">
-              <div class="hero-avatar-ring glow-gold" id="previewAvatarRing">
-                <span class="hero-avatar-icon" id="previewAvatarIcon"><span class="avatar-initial">S</span></span>
+        <!-- Live Profile Card Preview (Fixed at Top) -->
+        <div class="profile-hero-wrap">
+          <div class="profile-hero-showcase" id="previewProfileCard">
+            <div class="hero-showcase-bg banner-midnight" id="previewCardBanner"></div>
+            <div class="hero-showcase-body">
+              <div class="hero-avatar-col">
+                <div class="hero-avatar-circle-wrap" id="heroAvatarCircleWrap" title="Click to Change Photo">
+                  <div class="hero-avatar-ring glow-gold" id="previewAvatarRing">
+                    <span class="hero-avatar-icon" id="previewAvatarIcon"><span class="avatar-initial">S</span></span>
+                  </div>
+                  <span class="hero-flag-badge" id="previewCountryFlag">🌐</span>
+                  <button type="button" class="hero-avatar-edit-badge" id="btnHeroQuickChangePhoto" title="Change Photo" aria-label="Change Photo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                  </button>
+                </div>
               </div>
-              <span class="hero-flag-badge" id="previewCountryFlag">🌐</span>
-              <button type="button" class="hero-avatar-edit-badge" id="btnHeroQuickChangePhoto" title="Change Photo" aria-label="Change Photo">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-              </button>
-            </div>
-            <div class="hero-details-col">
-              <div class="hero-name-row">
-                <strong class="hero-name" id="previewDisplayName">Student</strong>
-                <span class="hero-role-pill" id="previewRolePill">Scholar</span>
+              <div class="hero-details-col">
+                <div class="hero-name-row">
+                  <strong class="hero-name" id="previewDisplayName">Student</strong>
+                  <span class="hero-role-pill" id="previewRolePill">Scholar</span>
+                </div>
+                <div class="hero-tags-row">
+                  <span class="hero-mood-pill" id="previewMoodPill">☕ Deep Focus</span>
+                  <span class="hero-exam-pill" id="previewExamBadge">🎯 4h Daily</span>
+                </div>
+                <p class="hero-motto" id="previewMottoText">🎯 Deep focus &amp; daily consistency</p>
               </div>
-              <div class="hero-tags-row">
-                <span class="hero-mood-pill" id="previewMoodPill">☕ Deep Focus</span>
-                <span class="hero-exam-pill" id="previewExamBadge">🎯 Target: 4h Daily</span>
-              </div>
-              <p class="hero-motto" id="previewMottoText">🎯 Deep focus &amp; daily consistency</p>
             </div>
           </div>
         </div>
 
-        <!-- Customization Submenu Navigation Tabs -->
-        <div class="profile-submenu-nav" id="profileSubmenuNav" role="tablist">
-          <button type="button" class="profile-tab-btn active" data-tab="tab-avatar" role="tab" aria-selected="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-            <span>Photo</span>
-          </button>
-          <button type="button" class="profile-tab-btn" data-tab="tab-identity" role="tab" aria-selected="false">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-            <span>Identity</span>
-          </button>
-          <button type="button" class="profile-tab-btn" data-tab="tab-themes" role="tab" aria-selected="false">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"></circle><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"></circle><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"></circle><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"></path></svg>
-            <span>Theme</span>
-          </button>
-          <button type="button" class="profile-tab-btn" data-tab="tab-privacy" role="tab" aria-selected="false">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-            <span>Privacy</span>
-          </button>
+        <!-- Customization Submenu Navigation Tabs (Fixed under Profile Card) -->
+        <div class="profile-submenu-nav-wrap">
+          <div class="profile-submenu-nav" id="profileSubmenuNav" role="tablist">
+            <button type="button" class="profile-tab-btn active" data-tab="tab-avatar" role="tab" aria-selected="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+              <span>Photo</span>
+            </button>
+            <button type="button" class="profile-tab-btn" data-tab="tab-identity" role="tab" aria-selected="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              <span>Identity</span>
+            </button>
+            <button type="button" class="profile-tab-btn" data-tab="tab-themes" role="tab" aria-selected="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"></circle><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"></circle><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"></circle><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"></path></svg>
+              <span>Theme</span>
+            </button>
+            <button type="button" class="profile-tab-btn" data-tab="tab-privacy" role="tab" aria-selected="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              <span>Privacy</span>
+            </button>
+          </div>
         </div>
+      </div>
 
+      <form class="modal-body profile-modal-body" id="profileCustomizationForm">
+        
         <!-- Tab 1: Profile Photo -->
         <div class="profile-tab-panel active" id="panel-tab-avatar">
           <div class="photo-upload-box">

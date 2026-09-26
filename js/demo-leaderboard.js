@@ -174,7 +174,7 @@ function updateProfileLivePreview() {
   const mottoVal = (mottoInput?.value.trim() || '🎯 Deep focus & daily consistency').slice(0, 60);
 
   if (previewCard) {
-    previewCard.className = `profile-hero-showcase ${selectedBannerTheme}`;
+    previewCard.className = 'profile-hero-showcase';
   }
   if (previewBanner) {
     previewBanner.className = `hero-showcase-bg ${selectedBannerTheme}`;

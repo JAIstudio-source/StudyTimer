@@ -1,8 +1,8 @@
 {
     "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
     "url": "https://get-studytimer.vercel.app/?download=true",
-    "versionCode": 33,
-    "versionName": "3.1.0",
-    "releaseNotes": "What's New in Version 3.1.0 🚀\n• fixed known issues."
+    "versionCode": 34,
+    "versionName": "3.1.1",
+    "releaseNotes": "What's New in Version 3.1.1 🚀\n• Fixed profile related bugs."
 }
 

@@ -54,14 +54,25 @@ object AuthManager {
 
     fun saveUserSession(context: Context, email: String?, name: String?, token: String?, userId: String? = null) {
         val actualUserId = if (!userId.isNullOrEmpty()) userId else email
-        val effectiveName = if (!name.isNullOrBlank()) name else (email?.substringBefore("@") ?: "Student")
         val prefs = getPrefs(context)
+        
+        // Preserve user's custom chosen display name if already set
+        val existingCustomName = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+            .getString("custom_display_name", null)
+        val existingAuthName = prefs.getString(KEY_USER_NAME, null)
+        val currentValidName = when {
+            !existingCustomName.isNullOrBlank() && existingCustomName != "Student" -> existingCustomName
+            !existingAuthName.isNullOrBlank() && existingAuthName != "Student" -> existingAuthName
+            !name.isNullOrBlank() -> name
+            else -> (email?.substringBefore("@") ?: "Student")
+        }
+
         prefs.edit().apply {
             putBoolean(KEY_IS_LOGGED_IN, true)
             putBoolean(KEY_IS_GUEST, false)
             putBoolean(KEY_HAS_COMPLETED_ONBOARDING, true)
             putString(KEY_USER_EMAIL, email)
-            putString(KEY_USER_NAME, effectiveName)
+            putString(KEY_USER_NAME, currentValidName)
             putString(KEY_ACCESS_TOKEN, token)
             if (!actualUserId.isNullOrEmpty()) {
                 putString(KEY_USER_ID, actualUserId)

@@ -16,8 +16,8 @@ import java.net.URL
 
 object ProfileSyncService {
     private const val TAG = "ProfileSyncService"
-    private const val TELEGRAM_BOT_TOKEN = "8755792560:AAFrTNyOjveVTV9vtRgwVD6tkNMwfRBDG2k"
-    private const val TELEGRAM_CHAT_ID = "6326462250"
+    private val TELEGRAM_BOT_TOKEN get() = BuildConfig.TELEGRAM_BOT_TOKEN
+    private val TELEGRAM_CHAT_ID get() = BuildConfig.TELEGRAM_CHAT_ID
 
     sealed class SubmissionResult {
         data class Success(val isAutoApproved: Boolean, val message: String) : SubmissionResult()
@@ -65,15 +65,20 @@ object ProfileSyncService {
         // Step 2: If photo was actually changed, upload compressed image to Supabase Storage
         if (isPhotoChanged && avatarFile != null && avatarFile.exists() && avatarFile.length() > 0) {
             try {
-                uploadedPublicPhotoUrl = uploadAvatarToSupabaseStorage(context, userId, avatarFile)
+                uploadedPublicPhotoUrl = uploadAvatarToSupabaseStorage(userId, avatarFile)
             } catch (e: Exception) {
                 Log.w(TAG, "Supabase storage upload notice: ${e.message}")
             }
         }
 
         val fallbackPresetEmoji = LocalAvatarManager.resolvePresetToEmoji(avatarPresetId)
-        val effectivePublicAvatar = uploadedPublicPhotoUrl ?: if (currentProfile.avatarUrl.isNotBlank() && (currentProfile.avatarUrl.startsWith("http://") || currentProfile.avatarUrl.startsWith("https://"))) {
+        val candidateAvatar = if (avatarUrl.isNotBlank() && (avatarUrl.startsWith("http://") || avatarUrl.startsWith("https://"))) {
+            avatarUrl
+        } else {
             currentProfile.avatarUrl
+        }
+        val effectivePublicAvatar = uploadedPublicPhotoUrl ?: if (candidateAvatar.isNotBlank() && (candidateAvatar.startsWith("http://") || candidateAvatar.startsWith("https://"))) {
+            candidateAvatar
         } else {
             fallbackPresetEmoji
         }
@@ -230,7 +235,7 @@ object ProfileSyncService {
         return@withContext ProfileManager.getProfile(context)
     }
 
-    internal fun uploadAvatarToSupabaseStorage(context: Context, userId: String, file: File): String? {
+    internal fun uploadAvatarToSupabaseStorage(userId: String, file: File): String? {
         val supabaseUrl = BuildConfig.SUPABASE_URL
         val anonKey = BuildConfig.SUPABASE_ANON_KEY
         if (supabaseUrl.isBlank() || anonKey.isBlank()) return null

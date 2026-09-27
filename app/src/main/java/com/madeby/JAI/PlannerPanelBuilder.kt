@@ -2099,7 +2099,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                 var isSuccess = false
                 var errorMessage = ""
-                var statusCode = 0
+                var statusCode: Int
 
                 val supabaseUrl = BuildConfig.SUPABASE_URL
                 val supabaseAnonKey = BuildConfig.SUPABASE_ANON_KEY

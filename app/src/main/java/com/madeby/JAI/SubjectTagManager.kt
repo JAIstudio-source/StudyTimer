@@ -168,7 +168,8 @@ object SubjectTagManager {
     }
 
     fun addCustomSubject(context: Context, name: String, emoji: String = "📚", colorHex: String? = null): SubjectTag {
-        val cleanName = name.trim().take(25)
+        val check = ProfanityFilter.checkSubjectName(name)
+        val cleanName = if (check.isClean) check.sanitizedText else "Subject"
         val id = "custom_" + java.util.UUID.randomUUID().toString()
         val finalColor = colorHex?.takeIf { it.isNotBlank() } ?: generateUniqueColor(context)
         val newSub = SubjectTag(id, cleanName, emoji, finalColor, isCustom = true)
@@ -189,6 +190,9 @@ object SubjectTagManager {
     }
 
     fun updateSubject(context: Context, updated: SubjectTag) {
+        val check = ProfanityFilter.checkSubjectName(updated.name)
+        val cleanName = if (check.isClean) check.sanitizedText else "Subject"
+        val safeUpdated = updated.copy(name = cleanName)
         val prefs = getPrefs(context)
         val customJson = prefs.getString(KEY_CUSTOM_SUBJECTS_JSON, "[]") ?: "[]"
         try {
@@ -196,12 +200,12 @@ object SubjectTagManager {
             val newArr = JSONArray()
             for (i in 0 until arr.length()) {
                 val obj = arr.getJSONObject(i)
-                if (obj.getString("id") == updated.id) {
+                if (obj.getString("id") == safeUpdated.id) {
                     val newObj = JSONObject().apply {
-                        put("id", updated.id)
-                        put("name", updated.name)
-                        put("iconEmoji", updated.iconEmoji)
-                        put("colorHex", updated.colorHex)
+                        put("id", safeUpdated.id)
+                        put("name", safeUpdated.name)
+                        put("iconEmoji", safeUpdated.iconEmoji)
+                        put("colorHex", safeUpdated.colorHex)
                     }
                     newArr.put(newObj)
                 } else {

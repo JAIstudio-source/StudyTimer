@@ -500,8 +500,19 @@ async function handleSaveProfile(e) {
     diffs.push({ field: 'Profile Photo', old: prevProfile.avatarPreset ? 'Previous Avatar' : 'Default Sticker', new: isCustomPhoto ? 'New Custom Photo' : avatarValueToSave });
   }
 
+  const isStatusApproved = !isCustomPhoto && !hasProfanity(displayName);
+  const lastApprovedName = isStatusApproved
+    ? displayName
+    : (prevProfile.lastApprovedDisplayName || appState.approvedDisplayName || (prevProfile.profileStatus === 'approved' ? prevProfile.displayName : 'Student'));
+  const lastApprovedAvatarVal = (!isCustomPhoto && avatarValueToSave)
+    ? avatarValueToSave
+    : (prevProfile.lastApprovedAvatar || previousApprovedAvatar || '🐱');
+
   appState.userProfile = {
+    ...prevProfile,
     displayName,
+    lastApprovedDisplayName: lastApprovedName,
+    lastApprovedAvatar: lastApprovedAvatarVal,
     avatarPreset: avatarValueToSave,
     fallbackSticker: isCustomPhoto ? previousApprovedAvatar : avatarValueToSave,
     photoApproved: !isCustomPhoto, // Emoji stickers are auto-approved, custom photos strictly require admin approval
@@ -514,10 +525,11 @@ async function handleSaveProfile(e) {
     primarySubjectId,
     isStealth,
     isPublicLeaderboard,
-    profileStatus: isCustomPhoto ? 'pending' : (hasProfanity(displayName) ? 'pending' : 'approved')
+    profileStatus: isStatusApproved ? 'approved' : 'pending',
+    moderationStatus: isStatusApproved ? 'APPROVED' : 'PENDING'
   };
 
-  if (appState.userProfile.profileStatus === 'approved') {
+  if (isStatusApproved) {
     appState.approvedDisplayName = displayName;
   }
 

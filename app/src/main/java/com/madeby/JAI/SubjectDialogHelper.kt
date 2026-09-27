@@ -353,12 +353,19 @@ class SubjectDialogHelper(private val host: MainActivity) {
                 }
                 setOnClickListener {
                     val name = input.text.toString().trim()
-                    if (name.isNotEmpty()) {
-                        val created = SubjectTagManager.addCustomSubject(host, name, "📚", selectedColorHex)
-                        dialog.dismiss()
-                        host.navigateToPanel(AppPanel.FOCUS)
-                        onSubjectCreated?.invoke(created)
+                    if (name.isEmpty()) {
+                        Toast.makeText(host, "Please enter a subject name", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
                     }
+                    val check = ProfanityFilter.checkSubjectName(name)
+                    if (!check.isClean) {
+                        Toast.makeText(host, check.reason ?: "Subject name contains inappropriate words 🛡️", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+                    val created = SubjectTagManager.addCustomSubject(host, check.sanitizedText, "📚", selectedColorHex)
+                    dialog.dismiss()
+                    host.navigateToPanel(AppPanel.FOCUS)
+                    onSubjectCreated?.invoke(created)
                 }
             }
             container.addView(saveBtn)

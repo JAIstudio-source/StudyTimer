@@ -297,6 +297,12 @@ export default async function handler(req, res) {
 
             profile.photoApproved = true;
             profile.profileStatus = 'approved';
+            profile.moderationStatus = 'APPROVED';
+            profile.lastApprovedDisplayName = targetName;
+            profile.lastApprovedAvatar = targetAvatarUrl;
+            profile.pendingDisplayName = null;
+            profile.displayName = targetName;
+            profile.display_name = targetName;
             profile.avatarUrl = targetAvatarUrl;
 
             let updatedPrefs = {};
@@ -306,6 +312,8 @@ export default async function handler(req, res) {
               } catch (_) {}
             }
             updatedPrefs.__user_profile__ = JSON.stringify(profile);
+            updatedPrefs.custom_display_name = targetName;
+            updatedPrefs.last_approved_display_name = targetName;
 
             await Promise.all([
               supabase
@@ -371,10 +379,19 @@ export default async function handler(req, res) {
             }
           }
 
+          const fallbackName = profileObj.lastApprovedDisplayName || userPrefs.last_approved_display_name || 'Student';
+          const fallbackAvatar = profileObj.lastApprovedAvatar || profileObj.fallbackSticker || '🐱';
+
+          profileObj.displayName = fallbackName;
+          profileObj.display_name = fallbackName;
+          profileObj.pendingDisplayName = null;
           profileObj.photoApproved = false;
           profileObj.profileStatus = 'rejected';
-          profileObj.avatarPreset = profileObj.fallbackSticker || '🐱';
+          profileObj.moderationStatus = 'REJECTED';
+          profileObj.avatarPreset = fallbackAvatar;
+          profileObj.profile_image_uri = fallbackAvatar;
           userPrefs.__user_profile__ = JSON.stringify(profileObj);
+          userPrefs.custom_display_name = fallbackName;
 
           await Promise.all([
             supabase
@@ -382,14 +399,18 @@ export default async function handler(req, res) {
               .update({
                 profile_status: 'rejected',
                 pending_profile_json: null,
-                profile_image_uri: profileObj.avatarPreset,
+                user_name: fallbackName,
+                profile_image_uri: fallbackAvatar,
                 prefs_data: JSON.stringify(userPrefs),
                 updated_at: Date.now()
               })
               .eq('user_id', userId),
             supabase
               .from('daily_leaderboard')
-              .update({ avatar_url: profileObj.avatarPreset })
+              .update({
+                user_name: fallbackName,
+                avatar_url: fallbackAvatar
+              })
               .eq('user_id', userId)
           ]);
 

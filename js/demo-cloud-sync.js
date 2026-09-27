@@ -362,21 +362,28 @@ function mergeCloudDataIntoLocal(data) {
 
         const resolvedAvatar = sanitizeAvatar(rawAvatarCandidate);
 
+        const effectiveLoadedName = (serverProfileStatus === 'rejected')
+          ? (loadedProfile.lastApprovedDisplayName || appState.approvedDisplayName || remoteVerifiedName || 'Student')
+          : (loadedProfile.displayName || appState.userProfile?.displayName || remoteVerifiedName || '');
+
         appState.userProfile = {
           ...appState.userProfile,
           ...loadedProfile,
-          displayName: sanitizeString(loadedProfile.displayName || appState.userProfile?.displayName || '', 50),
+          displayName: sanitizeString(effectiveLoadedName, 50),
+          lastApprovedDisplayName: loadedProfile.lastApprovedDisplayName || appState.approvedDisplayName || (serverProfileStatus === 'approved' ? effectiveLoadedName : 'Student'),
+          lastApprovedAvatar: loadedProfile.lastApprovedAvatar || '🐱',
           avatarPreset: resolvedAvatar,
           avatarRing: loadedProfile.avatarRing || appState.userProfile?.avatarRing || 'glow-gold',
           bannerTheme: loadedProfile.bannerTheme || appState.userProfile?.bannerTheme || 'banner-midnight',
           countryFlag: loadedProfile.countryFlag || appState.userProfile?.countryFlag || '🌐',
-          mood: loadedProfile.mood || appState.userProfile?.mood || '',
-          examTarget: loadedProfile.examTarget || appState.userProfile?.examTarget || '',
+          mood: (serverProfileStatus === 'rejected') ? '' : (loadedProfile.mood || appState.userProfile?.mood || ''),
+          examTarget: (serverProfileStatus === 'rejected') ? '' : (loadedProfile.examTarget || appState.userProfile?.examTarget || ''),
           motto: loadedProfile.motto || appState.userProfile?.motto || '',
           primarySubjectId: loadedProfile.primarySubjectId || appState.userProfile?.primarySubjectId || 'math',
           isStealth: Boolean(loadedProfile.isStealth),
           isPublicLeaderboard: loadedProfile.isPublicLeaderboard !== false,
-          profileStatus: serverProfileStatus
+          profileStatus: serverProfileStatus,
+          moderationStatus: serverProfileStatus.toUpperCase()
         };
       }
     } catch (_) {}
@@ -392,24 +399,28 @@ function mergeCloudDataIntoLocal(data) {
 
   // Enforce server moderation decision on local state
   if (serverProfileStatus === 'rejected') {
-    const fallbackName = appState.approvedDisplayName || remoteVerifiedName || appState.currentUser?.user_metadata?.full_name || appState.currentUser?.email?.split('@')[0] || 'Scholar';
+    const fallbackName = appState.userProfile?.lastApprovedDisplayName || appState.approvedDisplayName || remoteVerifiedName || 'Student';
     if (appState.userProfile) {
       appState.userProfile.displayName = sanitizeString(fallbackName, 50);
       appState.userProfile.mood = '';
       appState.userProfile.examTarget = '';
       appState.userProfile.profileStatus = 'rejected';
+      appState.userProfile.moderationStatus = 'REJECTED';
     }
     appState.approvedDisplayName = sanitizeString(fallbackName, 50);
   } else if (serverProfileStatus === 'approved') {
     if (appState.userProfile) {
       appState.userProfile.profileStatus = 'approved';
-      const effectiveName = appState.userProfile.displayName || remoteVerifiedName || appState.currentUser?.user_metadata?.full_name || 'Student';
+      appState.userProfile.moderationStatus = 'APPROVED';
+      const effectiveName = appState.userProfile.displayName || remoteVerifiedName || 'Student';
       appState.userProfile.displayName = sanitizeString(effectiveName, 50);
+      appState.userProfile.lastApprovedDisplayName = sanitizeString(effectiveName, 50);
       appState.approvedDisplayName = sanitizeString(effectiveName, 50);
     }
   } else if (serverProfileStatus === 'pending') {
     if (appState.userProfile) {
       appState.userProfile.profileStatus = 'pending';
+      appState.userProfile.moderationStatus = 'PENDING';
     }
     if (remoteVerifiedName) {
       appState.approvedDisplayName = sanitizeString(remoteVerifiedName, 50);

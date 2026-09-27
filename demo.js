@@ -7640,6 +7640,11 @@ function handleAddCustomSubject(e) {
   const name = input?.value.trim();
   if (!name) return;
 
+  if (typeof hasProfanity === 'function' && hasProfanity(name)) {
+    showToast('Please keep subject names respectful & study-focused 🛡️', 'error');
+    return;
+  }
+
   const activeColorBtn = document.querySelector('.color-choice-btn.active');
   const color = activeColorBtn ? activeColorBtn.dataset.color : '#3b82f6';
 

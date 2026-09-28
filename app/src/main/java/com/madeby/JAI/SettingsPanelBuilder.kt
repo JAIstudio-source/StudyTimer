@@ -444,7 +444,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
                 // --- TOP USER PROFILE CARD ---
                 val isGoogleAuth = AuthManager.isLoggedIn(this)
-                val userName = AuthManager.getUserName(this) ?: if (isGoogleAuth) "Google Account User" else "Guest Learner"
+                val userName = ProfileManager.getEffectiveDisplayName(this).ifBlank { AuthManager.getUserName(this) ?: if (isGoogleAuth) "Google Account User" else "Guest Learner" }
                 val userEmail = AuthManager.getUserEmail(this)
                 val avatarInitials = userName.take(1).uppercase(Locale.ROOT).ifEmpty { "G" }
 
@@ -782,7 +782,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 layout.addView(createSectionLabel("ACCOUNT & PROFILE"))
                 val profileCard = createSettingsCard()
                 val isGoogleAuth = AuthManager.isLoggedIn(this)
-                val userName = AuthManager.getUserName(this) ?: if (isGoogleAuth) "Google Account User" else "Guest Learner"
+                val userName = ProfileManager.getEffectiveDisplayName(this).ifBlank { AuthManager.getUserName(this) ?: if (isGoogleAuth) "Google Account User" else "Guest Learner" }
                 val userEmail = AuthManager.getUserEmail(this) ?: "Offline / Not Signed In"
                 val avatarInitials = userName.take(1).uppercase(Locale.ROOT).ifEmpty { "G" }
 

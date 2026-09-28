@@ -313,15 +313,26 @@ object TimelineLogger {
                 computedSubjectTotals[subId] = (computedSubjectTotals[subId] ?: 0L) + s.secs
             }
             
-            // Set daily subject durations to match timeline truth
+            // Merge daily subject durations safely without erasing live in-progress recordings
             val subPrefs = context.getSharedPreferences("studytimer_subject_tags", Context.MODE_PRIVATE)
             val dailyStr = subPrefs.getString("daily_subject_durations_json", "{}") ?: "{}"
             try {
                 val dailyJson = org.json.JSONObject(dailyStr)
+                val existingDayObj = dailyJson.optJSONObject(dateStr) ?: org.json.JSONObject()
                 val dayObj = org.json.JSONObject()
+
+                val existingKeys = existingDayObj.keys()
+                while (existingKeys.hasNext()) {
+                    val k = existingKeys.next()
+                    val cur = existingDayObj.optLong(k, 0L)
+                    if (cur > 0L) dayObj.put(k, cur)
+                }
+
                 for ((subId, secs) in computedSubjectTotals) {
-                    if (secs > 0L) {
-                        dayObj.put(subId, secs)
+                    val existing = dayObj.optLong(subId, 0L)
+                    val merged = maxOf(existing, secs)
+                    if (merged > 0L) {
+                        dayObj.put(subId, merged)
                     }
                 }
                 dailyJson.put(dateStr, dayObj)

@@ -137,7 +137,8 @@ object ProfileSyncService {
                         put("updated_at", System.currentTimeMillis())
                     }
 
-                    val url = URL("$supabaseUrl/rest/v1/user_sync_data?user_id=eq.$rawUserId")
+                    val encodedUserId = java.net.URLEncoder.encode(rawUserId, "UTF-8")
+                    val url = URL("$supabaseUrl/rest/v1/user_sync_data?user_id=eq.$encodedUserId")
                     val conn = url.openConnection() as HttpURLConnection
                     conn.requestMethod = "PATCH"
                     conn.setRequestProperty("apikey", anonKey)
@@ -210,23 +211,42 @@ object ProfileSyncService {
         if (supabaseUrl.isBlank() || anonKey.isBlank()) return@withContext current
 
         try {
-            // Fetch only necessary status columns to minimize payload & bandwidth (<100 bytes)
-            val url = URL("$supabaseUrl/rest/v1/user_sync_data?user_id=eq.$rawUserId&select=profile_status,user_name,profile_image_uri,updated_at")
-            val conn = url.openConnection() as HttpURLConnection
+            val encodedUserId = java.net.URLEncoder.encode(rawUserId, "UTF-8")
+            // Fetch status, username, image, and pending json to correctly reconcile upon moderator approval
+            var url = URL("$supabaseUrl/rest/v1/user_sync_data?user_id=eq.$encodedUserId&select=profile_status,user_name,profile_image_uri,pending_profile_json,updated_at")
+            var conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
             conn.setRequestProperty("apikey", anonKey)
             conn.setRequestProperty("Authorization", "Bearer $anonKey")
             conn.connectTimeout = 6000
             conn.readTimeout = 6000
 
-            if (conn.responseCode in 200..299) {
-                val responseStr = conn.inputStream.bufferedReader().use { it.readText() }
-                val arr = JSONArray(responseStr)
-                if (arr.length() > 0) {
-                    val record = arr.getJSONObject(0)
-                    ProfileManager.updateFromCloudRecord(context, record)
-                    Log.d(TAG, "Profile status successfully refreshed from Supabase: status=${record.optString("profile_status")}, user_name=${record.optString("user_name")}")
+            var responseStr = if (conn.responseCode in 200..299) conn.inputStream.bufferedReader().use { it.readText() } else ""
+            var arr = if (responseStr.isNotEmpty()) JSONArray(responseStr) else JSONArray()
+
+            // Fallback: If not found by user_id, search by user_email
+            val userEmail = AuthManager.getUserEmail(context)
+            if (arr.length() == 0 && !userEmail.isNullOrBlank() && userEmail != rawUserId) {
+                val encodedEmail = java.net.URLEncoder.encode(userEmail, "UTF-8")
+                val fallbackUrl = URL("$supabaseUrl/rest/v1/user_sync_data?or=(user_id.eq.$encodedEmail,user_email.eq.$encodedEmail)&select=profile_status,user_name,profile_image_uri,pending_profile_json,updated_at")
+                val fallbackConn = fallbackUrl.openConnection() as HttpURLConnection
+                fallbackConn.requestMethod = "GET"
+                fallbackConn.setRequestProperty("apikey", anonKey)
+                fallbackConn.setRequestProperty("Authorization", "Bearer $anonKey")
+                fallbackConn.connectTimeout = 6000
+                fallbackConn.readTimeout = 6000
+                if (fallbackConn.responseCode in 200..299) {
+                    val fallbackStr = fallbackConn.inputStream.bufferedReader().use { it.readText() }
+                    if (fallbackStr.isNotEmpty()) {
+                        arr = JSONArray(fallbackStr)
+                    }
                 }
+            }
+
+            if (arr.length() > 0) {
+                val record = arr.getJSONObject(0)
+                val changed = ProfileManager.updateFromCloudRecord(context, record)
+                Log.d(TAG, "Profile status successfully refreshed from Supabase: status=${record.optString("profile_status")}, changed=$changed")
             }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to refresh profile status from cloud: ${e.message}")

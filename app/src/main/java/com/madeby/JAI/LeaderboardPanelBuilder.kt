@@ -999,9 +999,19 @@ class LeaderboardPanelBuilder(private val host: MainActivity) {
             val currentProfile = ProfileManager.getProfile(host)
             val effectiveName = ProfileManager.getEffectiveDisplayName(host)
 
-            val todayFmt = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
-            val todayRealSecs = LeaderboardManager.getRealTimerFocusSecondsForDate(host, todayFmt).toInt()
-            val finalDurationSecs = if (myEntry != null && myEntry.totalSeconds > 0) myEntry.totalSeconds else todayRealSecs
+            val periodRealSecs = LeaderboardManager.getRealTimerFocusSecondsForPeriod(host, selectedPeriod).toInt()
+            val finalDurationSecs = if (myEntry != null && myEntry.totalSeconds > 0) myEntry.totalSeconds else periodRealSecs
+
+            val effectiveEntry = myEntry ?: LeaderboardEntry(
+                rank = 0,
+                userId = AuthManager.getUserId(host) ?: "",
+                userName = effectiveName,
+                avatarUrl = ProfileManager.getEffectiveAvatarUrl(host),
+                totalSeconds = finalDurationSecs,
+                isStudying = false,
+                examTarget = currentProfile.targetExam,
+                bio = currentProfile.bio
+            )
 
             val myCard = LinearLayout(host).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -1017,21 +1027,7 @@ class LeaderboardPanelBuilder(private val host: MainActivity) {
                 isClickable = true
                 isFocusable = true
                 setOnClickListener {
-                    if (myEntry != null) {
-                        showStudentProfileDialog(myEntry)
-                    } else {
-                        val dummyEntry = LeaderboardEntry(
-                            rank = 0,
-                            userId = AuthManager.getUserId(host) ?: "",
-                            userName = effectiveName,
-                            avatarUrl = ProfileManager.getEffectiveAvatarUrl(host),
-                            totalSeconds = finalDurationSecs,
-                            isStudying = false,
-                            examTarget = currentProfile.targetExam,
-                            bio = currentProfile.bio
-                        )
-                        showStudentProfileDialog(dummyEntry)
-                    }
+                    showStudentProfileDialog(effectiveEntry)
                 }
             }
 
@@ -1042,7 +1038,7 @@ class LeaderboardPanelBuilder(private val host: MainActivity) {
                     setMargins(0, 0, dp(10), 0)
                 }
             }
-            val avatarView = createAvatarView(myEntry, avatarSize, host.themeCoordinator.primaryColor)
+            val avatarView = createAvatarView(effectiveEntry, avatarSize, host.themeCoordinator.primaryColor)
             avatarFrame.addView(avatarView)
             myCard.addView(avatarFrame)
 
@@ -1081,7 +1077,12 @@ class LeaderboardPanelBuilder(private val host: MainActivity) {
             myInfoCol.addView(nameRow)
 
             val myStatus = TextView(host).apply {
-                text = if (myEntry != null) "Ranked #${myEntry.rank} • Tap to view profile" else "Active today • Tap to view profile"
+                val periodLabel = when (selectedPeriod) {
+                    LeaderboardPeriod.DAILY -> "today"
+                    LeaderboardPeriod.WEEKLY -> "this week"
+                    LeaderboardPeriod.MONTHLY -> "this month"
+                }
+                text = if (myEntry != null) "Ranked #${myEntry.rank} • Tap to view profile" else "Active $periodLabel • Tap to view profile"
                 textSize = 11f
                 setTextColor(host.themeCoordinator.textColor)
                 alpha = 0.65f

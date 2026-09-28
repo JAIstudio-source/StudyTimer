@@ -70,28 +70,19 @@ object LeaderboardManager {
             conn.readTimeout = 5000
             conn.doOutput = true
 
+            val (startStr, endStr) = getPeriodDateRange(period)
             val body = JSONObject().apply {
-                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-                val cal = Calendar.getInstance()
-                val todayStr = sdf.format(cal.time)
-
                 when (period) {
                     LeaderboardPeriod.DAILY -> {
-                        put("p_date", todayStr)
+                        put("p_date", startStr)
                         put("p_limit", 50)
                     }
                     LeaderboardPeriod.WEEKLY -> {
-                        val endStr = todayStr
-                        cal.add(Calendar.DAY_OF_YEAR, -6)
-                        val startStr = sdf.format(cal.time)
                         put("p_start_date", startStr)
                         put("p_end_date", endStr)
                         put("p_limit", 50)
                     }
                     LeaderboardPeriod.MONTHLY -> {
-                        val endStr = todayStr
-                        cal.set(Calendar.DAY_OF_MONTH, 1)
-                        val startStr = sdf.format(cal.time)
                         put("p_start_date", startStr)
                         put("p_end_date", endStr)
                         put("p_limit", 50)
@@ -638,6 +629,100 @@ object LeaderboardManager {
         if (!currentEmail.isNullOrBlank() && entry.userId.equals(currentEmail, ignoreCase = true)) return true
         if (!currentName.isNullOrBlank() && entry.userName.equals(currentName, ignoreCase = true)) return true
         return false
+    }
+
+    /**
+     * Returns the strict start and end dates (yyyy-MM-dd) for the given leaderboard period:
+     * - DAILY: Today to Today
+     * - WEEKLY: Monday of current week to Today (resets every Monday at 00:00:00)
+     * - MONTHLY: 1st of current month to Today (resets on 1st of every month)
+     */
+    fun getPeriodDateRange(period: LeaderboardPeriod): Pair<String, String> {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val now = Calendar.getInstance()
+        val todayStr = sdf.format(now.time)
+
+        return when (period) {
+            LeaderboardPeriod.DAILY -> {
+                Pair(todayStr, todayStr)
+            }
+            LeaderboardPeriod.WEEKLY -> {
+                val mondayCal = WeekHelper.mondayOf(now)
+                val mondayStr = sdf.format(mondayCal.time)
+                Pair(mondayStr, todayStr)
+            }
+            LeaderboardPeriod.MONTHLY -> {
+                val monthCal = Calendar.getInstance().apply {
+                    timeInMillis = now.timeInMillis
+                    set(Calendar.DAY_OF_MONTH, 1)
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                val firstDayStr = sdf.format(monthCal.time)
+                Pair(firstDayStr, todayStr)
+            }
+        }
+    }
+
+    /**
+     * Calculates the real, verified timer focus seconds for the selected leaderboard period:
+     * - DAILY: Today
+     * - WEEKLY: Monday to Today
+     * - MONTHLY: 1st of month to Today
+     */
+    fun getRealTimerFocusSecondsForPeriod(context: Context, period: LeaderboardPeriod): Long {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val now = Calendar.getInstance()
+
+        val startCal = when (period) {
+            LeaderboardPeriod.DAILY -> Calendar.getInstance().apply {
+                timeInMillis = now.timeInMillis
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            LeaderboardPeriod.WEEKLY -> WeekHelper.mondayOf(now)
+            LeaderboardPeriod.MONTHLY -> Calendar.getInstance().apply {
+                timeInMillis = now.timeInMillis
+                set(Calendar.DAY_OF_MONTH, 1)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+        }
+
+        val startMs = startCal.timeInMillis
+        val endMs = Calendar.getInstance().apply {
+            timeInMillis = now.timeInMillis
+            set(Calendar.HOUR_OF_DAY, 23)
+            set(Calendar.MINUTE, 59)
+            set(Calendar.SECOND, 59)
+            set(Calendar.MILLISECOND, 999)
+        }.timeInMillis
+
+        val entries = TimelineLogger.load(context)
+        val parsedAll = parseDayBlocks(entries)
+        val sessions = parsedAll.sessions.filter { it.startMs in startMs..endMs }
+        val realSessionSum = sessions.filter { !it.manual }.sumOf { it.secs }
+
+        val prefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val runningStudy = prefs.getLong("accumulatedStudy", 0L)
+
+        // Sum developer-authorized bonus for all dates in range
+        var devBonus = 0L
+        val scanCal = Calendar.getInstance().apply { timeInMillis = startMs }
+        val todayCal = Calendar.getInstance().apply { timeInMillis = now.timeInMillis }
+        while (!scanCal.after(todayCal)) {
+            val dStr = sdf.format(scanCal.time)
+            devBonus += prefs.getLong("dev_leaderboard_bonus_secs_$dStr", 0L)
+            scanCal.add(Calendar.DAY_OF_YEAR, 1)
+        }
+
+        return (realSessionSum + runningStudy + devBonus).coerceAtLeast(0L)
     }
 
     /**

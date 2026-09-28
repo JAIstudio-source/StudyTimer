@@ -229,7 +229,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE OR REPLACE FUNCTION public.get_weekly_leaderboard(
-    p_start_date DATE DEFAULT (CURRENT_DATE - INTERVAL '6 days')::DATE,
+    p_start_date DATE DEFAULT DATE_TRUNC('week', CURRENT_DATE)::DATE,
     p_end_date DATE DEFAULT CURRENT_DATE,
     p_limit INT DEFAULT 25
 )

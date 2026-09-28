@@ -464,10 +464,13 @@ class BackupManager(private val context: Context) {
         }
 
         if (installState == AppInstallState.APP_UPDATE) {
-            // Perform non-destructive migration & reconciliation on update
+            // Perform non-destructive migration & reconciliation on update only when timer is IDLE
+            val isTimerActive = prefs.getString("timerState", "IDLE") != "IDLE" || prefs.getLong("accumulatedStudy", 0L) > 0L
             val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-            TimelineLogger.reconcileSubjectDurationsFromTimeline(context, todayStr)
-            StatsEngine(context).forceReconcileDayTotals(todayStr)
+            if (!isTimerActive) {
+                TimelineLogger.reconcileSubjectDurationsFromTimeline(context, todayStr)
+                StatsEngine(context).reconcileDayTotals(todayStr)
+            }
         }
 
         prefs.edit().putLong("last_run_version_code", currentVersionCode).apply()

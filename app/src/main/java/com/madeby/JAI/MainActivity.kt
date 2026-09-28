@@ -3646,8 +3646,28 @@ class MainActivity : AppCompatActivity() {
         checkOngoingScheduledLecturePrompt()
         checkCelebration()
         triggerAutoSyncIfEligible()
+        val oldProfile = ProfileManager.getProfile(this)
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-            ProfileSyncService.refreshProfileStatus(this@MainActivity)
+            val updated = ProfileSyncService.refreshProfileStatus(this@MainActivity)
+            if (oldProfile.moderationStatus == ModerationStatus.PENDING_APPROVAL && updated.moderationStatus == ModerationStatus.APPROVED) {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    if (!isFinishing && !isDestroyed) {
+                        Toast.makeText(this@MainActivity, "🎉 Your profile changes have been approved by the moderator!", Toast.LENGTH_LONG).show()
+                        if (currentPanel == AppPanel.SETTINGS || currentPanel == AppPanel.LEADERBOARD) {
+                            buildCurrentPanel()
+                        }
+                    }
+                }
+            } else if (oldProfile.moderationStatus == ModerationStatus.PENDING_APPROVAL && updated.moderationStatus == ModerationStatus.REJECTED) {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    if (!isFinishing && !isDestroyed) {
+                        Toast.makeText(this@MainActivity, "⚠️ Your recent profile edit was not approved.", Toast.LENGTH_LONG).show()
+                        if (currentPanel == AppPanel.SETTINGS || currentPanel == AppPanel.LEADERBOARD) {
+                            buildCurrentPanel()
+                        }
+                    }
+                }
+            }
         }
     }
 

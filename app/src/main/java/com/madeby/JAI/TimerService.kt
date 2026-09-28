@@ -750,20 +750,18 @@ class TimerService : Service() {
                                 }
                             }
 
-                            if (timerMode != "STOPWATCH") {
-                                val sp = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-                                val activeSubjId = if (timerMode == "LECTURE") {
-                                    sp.getString("active_lecture_subject_id", null) ?: SubjectTagManager.getSelectedSubject(this@TimerService).id
-                                } else {
-                                    SubjectTagManager.getSelectedSubject(this@TimerService).id
-                                }
-                                SubjectTagManager.recordSubjectStudyTime(this@TimerService, activeSubjId, gap)
+                            val sp = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+                            val activeSubjId = if (timerMode == "LECTURE") {
+                                sp.getString("active_lecture_subject_id", null) ?: SubjectTagManager.getSelectedSubject(this@TimerService).id
+                            } else {
+                                SubjectTagManager.getSelectedSubject(this@TimerService).id
                             }
+                            SubjectTagManager.recordSubjectStudyTime(this@TimerService, activeSubjId, gap)
+
                             if (accumulatedStudy - lastLeaderboardSyncStudySecs >= 30L) {
                                 val chunk = (accumulatedStudy - lastLeaderboardSyncStudySecs).toInt()
                                 lastLeaderboardSyncStudySecs = accumulatedStudy
                                 val sub = if (timerMode == "LECTURE") {
-                                    val sp = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
                                     val lid = sp.getString("active_lecture_subject_id", null)
                                     if (lid != null) SubjectTagManager.resolveSubject(this@TimerService, lid) else SubjectTagManager.getSelectedSubject(this@TimerService)
                                 } else {
@@ -794,20 +792,19 @@ class TimerService : Service() {
                                         StudyWidgetProvider.refresh(this)
                                     } else {
                                         // COUNTDOWN (Pomodoro) mode ended
-                                        val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-                                        val isFreedomMode = prefs.getBoolean("pomodoro_freedom_mode", false)
+                                        val isFreedomMode = sp.getBoolean("pomodoro_freedom_mode", false)
                                         if (isFreedomMode) {
                                             // Freedom Mode: continuous focus without break transitions or session caps
-                                            val fullInterval = prefs.getLong("focus_countdown_secs", focusCountdownSecs).coerceAtLeast(60L)
+                                            val fullInterval = sp.getLong("focus_countdown_secs", focusCountdownSecs).coerceAtLeast(60L)
                                             focusRemainingSecs = fullInterval
-                                            prefs.edit().putLong("focus_remaining_secs", focusRemainingSecs).apply()
+                                            sp.edit().putLong("focus_remaining_secs", focusRemainingSecs).apply()
                                             saveState()
                                             updateForegroundNotification()
                                             postCountdownComplete()
                                             StudyWidgetProvider.refresh(this)
                                         } else {
-                                            val autoBreak = prefs.getBoolean("pomodoro_auto_break", true)
-                                            prefs.edit().putLong("focus_remaining_secs", 0L).apply()
+                                            val autoBreak = sp.getBoolean("pomodoro_auto_break", true)
+                                            sp.edit().putLong("focus_remaining_secs", 0L).apply()
                                             continuousStudySecs = 0L
                                             isPendingActivityConfirmation = false
                                             activityConfirmationPromptTime = 0L
@@ -815,7 +812,7 @@ class TimerService : Service() {
                                             if (autoBreak) {
                                                 currentTimerState = TimerState.BREAK
                                                 focusRemainingSecs = 0L
-                                                val configuredBreakSecs = prefs.safeLong("break_interval_minutes", 5L) * 60L
+                                                val configuredBreakSecs = sp.safeLong("break_interval_minutes", 5L) * 60L
                                                 breakCountdownSecs = configuredBreakSecs
                                                 breakRemainingSecs = configuredBreakSecs
                                                 lastTimestamp = now
@@ -838,15 +835,14 @@ class TimerService : Service() {
                         }
                         TimerState.BREAK -> {
                             currentBreakSeconds += gap
-                            if (timerMode != "STOPWATCH") {
-                                val sp = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-                                val activeSubjId = if (timerMode == "LECTURE") {
-                                    sp.getString("active_lecture_subject_id", null) ?: SubjectTagManager.getSelectedSubject(this@TimerService).id
-                                } else {
-                                    SubjectTagManager.getSelectedSubject(this@TimerService).id
-                                }
-                                SubjectTagManager.recordSubjectBreakTime(this@TimerService, activeSubjId, gap)
+                            val sp = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+                            val activeSubjId = if (timerMode == "LECTURE") {
+                                sp.getString("active_lecture_subject_id", null) ?: SubjectTagManager.getSelectedSubject(this@TimerService).id
+                            } else {
+                                SubjectTagManager.getSelectedSubject(this@TimerService).id
                             }
+                            SubjectTagManager.recordSubjectBreakTime(this@TimerService, activeSubjId, gap)
+
                             // Only auto-stop break if in COUNTDOWN mode with an active break countdown
                             if (timerMode == "COUNTDOWN" && breakRemainingSecs > 0L) {
                                 breakRemainingSecs -= gap

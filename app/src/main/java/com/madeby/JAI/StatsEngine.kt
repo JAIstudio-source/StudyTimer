@@ -225,9 +225,14 @@ class StatsEngine(private val context: Context) {
         val breakSum = breaks.filter { !it.running }.sumOf { it.secs }
         val focusKey = "${dateStr}_focus_total"
         val breakKey = "${dateStr}_break_total"
+        val isTimerActive = prefs.getString("timerState", "IDLE") != "IDLE" || prefs.getLong("accumulatedStudy", 0L) > 0L
+        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val effectiveFocus = if (isTimerActive && dateStr == todayStr) maxOf(prefs.getLong(focusKey, 0L), focusSum) else focusSum
+        val effectiveBreak = if (isTimerActive && dateStr == todayStr) maxOf(prefs.getLong(breakKey, 0L), breakSum) else breakSum
+
         prefs.edit()
-            .putLong(focusKey, focusSum)
-            .putLong(breakKey, breakSum)
+            .putLong(focusKey, effectiveFocus)
+            .putLong(breakKey, effectiveBreak)
             .apply()
         TimelineLogger.reconcileSubjectDurationsFromTimeline(context, dateStr)
     }

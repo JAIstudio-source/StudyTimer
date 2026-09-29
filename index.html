@@ -211,16 +211,18 @@
           </svg>
           <span>Download App</span>
         </a>
-        <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle Navigation Menu">
-          <span></span>
-          <span></span>
+        <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle Navigation Menu" aria-expanded="false">
+          <span class="hamburger-bar"></span>
+          <span class="hamburger-bar"></span>
+          <span class="hamburger-bar"></span>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- Mobile Navigation Drawer -->
-  <div class="mobile-nav-drawer" id="mobileDrawer">
+  <!-- Mobile Navigation Drawer Overlay & Backdrop -->
+  <div class="mobile-drawer-backdrop" id="mobileDrawerBackdrop" aria-hidden="true"></div>
+  <div class="mobile-nav-drawer" id="mobileDrawer" aria-label="Mobile Navigation">
     <div class="mobile-nav-content">
       <div class="mobile-theme-row">
         <span>Dark Theme</span>

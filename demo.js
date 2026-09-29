@@ -104,22 +104,23 @@ function getCleanUniqueSubjects(subjectsList) {
 
 // Timer Configuration Settings (Persisted)
 let timerConfig = {
-  customTimerMinutes: 25,
   pomoFocusMinutes: 25,
   pomoBreakMinutes: 5,
   pomoLongBreakMinutes: 15,
   pomoTotalCycles: 4,
   pomoAutoSwitchBreak: true,
   pomoAutoSwitchFocus: true,
-  dailyGoalMinutes: 120
+  dailyGoalMinutes: 120,
+  rainbowRing: true,
+  enableSubjects: false
 };
 
 let pomoCurrentCycle = 1;
 let isLongBreakActive = false;
 let pendingGoalIdToDelete = null;
 
-let currentMode = 'timer'; // 'timer', 'pomodoro', 'stopwatch', 'break'
-let lastFocusMode = 'timer'; // 'timer', 'pomodoro'
+let currentMode = 'pomodoro'; // 'pomodoro', 'stopwatch', 'break'
+let lastFocusMode = 'pomodoro'; // 'pomodoro'
 let timerStatus = 'IDLE';  // 'IDLE', 'RUNNING', 'PAUSED'
 
 // Millisecond-Accurate Tracking Variables
@@ -1721,11 +1722,10 @@ function saveLocalState() {
 // ============================================================================
 function getModeDurationSec() {
   switch (currentMode) {
-    case 'timer': return (timerConfig.customTimerMinutes || 25) * 60;
     case 'pomodoro': return (timerConfig.pomoFocusMinutes || 25) * 60;
     case 'break': return (isLongBreakActive ? (timerConfig.pomoLongBreakMinutes || 15) : (timerConfig.pomoBreakMinutes || 5)) * 60;
     case 'stopwatch': return 0;
-    default: return 25 * 60;
+    default: return (timerConfig.pomoFocusMinutes || 25) * 60;
   }
 }
 
@@ -1801,6 +1801,9 @@ function initDomElements() {
 }
 
 function setupEventListeners() {
+  // Mode Selector Settings Button
+  document.getElementById('btnModeSettingsGear')?.addEventListener('click', openTimerSettingsModal);
+
   // Main Timer Controls
   document.getElementById('btnToggleTimer')?.addEventListener('click', toggleTimer);
   document.getElementById('btnResetTimer')?.addEventListener('click', handleUserResetTimer);
@@ -2226,6 +2229,35 @@ function setupEventListeners() {
   document.getElementById('btnLogout')?.addEventListener('click', signOutUser);
   document.getElementById('btnManualSync')?.addEventListener('click', pullDataFromCloud);
 
+  // Subject Enablement Trigger from Main Dashboard Card
+  function handleEnableSubjectsFromMenu(e) {
+    if (e) e.stopPropagation();
+    if (timerConfig.enableSubjects === false) {
+      timerConfig.enableSubjects = true;
+      saveLocalState();
+      pushDataToCloud();
+      updateSelectedSubjectUI();
+      const check = document.getElementById('checkEnableSubjects');
+      if (check) check.checked = true;
+      showToast('Subject tracking turned ON! You can turn it off anytime in Timer Settings ⚙️', 'success');
+      
+      // Open subject dropdown menu directly so student can pick their subject
+      const subjectDropdownMenu = document.getElementById('subjectDropdownMenu');
+      if (subjectDropdownMenu && timerStatus !== 'RUNNING') {
+        subjectDropdownMenu.classList.remove('hidden');
+      }
+    } else {
+      // If already on, toggle the subject dropdown menu
+      const subjectDropdownMenu = document.getElementById('subjectDropdownMenu');
+      if (subjectDropdownMenu && timerStatus !== 'RUNNING') {
+        subjectDropdownMenu.classList.toggle('hidden');
+      }
+    }
+  }
+
+  document.getElementById('metricCardSubject')?.addEventListener('click', handleEnableSubjectsFromMenu);
+  document.getElementById('metricSubjectVal')?.addEventListener('click', handleEnableSubjectsFromMenu);
+
   // Subject Dropdown Menu Toggles (Main & Full Screen)
   const timerSubjectDisplay = document.getElementById('timerSubjectDisplay');
   const subjectDropdownMenu = document.getElementById('subjectDropdownMenu');
@@ -2259,6 +2291,15 @@ function setupEventListeners() {
     if (zenSubjectDropdownMenu && !zenSubjectDropdownMenu.contains(e.target) && !zenSubjectDisplay?.contains(e.target)) {
       zenSubjectDropdownMenu.classList.add('hidden');
     }
+  });
+
+  document.getElementById('btnCloseSubjectMenu')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    subjectDropdownMenu?.classList.add('hidden');
+  });
+  document.getElementById('btnZenCloseSubjectMenu')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    zenSubjectDropdownMenu?.classList.add('hidden');
   });
 
   // Subject Modal Triggers
@@ -2355,11 +2396,13 @@ function openZenMode() {
   if (!zenOverlay) return;
 
   zenOverlay.classList.remove('hidden');
+  document.body.classList.add('zen-mode-active');
   document.body.style.overflow = 'hidden';
   document.documentElement.style.overflow = 'hidden';
 
   updateTimerDisplay();
   updateTimerControlsUI();
+  updateSelectedSubjectUI();
 
   // Try native fullscreen if available
   if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
@@ -2372,6 +2415,7 @@ function closeZenMode() {
   const zenOverlay = document.getElementById('zenTimerOverlay');
   if (zenOverlay) zenOverlay.classList.add('hidden');
 
+  document.body.classList.remove('zen-mode-active');
   document.body.style.overflow = '';
   document.documentElement.style.overflow = '';
 
@@ -2416,16 +2460,14 @@ function switchMode(modeKey) {
   stopInterval();
   continuousStudyElapsedSec = 0;
   dismissInactivityModal();
-  if (modeKey === 'timer' || modeKey === 'pomodoro') {
+  if (modeKey === 'pomodoro' || modeKey === 'stopwatch') {
     lastFocusMode = modeKey;
   }
   currentMode = modeKey;
   
   const modeBadge = document.getElementById('activeModeBadge');
   if (modeBadge) {
-    if (modeKey === 'timer') {
-      modeBadge.textContent = 'Countdown Timer';
-    } else if (modeKey === 'pomodoro') {
+    if (modeKey === 'pomodoro') {
       const total = timerConfig.pomoTotalCycles || 4;
       modeBadge.textContent = `Pomodoro Focus (${pomoCurrentCycle}/${total})`;
     } else if (modeKey === 'stopwatch') {
@@ -2463,6 +2505,72 @@ function toggleTimer() {
 // BACKGROUND WORKER TICKER & DESKTOP/ANDROID BACKGROUND SYNC
 // ============================================================================
 
+let lastTickingSecPlayed = -1;
+
+// Realistic gentle mechanical clock ticking sound for last 10 seconds of Pomodoro & Break
+function playClockTickSound(secRemaining) {
+  if (lastTickingSecPlayed === secRemaining) return;
+  lastTickingSecPlayed = secRemaining;
+
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    if (ctx.state === 'suspended') ctx.resume();
+
+    const isTick = (secRemaining % 2 === 0);
+    const now = ctx.currentTime;
+
+    // 1. Precise metallic strike tone (sine pulse)
+    const osc = ctx.createOscillator();
+    const oscGain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(isTick ? 1760 : 1320, now);
+    osc.frequency.exponentialRampToValueAtTime(isTick ? 880 : 660, now + 0.025);
+
+    oscGain.gain.setValueAtTime(0.0001, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.12, now + 0.003);
+    oscGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.035);
+
+    osc.connect(oscGain);
+    oscGain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.04);
+
+    // 2. Crisp escapement gear click (filtered noise burst)
+    const bufferSize = Math.floor(ctx.sampleRate * 0.02);
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.25));
+    }
+
+    const whiteNoise = ctx.createBufferSource();
+    whiteNoise.buffer = noiseBuffer;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(isTick ? 3200 : 2400, now);
+    filter.Q.setValueAtTime(3.0, now);
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.0001, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.14, now + 0.002);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.025);
+
+    whiteNoise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+
+    whiteNoise.start(now);
+    whiteNoise.stop(now + 0.03);
+
+    setTimeout(() => {
+      try { ctx.close(); } catch (_) {}
+    }, 100);
+  } catch (_) {}
+}
+
 // Native Lightweight Focus Chime (Zero external audio file dependencies)
 function playAlarmChime() {
   try {
@@ -2498,17 +2606,13 @@ function playAlarmChime() {
 // System Web Notifications (Notifies when tab is minimized or switched to another app)
 function sendSessionNotification(title, body) {
   try {
-    if ('Notification' in window) {
-      if (Notification.permission === 'granted') {
-        new Notification(title, {
-          body,
-          icon: 'assets/logo.png',
-          badge: 'assets/logo.png',
-          tag: 'studytimer-session-alert'
-        });
-      } else if (Notification.permission === 'default') {
-        Notification.requestPermission();
-      }
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, {
+        body,
+        icon: 'assets/logo.png',
+        badge: 'assets/logo.png',
+        tag: 'studytimer-session-alert'
+      });
     }
   } catch (_) {}
 }
@@ -2747,7 +2851,11 @@ function tickTimer() {
   } else {
     const totalSec = getModeDurationSec();
     timeRemaining = Math.max(0, totalSec - totalElapsedSec);
+    if (currentMode !== 'stopwatch' && timeRemaining <= 10 && timeRemaining > 0) {
+      playClockTickSound(timeRemaining);
+    }
     if (timeRemaining === 0) {
+      lastTickingSecPlayed = -1;
       finishSession(true);
       return;
     }
@@ -2975,6 +3083,7 @@ async function handleUserResetTimer() {
 }
 
 function resetTimer() {
+  lastTickingSecPlayed = -1;
   continuousStudyElapsedSec = 0;
   dismissInactivityModal();
   stopPresenceHeartbeat();
@@ -3110,32 +3219,29 @@ function finishSession(isAutoFinished = false) {
   if (stateKey === 'BREAK') {
     showToast('Break finished! Ready to focus.', 'info');
 
-    // Automation: Auto-switch back to previous focus mode (Countdown or Pomodoro) after break
+    // Automation: Auto-switch back to Pomodoro focus mode after break and auto-start next session
     if (timerConfig.pomoAutoSwitchFocus !== false) {
       isLongBreakActive = false;
-      setTimeout(() => {
-        const nextMode = lastFocusMode || 'pomodoro';
-        switchMode(nextMode);
-        if (nextMode === 'pomodoro') {
-          const totalCycles = timerConfig.pomoTotalCycles || 4;
-          showToast(`Ready for Pomodoro Focus (Cycle ${pomoCurrentCycle}/${totalCycles})`, 'info');
-        } else {
-          showToast(`Ready for Countdown Focus (${timerConfig.customTimerMinutes || 25}m)`, 'info');
-        }
-      }, 500);
+      switchMode('pomodoro');
+      const totalCycles = timerConfig.pomoTotalCycles || 4;
+      showToast(`Starting Pomodoro Focus (Session ${pomoCurrentCycle}/${totalCycles})`, 'info');
+      startTimer();
     }
   } else {
     const minStr = Math.max(1, Math.round(studiedDurationSec / 60));
+    const subLabel = (timerConfig.enableSubjects !== false && subject?.name) ? ` added to ${subject.name}` : '';
     if (studiedDurationSec >= 60) {
-      showToast(`Focus session saved! +${minStr}m added to ${subject.name}`, 'success');
+      showToast(`Focus session saved! +${minStr}m${subLabel}`, 'success');
     } else {
-      showToast(`Focus session saved! +${studiedDurationSec}s added to ${subject.name}`, 'success');
+      showToast(`Focus session saved! +${studiedDurationSec}s${subLabel}`, 'success');
     }
 
-    // Give option to change subject after session ended
-    openSessionCompleteModal(subject, minStr);
+    // Only give option to change subject if subject tracking is enabled
+    if (timerConfig.enableSubjects !== false) {
+      openSessionCompleteModal(subject, minStr);
+    }
 
-    // Pomodoro Automation: Auto-switch to break ONLY when in Pomodoro mode
+    // Pomodoro Automation: Auto-switch to break and immediately start break
     if (prevMode === 'pomodoro' && timerConfig.pomoAutoSwitchBreak !== false) {
       const totalCycles = timerConfig.pomoTotalCycles || 4;
       if (pomoCurrentCycle >= totalCycles) {
@@ -3146,9 +3252,9 @@ function finishSession(isAutoFinished = false) {
         pomoCurrentCycle++;
       }
 
-      setTimeout(() => {
-        switchMode('break');
-      }, 600);
+      switchMode('break');
+      startTimer();
+      showToast(isLongBreakActive ? 'Starting Long Break ☕' : 'Starting Short Break ☕', 'info');
     }
   }
 }
@@ -3164,7 +3270,7 @@ function triggerSaveSuccessFeedback() {
     btnMainSave.classList.add('saved-success');
     btnMainSave.innerHTML = `
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-      <span>✓ Saved!</span>
+      <span>Saved!</span>
     `;
   }
 
@@ -3172,7 +3278,7 @@ function triggerSaveSuccessFeedback() {
     btnZenSave.classList.add('saved-success');
     btnZenSave.innerHTML = `
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-      <span>✓ Saved!</span>
+      <span>Saved!</span>
     `;
   }
 
@@ -3259,17 +3365,24 @@ function updateTimerDisplay() {
 
   // Update Main Indicator Ring
   const ring = document.getElementById('timerIndicator');
+  const isRainbowOn = timerConfig.rainbowRing !== false && currentMode === 'pomodoro';
   if (ring) {
     const circumference = 867.08; // 2 * PI * 138
     const offset = circumference * (1 - progressRatio);
     ring.style.strokeDashoffset = offset;
 
-    if (currentMode === 'break') {
-      ring.style.stroke = 'var(--accent-emerald)';
-    } else if (currentMode === 'pomodoro') {
-      ring.style.stroke = 'var(--accent-red)';
+    if (isRainbowOn) {
+      ring.classList.add('rainbow-active');
+      ring.style.stroke = '';
     } else {
-      ring.style.stroke = 'var(--accent-blue)';
+      ring.classList.remove('rainbow-active');
+      if (currentMode === 'break') {
+        ring.style.stroke = 'var(--accent-emerald)';
+      } else if (currentMode === 'pomodoro') {
+        ring.style.stroke = 'var(--accent-red)';
+      } else {
+        ring.style.stroke = 'var(--accent-blue)';
+      }
     }
   }
 
@@ -3280,12 +3393,18 @@ function updateTimerDisplay() {
     const zenOffset = zenCircumference * (1 - progressRatio);
     zenRing.style.strokeDashoffset = zenOffset;
 
-    if (currentMode === 'break') {
-      zenRing.style.stroke = 'var(--accent-emerald)';
-    } else if (currentMode === 'pomodoro') {
-      zenRing.style.stroke = 'var(--accent-red)';
+    if (isRainbowOn) {
+      zenRing.classList.add('rainbow-active');
+      zenRing.style.stroke = '';
     } else {
-      zenRing.style.stroke = 'var(--accent-blue)';
+      zenRing.classList.remove('rainbow-active');
+      if (currentMode === 'break') {
+        zenRing.style.stroke = 'var(--accent-emerald)';
+      } else if (currentMode === 'pomodoro') {
+        zenRing.style.stroke = 'var(--accent-red)';
+      } else {
+        zenRing.style.stroke = 'var(--accent-blue)';
+      }
     }
   }
 
@@ -3600,6 +3719,18 @@ function renderSubjects() {
 
 function updateSelectedSubjectUI() {
   const isBreak = currentMode === 'break';
+  const subjectsEnabled = timerConfig.enableSubjects !== false;
+
+  const subjectDropdownWrapper = document.getElementById('subjectDropdownWrapper');
+  const zenSubjectWrapper = document.getElementById('zenSubjectWrapper');
+
+  if (subjectDropdownWrapper) {
+    subjectDropdownWrapper.classList.toggle('subjects-disabled', !subjectsEnabled);
+  }
+  if (zenSubjectWrapper) {
+    zenSubjectWrapper.classList.toggle('subjects-disabled', !subjectsEnabled);
+  }
+
   const triggerDot = document.getElementById('triggerSubjectDot');
   const triggerName = document.getElementById('triggerSubjectName');
   const currentSubjectDot = document.getElementById('currentSubjectDot');
@@ -3607,7 +3738,6 @@ function updateSelectedSubjectUI() {
   const zenSubjectDot = document.getElementById('zenSubjectDot');
   const zenSubjectName = document.getElementById('zenSubjectName');
 
-  const subjectDropdownWrapper = document.getElementById('subjectDropdownWrapper');
   const timerSubjectDisplay = document.getElementById('timerSubjectDisplay');
   const zenSubjectDisplay = document.getElementById('zenSubjectDisplay');
 
@@ -3736,10 +3866,15 @@ function toggleSidebarCollapse() {
 
 function initSidebarState() {
   try {
-    const isCollapsed = localStorage.getItem('studytimer_sidebar_collapsed') === 'true';
+    const saved = localStorage.getItem('studytimer_sidebar_collapsed');
+    const isCollapsed = saved === null ? true : (saved === 'true');
     const sidebar = document.getElementById('appSidebar');
-    if (isCollapsed && sidebar && window.innerWidth > 980) {
-      sidebar.classList.add('collapsed');
+    if (sidebar && window.innerWidth > 980) {
+      if (isCollapsed) {
+        sidebar.classList.add('collapsed');
+      } else {
+        sidebar.classList.remove('collapsed');
+      }
     }
   } catch (_) {}
 }
@@ -5295,30 +5430,27 @@ function openProfileModal() {
   const profile = appState.userProfile || {
     displayName: 'Student',
     avatarPreset: '',
-    avatarRing: 'glow-gold',
-    bannerTheme: 'banner-midnight',
-    countryFlag: '🌐',
-    mood: '☕ Deep Focus',
-    examTarget: '🎯 4h Daily Target',
-    motto: '🎯 Deep focus & daily consistency',
-    primarySubjectId: 'general',
-    isStealth: false,
+    avatarUrl: '',
+    avatarPresetId: 'avatar_default',
+    bio: '',
+    targetExam: 'Self-Study',
+    dailyGoalMinutes: 120,
+    leaderboard_participate: true,
+    leaderboard_share_live_status: true,
     isPublicLeaderboard: true
   };
 
-  selectedAvatarPreset = profile.avatarPreset || '';
-  selectedAvatarRing = profile.avatarRing || 'glow-gold';
-  selectedBannerTheme = profile.bannerTheme || 'banner-midnight';
-  selectedCountryFlag = profile.countryFlag || '🌐';
+  selectedAvatarPreset = profile.avatarUrl || profile.avatarPreset || '';
+  selectedAvatarRing = 'glow-gold';
+  selectedBannerTheme = 'banner-midnight';
+  selectedCountryFlag = '🌐';
 
   const nameInput = document.getElementById('inputProfileDisplayName');
-  const moodInput = document.getElementById('inputProfileMood');
+  const bioInput = document.getElementById('inputProfileBio') || document.getElementById('inputProfileMood');
   const examInput = document.getElementById('inputProfileExam');
-  const mottoInput = document.getElementById('inputProfileMotto');
-  const flagSelect = document.getElementById('selectProfileCountryFlag');
-  const subjectSelect = document.getElementById('selectProfilePrimarySubject');
-  const stealthToggle = document.getElementById('checkStealthScholar');
-  const publicToggle = document.getElementById('checkLeaderboardPublic');
+  const goalInput = document.getElementById('inputProfileDailyGoal');
+  const participateToggle = document.getElementById('checkLeaderboardParticipate') || document.getElementById('checkLeaderboardPublic');
+  const liveStatusToggle = document.getElementById('checkShareLiveStatus');
 
   if (nameInput) {
     nameInput.value = profile.displayName || 
@@ -5327,20 +5459,14 @@ function openProfileModal() {
                       appState.currentUser?.email?.split('@')[0] || 
                       'Student';
   }
-  if (moodInput) moodInput.value = profile.mood || '';
-  if (examInput) examInput.value = profile.examTarget || '';
-  if (mottoInput) mottoInput.value = profile.motto || '';
-  if (flagSelect) flagSelect.value = selectedCountryFlag;
-  if (stealthToggle) stealthToggle.checked = Boolean(profile.isStealth);
-
-  if (subjectSelect) {
-    const cleanSubjects = getCleanUniqueSubjects(appState.subjects);
-    subjectSelect.innerHTML = cleanSubjects.map(s => 
-      `<option value="${s.id}" ${s.id === profile.primarySubjectId ? 'selected' : ''}>${s.iconEmoji ? s.iconEmoji + ' ' : ''}${s.name}</option>`
-    ).join('');
+  if (bioInput) bioInput.value = profile.bio || profile.mood || profile.motto || '';
+  if (examInput) examInput.value = profile.targetExam || profile.examTarget || 'Self-Study';
+  if (goalInput) goalInput.value = profile.dailyGoalMinutes || appState.dailyGoalMinutes || 120;
+  if (participateToggle) {
+    participateToggle.checked = profile.leaderboard_participate !== false && profile.isPublicLeaderboard !== false;
   }
-  if (publicToggle) {
-    publicToggle.checked = profile.isPublicLeaderboard !== false;
+  if (liveStatusToggle) {
+    liveStatusToggle.checked = profile.leaderboard_share_live_status !== false;
   }
 
   // Reset Submenu Tabs to Photo & Avatar by default
@@ -5364,7 +5490,6 @@ function openProfileModal() {
       photoFallback.classList.add('hidden');
       btnRemovePhoto?.classList.remove('hidden');
       
-      // Do not display internal storage or Google OAuth avatar URLs to the user in the input text field
       const isAutoAuthAvatar = selectedAvatarPreset.includes('supabase.co') || 
                                selectedAvatarPreset.includes('googleusercontent.com') ||
                                selectedAvatarPreset.includes('google.com') ||
@@ -5377,7 +5502,7 @@ function openProfileModal() {
         statusCard.classList.remove('hidden');
         if (statusIcon) statusIcon.textContent = '✓';
         if (statusTitle) statusTitle.textContent = 'Photo Active';
-        if (statusDesc) statusDesc.textContent = profile.photoApproved ? 'Verified' : 'In review';
+        if (statusDesc) statusDesc.textContent = (profile.moderationStatus === 'APPROVED' || profile.photoApproved) ? 'Verified' : 'In review';
       }
     } else {
       photoPreviewImg.src = '';
@@ -5390,14 +5515,6 @@ function openProfileModal() {
       if (statusCard) statusCard.classList.add('hidden');
     }
   }
-
-  // Highlight active buttons
-  document.querySelectorAll('.banner-theme-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.banner === selectedBannerTheme);
-  });
-  document.querySelectorAll('.glow-ring-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.ring === selectedAvatarRing);
-  });
 
   updateProfileLivePreview();
   lockBodyScroll();
@@ -5431,57 +5548,45 @@ function closeProfileModal() {
 
 function updateProfileLivePreview() {
   const nameInput = document.getElementById('inputProfileDisplayName');
-  const moodInput = document.getElementById('inputProfileMood');
+  const bioInput = document.getElementById('inputProfileBio') || document.getElementById('inputProfileMood');
   const examInput = document.getElementById('inputProfileExam');
-  const mottoInput = document.getElementById('inputProfileMotto');
-  const flagSelect = document.getElementById('selectProfileCountryFlag');
-  const stealthToggle = document.getElementById('checkStealthScholar');
+  const goalInput = document.getElementById('inputProfileDailyGoal');
 
   const previewCard = document.getElementById('previewProfileCard');
   const previewBanner = document.getElementById('previewCardBanner');
   const previewAvatarRing = document.getElementById('previewAvatarRing');
   const previewAvatarIcon = document.getElementById('previewAvatarIcon');
-  const previewCountryFlag = document.getElementById('previewCountryFlag');
   const previewDisplayName = document.getElementById('previewDisplayName');
   const previewRolePill = document.getElementById('previewRolePill');
-  const previewMoodPill = document.getElementById('previewMoodPill');
   const previewExamBadge = document.getElementById('previewExamBadge');
-  const previewMottoText = document.getElementById('previewMottoText');
+  const previewGoalBadge = document.getElementById('previewGoalBadge');
+  const previewMottoText = document.getElementById('previewMottoText') || document.getElementById('previewBioText');
 
-  const isStealth = Boolean(stealthToggle?.checked);
   const rawName = (nameInput?.value.trim() || 'Student').slice(0, 24);
-  const nameVal = isStealth ? `Stealth Scholar #${Math.abs(hashString(rawName) % 9000 + 1000)}` : rawName;
-  const rawFlag = flagSelect?.value || selectedCountryFlag || '🌐';
-  const flagVal = getCountryFlagEmoji(rawFlag);
-  const moodVal = (moodInput?.value.trim() || '☕ Deep Focus').slice(0, 40);
-  const examVal = (examInput?.value.trim() || '🎯 Target: 4h Daily').slice(0, 30);
-  const mottoVal = (mottoInput?.value.trim() || '🎯 Deep focus & daily consistency').slice(0, 60);
+  const examVal = (examInput?.value.trim() || 'Self-Study').slice(0, 40);
+  const bioVal = (bioInput?.value.trim() || '🎯 Consistency over intensity').slice(0, 150);
+  const goalVal = parseInt(goalInput?.value || '120', 10) || 120;
 
-  if (previewCard) {
-    previewCard.className = 'profile-hero-showcase';
-  }
-  if (previewBanner) {
-    previewBanner.className = `hero-showcase-bg ${selectedBannerTheme}`;
-  }
-  if (previewAvatarRing) {
-    previewAvatarRing.className = `hero-avatar-ring ${selectedAvatarRing}`;
-  }
+  if (previewCard) previewCard.className = 'profile-hero-showcase';
+  if (previewBanner) previewBanner.className = 'hero-showcase-bg banner-midnight';
+  if (previewAvatarRing) previewAvatarRing.className = 'hero-avatar-ring glow-gold';
+
   if (previewAvatarIcon) {
     const isUrl = /^(http|https|data:|assets\/|\/|blob:)/i.test((selectedAvatarPreset || '').trim());
-    const fallbackInit = escapeHtml((nameVal || 'S').trim().charAt(0).toUpperCase() || 'S');
-    const bgColor = getGoogleAvatarColor(nameVal);
+    const fallbackInit = escapeHtml((rawName || 'S').trim().charAt(0).toUpperCase() || 'S');
+    const bgColor = getGoogleAvatarColor(rawName);
     if (isUrl) {
-      previewAvatarIcon.innerHTML = `<img src="${selectedAvatarPreset}" alt="Avatar Preview" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" onerror="this.outerHTML='<span class=&quot;avatar-initial&quot; style=&quot;background:${bgColor};color:#ffffff;font-weight:700;&quot;>${fallbackInit}</span>'">`;
+      previewAvatarIcon.innerHTML = '<img src="' + selectedAvatarPreset + '" alt="Avatar Preview" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" onerror="this.outerHTML=\'<span class=&quot;avatar-initial&quot; style=&quot;background:' + bgColor + ';color:#ffffff;font-weight:700;&quot;>' + fallbackInit + '</span>\'">';
     } else {
-      previewAvatarIcon.innerHTML = `<span class="avatar-initial" style="background:${bgColor};color:#ffffff;font-weight:700;display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:50%;">${fallbackInit}</span>`;
+      previewAvatarIcon.innerHTML = '<span class="avatar-initial" style="background:' + bgColor + ';color:#ffffff;font-weight:700;display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:50%;">' + fallbackInit + '</span>';
     }
   }
-  if (previewCountryFlag) previewCountryFlag.textContent = flagVal;
-  if (previewDisplayName) previewDisplayName.textContent = nameVal;
-  if (previewRolePill) previewRolePill.textContent = isStealth ? 'Stealth' : 'Scholar';
-  if (previewMoodPill) previewMoodPill.textContent = moodVal;
-  if (previewExamBadge) previewExamBadge.textContent = examVal;
-  if (previewMottoText) previewMottoText.textContent = mottoVal;
+
+  if (previewDisplayName) previewDisplayName.textContent = rawName;
+  if (previewRolePill) previewRolePill.textContent = 'Scholar';
+  if (previewExamBadge) previewExamBadge.textContent = '🎯 ' + examVal;
+  if (previewGoalBadge) previewGoalBadge.textContent = '⏱️ ' + goalVal + 'm Goal';
+  if (previewMottoText) previewMottoText.textContent = bioVal;
 }
 
 // Simple deterministic hash for stealth IDs
@@ -5729,30 +5834,26 @@ async function notifyAdminModerationWebhook(payload) {
 async function handleSaveProfile(e) {
   e.preventDefault();
   const nameInput = document.getElementById('inputProfileDisplayName');
-  const moodInput = document.getElementById('inputProfileMood');
+  const bioInput = document.getElementById('inputProfileBio') || document.getElementById('inputProfileMood');
   const examInput = document.getElementById('inputProfileExam');
-  const mottoInput = document.getElementById('inputProfileMotto');
-  const flagSelect = document.getElementById('selectProfileCountryFlag');
-  const subjectSelect = document.getElementById('selectProfilePrimarySubject');
-  const stealthToggle = document.getElementById('checkStealthScholar');
-  const publicToggle = document.getElementById('checkLeaderboardPublic');
+  const goalInput = document.getElementById('inputProfileDailyGoal');
+  const participateToggle = document.getElementById('checkLeaderboardParticipate') || document.getElementById('checkLeaderboardPublic');
+  const liveStatusToggle = document.getElementById('checkShareLiveStatus');
 
   const displayName = (nameInput?.value.trim() || 'Student').slice(0, 24);
-  const mood = (moodInput?.value.trim() || '').slice(0, 40);
-  const examTarget = (examInput?.value.trim() || '').slice(0, 30);
-  const motto = (mottoInput?.value.trim() || '').slice(0, 60);
-  const countryFlag = flagSelect?.value || '🌐';
-  const primarySubjectId = subjectSelect?.value || (appState.subjects[0]?.id || 'math');
-  const isStealth = Boolean(stealthToggle?.checked);
-  const isPublicLeaderboard = publicToggle ? publicToggle.checked : true;
+  const bio = (bioInput?.value.trim() || '').slice(0, 150);
+  const targetExam = (examInput?.value.trim() || 'Self-Study').slice(0, 40);
+  const dailyGoalMinutes = Math.min(960, Math.max(15, parseInt(goalInput?.value || '120', 10) || 120));
+  const isParticipate = participateToggle ? Boolean(participateToggle.checked) : true;
+  const isShareLive = liveStatusToggle ? Boolean(liveStatusToggle.checked) : true;
 
-  // Tier 1 Profanity Defense Check
-  if (hasProfanity(displayName) || hasProfanity(mood) || hasProfanity(examTarget) || hasProfanity(motto)) {
-    showToast('Please keep display names, moods, and motto respectful & friendly 🛡️', 'error');
+  // Profanity Defense Check
+  if (hasProfanity(displayName) || hasProfanity(bio) || hasProfanity(targetExam)) {
+    showToast('Please keep display names, bio, and target exam respectful & friendly 🛡️', 'error');
     return;
   }
 
-  // Attempt Supabase Storage upload for custom base64 photo to reduce DB row bandwidth
+  // Attempt Supabase Storage upload for custom base64 photo
   let avatarValueToSave = sanitizeAvatar(selectedAvatarPreset || '');
   if (avatarValueToSave.startsWith('data:image/') && supabaseClient && appState.currentUser) {
     const storageUrl = await uploadAvatarToSupabaseStorage(avatarValueToSave, appState.currentUser.id);
@@ -5763,107 +5864,82 @@ async function handleSaveProfile(e) {
   }
 
   const isCustomPhoto = /^(http|https|data:|blob:)/i.test(avatarValueToSave.trim());
-
-  // Retain previously approved avatar/sticker as fallback during safety review
-  const previousApprovedAvatar = (appState.userProfile?.photoApproved === true && appState.userProfile?.avatarPreset)
-    ? appState.userProfile.avatarPreset
-    : (appState.userProfile?.fallbackSticker || appState.approvedAvatar || '');
-
   const prevProfile = appState.userProfile || {};
-  const photoChanged = isCustomPhoto && (avatarValueToSave !== prevProfile.avatarPreset);
-  const detailsChanged = (displayName !== prevProfile.displayName) ||
-                         (mood !== prevProfile.mood) ||
-                         (examTarget !== prevProfile.examTarget) ||
-                         (motto !== prevProfile.motto) ||
-                         (countryFlag !== prevProfile.countryFlag) ||
-                         (selectedAvatarRing !== prevProfile.avatarRing);
+  const previousApprovedAvatar = (prevProfile.moderationStatus === 'APPROVED' && prevProfile.avatarUrl)
+    ? prevProfile.avatarUrl
+    : (prevProfile.lastApprovedAvatar || prevProfile.avatarPreset || '');
 
-  const diffs = [];
-  if (displayName !== prevProfile.displayName && prevProfile.displayName) {
-    diffs.push({ field: 'Display Name', old: prevProfile.displayName, new: displayName });
-  }
-  if (mood !== prevProfile.mood && prevProfile.mood !== undefined) {
-    diffs.push({ field: 'Mood', old: prevProfile.mood || 'None', new: mood || 'None' });
-  }
-  if (examTarget !== prevProfile.examTarget && prevProfile.examTarget !== undefined) {
-    diffs.push({ field: 'Exam Target', old: prevProfile.examTarget || 'None', new: examTarget || 'None' });
-  }
-  if (motto !== prevProfile.motto && prevProfile.motto !== undefined) {
-    diffs.push({ field: 'Motto', old: prevProfile.motto || 'None', new: motto || 'None' });
-  }
-  if (countryFlag !== prevProfile.countryFlag && prevProfile.countryFlag) {
-    diffs.push({ field: 'Flag', old: prevProfile.countryFlag, new: countryFlag });
-  }
-  if (selectedAvatarRing !== prevProfile.avatarRing && prevProfile.avatarRing) {
-    diffs.push({ field: 'Glow Ring', old: prevProfile.avatarRing, new: selectedAvatarRing });
-  }
-  if (photoChanged) {
-    diffs.push({ field: 'Profile Photo', old: prevProfile.avatarPreset ? 'Previous Avatar' : 'Default Sticker', new: isCustomPhoto ? 'New Custom Photo' : avatarValueToSave });
-  }
+  const isPhotoChanged = isCustomPhoto && (avatarValueToSave !== prevProfile.avatarUrl && avatarValueToSave !== prevProfile.avatarPreset);
+  const isNameChanged = Boolean(prevProfile.displayName && displayName.trim() !== prevProfile.displayName.trim());
+  const isBioChanged = Boolean(prevProfile.bio !== undefined && bio.trim() !== (prevProfile.bio || prevProfile.mood || '').trim());
 
-  const isStatusApproved = !isCustomPhoto && !hasProfanity(displayName);
+  const isStatusApproved = !isCustomPhoto && !isNameChanged;
   const lastApprovedName = isStatusApproved
     ? displayName
     : (prevProfile.lastApprovedDisplayName || appState.approvedDisplayName || (prevProfile.profileStatus === 'approved' ? prevProfile.displayName : 'Student'));
   const lastApprovedAvatarVal = (!isCustomPhoto && avatarValueToSave)
     ? avatarValueToSave
-    : (prevProfile.lastApprovedAvatar || previousApprovedAvatar || '🐱');
+    : (prevProfile.lastApprovedAvatar || previousApprovedAvatar || '');
 
   appState.userProfile = {
     ...prevProfile,
     displayName,
     lastApprovedDisplayName: lastApprovedName,
+    pendingDisplayName: isNameChanged ? displayName : null,
+    bio,
+    targetExam,
+    dailyGoalMinutes,
+    avatarUrl: avatarValueToSave,
     lastApprovedAvatar: lastApprovedAvatarVal,
+    avatarPresetId: isCustomPhoto ? 'avatar_custom' : (selectedAvatarPreset || 'avatar_default'),
+    moderationStatus: isStatusApproved ? 'APPROVED' : 'PENDING_APPROVAL',
+    profileStatus: isStatusApproved ? 'approved' : 'pending',
+    photoApproved: !isCustomPhoto,
+    leaderboard_participate: isParticipate,
+    leaderboard_share_live_status: isShareLive,
+    // Backward compatibility aliases
+    mood: bio,
+    motto: bio,
+    examTarget: targetExam,
     avatarPreset: avatarValueToSave,
     fallbackSticker: isCustomPhoto ? previousApprovedAvatar : avatarValueToSave,
-    photoApproved: !isCustomPhoto, // Emoji stickers are auto-approved, custom photos strictly require admin approval
-    avatarRing: selectedAvatarRing,
-    bannerTheme: selectedBannerTheme,
-    countryFlag,
-    mood,
-    examTarget,
-    motto,
-    primarySubjectId,
-    isStealth,
-    isPublicLeaderboard,
-    profileStatus: isStatusApproved ? 'approved' : 'pending',
-    moderationStatus: isStatusApproved ? 'APPROVED' : 'PENDING'
+    isPublicLeaderboard: isParticipate,
+    avatarRing: 'glow-gold',
+    bannerTheme: 'banner-midnight',
+    countryFlag: '🌐',
+    updatedAt: Date.now()
   };
 
   if (isStatusApproved) {
     appState.approvedDisplayName = displayName;
   }
+  appState.dailyGoalMinutes = dailyGoalMinutes;
 
   saveLocalState();
   renderUserProfileUI();
   closeProfileModal();
 
-  if (isCustomPhoto) {
-    showToast('Profile saved! Custom photo submitted for safety verification 🛡️', 'success');
+  if (isCustomPhoto || isNameChanged) {
+    showToast('Profile saved! Submitted for review 🛡️', 'success');
   } else {
     showToast('Profile updated successfully! ✨', 'success');
   }
 
-  // Public text modifications (display name, bio/motto, custom photos) trigger moderation review.
-  const nameChanged = Boolean(prevProfile.displayName && displayName.trim() !== prevProfile.displayName.trim());
-  const bioChanged = Boolean(prevProfile.mood !== undefined && mood.trim() !== (prevProfile.mood || '').trim());
-  const requiresModeration = nameChanged || bioChanged || photoChanged || hasProfanity(displayName) || hasProfanity(mood);
-
+  const requiresModeration = isNameChanged || isBioChanged || isPhotoChanged || hasProfanity(displayName) || hasProfanity(bio);
   if (requiresModeration) {
     notifyAdminModerationWebhook({
       user_id: appState.currentUser?.id || 'guest_' + Date.now(),
       display_name: displayName,
       previous_name: prevProfile.displayName || '',
       email: appState.currentUser?.email || '',
-      status_mood: mood,
-      previous_bio: prevProfile.mood || '',
+      status_mood: bio,
+      previous_bio: prevProfile.bio || prevProfile.mood || '',
       avatar_url: avatarValueToSave,
-      previous_avatar: prevProfile.avatarPreset || '',
-      photo_changed: photoChanged
+      previous_avatar: prevProfile.avatarUrl || prevProfile.avatarPreset || '',
+      photo_changed: isPhotoChanged
     });
   }
 
-  // Direct cosmetic update to daily_leaderboard using strict approved avatar helper
   const publicAvatarUrl = getPublicLeaderboardAvatarUrl(appState.userProfile);
   if (supabaseClient && appState.currentUser) {
     try {
@@ -6140,7 +6216,7 @@ function initProfileCustomizationSystem() {
   });
 
   // Live input change listeners
-  ['inputProfileDisplayName', 'inputProfileMood', 'inputProfileExam', 'inputProfileMotto'].forEach(id => {
+  ['inputProfileDisplayName', 'inputProfileBio', 'inputProfileMood', 'inputProfileExam', 'inputProfileDailyGoal'].forEach(id => {
     document.getElementById(id)?.addEventListener('input', updateProfileLivePreview);
   });
   document.getElementById('selectProfileCountryFlag')?.addEventListener('change', (e) => {
@@ -6415,7 +6491,7 @@ function renderDayPieHistoryModal(dateStr) {
           <circle cx="12" cy="12" r="10"></circle>
           <polyline points="12 6 12 12 16 14"></polyline>
         </svg>
-        <p>No study sessions logged on this date.</p>
+        <p>No study sessions recorded on this date.</p>
       </div>
     `;
     return;
@@ -7255,33 +7331,25 @@ function openTimerSettingsModal() {
   const modal = document.getElementById('timerSettingsModalOverlay');
   if (!modal) return;
 
-  const customMinInput = document.getElementById('customMinutesInput');
   const pomoFocusInput = document.getElementById('pomoFocusInput');
   const pomoBreakInput = document.getElementById('pomoBreakInput');
   const pomoLongBreakInput = document.getElementById('pomoLongBreakInput');
   const pomoTotalCyclesInput = document.getElementById('pomoTotalCyclesInput');
   const pomoAutoSwitchBreak = document.getElementById('pomoAutoSwitchBreak');
   const pomoAutoSwitchFocus = document.getElementById('pomoAutoSwitchFocus');
+  const checkRainbowRing = document.getElementById('checkRainbowRing');
+  const checkEnableSubjects = document.getElementById('checkEnableSubjects');
   const dailyGoalInput = document.getElementById('dailyTargetGoalInput');
 
-  if (customMinInput) customMinInput.value = timerConfig.customTimerMinutes || 25;
   if (pomoFocusInput) pomoFocusInput.value = timerConfig.pomoFocusMinutes || 25;
   if (pomoBreakInput) pomoBreakInput.value = timerConfig.pomoBreakMinutes || 5;
   if (pomoLongBreakInput) pomoLongBreakInput.value = timerConfig.pomoLongBreakMinutes || 15;
   if (pomoTotalCyclesInput) pomoTotalCyclesInput.value = timerConfig.pomoTotalCycles || 4;
   if (pomoAutoSwitchBreak) pomoAutoSwitchBreak.checked = timerConfig.pomoAutoSwitchBreak !== false;
   if (pomoAutoSwitchFocus) pomoAutoSwitchFocus.checked = timerConfig.pomoAutoSwitchFocus !== false;
+  if (checkRainbowRing) checkRainbowRing.checked = timerConfig.rainbowRing !== false;
+  if (checkEnableSubjects) checkEnableSubjects.checked = timerConfig.enableSubjects === true;
   if (dailyGoalInput) dailyGoalInput.value = timerConfig.dailyGoalMinutes || 120;
-
-  // Active chip highlight
-  document.querySelectorAll('.settings-chip').forEach(c => {
-    const min = parseInt(c.dataset.min, 10);
-    if (min === timerConfig.customTimerMinutes) {
-      c.classList.add('active');
-    } else {
-      c.classList.remove('active');
-    }
-  });
 
   lockBodyScroll();
   modal.classList.remove('hidden');
@@ -7307,25 +7375,28 @@ async function handleSaveTimerSettings(e) {
     if (!confirmed) return;
   }
 
-  const customMin = parseInt(document.getElementById('customMinutesInput')?.value, 10) || 25;
   const pomoFocus = parseInt(document.getElementById('pomoFocusInput')?.value, 10) || 25;
   const pomoBreak = parseInt(document.getElementById('pomoBreakInput')?.value, 10) || 5;
   const pomoLongBreak = parseInt(document.getElementById('pomoLongBreakInput')?.value, 10) || 15;
   const pomoTotalCycles = parseInt(document.getElementById('pomoTotalCyclesInput')?.value, 10) || 4;
   const pomoAutoSwitchBreak = document.getElementById('pomoAutoSwitchBreak')?.checked !== false;
   const pomoAutoSwitchFocus = document.getElementById('pomoAutoSwitchFocus')?.checked !== false;
+  const rainbowRing = document.getElementById('checkRainbowRing')?.checked !== false;
+  const enableSubjects = document.getElementById('checkEnableSubjects')?.checked === true;
   const dailyGoal = parseInt(document.getElementById('dailyTargetGoalInput')?.value, 10) || 120;
 
-  timerConfig.customTimerMinutes = Math.max(1, Math.min(720, customMin));
   timerConfig.pomoFocusMinutes = Math.max(1, Math.min(180, pomoFocus));
   timerConfig.pomoBreakMinutes = Math.max(1, Math.min(60, pomoBreak));
   timerConfig.pomoLongBreakMinutes = Math.max(1, Math.min(120, pomoLongBreak));
   timerConfig.pomoTotalCycles = Math.max(1, Math.min(12, pomoTotalCycles));
   timerConfig.pomoAutoSwitchBreak = pomoAutoSwitchBreak;
   timerConfig.pomoAutoSwitchFocus = pomoAutoSwitchFocus;
+  timerConfig.rainbowRing = rainbowRing;
+  timerConfig.enableSubjects = enableSubjects;
   timerConfig.dailyGoalMinutes = Math.max(15, Math.min(1440, dailyGoal));
 
   closeTimerSettingsModal();
+  updateSelectedSubjectUI();
   resetTimer();
   updateProgressAndStreak();
   pushDataToCloud();
@@ -7334,6 +7405,7 @@ async function handleSaveTimerSettings(e) {
 
 // Post-Session Subject Switch Modal
 function openSessionCompleteModal(subject, mins) {
+  if (timerConfig.enableSubjects === false) return;
   const modal = document.getElementById('sessionCompleteModalOverlay');
   const title = document.getElementById('sessionCompleteTitle');
   const subtitle = document.getElementById('sessionCompleteSubtitle');
@@ -7612,7 +7684,7 @@ async function signOutUser() {
   try {
     await supabaseClient.auth.signOut();
     handleUserSignedOut();
-    showToast('Logged out of cloud account.', 'info');
+    showToast('Signed out of cloud account.', 'info');
   } catch (err) {
     console.error('Sign-out error:', err);
   }
@@ -7713,19 +7785,38 @@ function initQuoteManager() {
   const nextBtn = document.getElementById('btnNextQuote');
   const quoteContainer = document.getElementById('dailyQuoteContainer');
 
+  const mobileQuoteText = document.getElementById('mobileDailyQuoteText');
+  const mobileNextBtn = document.getElementById('btnNextMobileQuote');
+  const mobileQuoteContainer = document.getElementById('mobileDailyQuoteBanner');
+
   let currentQuoteIndex = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
 
   function displayQuote(index) {
+    const fullQuote = `"${MOTIVATIONAL_QUOTES[index]}"`;
+    
+    // Desktop topbar quote
     if (quoteText) {
       quoteText.style.opacity = '0';
       quoteText.style.transform = 'translateY(-4px)';
       quoteText.style.transition = 'all 0.2s ease';
       setTimeout(() => {
-        const fullQuote = `"${MOTIVATIONAL_QUOTES[index]}"`;
         quoteText.textContent = fullQuote;
         quoteText.style.opacity = '1';
         quoteText.style.transform = 'translateY(0)';
         quoteContainer?.setAttribute('title', `${fullQuote} • Click for next quote`);
+      }, 200);
+    }
+
+    // Mobile dedicated inspiration banner
+    if (mobileQuoteText) {
+      mobileQuoteText.style.opacity = '0';
+      mobileQuoteText.style.transform = 'translateY(-4px)';
+      mobileQuoteText.style.transition = 'all 0.2s ease';
+      setTimeout(() => {
+        mobileQuoteText.textContent = fullQuote;
+        mobileQuoteText.style.opacity = '1';
+        mobileQuoteText.style.transform = 'translateY(0)';
+        mobileQuoteContainer?.setAttribute('title', `${fullQuote} • Click for next quote`);
       }, 200);
     }
   }
@@ -7735,10 +7826,14 @@ function initQuoteManager() {
     displayQuote(currentQuoteIndex);
   }
 
+  const initQuote = `"${MOTIVATIONAL_QUOTES[currentQuoteIndex]}"`;
   if (quoteText) {
-    const initQuote = `"${MOTIVATIONAL_QUOTES[currentQuoteIndex]}"`;
     quoteText.textContent = initQuote;
     quoteContainer?.setAttribute('title', `${initQuote} • Click for next quote`);
+  }
+  if (mobileQuoteText) {
+    mobileQuoteText.textContent = initQuote;
+    mobileQuoteContainer?.setAttribute('title', `${initQuote} • Click for next quote`);
   }
 
   nextBtn?.addEventListener('click', (e) => {
@@ -7746,8 +7841,19 @@ function initQuoteManager() {
     nextQuote();
   });
 
+  mobileNextBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    nextQuote();
+  });
+
   quoteContainer?.addEventListener('click', (e) => {
     if (e.target !== nextBtn && !nextBtn?.contains(e.target)) {
+      nextQuote();
+    }
+  });
+
+  mobileQuoteContainer?.addEventListener('click', (e) => {
+    if (e.target !== mobileNextBtn && !mobileNextBtn?.contains(e.target)) {
       nextQuote();
     }
   });
@@ -7775,18 +7881,15 @@ const AUDIO_PRESETS = {
   },
   rain: { 
     name: 'Rain & Gentle Thunder', 
-    id: 'mPZkdNFkNps',
-    synthesizer: 'rain'
+    id: 'mPZkdNFkNps'
   },
   cafe: { 
     name: 'Cozy Cafe Ambience', 
-    id: 'gaGrHUekGdc',
-    synthesizer: 'cafe'
+    id: 'h2zkV-l_TbY'
   },
   alpha: { 
     name: '432Hz Alpha Waves', 
-    id: 'WPni755-Krg',
-    synthesizer: 'alpha'
+    id: 'WPni755-Krg'
   },
   classical: { 
     name: 'Baroque Focus Music', 
@@ -7821,10 +7924,6 @@ function updateAudioEngineBadge(engine = 'ready') {
     badge.classList.add('engine-youtube');
     badge.textContent = 'YouTube';
     badge.title = 'Official YouTube API Stream';
-  } else if (engine === 'webaudio') {
-    badge.classList.add('engine-webaudio');
-    badge.textContent = 'Pure Tone';
-    badge.title = 'Procedural Web Audio Engine';
   } else {
     badge.classList.add('engine-offline');
     badge.textContent = 'Ready';
@@ -7871,125 +7970,7 @@ function setWebAudioVolume(vol) {
 }
 
 function playProceduralAmbience(type) {
-  stopWebAudioAmbience();
-  const ctx = initWebAudioContext();
-  if (!ctx) return false;
-
-  try {
-    webAudioGainNode = ctx.createGain();
-    const targetGain = Math.max(0, Math.min(100, audioVolume)) / 100 * 0.35;
-    webAudioGainNode.gain.setValueAtTime(targetGain, ctx.currentTime);
-    webAudioGainNode.connect(ctx.destination);
-
-    if (type === 'alpha') {
-      // 432Hz Pure Harmonic Carrier + 440Hz Right Channel (8Hz Brainwave Sync)
-      const osc1 = ctx.createOscillator();
-      const osc2 = ctx.createOscillator();
-      osc1.type = 'sine';
-      osc2.type = 'sine';
-      osc1.frequency.setValueAtTime(432, ctx.currentTime);
-      osc2.frequency.setValueAtTime(440, ctx.currentTime);
-
-      osc1.connect(webAudioGainNode);
-      osc2.connect(webAudioGainNode);
-      osc1.start();
-      osc2.start();
-      webAudioNodes.push(osc1, osc2);
-      currentAudioEngine = 'webaudio';
-      updateAudioEngineBadge('webaudio');
-      return true;
-    } else if (type === 'rain') {
-      const bufferSize = ctx.sampleRate * 2;
-      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const output = noiseBuffer.getChannelData(0);
-      let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
-      for (let i = 0; i < bufferSize; i++) {
-        const white = Math.random() * 2 - 1;
-        b0 = 0.99886 * b0 + white * 0.0555179;
-        b1 = 0.99332 * b1 + white * 0.0750759;
-        b2 = 0.96900 * b2 + white * 0.1538520;
-        b3 = 0.86650 * b3 + white * 0.3104856;
-        b4 = 0.55000 * b4 + white * 0.5329522;
-        b5 = -0.7616 * b5 - white * 0.0168980;
-        output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.08;
-        b6 = white * 0.115926;
-      }
-      const whiteNoise = ctx.createBufferSource();
-      whiteNoise.buffer = noiseBuffer;
-      whiteNoise.loop = true;
-
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(950, ctx.currentTime);
-
-      whiteNoise.connect(filter);
-      filter.connect(webAudioGainNode);
-      whiteNoise.start();
-      webAudioNodes.push(whiteNoise, filter);
-      currentAudioEngine = 'webaudio';
-      updateAudioEngineBadge('webaudio');
-      return true;
-    } else if (type === 'cafe') {
-      // Fix H3: Multi-layer cafe ambience — low rumble + mid chatter for realistic cafe feel
-      const bufferSize = ctx.sampleRate * 3;
-      const noiseBuffer = ctx.createBuffer(2, bufferSize, ctx.sampleRate);
-      for (let ch = 0; ch < 2; ch++) {
-        const output = noiseBuffer.getChannelData(ch);
-        let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
-        for (let i = 0; i < bufferSize; i++) {
-          const white = Math.random() * 2 - 1;
-          b0 = 0.99886 * b0 + white * 0.0555179;
-          b1 = 0.99332 * b1 + white * 0.0750759;
-          b2 = 0.96900 * b2 + white * 0.1538520;
-          b3 = 0.86650 * b3 + white * 0.3104856;
-          b4 = 0.55000 * b4 + white * 0.5329522;
-          b5 = -0.7616 * b5 - white * 0.0168980;
-          output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.04;
-          b6 = white * 0.115926;
-        }
-      }
-      const cafeNoise = ctx.createBufferSource();
-      cafeNoise.buffer = noiseBuffer;
-      cafeNoise.loop = true;
-
-      // Layer 1: Low rumble — crowd warmth (80–300Hz)
-      const rumbleFilter = ctx.createBiquadFilter();
-      rumbleFilter.type = 'lowshelf';
-      rumbleFilter.frequency.setValueAtTime(300, ctx.currentTime);
-      rumbleFilter.gain.setValueAtTime(6, ctx.currentTime);
-
-      // Layer 2: Mid-frequency presence — ambient chatter (600–1800Hz bandpass)
-      const chatterFilter = ctx.createBiquadFilter();
-      chatterFilter.type = 'bandpass';
-      chatterFilter.frequency.setValueAtTime(1000, ctx.currentTime);
-      chatterFilter.Q.setValueAtTime(0.6, ctx.currentTime);
-
-      const chatterGain = ctx.createGain();
-      chatterGain.gain.setValueAtTime(0.18, ctx.currentTime);
-
-      // Layer 3: High cut — remove harsh high frequencies
-      const hpFilter = ctx.createBiquadFilter();
-      hpFilter.type = 'highshelf';
-      hpFilter.frequency.setValueAtTime(3500, ctx.currentTime);
-      hpFilter.gain.setValueAtTime(-12, ctx.currentTime);
-
-      cafeNoise.connect(rumbleFilter);
-      rumbleFilter.connect(hpFilter);
-      hpFilter.connect(webAudioGainNode);
-
-      cafeNoise.connect(chatterFilter);
-      chatterFilter.connect(chatterGain);
-      chatterGain.connect(webAudioGainNode);
-
-      cafeNoise.start();
-      webAudioNodes.push(cafeNoise, rumbleFilter, chatterFilter, chatterGain, hpFilter);
-      currentAudioEngine = 'webaudio';
-      updateAudioEngineBadge('webaudio');
-      return true;
-    }
-  } catch (err) {
-    console.warn('[WebAudio] Synthesis failed:', err);
-  }
+  // Pure tone synthesizer removed per specification
   return false;
 }
 
@@ -7998,6 +7979,7 @@ function playProceduralAmbience(type) {
 // ----------------------------------------------------------------------------
 let isYtApiLoading = false;
 let isYtPlayerInitializing = false;
+let isUserExplicitPlayAction = false;
 const ytApiReadyCallbacks = [];
 let pendingPlayVideoId = null;
 let pendingAutoPlay = false;
@@ -8064,6 +8046,57 @@ if (typeof window !== 'undefined' && window.YT && window.YT.Player) {
   isYtApiReady = true;
 }
 
+
+let audioPlaybackWatchdogTimer = null;
+function armAudioPlaybackWatchdog() {
+  clearAudioPlaybackWatchdog();
+  audioPlaybackWatchdogTimer = setTimeout(() => {
+    if (!ytPlayerInstance || typeof ytPlayerInstance.getPlayerState !== 'function') return;
+    try {
+      const state = ytPlayerInstance.getPlayerState();
+      if (state !== 1) { // Not playing
+        setAudioPlayingUI(false);
+        updateAudioEngineBadge('ready');
+        if (isUserExplicitPlayAction) {
+          showToast('Could not start stream. Please try again or select another track 🎵', 'info');
+          isUserExplicitPlayAction = false;
+        }
+      }
+    } catch (_) {}
+  }, 7000);
+}
+
+function clearAudioPlaybackWatchdog() {
+  if (audioPlaybackWatchdogTimer) {
+    clearTimeout(audioPlaybackWatchdogTimer);
+    audioPlaybackWatchdogTimer = null;
+  }
+}
+
+// Global Audio Engine State Poller (Ensures UI never stays in fake playing state)
+if (typeof window !== 'undefined' && !window.__studyTimerAudioPollerInitialized) {
+  window.__studyTimerAudioPollerInitialized = true;
+  setInterval(() => {
+    if (ytPlayerInstance && typeof ytPlayerInstance.getPlayerState === 'function') {
+      try {
+        const state = ytPlayerInstance.getPlayerState();
+        if (state === 1) {
+          if (!isAudioPlaying) {
+            setAudioPlayingUI(true);
+            currentAudioEngine = 'youtube';
+            updateAudioEngineBadge('youtube');
+          }
+        } else if (state === 2 || state === 0 || state === 5 || state === -1) {
+          if (isAudioPlaying) {
+            setAudioPlayingUI(false);
+            updateAudioEngineBadge('ready');
+          }
+        }
+      } catch (_) {}
+    }
+  }, 1200);
+}
+
 function initYouTubePlayerInstance(customVidId, autoPlay = false) {
   const container = document.getElementById('youtubePlayerAnchor');
   if (!container) return;
@@ -8087,8 +8120,7 @@ function initYouTubePlayerInstance(customVidId, autoPlay = false) {
         ytPlayerInstance.setVolume(audioVolume);
         ytPlayerInstance.playVideo();
         currentAudioEngine = 'youtube';
-        updateAudioEngineBadge('youtube');
-        setAudioPlayingUI(true);
+        updateAudioEngineBadge('buffering');
       } catch (err) {
         console.warn('[Audio Engine] Reuse loadVideoById error:', err);
       }
@@ -8169,48 +8201,41 @@ function initYouTubePlayerInstance(customVidId, autoPlay = false) {
               }
               event.target.playVideo();
               currentAudioEngine = 'youtube';
-              updateAudioEngineBadge('youtube');
-              setAudioPlayingUI(true);
+              updateAudioEngineBadge('buffering');
             }
           } catch (err) {
             console.warn('[Audio Engine] onReady auto-play error:', err);
           }
         },
         onStateChange: (event) => {
-          if (window.YT && event.data === window.YT.PlayerState.PLAYING) {
+          if (!window.YT) return;
+          if (event.data === window.YT.PlayerState.PLAYING) {
             setAudioPlayingUI(true);
             currentAudioEngine = 'youtube';
             updateAudioEngineBadge('youtube');
-          } else if (window.YT && (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.ENDED)) {
+            isUserExplicitPlayAction = false;
+            clearAudioPlaybackWatchdog();
+          } else if (event.data === window.YT.PlayerState.BUFFERING) {
+            updateAudioEngineBadge('buffering');
+          } else if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.CUED || event.data === window.YT.PlayerState.UNSTARTED || event.data === window.YT.PlayerState.ENDED) {
             if (event.data === window.YT.PlayerState.ENDED) {
               try { event.target.playVideo(); } catch (_) {}
-            } else if (!isAudioPlaying) {
+            } else {
               setAudioPlayingUI(false);
+              updateAudioEngineBadge('ready');
             }
           }
         },
         onError: (event) => {
           console.warn('[Audio Engine] YouTube API error code:', event.data);
           isYtPlayerInitializing = false;
-          const p = AUDIO_PRESETS[activeAudioPresetKey];
-          // Error 150/101/153: Embed disallowed by owner, 100: Not found / deleted, 2/5: Invalid param
-          if ([2, 5, 100, 101, 150, 153].includes(event.data)) {
-            if (targetVidId !== '5yx6BWlEVcY') {
-              showToast('Stream unavailable (Code ' + event.data + '). Switching to Focus Lofi stream...', 'info');
-              setTimeout(() => {
-                initYouTubePlayerInstance('5yx6BWlEVcY', true);
-              }, 300);
-              return;
-            }
-            showToast('YouTube stream restricted (Code ' + event.data + '). Switching to Focus Soundscape 🎧', 'info');
-            const fallbackTone = (p && p.synthesizer) ? p.synthesizer : 'alpha';
-            playProceduralAmbience(fallbackTone);
-            setAudioPlayingUI(true);
-            return;
-          }
-          showToast('YouTube audio error (Code ' + event.data + ').', 'warning');
-          if (p && p.synthesizer) {
-            playProceduralAmbience(p.synthesizer);
+          setAudioPlayingUI(false);
+          isAudioPlaying = false;
+          currentAudioEngine = 'idle';
+          updateAudioEngineBadge('ready');
+          if (isUserExplicitPlayAction) {
+            showToast('Unable to stream this audio track. Please select another station 🎵', 'info');
+            isUserExplicitPlayAction = false;
           }
         }
       }
@@ -8329,8 +8354,7 @@ function initFocusAudio() {
       closeCustomYoutubeModal();
       switchAudioTrack('custom');
       startCurrentAudio();
-      setAudioPlayingUI(true);
-      showToast('Now Playing YouTube Stream 🎧', 'success');
+      showToast('Connecting to YouTube stream... 🎧', 'info');
     }
   }
 
@@ -8596,8 +8620,8 @@ function toggleAudioPlay() {
     pauseCurrentAudio();
     setAudioPlayingUI(false);
   } else {
+    updateAudioEngineBadge('buffering');
     resumeCurrentAudio();
-    setAudioPlayingUI(true);
   }
 }
 
@@ -8606,6 +8630,7 @@ function pauseCurrentAudio() {
     try { ytPlayerInstance.pauseVideo(); } catch (_) {}
   }
   stopWebAudioAmbience();
+  setAudioPlayingUI(false);
 }
 
 function resumeCurrentAudio() {
@@ -8620,8 +8645,7 @@ function resumeCurrentAudio() {
       ytPlayerInstance.setVolume(audioVolume);
       ytPlayerInstance.playVideo();
       currentAudioEngine = 'youtube';
-      updateAudioEngineBadge('youtube');
-      setAudioPlayingUI(true);
+      updateAudioEngineBadge('buffering');
       return;
     } catch (_) {}
   }
@@ -8648,19 +8672,24 @@ function setAudioPlayingUI(playing) {
 }
 
 function startCurrentAudio() {
-  initWebAudioContext();
   const preset = AUDIO_PRESETS[activeAudioPresetKey];
   if (!preset) return;
 
-  // 1. YouTube Stream Playback via Official YT.Player API
   const videoId = activeAudioPresetKey === 'custom' ? (customYoutubeVideoId || '5yx6BWlEVcY') : preset.id;
   if (videoId) {
+    if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
+      showToast('YouTube streaming requires running from a web server (e.g. http://localhost or online) due to browser security restrictions on local files 💡', 'info');
+    }
+    isUserExplicitPlayAction = true;
+    updateAudioEngineBadge('buffering');
+    armAudioPlaybackWatchdog();
     startYouTubeEmbedPlayer(videoId);
-    setAudioPlayingUI(true);
-  } else if (preset.synthesizer) {
-    // 2. Procedural Web Audio Ambient Tone (rain / alpha)
-    if (playProceduralAmbience(preset.synthesizer)) {
-      setAudioPlayingUI(true);
+  } else {
+    setAudioPlayingUI(false);
+    isAudioPlaying = false;
+    if (isUserExplicitPlayAction) {
+      showToast('No valid audio track configured.', 'info');
+      isUserExplicitPlayAction = false;
     }
   }
 }
@@ -8703,9 +8732,8 @@ function startYouTubeEmbedPlayer(videoId) {
       ytPlayerInstance.unMute();
       ytPlayerInstance.setVolume(audioVolume);
       ytPlayerInstance.playVideo();
-      currentAudioEngine = 'youtube';
-      updateAudioEngineBadge('youtube');
-      setAudioPlayingUI(true);
+        currentAudioEngine = 'youtube';
+        updateAudioEngineBadge('buffering');
       return;
     } catch (err) {
       console.warn('[Audio Engine] YT.Player loadVideoById failed:', err);
@@ -8770,7 +8798,7 @@ const BG_PRESETS = {
   amoled: '#000000'
 };
 
-let currentBgKey = localStorage.getItem('studytimer_bg_preset') || 'sunset';
+let currentBgKey = localStorage.getItem('studytimer_bg_preset') || 'rain';
 let customBgDataUrl = localStorage.getItem('studytimer_custom_bg') || '';
 let bgDimmerVal = parseInt(localStorage.getItem('studytimer_bg_dimmer') || '30', 10);
 let bgBlurVal = parseInt(localStorage.getItem('studytimer_bg_blur') || '0', 10);
@@ -8977,9 +9005,9 @@ function initBackgroundManager() {
     customBgDataUrl = '';
     if (bgUrlInput) bgUrlInput.value = '';
     testAndPreviewImageUrl('');
-    setStudioBackgroundPreset('sunset');
+    setStudioBackgroundPreset('rain');
     if (resetBtn) resetBtn.style.display = 'none';
-    showToast('Reset to default Sunset Clouds wallpaper.', 'info');
+    showToast('Reset to default Rainy Window wallpaper.', 'info');
   });
 
   if (customBgDataUrl && resetBtn) {

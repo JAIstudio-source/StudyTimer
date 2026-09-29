@@ -834,9 +834,26 @@ class StatsPanelBuilder(private val host: MainActivity) {
         }
         val filterLabels = listOf(host.getString(R.string.filter_7d), host.getString(R.string.filter_30d), host.getString(R.string.filter_all))
         val filterValues = listOf(7, 30, -1)
+        val chipViews = ArrayList<TextView>()
+
+        val chartContainer = LinearLayout(host).apply { orientation = LinearLayout.VERTICAL }
+
+        lateinit var buildChartFn: (Int) -> Unit
+
+        fun refreshChipStyles() {
+            for (idx in filterValues.indices) {
+                val isActive = selectedDaysFilter == filterValues[idx]
+                val chip = chipViews.getOrNull(idx) ?: continue
+                chip.setTextColor(if (isActive) themeCoordinator.primaryColor else themeCoordinator.textColor)
+                chip.alpha = if (isActive) 1f else 0.65f
+                chip.typeface = Typeface.create("sans-serif-medium", if (isActive) Typeface.BOLD else Typeface.NORMAL)
+                chip.background = if (isActive) themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 110), 20f) else null
+            }
+        }
+
         for (idx in filterLabels.indices) {
             val isActive = selectedDaysFilter == filterValues[idx]
-            chipRow.addView(TextView(host).apply {
+            val chip = TextView(host).apply {
                 text = filterLabels[idx]
                 textSize = 12.5f
                 setPadding(dp(14), dp(6), dp(14), dp(6))
@@ -845,12 +862,17 @@ class StatsPanelBuilder(private val host: MainActivity) {
                 typeface = Typeface.create("sans-serif-medium", if (isActive) Typeface.BOLD else Typeface.NORMAL)
                 background = if (isActive) themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 110), 20f) else null
                 setOnClickListener {
-                    selectedDaysFilter = filterValues[idx]
-                    sharedPrefs.edit().putInt("selected_days_filter", selectedDaysFilter).apply()
-                    navigateToPanel(AppPanel.STATS)
+                    if (selectedDaysFilter != filterValues[idx]) {
+                        selectedDaysFilter = filterValues[idx]
+                        sharedPrefs.edit().putInt("selected_days_filter", selectedDaysFilter).apply()
+                        refreshChipStyles()
+                        buildChartFn(selectedDaysFilter)
+                    }
                 }
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, dp(6), 0) }
-            })
+            }
+            chipViews.add(chip)
+            chipRow.addView(chip)
         }
         chartCard.addView(chipRow)
 
@@ -863,7 +885,6 @@ class StatsPanelBuilder(private val host: MainActivity) {
             setPadding(dp(4), 0, dp(4), dp(8))
         })
 
-        val chartContainer = LinearLayout(host).apply { orientation = LinearLayout.VERTICAL }
         chartCard.addView(chartContainer)
 
         fun buildChart(daysLimit: Int) {
@@ -987,6 +1008,7 @@ class StatsPanelBuilder(private val host: MainActivity) {
             }
         }
 
+        buildChartFn = { buildChart(it) }
         buildChart(selectedDaysFilter)
 
         // DUAL-MODE PIE CHART CARD (Placed strictly BELOW Focus Pattern Chart)
@@ -1033,14 +1055,9 @@ class StatsPanelBuilder(private val host: MainActivity) {
         pieHeaderRow.addView(tapDetailsBtn)
         pieCard.addView(pieHeaderRow)
 
-        val pieModeRow = LinearLayout(host).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(0, 0, 0, dp(12))
-        }
+        val pieContentContainer = LinearLayout(host).apply { orientation = LinearLayout.VERTICAL }
 
-        var currentPieMode = sharedPrefs.safeInt("pie_chart_mode", 0) // 0: Subject Sessions, 1: Focus Depth & Quality Ratio
-
-        fun updatePieChartContent(mode: Int, container: LinearLayout) {
+        fun updatePieChartContent(container: LinearLayout) {
             container.removeAllViews()
             val isDonut = sharedPrefs.safeBoolean("use_donut_chart", true)
             val pieView = SubjectPieChartView(host).apply {
@@ -1054,219 +1071,85 @@ class StatsPanelBuilder(private val host: MainActivity) {
 
             val slicesList = ArrayList<SubjectPieChartView.PieSlice>()
 
-            if (mode == 0) {
-                // Mode 1: Subject Sessions Breakdown derived from unified daily session logs
-                val todayStr = dateKeyFmt.format(Date())
-                val (allDaySessions, _) = dayBlocks(todayStr)
+            // Subject Sessions Breakdown derived from unified daily session logs
+            val todayStr = dateKeyFmt.format(Date())
+            val (allDaySessions, _) = dayBlocks(todayStr)
 
-                // Group unified sessions by subject (aggregating duration + resolved SubjectTag)
-                val subjectMap = LinkedHashMap<String, Pair<SubjectTag, Long>>()
-                for (s in allDaySessions) {
-                    val subId = s.subjectId ?: "general"
-                    val subj = SubjectTagManager.resolveSubject(host, subId, s.subjectName, s.subjectColor)
+            // Group unified sessions by subject (aggregating duration + resolved SubjectTag)
+            val subjectMap = LinkedHashMap<String, Pair<SubjectTag, Long>>()
+            for (s in allDaySessions) {
+                val subId = s.subjectId ?: "general"
+                val subj = SubjectTagManager.resolveSubject(host, subId, s.subjectName, s.subjectColor)
+                val currentSecs = subjectMap[subj.id]?.second ?: 0L
+                subjectMap[subj.id] = subj to (currentSecs + s.secs)
+            }
+
+            // Fallback to SubjectTagManager durations if no unified timeline entries yet
+            if (subjectMap.isEmpty()) {
+                val legacyDurations = SubjectTagManager.getSubjectDurationsForDate(host, todayStr)
+                for ((subId, secs) in legacyDurations) {
+                    val subj = SubjectTagManager.resolveSubject(host, subId)
                     val currentSecs = subjectMap[subj.id]?.second ?: 0L
-                    subjectMap[subj.id] = subj to (currentSecs + s.secs)
+                    subjectMap[subj.id] = subj to (currentSecs + secs)
                 }
+            }
 
-                // If no unified timeline entries exist yet for today, fallback to SubjectTagManager durations for today specifically
-                if (subjectMap.isEmpty()) {
-                    val legacyDurations = SubjectTagManager.getSubjectDurationsForDate(host, todayStr)
-                    for ((subId, secs) in legacyDurations) {
-                        val subj = SubjectTagManager.resolveSubject(host, subId)
-                        val currentSecs = subjectMap[subj.id]?.second ?: 0L
-                        subjectMap[subj.id] = subj to (currentSecs + secs)
-                    }
+            val totalSecsAll = subjectMap.values.sumOf { it.second }
+
+            if (subjectMap.isEmpty() || totalSecsAll < 60L) {
+                val emptyBox = LinearLayout(host).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER
+                    setPadding(0, dp(24), 0, dp(24))
                 }
-
-                val totalSecsAll = subjectMap.values.sumOf { it.second }
-
-                if (subjectMap.isEmpty() || totalSecsAll < 60L) {
-                    val emptyBox = LinearLayout(host).apply {
-                        orientation = LinearLayout.VERTICAL
-                        gravity = Gravity.CENTER
-                        setPadding(0, dp(24), 0, dp(24))
-                    }
-                    emptyBox.addView(TextView(host).apply {
-                        text = "No Study Time Today"
-                        setTextColor(themeCoordinator.textColor)
-                        textSize = 15f
-                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                        gravity = Gravity.CENTER
-                    })
-                    emptyBox.addView(TextView(host).apply {
-                        text = "Study for at least 1 minute to see your subject breakdown."
-                        setTextColor(themeCoordinator.textColor)
-                        alpha = 0.55f
-                        textSize = 12.5f
-                        gravity = Gravity.CENTER
-                        setPadding(0, dp(4), 0, 0)
-                    })
-                    container.addView(emptyBox)
-                } else {
-                    val sortedSubjects = subjectMap.values
-                        .filter { it.second >= 60L }
-                        .sortedByDescending { it.second }
-
-                    for ((subj, secs) in sortedSubjects) {
-                        slicesList.add(SubjectPieChartView.PieSlice(subj.name, subj.iconEmoji, secs.toDouble(), subj.colorHex))
-                    }
-
-                    if (slicesList.isEmpty()) {
-                        val emptyBox = LinearLayout(host).apply {
-                            orientation = LinearLayout.VERTICAL
-                            gravity = Gravity.CENTER
-                            setPadding(0, dp(24), 0, dp(24))
-                        }
-                        emptyBox.addView(TextView(host).apply {
-                            text = "More Data Needed"
-                            setTextColor(themeCoordinator.textColor)
-                            textSize = 15f
-                            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                            gravity = Gravity.CENTER
-                        })
-                        container.addView(emptyBox)
-                    } else {
-                        pieView.setData(slicesList)
-                        container.addView(pieView)
-                    }
-                }
+                emptyBox.addView(TextView(host).apply {
+                    text = "No Study Time Today"
+                    setTextColor(themeCoordinator.textColor)
+                    textSize = 15f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    gravity = Gravity.CENTER
+                })
+                emptyBox.addView(TextView(host).apply {
+                    text = "Study for at least 1 minute to see your subject breakdown."
+                    setTextColor(themeCoordinator.textColor)
+                    alpha = 0.55f
+                    textSize = 12.5f
+                    gravity = Gravity.CENTER
+                    setPadding(0, dp(4), 0, 0)
+                })
+                container.addView(emptyBox)
             } else {
-                // Mode 2: Session Quality & Focus Depth Ratio (Deep Focus vs Standard Focus vs Light Focus)
-                val totalFocusSecs = snap.todayFocus
-                if (totalFocusSecs < 60L) {
+                val sortedSubjects = subjectMap.values
+                    .filter { it.second >= 60L }
+                    .sortedByDescending { it.second }
+
+                for ((subj, secs) in sortedSubjects) {
+                    slicesList.add(SubjectPieChartView.PieSlice(subj.name, subj.iconEmoji, secs.toDouble(), subj.colorHex))
+                }
+
+                if (slicesList.isEmpty()) {
                     val emptyBox = LinearLayout(host).apply {
                         orientation = LinearLayout.VERTICAL
                         gravity = Gravity.CENTER
                         setPadding(0, dp(24), 0, dp(24))
                     }
                     emptyBox.addView(TextView(host).apply {
-                        text = "Not Enough Data"
+                        text = "More Data Needed"
                         setTextColor(themeCoordinator.textColor)
                         textSize = 15f
                         typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                         gravity = Gravity.CENTER
                     })
-                    emptyBox.addView(TextView(host).apply {
-                        text = "Study for at least 1 minute to analyze your focus depth."
-                        setTextColor(themeCoordinator.textColor)
-                        alpha = 0.55f
-                        textSize = 12.5f
-                        gravity = Gravity.CENTER
-                        setPadding(0, dp(4), 0, 0)
-                    })
                     container.addView(emptyBox)
                 } else {
-                    // Compute Focus Depth Distribution strictly from real session block durations
-                    val todayStr = dateKeyFmt.format(Date())
-                    val (daySessions, _) = statsEngine.dayBlocks(todayStr)
-                    var deepSecs = 0L
-                    var stdSecs = 0L
-                    var lightSecs = 0L
-
-                    for (b in daySessions) {
-                        val durationSecs = b.secs
-                        when {
-                            durationSecs >= 2400L -> deepSecs += durationSecs // >= 40 mins (Deep Focus)
-                            durationSecs >= 900L -> stdSecs += durationSecs   // 15 to 40 mins (Standard Focus)
-                            else -> lightSecs += durationSecs                 // < 15 mins (Light Focus)
-                        }
-                    }
-
-                    val isCurrentlyStudying = (currentTimerState == TimerState.STUDYING)
-                    if (isCurrentlyStudying && accumulatedStudy > 0L) {
-                        when {
-                            accumulatedStudy >= 2400L -> deepSecs += accumulatedStudy
-                            accumulatedStudy >= 900L -> stdSecs += accumulatedStudy
-                            else -> lightSecs += accumulatedStudy
-                        }
-                    }
-
-                    val sumCalc = deepSecs + stdSecs + lightSecs
-                    if (sumCalc < totalFocusSecs && totalFocusSecs > 0L) {
-                        val diff = totalFocusSecs - sumCalc
-                        if (sumCalc > 0L) {
-                            deepSecs += (diff * (deepSecs.toDouble() / sumCalc)).toLong()
-                            stdSecs += (diff * (stdSecs.toDouble() / sumCalc)).toLong()
-                            lightSecs = max(0L, totalFocusSecs - deepSecs - stdSecs)
-                        } else {
-                            if (totalFocusSecs >= 2400L) deepSecs = totalFocusSecs
-                            else if (totalFocusSecs >= 900L) stdSecs = totalFocusSecs
-                            else lightSecs = totalFocusSecs
-                        }
-                    }
-
-                    if (deepSecs > 0L) {
-                        slicesList.add(SubjectPieChartView.PieSlice("Deep Focus (≥40m)", "", deepSecs.toDouble(), "#10B981"))
-                    }
-                    if (stdSecs > 0L) {
-                        slicesList.add(SubjectPieChartView.PieSlice("Standard Focus (15-40m)", "", stdSecs.toDouble(), "#3B82F6"))
-                    }
-                    if (lightSecs > 0L) {
-                        slicesList.add(SubjectPieChartView.PieSlice("Light Focus (<15m)", "", lightSecs.toDouble(), "#F59E0B"))
-                    }
-
                     pieView.setData(slicesList)
                     container.addView(pieView)
                 }
             }
         }
 
-        val pieContentContainer = LinearLayout(host).apply { orientation = LinearLayout.VERTICAL }
-
-        val m1Btn = TextView(host).apply {
-            text = "Subject Breakdown"
-            textSize = 12f
-            setPadding(dp(12), dp(6), dp(12), dp(6))
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-        }
-
-        val m2Btn = TextView(host).apply {
-            text = "Focus Depth"
-            textSize = 12f
-            setPadding(dp(12), dp(6), dp(12), dp(6))
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-        }
-
-        fun refreshModeButtons() {
-            val isDark = themeCoordinator.isDarkMode()
-            val activeBg = if (isDark) {
-                themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 100), 14f)
-            } else {
-                GradientDrawable().apply {
-                    cornerRadius = dp(14).toFloat()
-                    setColor(0xFFF1F5F9.toInt())
-                    setStroke(dp(1), 0xFFCBD5E1.toInt())
-                }
-            }
-            m1Btn.setTextColor(if (currentPieMode == 0) (if (isDark) themeCoordinator.primaryColor else 0xFF0F172A.toInt()) else (if (isDark) themeCoordinator.textColor else 0xFF64748B.toInt()))
-            m1Btn.alpha = if (currentPieMode == 0) 1f else 0.6f
-            m1Btn.background = if (currentPieMode == 0) activeBg else null
-
-            m2Btn.setTextColor(if (currentPieMode == 1) (if (isDark) themeCoordinator.primaryColor else 0xFF0F172A.toInt()) else (if (isDark) themeCoordinator.textColor else 0xFF64748B.toInt()))
-            m2Btn.alpha = if (currentPieMode == 1) 1f else 0.6f
-            m2Btn.background = if (currentPieMode == 1) activeBg else null
-        }
-
-        m1Btn.setOnClickListener {
-            currentPieMode = 0
-            sharedPrefs.edit().putInt("pie_chart_mode", 0).apply()
-            refreshModeButtons()
-            updatePieChartContent(0, pieContentContainer)
-        }
-
-        m2Btn.setOnClickListener {
-            currentPieMode = 1
-            sharedPrefs.edit().putInt("pie_chart_mode", 1).apply()
-            refreshModeButtons()
-            updatePieChartContent(1, pieContentContainer)
-        }
-
-        refreshModeButtons()
-        pieModeRow.addView(m1Btn)
-        pieModeRow.addView(m2Btn)
-        pieCard.addView(pieModeRow)
         pieCard.addView(pieContentContainer)
-        updatePieChartContent(currentPieMode, pieContentContainer)
+        updatePieChartContent(pieContentContainer)
         val totalLifeFocus = snap.totalLifeFocus
         val totalLifeBreak = snap.totalLifeBreak
         val totalLife = snap.totalLife
@@ -1589,8 +1472,13 @@ class StatsPanelBuilder(private val host: MainActivity) {
                 })
             } else {
             (heroCard.parent as? android.view.ViewGroup)?.removeView(heroCard)
+            (pieCard.parent as? android.view.ViewGroup)?.removeView(pieCard)
             (chartCard.parent as? android.view.ViewGroup)?.removeView(chartCard)
+
             content.addView(heroCard)
+            if (snap.showPieChart) {
+                content.addView(pieCard)
+            }
             content.addView(chartCard)
             buildChart(selectedDaysFilter)
 
@@ -1947,13 +1835,6 @@ class StatsPanelBuilder(private val host: MainActivity) {
             if (snap.showPattern) {
                 (patternCard.parent as? android.view.ViewGroup)?.removeView(patternCard)
                 content.addView(patternCard)
-            }
-
-            val shouldShowPieCard = snap.showPieChart
-
-            if (shouldShowPieCard) {
-                (pieCard.parent as? android.view.ViewGroup)?.removeView(pieCard)
-                content.addView(pieCard)
             }
             }
 

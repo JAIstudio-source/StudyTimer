@@ -52,6 +52,7 @@ class TimerService : Service() {
     private var continuousStudySecs: Long = 0L
     private var isPendingActivityConfirmation: Boolean = false
     private var activityConfirmationPromptTime: Long = 0L
+    private var activeSessionDateStr: String? = null
 
     companion object {
         const val ACTION_TOGGLE = "com.madeby.JAI.ACTION_TOGGLE"
@@ -689,6 +690,13 @@ class TimerService : Service() {
         }
         timerRunnable = Runnable {
             val now = System.currentTimeMillis() / 1000
+            val currentDateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            if (activeSessionDateStr == null) {
+                activeSessionDateStr = currentDateStr
+            } else if (activeSessionDateStr != currentDateStr) {
+                handleMidnightRollover(currentDateStr, now)
+            }
+
             checkScheduledLectures(now)
             if (currentTimerState == TimerState.LECTURE_ENDED) {
                 if (lecturePromptTimestamp > 0L && (now - lecturePromptTimestamp) >= 15L) {
@@ -1024,12 +1032,95 @@ class TimerService : Service() {
         (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(3002, notification)
     }
 
+    private fun handleMidnightRollover(newDateStr: String, now: Long) {
+        val prevDayStr = activeSessionDateStr ?: return
+        android.util.Log.d("TimerService", "handleMidnightRollover: prevDay=$prevDayStr, newDate=$newDateStr, state=$currentTimerState, accumulatedStudy=$accumulatedStudy")
+
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val midnightMs = cal.timeInMillis
+        val midnightSecs = midnightMs / 1000L
+
+        val sp = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val prevFocus = sp.getLong("${prevDayStr}_focus_total", 0L)
+        val prevBreak = sp.getLong("${prevDayStr}_break_total", 0L)
+
+        val preMidnightGap = if (lastTimestamp > 0L && lastTimestamp < midnightSecs) {
+            (midnightSecs - lastTimestamp).coerceAtLeast(0L)
+        } else 0L
+
+        val studyForPrevDay = if (currentTimerState == TimerState.STUDYING) {
+            accumulatedStudy + preMidnightGap
+        } else {
+            accumulatedStudy
+        }
+        val breakForPrevDay = if (currentTimerState == TimerState.BREAK) {
+            currentBreakSeconds + preMidnightGap
+        } else {
+            currentBreakSeconds
+        }
+
+        // 1. Commit pre-midnight time to previous day's record
+        sp.edit()
+            .putLong("${prevDayStr}_focus_total", prevFocus + studyForPrevDay)
+            .putLong("${prevDayStr}_break_total", prevBreak + breakForPrevDay)
+            .apply()
+
+        // 2. Terminate previous day's timeline session block at 23:59:59.999
+        TimelineLogger.recordRaw(this, "IDLE", timestamp = midnightMs - 1L)
+
+        // 3. Start fresh timeline session block at 00:00:00.000 for today if still active
+        val currentSub = SubjectTagManager.getSelectedSubject(this)
+        if (currentTimerState == TimerState.STUDYING) {
+            TimelineLogger.recordRaw(
+                this,
+                "STUDYING",
+                timestamp = midnightMs,
+                subId = currentSub.id,
+                subName = currentSub.name,
+                subColor = currentSub.colorHex
+            )
+        } else if (currentTimerState == TimerState.BREAK) {
+            TimelineLogger.recordRaw(this, "BREAK", timestamp = midnightMs)
+        }
+
+        // 4. Sync previous day's remaining study chunk to Leaderboard
+        if (studyForPrevDay > lastLeaderboardSyncStudySecs) {
+            val chunk = (studyForPrevDay - lastLeaderboardSyncStudySecs).toInt()
+            CoroutineScope(Dispatchers.IO).launch {
+                LeaderboardManager.syncStudyProgress(this@TimerService, chunk, isStudying = (currentTimerState == TimerState.STUDYING), currentSub.name, currentSub.colorHex)
+            }
+        }
+
+        // 5. Post-midnight remainder (time elapsed on the new day so far)
+        val postMidnightGap = if (now > midnightSecs) (now - midnightSecs).coerceAtLeast(0L) else 0L
+        accumulatedStudy = if (currentTimerState == TimerState.STUDYING) postMidnightGap else 0L
+        currentBreakSeconds = if (currentTimerState == TimerState.BREAK) postMidnightGap else 0L
+        lastLeaderboardSyncStudySecs = 0L
+        lastTimestamp = now
+        activeSessionDateStr = newDateStr
+
+        // 6. Ensure new day's goal exists
+        if (!sp.contains("${newDateStr}_goal_secs")) {
+            sp.edit().putLong("${newDateStr}_goal_secs", sp.getLong("daily_goal_secs", 2700L)).apply()
+        }
+
+        saveState()
+        updateForegroundNotification()
+        StudyWidgetProvider.refresh(this)
+    }
+
     private fun loadSavedState() {
         val sharedPrefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
         currentTimerState = runCatching { TimerState.valueOf(sharedPrefs.getString("timerState", "IDLE") ?: "IDLE") }.getOrDefault(TimerState.IDLE)
         lastTimestamp = sharedPrefs.getLong("lastTimestamp", 0L)
         accumulatedStudy = sharedPrefs.getLong("accumulatedStudy", 0L)
         currentBreakSeconds = sharedPrefs.getLong("currentBreakSeconds", 0L)
+        activeSessionDateStr = sharedPrefs.getString("active_session_date_str", SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()))
         timerMode = sharedPrefs.getString("timer_mode", "STOPWATCH") ?: "STOPWATCH"
         val pomodoroConfiguredSecs = sharedPrefs.safeLong("study_interval_minutes", 25L) * 60L
         focusCountdownSecs = if (timerMode == "LECTURE") {
@@ -1100,6 +1191,7 @@ class TimerService : Service() {
             putLong("lastTimestamp", lastTimestamp)
             putLong("accumulatedStudy", accumulatedStudy)
             putLong("currentBreakSeconds", currentBreakSeconds)
+            putString("active_session_date_str", activeSessionDateStr ?: SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()))
             putLong("focus_remaining_secs", focusRemainingSecs)
             putLong("break_countdown_secs", breakCountdownSecs)
             putLong("break_remaining_secs", breakRemainingSecs)

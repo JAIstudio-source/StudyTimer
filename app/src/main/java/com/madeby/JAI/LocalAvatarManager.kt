@@ -85,6 +85,26 @@ object LocalAvatarManager {
         return if (file.exists()) file.delete() else false
     }
 
+    fun saveCroppedBitmap(context: Context, bitmap: Bitmap): Boolean {
+        return try {
+            val finalBitmap = if (bitmap.width != MAX_DIMENSION || bitmap.height != MAX_DIMENSION) {
+                Bitmap.createScaledBitmap(bitmap, MAX_DIMENSION, MAX_DIMENSION, true)
+            } else {
+                bitmap
+            }
+            val targetFile = getAvatarFile(context)
+            FileOutputStream(targetFile).use { fos ->
+                finalBitmap.compress(Bitmap.CompressFormat.JPEG, COMPRESS_QUALITY, fos)
+                fos.flush()
+            }
+            AuthManager.saveProfileImageUri(context, targetFile.absolutePath)
+            markAvatarPendingUpload(context, true)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     fun saveAvatarFromUri(context: Context, uri: Uri): Boolean {
         return try {
             val inputStream: InputStream? = context.contentResolver.openInputStream(uri)

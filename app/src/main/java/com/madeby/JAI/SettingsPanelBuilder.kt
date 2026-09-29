@@ -90,6 +90,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         navigateToPanel(AppPanel.FOCUS)
                     }
                 }
+                visibility = if (currentSettingsTab == AppSettingsTab.HUB) View.VISIBLE else View.GONE
                 layoutParams = FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.WRAP_CONTENT,
                     dp(48),
@@ -1508,7 +1509,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                             navigateToPanel(AppPanel.SETTINGS)
                         }
                     }
-                    intervalCard.addView(createSettingsRow("", "Continuous Timer Mode", "Study continuously without automatic breaks or session limits", freedomSwitch))
+                    intervalCard.addView(createSettingsRow("", "Long Sessions", "Study for extended periods without automatic breaks or session limits", freedomSwitch))
                     intervalCard.addView(createDivider())
 
                     fun formatIntervalValue(valMinutes: Long, unit: String): String {
@@ -1663,7 +1664,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                             }
                         }
                     }
-                    intervalCard.addView(createSettingsRow("", "Pure White Theme for Pomodoro", "Minimalist pure white background with black timer ring & numerals (Timer screen only)", pureWhiteSwitch))
+                    intervalCard.addView(createSettingsRow("", "Pure White Theme for Pomodoro", "Minimal pure white theme for Pomodoro timer", pureWhiteSwitch))
                     layout.addView(intervalCard)
                 }
 
@@ -1705,7 +1706,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         }
                     }
                 }
-                displayCard.addView(createSettingsRow("", "Landscape Fullscreen", "Rotate your phone sideways for a distraction-free fullscreen clock", landscapeSwitch))
+                displayCard.addView(createSettingsRow("", "Landscape Fullscreen", "Sideways fullscreen distraction-free clock", landscapeSwitch))
                 displayCard.addView(createDivider())
 
                 val isPureWhite = sharedPrefs.getBoolean("pureWhiteTimer", false)
@@ -1717,12 +1718,12 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         tabPageCache.clear()
                     }
                 }
-                displayCard.addView(createSettingsRow("", "Pure White Clock", "Keep timer numbers clean white instead of using your accent color", pureWhiteSwitch))
+                displayCard.addView(createSettingsRow("", "Pure White Clock", "Clean white timer digits instead of accent color", pureWhiteSwitch))
                 layout.addView(displayCard)
 
                 layout.addView(createSectionLabel("ADJUST STUDY TIME"))
                 val adjustCard = createSettingsCard()
-                val adjustRow = createSettingsRow("", "Adjust Today's Study Time", "Add missed study minutes or correct your total for today")
+                val adjustRow = createSettingsRow("", "Adjust Today's Study Time", "Add missed study minutes or correct today's total")
                 adjustRow.setOnClickListener {
                     DeveloperToolsHelper.showAdjustTodayTimeDialog(host, themeCoordinator, isDeveloperExtended = false)
                 }
@@ -1748,7 +1749,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         }
                     }
                 }
-                reminderCard.addView(createSettingsRow("", "Daily Goal Reminder", "Get a friendly evening reminder if you haven't reached your study goal", reminderSwitch))
+                reminderCard.addView(createSettingsRow("", "Daily Goal Reminder", "Evening notification if daily goal is not reached", reminderSwitch))
                 reminderCard.addView(createDivider())
 
                 val remHour = sharedPrefs.safeInt("reminder_hour", 20)
@@ -1791,7 +1792,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
                 })
                 timeTextCol.addView(TextView(this).apply {
-                    text = "Choose when to receive your daily reminder"
+                    text = "Time to receive your daily reminder"
                     setTextColor(themeCoordinator.textColor)
                     alpha = 0.5f
                     textSize = 12f
@@ -1860,12 +1861,6 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     }
                 }
                 goalCard.addView(createSettingsRow("", getString(R.string.streak_uses_goal), getString(R.string.streak_uses_goal_sub), streakGoalSwitch))
-                goalCard.addView(createDivider())
-                val adjustStatsRow = createSettingsRow("", "Adjust Today's Study Time", "Add missed study minutes or correct your total for today")
-                adjustStatsRow.setOnClickListener {
-                    DeveloperToolsHelper.showAdjustTodayTimeDialog(host, themeCoordinator, isDeveloperExtended = false)
-                }
-                goalCard.addView(adjustStatsRow)
                 layout.addView(goalCard)
 
                 layout.addView(createSectionLabel("STATS & CHARTS"))
@@ -1891,7 +1886,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         tabPageCache.clear()
                     }
                 }
-                chartsCard.addView(createSettingsRow("", "Subject Breakdown Chart", "Show your subject time charts in Stats", pieChartSwitch))
+                chartsCard.addView(createSettingsRow("", "Subject Breakdown Chart", "Show subject distribution chart in Stats", pieChartSwitch))
                 chartsCard.addView(createDivider())
 
                 val isDonutEnabled = sharedPrefs.safeBoolean("use_donut_chart", true)
@@ -1903,7 +1898,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         tabPageCache.clear()
                     }
                 }
-                chartsCard.addView(createSettingsRowWithView(createCustomDonutIcon(), "Donut Chart Style", "Recommended for 8+ subjects. Interactive 3D slices with quick stats in the center.", donutChartSwitch))
+                chartsCard.addView(createSettingsRowWithView(createCustomDonutIcon(), "Donut Chart Style", "Modern ring chart with quick stats in center", donutChartSwitch))
                 chartsCard.addView(createDivider())
 
                 val isPatternEnabled = sharedPrefs.getBoolean("show_focus_pattern", true)
@@ -1917,109 +1912,6 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 }
                 chartsCard.addView(createSettingsRow("", getString(R.string.focus_pattern_setting), getString(R.string.focus_pattern_setting_sub), patternSwitch))
                 layout.addView(chartsCard)
-
-                layout.addView(createSectionLabel("LEADERBOARD & PRIVACY"))
-                val leaderboardCard = createSettingsCard()
-
-                val isParticipating = sharedPrefs.getBoolean("leaderboard_participate", true)
-                val isShareLive = sharedPrefs.getBoolean("leaderboard_share_live_status", true)
-
-                var participateSwitchRef: SwitchMaterial? = null
-
-                fun promptTurnOffLeaderboard() {
-                    DeveloperToolsHelper.showThemedConfirmDialog(
-                        activity = host,
-                        themeCoordinator = themeCoordinator,
-                        title = "Pause Leaderboard Participation?",
-                        message = "Turning this off stops your focus sessions from syncing to global student rankings and removes your live study presence.\n\nYour personal statistics, study logs, and streaks remain completely safe on your device.\n\nAre you sure you want to stop participating?",
-                        confirmText = "Pause Participation",
-                        isDestructive = true,
-                        onCancel = {
-                            participateSwitchRef?.isChecked = true
-                        }
-                    ) {
-                        sharedPrefs.edit().putBoolean("leaderboard_participate", false).apply()
-                        participateSwitchRef?.isChecked = false
-                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                            LeaderboardManager.updateStudyPresence(host, false)
-                        }
-                        android.widget.Toast.makeText(host, "Leaderboard participation paused", android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                }
-
-                val participateSwitch = SwitchMaterial(this).apply {
-                    isChecked = isParticipating
-                    setOnClickListener {
-                        val currentlyChecked = isChecked
-                        if (!currentlyChecked) {
-                            // User clicked to turn OFF -> keep switch checked until confirmed
-                            isChecked = true
-                            promptTurnOffLeaderboard()
-                        } else {
-                            // User turned ON
-                            sharedPrefs.edit().putBoolean("leaderboard_participate", true).apply()
-                            android.widget.Toast.makeText(host, "Leaderboard participation active", android.widget.Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-                participateSwitchRef = participateSwitch
-
-                val participateRow = createSettingsRow(
-                    "",
-                    "Participate in Leaderboard",
-                    "Sync study hours and compete on the global student rankings (On by default)",
-                    participateSwitch
-                )
-                participateRow.setOnClickListener {
-                    val currentVal = sharedPrefs.getBoolean("leaderboard_participate", true)
-                    if (currentVal) {
-                        promptTurnOffLeaderboard()
-                    } else {
-                        sharedPrefs.edit().putBoolean("leaderboard_participate", true).apply()
-                        participateSwitch.isChecked = true
-                        android.widget.Toast.makeText(host, "Leaderboard participation active", android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                }
-                leaderboardCard.addView(participateRow)
-                leaderboardCard.addView(createDivider())
-
-                val liveStatusSwitch = SwitchMaterial(this).apply {
-                    isChecked = isShareLive
-                    setOnClickListener {
-                        val newState = isChecked
-                        sharedPrefs.edit().putBoolean("leaderboard_share_live_status", newState).apply()
-                        if (!newState) {
-                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                                LeaderboardManager.updateStudyPresence(host, false)
-                            }
-                            android.widget.Toast.makeText(host, "Live study status hidden", android.widget.Toast.LENGTH_SHORT).show()
-                        } else {
-                            android.widget.Toast.makeText(host, "Live study status visible", android.widget.Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-                val liveStatusRow = createSettingsRow(
-                    "",
-                    "Share Live Study Status",
-                    "Show a live studying badge and current subject to others while focusing (On by default)",
-                    liveStatusSwitch
-                )
-                liveStatusRow.setOnClickListener {
-                    val cur = sharedPrefs.getBoolean("leaderboard_share_live_status", true)
-                    val next = !cur
-                    sharedPrefs.edit().putBoolean("leaderboard_share_live_status", next).apply()
-                    liveStatusSwitch.isChecked = next
-                    if (!next) {
-                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                            LeaderboardManager.updateStudyPresence(host, false)
-                        }
-                        android.widget.Toast.makeText(host, "Live study status hidden", android.widget.Toast.LENGTH_SHORT).show()
-                    } else {
-                        android.widget.Toast.makeText(host, "Live study status visible", android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                }
-                leaderboardCard.addView(liveStatusRow)
-                layout.addView(leaderboardCard)
             }
 
             // ==========================================
@@ -2364,6 +2256,56 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         }
                     }
 
+                    val hsv = FloatArray(3)
+                    Color.colorToHSV(activeColor, hsv)
+
+                    val hueHeader = LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER_VERTICAL
+                        setPadding(0, dp(2), 0, dp(6))
+                    }
+                    val hueTitle = TextView(this).apply {
+                        text = "Fine-Tune Hue Slider"
+                        setTextColor(themeCoordinator.textColor)
+                        alpha = 0.65f
+                        textSize = 12f
+                        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    }
+                    val hueValLabel = TextView(this).apply {
+                        text = "${hsv[0].toInt()}°"
+                        setTextColor(themeCoordinator.textColor)
+                        alpha = 0.6f
+                        textSize = 12f
+                    }
+                    hueHeader.addView(hueTitle)
+                    hueHeader.addView(hueValLabel)
+
+                    var isUpdatingFromSwatch = false
+                    val hueSeekBar = android.widget.SeekBar(this).apply {
+                        max = 360
+                        progress = hsv[0].toInt()
+                        setPadding(dp(4), dp(4), dp(4), dp(4))
+                    }
+
+                    hueSeekBar.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                        override fun onProgressChanged(sb: android.widget.SeekBar?, prog: Int, fromUser: Boolean) {
+                            hueValLabel.text = "$prog°"
+                            if (fromUser) {
+                                val colorInt = Color.HSVToColor(floatArrayOf(prog.toFloat(), 0.70f, 0.95f))
+                                activeColor = colorInt
+                                (previewCircle.background as? GradientDrawable)?.setColor(activeColor)
+                                val newHex = String.format("#%06X", 0xFFFFFF and activeColor)
+                                hexLabel.text = "$subtitle  •  $newHex"
+                                sharedPrefs.edit().putInt(prefKey, activeColor).apply()
+                                onColorChanged(activeColor)
+                                refreshSwatchBorders()
+                            }
+                        }
+                        override fun onStartTrackingTouch(sb: android.widget.SeekBar?) {}
+                        override fun onStopTrackingTouch(sb: android.widget.SeekBar?) {}
+                    })
+
                     for (hex in palette) {
                         val swatchColor = Color.parseColor(hex)
                         val sView = View(this).apply {
@@ -2382,6 +2324,14 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                                 val newHex = String.format("#%06X", 0xFFFFFF and activeColor)
                                 hexLabel.text = "$subtitle  •  $newHex"
                                 sharedPrefs.edit().putInt(prefKey, activeColor).apply()
+
+                                val swatchHsv = FloatArray(3)
+                                Color.colorToHSV(activeColor, swatchHsv)
+                                isUpdatingFromSwatch = true
+                                hueSeekBar.progress = swatchHsv[0].toInt()
+                                hueValLabel.text = "${swatchHsv[0].toInt()}°"
+                                isUpdatingFromSwatch = false
+
                                 onColorChanged(activeColor)
                                 refreshSwatchBorders()
                             }
@@ -2391,39 +2341,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     }
                     swatchesScroll.addView(swatchesLayout)
                     cardContainer.addView(swatchesScroll)
-
-                    // Continuous Hue Bar / Slider (0° - 360°)
-                    val hsv = FloatArray(3)
-                    Color.colorToHSV(activeColor, hsv)
-
-                    val hueLabel = TextView(this).apply {
-                        text = "Fine-Tune Hue Slider"
-                        setTextColor(themeCoordinator.textColor)
-                        alpha = 0.5f
-                        textSize = 11f
-                        setPadding(0, 0, 0, dp(4))
-                    }
-                    cardContainer.addView(hueLabel)
-
-                    val hueSeekBar = android.widget.SeekBar(this).apply {
-                        max = 360
-                        progress = hsv[0].toInt()
-                        setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
-                            override fun onProgressChanged(sb: android.widget.SeekBar?, prog: Int, fromUser: Boolean) {
-                                if (!fromUser) return
-                                val colorInt = Color.HSVToColor(floatArrayOf(prog.toFloat(), 0.70f, 0.95f))
-                                activeColor = colorInt
-                                (previewCircle.background as? GradientDrawable)?.setColor(activeColor)
-                                val newHex = String.format("#%06X", 0xFFFFFF and activeColor)
-                                hexLabel.text = "$subtitle  •  $newHex"
-                                sharedPrefs.edit().putInt(prefKey, activeColor).apply()
-                                onColorChanged(activeColor)
-                                refreshSwatchBorders()
-                            }
-                            override fun onStartTrackingTouch(sb: android.widget.SeekBar?) {}
-                            override fun onStopTrackingTouch(sb: android.widget.SeekBar?) {}
-                        })
-                    }
+                    cardContainer.addView(hueHeader)
                     cardContainer.addView(hueSeekBar)
 
                     card.addView(cardContainer)
@@ -2458,6 +2376,22 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     tabPageCache.clear()
                 }
                 layout.addView(breakColorCard)
+
+                // ==========================================
+                // INTERACTION & HAPTICS (AT BOTTOM OF THEME)
+                // ==========================================
+                layout.addView(createSectionLabel("VIBRATION & HAPTICS"))
+                val hapticCard = createSettingsCard()
+                val isHapticsEnabled = sharedPrefs.getBoolean("haptics_enabled", true)
+                val hapticsSwitch = SwitchMaterial(this).apply {
+                    isChecked = isHapticsEnabled
+                    setOnCheckedChangeListener { _, isChecked ->
+                        sharedPrefs.edit().putBoolean("haptics_enabled", isChecked).apply()
+                        if (isChecked) performMicroHaptic(this)
+                    }
+                }
+                hapticCard.addView(createSettingsRow("", "Tactile Haptics", "Subtle micro-haptic feedback on buttons & hold actions", hapticsSwitch))
+                layout.addView(hapticCard)
             }
 
             // ==========================================

@@ -36,7 +36,7 @@
 }
 
 /* ========================================================
-   7 AVATAR GLOW RINGS (Applied across Modal, Sidebar, & Leaderboard)
+   AVATAR BORDER PRESETS (Clean & Subtle, No Glowing Halos)
    ======================================================== */
 .glow-gold,
 .ring-gold,
@@ -48,8 +48,8 @@
 .row-avatar-img.ring-gold,
 .avatar-sticker.glow-gold,
 .avatar-sticker.ring-gold {
-  border: 2.5px solid #f59e0b !important;
-  box-shadow: 0 0 14px rgba(245, 158, 11, 0.65), inset 0 0 6px rgba(245, 158, 11, 0.3) !important;
+  border: 1.5px solid rgba(245, 158, 11, 0.4) !important;
+  box-shadow: none !important;
 }
 
 .glow-cyan,
@@ -62,8 +62,8 @@
 .row-avatar-img.ring-cyan,
 .avatar-sticker.glow-cyan,
 .avatar-sticker.ring-cyan {
-  border: 2.5px solid #06b6d4 !important;
-  box-shadow: 0 0 14px rgba(6, 182, 212, 0.65), inset 0 0 6px rgba(6, 182, 212, 0.3) !important;
+  border: 1.5px solid rgba(6, 182, 212, 0.4) !important;
+  box-shadow: none !important;
 }
 
 .glow-emerald,
@@ -76,8 +76,8 @@
 .row-avatar-img.ring-emerald,
 .avatar-sticker.glow-emerald,
 .avatar-sticker.ring-emerald {
-  border: 2.5px solid #10b981 !important;
-  box-shadow: 0 0 14px rgba(16, 185, 129, 0.65), inset 0 0 6px rgba(16, 185, 129, 0.3) !important;
+  border: 1.5px solid rgba(16, 185, 129, 0.4) !important;
+  box-shadow: none !important;
 }
 
 .glow-violet,
@@ -90,8 +90,8 @@
 .row-avatar-img.ring-violet,
 .avatar-sticker.glow-violet,
 .avatar-sticker.ring-violet {
-  border: 2.5px solid #8b5cf6 !important;
-  box-shadow: 0 0 14px rgba(139, 92, 246, 0.65), inset 0 0 6px rgba(139, 92, 246, 0.3) !important;
+  border: 1.5px solid rgba(139, 92, 246, 0.4) !important;
+  box-shadow: none !important;
 }
 
 .glow-rose,
@@ -104,8 +104,8 @@
 .row-avatar-img.ring-rose,
 .avatar-sticker.glow-rose,
 .avatar-sticker.ring-rose {
-  border: 2.5px solid #f43f5e !important;
-  box-shadow: 0 0 14px rgba(244, 63, 94, 0.65), inset 0 0 6px rgba(244, 63, 94, 0.3) !important;
+  border: 1.5px solid rgba(244, 63, 94, 0.4) !important;
+  box-shadow: none !important;
 }
 
 .glow-blue,
@@ -118,8 +118,8 @@
 .row-avatar-img.ring-blue,
 .avatar-sticker.glow-blue,
 .avatar-sticker.ring-blue {
-  border: 2.5px solid #3b82f6 !important;
-  box-shadow: 0 0 14px rgba(59, 130, 246, 0.65), inset 0 0 6px rgba(59, 130, 246, 0.3) !important;
+  border: 1.5px solid rgba(59, 130, 246, 0.4) !important;
+  box-shadow: none !important;
 }
 
 .glow-slate,
@@ -132,8 +132,8 @@
 .row-avatar-img.ring-slate,
 .avatar-sticker.glow-slate,
 .avatar-sticker.ring-slate {
-  border: 2.5px solid #94a3b8 !important;
-  box-shadow: 0 0 14px rgba(148, 163, 184, 0.45), inset 0 0 6px rgba(148, 163, 184, 0.2) !important;
+  border: 1.5px solid rgba(148, 163, 184, 0.3) !important;
+  box-shadow: none !important;
 }
 
 /* Theme & Ring Pickers */

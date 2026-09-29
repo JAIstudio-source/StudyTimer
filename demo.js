@@ -5553,8 +5553,7 @@ function updateProfileLivePreview() {
   const goalInput = document.getElementById('inputProfileDailyGoal');
 
   const previewCard = document.getElementById('previewProfileCard');
-  const previewBanner = document.getElementById('previewCardBanner');
-  const previewAvatarRing = document.getElementById('previewAvatarRing');
+  const previewAvatarCircle = document.getElementById('previewAvatarCircle') || document.getElementById('previewAvatarRing');
   const previewAvatarIcon = document.getElementById('previewAvatarIcon');
   const previewDisplayName = document.getElementById('previewDisplayName');
   const previewRolePill = document.getElementById('previewRolePill');
@@ -5568,8 +5567,7 @@ function updateProfileLivePreview() {
   const goalVal = parseInt(goalInput?.value || '120', 10) || 120;
 
   if (previewCard) previewCard.className = 'profile-hero-showcase';
-  if (previewBanner) previewBanner.className = 'hero-showcase-bg banner-midnight';
-  if (previewAvatarRing) previewAvatarRing.className = 'hero-avatar-ring glow-gold';
+  if (previewAvatarCircle) previewAvatarCircle.className = 'hero-avatar-circle';
 
   if (previewAvatarIcon) {
     const isUrl = /^(http|https|data:|assets\/|\/|blob:)/i.test((selectedAvatarPreset || '').trim());

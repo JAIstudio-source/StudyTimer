@@ -114,16 +114,14 @@ object DeveloperToolsHelper {
             setPadding(0, dp(4), 0, dp(8))
         }
 
-        fun createSubjectRow(name: String, emoji: String, colorHex: String, tag: SubjectTag?): View {
+        fun createSubjectGridCard(name: String, emoji: String, colorHex: String, tag: SubjectTag?): View {
             val colorInt = try { Color.parseColor(colorHex) } catch (_: Exception) { themeCoordinator.primaryColor }
             val card = LinearLayout(activity).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
                 background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 22), 14f)
-                setPadding(dp(14), dp(11), dp(14), dp(11))
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                    setMargins(0, 0, 0, dp(8))
-                }
+                setPadding(dp(10), dp(10), dp(10), dp(10))
+                layoutParams = LinearLayout.LayoutParams(0, dp(44), 1f)
                 setOnClickListener {
                     onSelected(tag)
                     dialog.dismiss()
@@ -132,42 +130,75 @@ object DeveloperToolsHelper {
 
             val iconBadge = TextView(activity).apply {
                 text = emoji
-                textSize = 16f
+                textSize = 14f
                 gravity = Gravity.CENTER
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
                     setColor(tintedColor(colorInt, 40))
                 }
-                setPadding(dp(8), dp(6), dp(8), dp(6))
-                layoutParams = LinearLayout.LayoutParams(dp(36), dp(36)).apply {
-                    setMargins(0, 0, dp(12), 0)
+                setPadding(dp(4), dp(3), dp(4), dp(3))
+                layoutParams = LinearLayout.LayoutParams(dp(28), dp(28)).apply {
+                    setMargins(0, 0, dp(8), 0)
                 }
             }
 
             val label = TextView(activity).apply {
                 text = name
                 setTextColor(themeCoordinator.textColor)
-                textSize = 13.5f
+                textSize = 12.5f
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
 
-            val colorPill = View(activity).apply {
-                background = GradientDrawable().apply {
-                    cornerRadius = dp(6).toFloat()
-                    setColor(colorInt)
-                }
-                layoutParams = LinearLayout.LayoutParams(dp(12), dp(12))
-            }
-
             card.addView(iconBadge)
             card.addView(label)
-            card.addView(colorPill)
             return card
         }
 
+        data class PickerItem(val name: String, val emoji: String, val colorHex: String, val tag: SubjectTag?)
+        val pickerItems = mutableListOf<PickerItem>()
         if (includeGeneral) {
-            listContainer.addView(createSubjectRow("General Focus (Untagged)", "📖", "#6366F1", null))
+            pickerItems.add(PickerItem("General Focus", "📖", "#6366F1", null))
+        }
+        for (sub in subjects) {
+            pickerItems.add(PickerItem(sub.name, sub.iconEmoji, sub.colorHex, sub))
+        }
+
+        for (i in pickerItems.indices step 2) {
+            val row = LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    setMargins(0, 0, 0, dp(6))
+                }
+            }
+
+            val item1 = pickerItems[i]
+            val card1 = createSubjectGridCard(item1.name, item1.emoji, item1.colorHex, item1.tag)
+            (card1.layoutParams as LinearLayout.LayoutParams).apply {
+                if (i + 1 < pickerItems.size) setMargins(0, 0, dp(4), 0)
+            }
+            row.addView(card1)
+
+            if (i + 1 < pickerItems.size) {
+                val item2 = pickerItems[i + 1]
+                val card2 = createSubjectGridCard(item2.name, item2.emoji, item2.colorHex, item2.tag)
+                (card2.layoutParams as LinearLayout.LayoutParams).apply {
+                    setMargins(dp(4), 0, 0, 0)
+                }
+                row.addView(card2)
+            } else {
+                row.addView(View(activity).apply {
+                    layoutParams = LinearLayout.LayoutParams(0, dp(44), 1f).apply {
+                        setMargins(dp(4), 0, 0, 0)
+                    }
+                })
+            }
+            listContainer.addView(row)
         }
 
         if (includeCreateOption) {
@@ -177,7 +208,7 @@ object DeveloperToolsHelper {
                 background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 40), 14f)
                 setPadding(dp(14), dp(11), dp(14), dp(11))
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                    setMargins(0, 0, 0, dp(8))
+                    setMargins(0, dp(4), 0, dp(8))
                 }
                 setOnClickListener {
                     onCreateCustom?.invoke()
@@ -188,8 +219,8 @@ object DeveloperToolsHelper {
                 text = "➕"
                 textSize = 15f
                 gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(dp(36), dp(36)).apply {
-                    setMargins(0, 0, dp(12), 0)
+                layoutParams = LinearLayout.LayoutParams(dp(32), dp(32)).apply {
+                    setMargins(0, 0, dp(10), 0)
                 }
             }
             val plusLabel = TextView(activity).apply {
@@ -202,10 +233,6 @@ object DeveloperToolsHelper {
             createCard.addView(plusIcon)
             createCard.addView(plusLabel)
             listContainer.addView(createCard)
-        }
-
-        for (sub in subjects) {
-            listContainer.addView(createSubjectRow(sub.name, sub.iconEmoji, sub.colorHex, sub))
         }
 
         scroll.addView(listContainer)
@@ -1667,12 +1694,33 @@ object DeveloperToolsHelper {
         initialDate: String? = null,
         defaultSyncLeaderboard: Boolean = false
     ) {
+        val sharedPrefs = activity.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        val timerState = sharedPrefs.getString("timerState", "IDLE") ?: "IDLE"
+        val isTimerActive = activity.currentTimerState != TimerState.IDLE ||
+                timerState != "IDLE" ||
+                activity.accumulatedStudy > 0L ||
+                activity.currentBreakSeconds > 0L
+
+        if (isTimerActive) {
+            showThemedConfirmDialog(
+                activity = activity,
+                themeCoordinator = themeCoordinator,
+                title = "⏱️ Timer Is Running",
+                message = "Time can only be adjusted when no timer is running.\n\nPlease pause or finish your active timer session first before adjusting study or break records.",
+                confirmText = "Go to Timer",
+                isDestructive = false,
+                onCancel = {}
+            ) {
+                activity.navigateToPanel(AppPanel.FOCUS)
+            }
+            return
+        }
+
         val dialog = Dialog(activity)
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
         val dp = { v: Int -> (v * activity.resources.displayMetrics.density).toInt() }
         val displayMetrics = activity.resources.displayMetrics
 
-        val sharedPrefs = activity.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         var targetDateStr = initialDate ?: todayStr
 
@@ -1719,7 +1767,7 @@ object DeveloperToolsHelper {
             overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                (displayMetrics.heightPixels * 0.72f).toInt()
+                LinearLayout.LayoutParams.WRAP_CONTENT
             )
         }
         val content = LinearLayout(activity).apply {
@@ -1964,7 +2012,7 @@ object DeveloperToolsHelper {
         }
 
         val startTimeBtn = TextView(activity).apply {
-            text = "⏰ Start: ${timeFmt.format(startCal.time)}"
+            text = "⏰ Start: ${timeFmt.format(startCal.time)} ▾"
             textSize = 12f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             setTextColor(Color.WHITE)
@@ -1977,7 +2025,7 @@ object DeveloperToolsHelper {
         }
 
         val endTimeBtn = TextView(activity).apply {
-            text = "🏁 End: ${timeFmt.format(endCal.time)}"
+            text = "🏁 End: ${timeFmt.format(endCal.time)} ▾"
             textSize = 12f
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             setTextColor(Color.WHITE)
@@ -2227,11 +2275,18 @@ object DeveloperToolsHelper {
                     }
                     textSize = 11f
                     typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                    setTextColor(Color.WHITE)
-                    background = GradientDrawable().apply {
-                        cornerRadius = dp(10).toFloat()
-                        setColor(if (actionMode == 1) Color.parseColor("#3F1B1B") else Color.parseColor("#1E293B"))
+                    val chipBgColor = when (actionMode) {
+                        1 -> tintedColor(Color.parseColor("#EF4444"), 40)
+                        2 -> tintedColor(Color.parseColor("#38BDF8"), 40)
+                        else -> tintedColor(themeCoordinator.primaryColor, 40)
                     }
+                    val chipTextColor = when (actionMode) {
+                        1 -> Color.parseColor("#EF4444")
+                        2 -> Color.parseColor("#38BDF8")
+                        else -> themeCoordinator.primaryColor
+                    }
+                    setTextColor(chipTextColor)
+                    background = themeCoordinator.createGlassChip(chipBgColor, 10f)
                     layoutParams = LinearLayout.LayoutParams(0, dp(36), 1f).apply {
                         setMargins(dp(2), 0, dp(2), 0)
                     }
@@ -2244,8 +2299,14 @@ object DeveloperToolsHelper {
 
             val enteredMins = minutesInput.text.toString().toLongOrNull() ?: 0L
             val enteredSecs = enteredMins * 60L
-
             val subName = selectedSubject?.name ?: "General Focus"
+
+            val MAX_DAY_SECS = 86400L // 24 hours
+            val otherSecs = if (isFocusCategory) effectiveBreakSecs else effectiveFocusSecs
+            val maxAllowableSecs = (MAX_DAY_SECS - otherSecs).coerceAtLeast(0L)
+            val maxAllowableMins = maxAllowableSecs / 60L
+
+            var isExceedingDayLimit = false
 
             if (isFocusCategory) {
                 val curH = effectiveFocusMins / 60L
@@ -2260,21 +2321,28 @@ object DeveloperToolsHelper {
                 val newH = newTotalSecs / 3600L
                 val newM = (newTotalSecs % 3600L) / 60L
 
-                when (actionMode) {
-                    0 -> {
-                        summaryResultText.text = "✨ Will add ${enteredMins}m to $subName → New Focus Total: ${newH}h ${newM}m"
-                        summaryResultText.setTextColor(themeCoordinator.primaryColor)
-                        applyBtn.text = "ADD ${enteredMins}m TO FOCUS"
-                    }
-                    1 -> {
-                        summaryResultText.text = "⚠️ Will deduct ${enteredMins}m from $subName → New Focus Total: ${newH}h ${newM}m"
-                        summaryResultText.setTextColor(Color.parseColor("#F59E0B"))
-                        applyBtn.text = "DEDUCT ${enteredMins}m FROM FOCUS"
-                    }
-                    else -> {
-                        summaryResultText.text = "🎯 Will set total focus to ${enteredMins}m (${newH}h ${newM}m)"
-                        summaryResultText.setTextColor(Color.parseColor("#38BDF8"))
-                        applyBtn.text = "SET FOCUS TOTAL TO ${enteredMins}m"
+                if (newTotalSecs > MAX_DAY_SECS || (newTotalSecs + effectiveBreakSecs) > MAX_DAY_SECS) {
+                    isExceedingDayLimit = true
+                    summaryResultText.text = "❌ Exceeds 24 hours in a single day!\n• Maximum total allowable focus: ${maxAllowableMins / 60}h ${maxAllowableMins % 60}m ($maxAllowableMins mins)"
+                    summaryResultText.setTextColor(Color.parseColor("#EF4444"))
+                    applyBtn.text = "EXCEEDS 24-HOUR LIMIT"
+                } else {
+                    when (actionMode) {
+                        0 -> {
+                            summaryResultText.text = "✨ Will add ${enteredMins}m to $subName → New Focus Total: ${newH}h ${newM}m"
+                            summaryResultText.setTextColor(themeCoordinator.primaryColor)
+                            applyBtn.text = "ADD ${enteredMins}m TO FOCUS"
+                        }
+                        1 -> {
+                            summaryResultText.text = "⚠️ Will deduct ${enteredMins}m from $subName → New Focus Total: ${newH}h ${newM}m"
+                            summaryResultText.setTextColor(Color.parseColor("#F59E0B"))
+                            applyBtn.text = "DEDUCT ${enteredMins}m FROM FOCUS"
+                        }
+                        else -> {
+                            summaryResultText.text = "🎯 Will set total focus to ${enteredMins}m (${newH}h ${newM}m)"
+                            summaryResultText.setTextColor(Color.parseColor("#38BDF8"))
+                            applyBtn.text = "SET FOCUS TOTAL TO ${enteredMins}m"
+                        }
                     }
                 }
             } else {
@@ -2291,28 +2359,37 @@ object DeveloperToolsHelper {
                 val newH = newTotalSecs / 3600L
                 val newM = (newTotalSecs % 3600L) / 60L
 
-                when (actionMode) {
-                    0 -> {
-                        summaryResultText.text = "☕ Will add ${enteredMins}m → New Break Total: ${newH}h ${newM}m"
-                        summaryResultText.setTextColor(Color.parseColor("#F43F5E"))
-                        applyBtn.text = "ADD ${enteredMins}m TO BREAK"
-                    }
-                    1 -> {
-                        summaryResultText.text = "⚠️ Will deduct ${enteredMins}m → New Break Total: ${newH}h ${newM}m"
-                        summaryResultText.setTextColor(Color.parseColor("#F59E0B"))
-                        applyBtn.text = "DEDUCT ${enteredMins}m FROM BREAK"
-                    }
-                    else -> {
-                        summaryResultText.text = "🎯 Will set total break to ${enteredMins}m (${newH}h ${newM}m)"
-                        summaryResultText.setTextColor(Color.parseColor("#38BDF8"))
-                        applyBtn.text = "SET BREAK TOTAL TO ${enteredMins}m"
+                if (newTotalSecs > MAX_DAY_SECS || (newTotalSecs + effectiveFocusSecs) > MAX_DAY_SECS) {
+                    isExceedingDayLimit = true
+                    summaryResultText.text = "❌ Exceeds 24 hours in a single day!\n• Maximum total allowable break: ${maxAllowableMins / 60}h ${maxAllowableMins % 60}m ($maxAllowableMins mins)"
+                    summaryResultText.setTextColor(Color.parseColor("#EF4444"))
+                    applyBtn.text = "EXCEEDS 24-HOUR LIMIT"
+                } else {
+                    when (actionMode) {
+                        0 -> {
+                            summaryResultText.text = "☕ Will add ${enteredMins}m → New Break Total: ${newH}h ${newM}m"
+                            summaryResultText.setTextColor(Color.parseColor("#F43F5E"))
+                            applyBtn.text = "ADD ${enteredMins}m TO BREAK"
+                        }
+                        1 -> {
+                            summaryResultText.text = "⚠️ Will deduct ${enteredMins}m → New Break Total: ${newH}h ${newM}m"
+                            summaryResultText.setTextColor(Color.parseColor("#F59E0B"))
+                            applyBtn.text = "DEDUCT ${enteredMins}m FROM BREAK"
+                        }
+                        else -> {
+                            summaryResultText.text = "🎯 Will set total break to ${enteredMins}m (${newH}h ${newM}m)"
+                            summaryResultText.setTextColor(Color.parseColor("#38BDF8"))
+                            applyBtn.text = "SET BREAK TOTAL TO ${enteredMins}m"
+                        }
                     }
                 }
             }
 
+            applyBtn.isEnabled = !isExceedingDayLimit && (enteredMins > 0 || actionMode == 2)
+            applyBtn.alpha = if (applyBtn.isEnabled) 1.0f else 0.5f
             applyBtn.background = GradientDrawable().apply {
                 cornerRadius = dp(14).toFloat()
-                setColor(activeColor)
+                setColor(if (isExceedingDayLimit) Color.parseColor("#475569") else activeColor)
             }
         }
 
@@ -2362,20 +2439,33 @@ object DeveloperToolsHelper {
                 return@setOnClickListener
             }
 
+            if (enteredMins > 1440L) {
+                Toast.makeText(activity, "Cannot add more than 24 hours (1,440 minutes) to a single day", Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+
             val enteredSecs = enteredMins * 60L
             val isTargetToday = targetDateStr == todayStr
             val now = System.currentTimeMillis()
             val effectiveSubId = selectedSubject?.id ?: "general"
+            val MAX_DAY_SECS = 86400L
 
             if (isFocusCategory) {
                 val currentStoredFocus = sharedPrefs.getLong("${targetDateStr}_focus_total", 0L)
                 val runningStudy = if (isTargetToday) activity.accumulatedStudy else 0L
                 val currentEffectiveFocus = currentStoredFocus + runningStudy
+                val currentStoredBreak = sharedPrefs.getLong("${targetDateStr}_break_total", 0L) + (if (isTargetToday) activity.currentBreakSeconds else 0L)
 
                 val newTotalFocus = when (actionMode) {
                     0 -> currentEffectiveFocus + enteredSecs
                     1 -> (currentEffectiveFocus - enteredSecs).coerceAtLeast(0L)
                     else -> enteredSecs
+                }
+
+                if (newTotalFocus > MAX_DAY_SECS || (newTotalFocus + currentStoredBreak) > MAX_DAY_SECS) {
+                    val maxAllowedMins = ((MAX_DAY_SECS - currentStoredBreak) / 60L).coerceAtLeast(0L)
+                    Toast.makeText(activity, "Cannot exceed 24 hours in a single day. Maximum allowable total study time is ${maxAllowedMins / 60}h ${maxAllowedMins % 60}m ($maxAllowedMins mins).", Toast.LENGTH_LONG).show()
+                    return@setOnClickListener
                 }
 
                 when (actionMode) {
@@ -2481,11 +2571,18 @@ object DeveloperToolsHelper {
                 val currentStoredBreak = sharedPrefs.getLong("${targetDateStr}_break_total", 0L)
                 val runningBreak = if (isTargetToday) activity.currentBreakSeconds else 0L
                 val currentEffectiveBreak = currentStoredBreak + runningBreak
+                val currentStoredFocus = sharedPrefs.getLong("${targetDateStr}_focus_total", 0L) + (if (isTargetToday) activity.accumulatedStudy else 0L)
 
                 val newTotalBreak = when (actionMode) {
                     0 -> currentEffectiveBreak + enteredSecs
                     1 -> (currentEffectiveBreak - enteredSecs).coerceAtLeast(0L)
                     else -> enteredSecs
+                }
+
+                if (newTotalBreak > MAX_DAY_SECS || (newTotalBreak + currentStoredFocus) > MAX_DAY_SECS) {
+                    val maxAllowedMins = ((MAX_DAY_SECS - currentStoredFocus) / 60L).coerceAtLeast(0L)
+                    Toast.makeText(activity, "Cannot exceed 24 hours in a single day. Maximum allowable total break time is ${maxAllowedMins / 60}h ${maxAllowedMins % 60}m ($maxAllowedMins mins).", Toast.LENGTH_LONG).show()
+                    return@setOnClickListener
                 }
 
                 when (actionMode) {

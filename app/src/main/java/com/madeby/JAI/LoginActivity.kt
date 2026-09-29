@@ -49,7 +49,9 @@ class LoginActivity : AppCompatActivity() {
         attachPressScale(btnGuest, 0.97f)
 
         btnGoogleSignIn.setOnClickListener {
-            showTermsConsentDialog()
+            val epoch = System.currentTimeMillis()
+            AuthManager.recordTermsConsent(this, epochMillis = epoch)
+            performGoogleSignIn()
         }
 
         btnGuest.setOnClickListener {

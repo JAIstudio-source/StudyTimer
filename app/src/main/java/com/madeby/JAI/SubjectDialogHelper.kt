@@ -69,7 +69,7 @@ class SubjectDialogHelper(private val host: MainActivity) {
                 overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
-                    dp(280)
+                    LinearLayout.LayoutParams.WRAP_CONTENT
                 )
             }
 
@@ -83,24 +83,25 @@ class SubjectDialogHelper(private val host: MainActivity) {
 
             val currentSelectedSubj = SubjectTagManager.getSelectedSubject(host)
             val subjectsList = SubjectTagManager.getAllSubjects(host)
-            for (subj in subjectsList) {
-                val isSelected = subj.id == currentSelectedSubj.id
-                val btn = Button(host).apply {
-                    text = if (isSelected) "✓  ${subj.iconEmoji} ${subj.name}" else "${subj.iconEmoji} ${subj.name}"
-                    textSize = 14f
+
+            fun createSubjectCard(subj: SubjectTag, isSelected: Boolean): View {
+                return Button(host).apply {
+                    text = if (isSelected) "✓ ${subj.iconEmoji} ${subj.name}" else "${subj.iconEmoji} ${subj.name}"
+                    textSize = 12.5f
+                    maxLines = 1
+                    ellipsize = android.text.TextUtils.TruncateAt.END
                     typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                     setTextColor(Color.WHITE)
+                    setPadding(dp(8), dp(10), dp(8), dp(10))
                     background = GradientDrawable().apply {
                         val baseColor = try { Color.parseColor(subj.colorHex) } catch (_: Exception) { themeCoordinator.primaryColor }
                         setColor(baseColor)
-                        cornerRadius = dp(14).toFloat()
+                        cornerRadius = dp(12).toFloat()
                         if (isSelected) {
                             setStroke(dp(2), Color.WHITE)
                         }
                     }
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                        setMargins(0, dp(3), 0, dp(3))
-                    }
+                    layoutParams = LinearLayout.LayoutParams(0, dp(44), 1f)
                     setOnClickListener {
                         SubjectTagManager.setSelectedSubject(host, subj.id)
                         dialog.dismiss()
@@ -116,7 +117,44 @@ class SubjectDialogHelper(private val host: MainActivity) {
                         true
                     }
                 }
-                subjectsListContainer.addView(btn)
+            }
+
+            // Render subjects in pairs (2 blocks per row)
+            for (i in subjectsList.indices step 2) {
+                val row = LinearLayout(host).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        setMargins(0, dp(3), 0, dp(3))
+                    }
+                }
+
+                val subj1 = subjectsList[i]
+                val card1 = createSubjectCard(subj1, subj1.id == currentSelectedSubj.id)
+                (card1.layoutParams as LinearLayout.LayoutParams).apply {
+                    if (i + 1 < subjectsList.size) setMargins(0, 0, dp(4), 0)
+                }
+                row.addView(card1)
+
+                if (i + 1 < subjectsList.size) {
+                    val subj2 = subjectsList[i + 1]
+                    val card2 = createSubjectCard(subj2, subj2.id == currentSelectedSubj.id)
+                    (card2.layoutParams as LinearLayout.LayoutParams).apply {
+                        setMargins(dp(4), 0, 0, 0)
+                    }
+                    row.addView(card2)
+                } else {
+                    // Empty space holder to keep 2-column balanced
+                    row.addView(View(host).apply {
+                        layoutParams = LinearLayout.LayoutParams(0, dp(44), 1f).apply {
+                            setMargins(dp(4), 0, 0, 0)
+                        }
+                    })
+                }
+
+                subjectsListContainer.addView(row)
             }
 
             scrollContainer.addView(subjectsListContainer)
@@ -233,6 +271,10 @@ class SubjectDialogHelper(private val host: MainActivity) {
                 orientation = LinearLayout.VERTICAL
                 background = themeCoordinator.createDialogBackground(24f)
                 setPadding(dp(20), dp(20), dp(20), dp(20))
+                layoutParams = LinearLayout.LayoutParams(
+                    (host.resources.displayMetrics.widthPixels * 0.88f).toInt().coerceAtMost(dp(380)),
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
             }
 
             val title = TextView(host).apply {
@@ -291,7 +333,64 @@ class SubjectDialogHelper(private val host: MainActivity) {
             val swatchesLayout = LinearLayout(host).apply {
                 orientation = LinearLayout.HORIZONTAL
             }
+            val swatchViews = ArrayList<View>()
             val presetColors = listOf("#6366F1", "#EC4899", "#F97316", "#06B6D4", "#10B981", "#EAB308", "#8B5CF6", "#EF4444", "#3B82F6", "#14B8A6")
+
+            fun refreshSubjectSwatchBorders() {
+                for ((idx, sView) in swatchViews.withIndex()) {
+                    val hex = presetColors[idx]
+                    val isMatch = hex.equals(selectedColorHex, true)
+                    (sView.background as? GradientDrawable)?.setStroke(dp(2), if (isMatch) Color.WHITE else Color.TRANSPARENT)
+                }
+            }
+
+            val curColorInt = try { Color.parseColor(selectedColorHex) } catch (_: Exception) { themeCoordinator.primaryColor }
+            val initHsv = FloatArray(3)
+            Color.colorToHSV(curColorInt, initHsv)
+
+            val hueHeader = LinearLayout(host).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, dp(2), 0, dp(4))
+            }
+            val hueTitle = TextView(host).apply {
+                text = "Fine-Tune Hue Slider"
+                setTextColor(themeCoordinator.textColor)
+                alpha = 0.6f
+                textSize = 12f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+            val hueValLabel = TextView(host).apply {
+                text = "${initHsv[0].toInt()}°"
+                setTextColor(themeCoordinator.textColor)
+                alpha = 0.6f
+                textSize = 12f
+            }
+            hueHeader.addView(hueTitle)
+            hueHeader.addView(hueValLabel)
+
+            var isUpdatingFromSwatch = false
+            val hueSeekBar = android.widget.SeekBar(host).apply {
+                max = 360
+                progress = initHsv[0].toInt()
+                setPadding(dp(4), dp(4), dp(4), dp(4))
+                setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(sb: android.widget.SeekBar?, prog: Int, fromUser: Boolean) {
+                        hueValLabel.text = "$prog°"
+                        if (fromUser) {
+                            val colorInt = Color.HSVToColor(floatArrayOf(prog.toFloat(), 0.70f, 0.95f))
+                            selectedColorHex = String.format("#%06X", 0xFFFFFF and colorInt)
+                            (colorPreviewCircle.background as? GradientDrawable)?.setColor(colorInt)
+                            colorLabel.text = "Subject Color: $selectedColorHex"
+                            refreshSubjectSwatchBorders()
+                        }
+                    }
+                    override fun onStartTrackingTouch(sb: android.widget.SeekBar?) {}
+                    override fun onStopTrackingTouch(sb: android.widget.SeekBar?) {}
+                })
+            }
+
             for (hex in presetColors) {
                 val swatch = View(host).apply {
                     layoutParams = LinearLayout.LayoutParams(dp(30), dp(30)).apply {
@@ -304,39 +403,26 @@ class SubjectDialogHelper(private val host: MainActivity) {
                     }
                     setOnClickListener {
                         selectedColorHex = hex
-                        (colorPreviewCircle.background as? GradientDrawable)?.setColor(Color.parseColor(hex))
+                        val cInt = Color.parseColor(hex)
+                        (colorPreviewCircle.background as? GradientDrawable)?.setColor(cInt)
                         colorLabel.text = "Subject Color: $selectedColorHex"
+
+                        val swatchHsv = FloatArray(3)
+                        Color.colorToHSV(cInt, swatchHsv)
+                        isUpdatingFromSwatch = true
+                        hueSeekBar.progress = swatchHsv[0].toInt()
+                        hueValLabel.text = "${swatchHsv[0].toInt()}°"
+                        isUpdatingFromSwatch = false
+
+                        refreshSubjectSwatchBorders()
                     }
                 }
+                swatchViews.add(swatch)
                 swatchesLayout.addView(swatch)
             }
             swatchesScroll.addView(swatchesLayout)
             container.addView(swatchesScroll)
-
-            // Custom Hue Color Slider Bar
-            val hueLabel = TextView(host).apply {
-                text = "Custom Hue Slider"
-                setTextColor(themeCoordinator.textColor)
-                alpha = 0.6f
-                textSize = 11.5f
-                setPadding(0, 0, 0, dp(4))
-            }
-            container.addView(hueLabel)
-
-            val hueSeekBar = android.widget.SeekBar(host).apply {
-                max = 360
-                progress = 240
-                setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
-                    override fun onProgressChanged(sb: android.widget.SeekBar?, prog: Int, fromUser: Boolean) {
-                        val colorInt = Color.HSVToColor(floatArrayOf(prog.toFloat(), 0.85f, 0.90f))
-                        selectedColorHex = String.format("#%06X", 0xFFFFFF and colorInt)
-                        (colorPreviewCircle.background as? GradientDrawable)?.setColor(colorInt)
-                        colorLabel.text = "Subject Color: $selectedColorHex"
-                    }
-                    override fun onStartTrackingTouch(sb: android.widget.SeekBar?) {}
-                    override fun onStopTrackingTouch(sb: android.widget.SeekBar?) {}
-                })
-            }
+            container.addView(hueHeader)
             container.addView(hueSeekBar)
 
             val saveBtn = Button(host).apply {
@@ -371,6 +457,10 @@ class SubjectDialogHelper(private val host: MainActivity) {
             container.addView(saveBtn)
 
             dialog.setContentView(container)
+            dialog.window?.setLayout(
+                (host.resources.displayMetrics.widthPixels * 0.88f).toInt().coerceAtMost(dp(380)),
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            )
             dialog.show()
         } catch (_: Exception) {}
     }

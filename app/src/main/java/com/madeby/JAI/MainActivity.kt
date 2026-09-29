@@ -255,34 +255,40 @@ class MainActivity : AppCompatActivity() {
 
     private val pickAvatarLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
-            val success = LocalAvatarManager.saveAvatarFromUri(this, uri)
-            if (success) {
-                Toast.makeText(this, "Profile picture selected. Submitting for approval...", Toast.LENGTH_SHORT).show()
-                if (currentPanel == AppPanel.SETTINGS) {
-                    navigateToPanel(AppPanel.SETTINGS)
-                }
+            AvatarCropDialogHelper.showCropDialog(
+                activity = this,
+                imageUri = uri,
+                themeCoordinator = themeCoordinator
+            ) { croppedBitmap ->
+                val success = LocalAvatarManager.saveCroppedBitmap(this, croppedBitmap)
+                if (success) {
+                    Toast.makeText(this, "Profile picture cropped. Submitting for approval...", Toast.LENGTH_SHORT).show()
+                    if (currentPanel == AppPanel.SETTINGS) {
+                        navigateToPanel(AppPanel.SETTINGS)
+                    }
 
-                // Strictly route via ProfileSyncService for moderation, storage upload, and Telegram admin dispatch
-                CoroutineScope(Dispatchers.IO).launch {
-                    val current = ProfileManager.getProfile(this@MainActivity)
-                    ProfileSyncService.submitProfile(
-                        context = this@MainActivity,
-                        displayName = current.displayName,
-                        bio = current.bio,
-                        targetExam = current.targetExam,
-                        dailyGoalMinutes = current.dailyGoalMinutes,
-                        avatarPresetId = current.avatarPresetId,
-                        avatarUrl = current.avatarUrl
-                    )
+                    // Strictly route via ProfileSyncService for moderation, storage upload, and Telegram admin dispatch
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val current = ProfileManager.getProfile(this@MainActivity)
+                        ProfileSyncService.submitProfile(
+                            context = this@MainActivity,
+                            displayName = current.displayName,
+                            bio = current.bio,
+                            targetExam = current.targetExam,
+                            dailyGoalMinutes = current.dailyGoalMinutes,
+                            avatarPresetId = current.avatarPresetId,
+                            avatarUrl = current.avatarUrl
+                        )
 
-                    withContext(Dispatchers.Main) {
-                        if (currentPanel == AppPanel.SETTINGS) {
-                            navigateToPanel(AppPanel.SETTINGS)
+                        withContext(Dispatchers.Main) {
+                            if (currentPanel == AppPanel.SETTINGS) {
+                                navigateToPanel(AppPanel.SETTINGS)
+                            }
                         }
                     }
+                } else {
+                    Toast.makeText(this, "Could not save cropped image", Toast.LENGTH_SHORT).show()
                 }
-            } else {
-                Toast.makeText(this, "Could not process image", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -888,6 +894,51 @@ class MainActivity : AppCompatActivity() {
     internal var holdStartTime = 0L
     internal var isHoldingStop = false
 
+    internal var lastHoldHapticMs = 0L
+
+    internal fun performMicroHaptic(view: View? = null) {
+        val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("haptics_enabled", true)) return
+        try {
+            if (view != null) {
+                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            } else {
+                window.decorView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            }
+        } catch (_: Exception) {}
+    }
+
+    internal fun performMicroHapticTick(view: View? = null) {
+        val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("haptics_enabled", true)) return
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+                if (vibrator?.hasVibrator() == true) {
+                    vibrator.vibrate(android.os.VibrationEffect.createPredefined(android.os.VibrationEffect.EFFECT_TICK))
+                    return
+                }
+            }
+            if (view != null) {
+                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+            } else {
+                window.decorView.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+            }
+        } catch (_: Exception) {}
+    }
+
+    internal fun performHapticConfirm(view: View? = null) {
+        val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("haptics_enabled", true)) return
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                view?.performHapticFeedback(HapticFeedbackConstants.CONFIRM) ?: window.decorView.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+            } else {
+                view?.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS) ?: window.decorView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            }
+        } catch (_: Exception) {}
+    }
+
     internal fun resetHoldToEnd() {
         isHoldingStop = false
         if (::stopBtn.isInitialized) {
@@ -910,8 +961,16 @@ class MainActivity : AppCompatActivity() {
             }
             val progress = (elapsed.toFloat() / HOLD_TO_END_DURATION_MS).coerceIn(0f, 1f)
             stopBtn.progress = progress
+
+            val now = SystemClock.uptimeMillis()
+            if (now - lastHoldHapticMs >= 85L) {
+                lastHoldHapticMs = now
+                performMicroHapticTick(stopBtn)
+            }
+
             if (progress >= 1f) {
                 resetHoldToEnd()
+                performHapticConfirm(stopBtn)
                 handleStopSession()
                 Toast.makeText(this@MainActivity, getString(R.string.toast_session_saved), Toast.LENGTH_SHORT).show()
                 Thread {
@@ -1358,6 +1417,7 @@ class MainActivity : AppCompatActivity() {
                 MotionEvent.ACTION_DOWN -> {
                     (v.background as? Soft3DBubbleDrawable)?.isPressed = true
                     v.animate().scaleX(0.96f).scaleY(0.96f).setDuration(90).setInterpolator(android.view.animation.DecelerateInterpolator()).start()
+                    performMicroHaptic(v)
                     false
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
@@ -1571,8 +1631,11 @@ class MainActivity : AppCompatActivity() {
 
         applyImmersiveModeForLandscape()
 
-        rootLayout.post { maybeShowOnboarding() }
-
+        // Set has_seen_app_guide true so it doesn't interrupt first launch
+        val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("has_seen_app_guide", false)) {
+            prefs.edit().putBoolean("has_seen_app_guide", true).apply()
+        }
     }
 
     private fun csvCell(v: Any?): String {
@@ -2685,12 +2748,19 @@ class MainActivity : AppCompatActivity() {
                 lastDayBucket = dayBucket
                 cachedTodayStr = dateKeyFmt.format(Date())
                 statsDirty = true
+                statsSnapshotCache = null
+                tabPageCache.clear()
                 if (!sharedPrefs.contains("${cachedTodayStr}_goal_secs")) {
                     sharedPrefs.edit().putLong("${cachedTodayStr}_goal_secs", sharedPrefs.getLong("daily_goal_secs", 2700L)).apply()
                 }
                 val goals = loadSessionGoalsFromJson(sharedPrefs.getString("session_goals_json", "[]") ?: "[]")
                 PlannerHistoryManager.snapshotToday(this, goals)
                 checkAndResetGoalsForNewDay()
+                recalculateStreak()
+                if (currentPanel == AppPanel.STATS) {
+                    refreshStatsPanel()
+                }
+                StudyWidgetProvider.refresh(this)
             }
             val timerStateChanged = currentTimerState != lastTickTimerState
             if (timerStateChanged) {
@@ -2698,6 +2768,11 @@ class MainActivity : AppCompatActivity() {
                 statsDirty = true
                 statsSnapshotCache = null
                 tabPageCache.clear()
+                if (currentPanel == AppPanel.FOCUS && (currentTimerState == TimerState.STUDYING || currentTimerState == TimerState.BREAK) && !isPortraitFullscreenActive) {
+                    scheduleAutoFullscreen(7000L)
+                } else if (currentTimerState != TimerState.STUDYING && currentTimerState != TimerState.BREAK) {
+                    cancelAutoFullscreen()
+                }
             }
 
             val currentMinuteBucket = accumulatedStudy / 60L
@@ -3001,15 +3076,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun playToggleFeedback() {
-        try {
-            rootLayout.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-        } catch (_: Exception) {}
+        performMicroHaptic(rootLayout)
+        if (currentTimerState == TimerState.STUDYING || currentTimerState == TimerState.BREAK) {
+            scheduleAutoFullscreen()
+        } else {
+            cancelAutoFullscreen()
+        }
     }
 
     private fun playStopFeedback() {
-        try {
-            rootLayout.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-        } catch (_: Exception) {}
+        cancelAutoFullscreen()
+        performHapticConfirm(rootLayout)
     }
 
     private var pendingNotificationAction: (() -> Unit)? = null
@@ -3847,6 +3924,33 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        if (currentPanel == AppPanel.FOCUS && (currentTimerState == TimerState.STUDYING || currentTimerState == TimerState.BREAK) && !isPortraitFullscreenActive) {
+            scheduleAutoFullscreen(7000L)
+        }
+    }
+
+    private val autoFullscreenHandler = Handler(Looper.getMainLooper())
+    private val autoFullscreenRunnable = Runnable {
+        if (!isDestroyed && !isFinishing && currentPanel == AppPanel.FOCUS
+            && (currentTimerState == TimerState.STUDYING || currentTimerState == TimerState.BREAK)
+            && !isPortraitFullscreenActive && resources.configuration.orientation != Configuration.ORIENTATION_LANDSCAPE) {
+            enterPortraitFullscreenMode()
+        }
+    }
+
+    internal fun scheduleAutoFullscreen(delayMs: Long = 6000L) {
+        autoFullscreenHandler.removeCallbacks(autoFullscreenRunnable)
+        if (currentPanel == AppPanel.FOCUS && (currentTimerState == TimerState.STUDYING || currentTimerState == TimerState.BREAK) && !isPortraitFullscreenActive) {
+            autoFullscreenHandler.postDelayed(autoFullscreenRunnable, delayMs)
+        }
+    }
+
+    internal fun cancelAutoFullscreen() {
+        autoFullscreenHandler.removeCallbacks(autoFullscreenRunnable)
+    }
+
     internal fun togglePortraitFullscreenMode() {
         val now = SystemClock.elapsedRealtime()
         if (now - lastFullscreenToggleTime < 350L) return
@@ -3862,47 +3966,70 @@ class MainActivity : AppCompatActivity() {
     }
 
     internal fun enterPortraitFullscreenMode() {
+        if (isPortraitFullscreenActive) return
         isPortraitFullscreenActive = true
+        cancelAutoFullscreen()
         hideSystemUI()
-        if (::navHeader.isInitialized) navHeader.visibility = View.GONE
-        if (::statusBadgeContainer.isInitialized) statusBadgeContainer.visibility = View.GONE
-        extraControlsContainer?.visibility = View.GONE
-        if (::controlActionContainer.isInitialized) controlActionContainer.visibility = View.GONE
-        statsFloatingIcon?.visibility = View.GONE
+
+        val fadeViews = listOfNotNull(
+            if (::navHeader.isInitialized) navHeader else null,
+            if (::statusBadgeContainer.isInitialized) statusBadgeContainer else null,
+            extraControlsContainer,
+            if (::controlActionContainer.isInitialized) controlActionContainer else null,
+            statsFloatingIcon
+        )
+
+        for (v in fadeViews) {
+            v.animate().alpha(0f).setDuration(400).withEndAction {
+                if (isPortraitFullscreenActive) v.visibility = View.INVISIBLE
+            }.start()
+        }
+
         applyPortraitFullscreenLayout()
         panelContainer.setOnClickListener {
             if (isPortraitFullscreenActive) {
-                togglePortraitFullscreenMode()
+                exitPortraitFullscreenMode()
             }
         }
         rootLayout.setOnClickListener {
             if (isPortraitFullscreenActive) {
-                togglePortraitFullscreenMode()
+                exitPortraitFullscreenMode()
             }
         }
-        try { window.decorView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP) } catch (_: Exception) {}
+        performMicroHaptic(window.decorView)
     }
 
     internal fun exitPortraitFullscreenMode() {
+        if (!isPortraitFullscreenActive) return
         isPortraitFullscreenActive = false
         showSystemUI()
         val sharedPrefs = getSharedPreferences("StudyTimerPrefs", MODE_PRIVATE)
         val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         if (!isLandscape) {
-            if (::navHeader.isInitialized) navHeader.visibility = View.VISIBLE
-            if (::statusBadgeContainer.isInitialized) statusBadgeContainer.visibility = View.VISIBLE
             val timerModeSetting = sharedPrefs.getString("timer_mode", "SUBJECT") ?: "SUBJECT"
             val showSubjectTagging = sharedPrefs.getBoolean("enable_subject_tagging", true) && timerModeSetting != "STOPWATCH"
-            if (showSubjectTagging) {
-                extraControlsContainer?.visibility = View.VISIBLE
+
+            val revealViews = mutableListOf<View>()
+            if (::navHeader.isInitialized) { navHeader.visibility = View.VISIBLE; revealViews.add(navHeader) }
+            if (::statusBadgeContainer.isInitialized) { statusBadgeContainer.visibility = View.VISIBLE; revealViews.add(statusBadgeContainer) }
+            if (showSubjectTagging && extraControlsContainer != null) { extraControlsContainer?.visibility = View.VISIBLE; revealViews.add(extraControlsContainer!!) }
+            if (::controlActionContainer.isInitialized) { controlActionContainer.visibility = View.VISIBLE; revealViews.add(controlActionContainer) }
+            statsFloatingIcon?.let { it.visibility = View.VISIBLE; revealViews.add(it) }
+
+            for (v in revealViews) {
+                v.animate().alpha(1f).setDuration(350).start()
             }
-            if (::controlActionContainer.isInitialized) controlActionContainer.visibility = View.VISIBLE
-            statsFloatingIcon?.visibility = View.VISIBLE
+
             applyPortraitFullscreenLayout()
             panelContainer.setOnClickListener(null)
             rootLayout.setOnClickListener(null)
+            performMicroHaptic(window.decorView)
+
+            // Re-arm auto-fullscreen if currently studying/breaking
+            if (currentTimerState == TimerState.STUDYING || currentTimerState == TimerState.BREAK) {
+                scheduleAutoFullscreen(7000L)
+            }
         }
-        try { window.decorView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP) } catch (_: Exception) {}
     }
 
     internal fun applyPortraitFullscreenLayout() {
@@ -3918,12 +4045,11 @@ class MainActivity : AppCompatActivity() {
             timerRing.isFullscreen = (!isLandscape && isPortraitFullscreenActive)
         }
 
-        if (!isLandscape && isPortraitFullscreenActive) {
-            val centerShift = -dp(32).toFloat()
-            studyTimerDisplay.translationY = centerShift
-            breakTimerDisplay.translationY = centerShift
-            if (::timerRing.isInitialized) timerRing.translationY = centerShift
+        studyTimerDisplay.translationY = 0f
+        breakTimerDisplay.translationY = 0f
+        if (::timerRing.isInitialized) timerRing.translationY = 0f
 
+        if (!isLandscape && isPortraitFullscreenActive) {
             val activeText = if (isBreaking) breakTimerDisplay.text.toString() else studyTimerDisplay.text.toString()
             val fullscreenTextSize = when {
                 hasRing && activeText.length <= 5 -> 62f
@@ -3938,7 +4064,7 @@ class MainActivity : AppCompatActivity() {
                 breakTimerDisplay.textSize = fullscreenTextSize
                 breakTimerDisplay.setPadding(0, 0, 0, 0)
 
-                studyTimerDisplay.visibility = if (currentTimerState == TimerState.PAUSED) View.VISIBLE else View.GONE
+                studyTimerDisplay.visibility = if (currentTimerState == TimerState.PAUSED) View.VISIBLE else View.INVISIBLE
                 if (currentTimerState == TimerState.PAUSED) {
                     studyTimerDisplay.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
                     studyTimerDisplay.textSize = 20f
@@ -3950,7 +4076,7 @@ class MainActivity : AppCompatActivity() {
                 studyTimerDisplay.textSize = fullscreenTextSize
                 studyTimerDisplay.setPadding(0, 0, 0, 0)
 
-                breakTimerDisplay.visibility = if (currentTimerState == TimerState.PAUSED) View.VISIBLE else View.GONE
+                breakTimerDisplay.visibility = if (currentTimerState == TimerState.PAUSED) View.VISIBLE else View.INVISIBLE
                 if (currentTimerState == TimerState.PAUSED) {
                     breakTimerDisplay.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
                     breakTimerDisplay.textSize = 20f
@@ -3958,10 +4084,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         } else if (!isLandscape) {
-            studyTimerDisplay.translationY = 0f
-            breakTimerDisplay.translationY = 0f
-            if (::timerRing.isInitialized) timerRing.translationY = 0f
-
             studyTimerDisplay.visibility = View.VISIBLE
             breakTimerDisplay.visibility = View.VISIBLE
             if (isBreaking) {

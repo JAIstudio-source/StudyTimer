@@ -80,14 +80,16 @@ class StatsEngine(private val context: Context) {
 
         if (parsed.openFocusStart != null) {
             val fs = parsed.openFocusStart
-            if (fs in startMs until endMs) {
-                val endTs = if (isToday && timerRunning) System.currentTimeMillis() else (entries.lastOrNull()?.timestamp ?: fs)
-                val gapMs = (endTs - fs).coerceAtLeast(0L)
-                if (gapMs <= 24L * 3600_000) {
+            val endTs = if (isToday && timerRunning) System.currentTimeMillis() else (entries.lastOrNull()?.timestamp ?: fs)
+            if (fs < endMs && endTs > startMs) {
+                val segStart = maxOf(fs, startMs)
+                val segEnd = minOf(endTs, endMs - 1000L)
+                val gapMs = (segEnd - segStart).coerceAtLeast(0L)
+                if (gapMs > 0L && gapMs <= 24L * 3600_000L) {
                     sessions.add(
                         BlockInfo(
-                            fs,
-                            endTs,
+                            segStart,
+                            segEnd,
                             gapMs / 1000L,
                             isToday && timerRunning,
                             parsed.openFocusManual,
@@ -102,10 +104,14 @@ class StatsEngine(private val context: Context) {
 
         if (parsed.openBreakStart != null) {
             val bs = parsed.openBreakStart
-            if (bs in startMs until endMs) {
-                val endTs = if (isToday && timerRunning) System.currentTimeMillis() else (entries.lastOrNull()?.timestamp ?: bs)
-                val gapMs = (endTs - bs).coerceAtLeast(0L)
-                breaks.add(BlockInfo(bs, endTs, gapMs / 1000L, manual = parsed.openBreakManual))
+            val endTs = if (isToday && timerRunning) System.currentTimeMillis() else (entries.lastOrNull()?.timestamp ?: bs)
+            if (bs < endMs && endTs > startMs) {
+                val segStart = maxOf(bs, startMs)
+                val segEnd = minOf(endTs, endMs - 1000L)
+                val gapMs = (segEnd - segStart).coerceAtLeast(0L)
+                if (gapMs > 0L && gapMs <= 24L * 3600_000L) {
+                    breaks.add(BlockInfo(segStart, segEnd, gapMs / 1000L, manual = parsed.openBreakManual))
+                }
             }
         }
 
@@ -553,16 +559,54 @@ internal fun parseDayBlocks(entries: List<TimelineEntry>): ParsedDay {
     var fsSubColor: String? = null
     var bs: Long? = null
     var bsManual = false
+
+    fun addSplitBlock(
+        list: ArrayList<BlockInfo>,
+        startMs: Long,
+        endMs: Long,
+        manual: Boolean,
+        subjectId: String? = null,
+        subjectName: String? = null,
+        subjectColor: String? = null
+    ) {
+        if (endMs <= startMs) return
+        var curStart = startMs
+        val cal = Calendar.getInstance()
+        while (curStart < endMs) {
+            cal.timeInMillis = curStart
+            cal.set(Calendar.HOUR_OF_DAY, 23)
+            cal.set(Calendar.MINUTE, 59)
+            cal.set(Calendar.SECOND, 59)
+            cal.set(Calendar.MILLISECOND, 999)
+            val dayEndMs = cal.timeInMillis
+
+            val curEnd = if (endMs <= dayEndMs + 1000L) endMs else dayEndMs
+            val secs = ((curEnd - curStart) / 1000L).coerceAtLeast(1L)
+            list.add(
+                BlockInfo(
+                    startMs = curStart,
+                    endMs = curEnd,
+                    secs = secs,
+                    manual = manual,
+                    subjectId = subjectId,
+                    subjectName = subjectName,
+                    subjectColor = subjectColor
+                )
+            )
+            curStart = dayEndMs + 1L
+        }
+    }
+
     for (e in entries) {
         when (e.state) {
             "STUDYING", "MANUAL_FOCUS" -> {
                 if (fs != null) {
                     val gapMs = e.timestamp - fs
                     if (gapMs <= 24L * 3600_000) {
-                        sessions.add(BlockInfo(fs, e.timestamp, gapMs / 1000L, manual = fsManual, subjectId = fsSubId, subjectName = fsSubName, subjectColor = fsSubColor))
+                        addSplitBlock(sessions, fs, e.timestamp, manual = fsManual, subjectId = fsSubId, subjectName = fsSubName, subjectColor = fsSubColor)
                     }
                 }
-                if (bs != null) breaks.add(BlockInfo(bs, e.timestamp, (e.timestamp - bs) / 1000L, manual = bsManual))
+                if (bs != null) addSplitBlock(breaks, bs, e.timestamp, manual = bsManual)
                 bs = null
                 bsManual = false
                 fs = e.timestamp
@@ -572,7 +616,7 @@ internal fun parseDayBlocks(entries: List<TimelineEntry>): ParsedDay {
                 fsSubColor = e.subColor
             }
             "BREAK", "MANUAL_BREAK" -> {
-                if (fs != null) sessions.add(BlockInfo(fs, e.timestamp, (e.timestamp - fs) / 1000L, manual = fsManual, subjectId = fsSubId, subjectName = fsSubName, subjectColor = fsSubColor))
+                if (fs != null) addSplitBlock(sessions, fs, e.timestamp, manual = fsManual, subjectId = fsSubId, subjectName = fsSubName, subjectColor = fsSubColor)
                 fs = null
                 fsManual = false
                 fsSubId = null
@@ -584,13 +628,13 @@ internal fun parseDayBlocks(entries: List<TimelineEntry>): ParsedDay {
                 }
             }
             "IDLE" -> {
-                if (fs != null) sessions.add(BlockInfo(fs, e.timestamp, (e.timestamp - fs) / 1000L, manual = fsManual, subjectId = fsSubId, subjectName = fsSubName, subjectColor = fsSubColor))
+                if (fs != null) addSplitBlock(sessions, fs, e.timestamp, manual = fsManual, subjectId = fsSubId, subjectName = fsSubName, subjectColor = fsSubColor)
                 fs = null
                 fsManual = false
                 fsSubId = null
                 fsSubName = null
                 fsSubColor = null
-                if (bs != null) breaks.add(BlockInfo(bs, e.timestamp, (e.timestamp - bs) / 1000L, manual = bsManual))
+                if (bs != null) addSplitBlock(breaks, bs, e.timestamp, manual = bsManual)
                 bs = null
                 bsManual = false
             }

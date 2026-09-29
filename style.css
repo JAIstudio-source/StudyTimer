@@ -582,6 +582,7 @@ ul {
   border-bottom: 1px solid var(--border-subtle);
   z-index: 1000;
   transition: background var(--transition-fast), border-color var(--transition-fast);
+  touch-action: manipulation;
 }
 
 .nav-container {
@@ -592,6 +593,7 @@ ul {
   max-width: var(--container-max);
   margin: 0 auto;
   padding: 0 24px;
+  box-sizing: border-box;
 }
 
 .logo, .brand-link {
@@ -603,6 +605,8 @@ ul {
   font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--text-primary);
+  flex-shrink: 0;
+  touch-action: manipulation;
 }
 
 .nav-logo-img {
@@ -634,6 +638,7 @@ ul {
   font-weight: 500;
   color: var(--text-secondary);
   transition: color var(--transition-fast);
+  touch-action: manipulation;
 }
 
 .nav-link:hover {
@@ -645,41 +650,152 @@ ul {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
+}
+
+.nav-actions .subpage-studio-link {
+  color: var(--accent-emerald);
+  font-weight: 600;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  touch-action: manipulation;
+}
+
+.nav-actions .btn-home-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+
+.home-text-short {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .home-text-full {
+    display: none;
+  }
+  .home-text-short {
+    display: inline;
+  }
+}
+
+@media (max-width: 480px) {
+  .nav-actions .subpage-studio-link {
+    display: none;
+  }
 }
 
 .mobile-menu-btn {
   display: none;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: var(--radius-pill);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  cursor: pointer;
+  gap: 5px;
+  flex-shrink: 0;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: all var(--transition-fast);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  position: relative;
+  z-index: 1001;
 }
 
-.mobile-menu-btn span {
+.mobile-menu-btn:hover, .mobile-menu-btn:active {
+  background: var(--bg-card-hover);
+  border-color: var(--border-focus);
+}
+
+.mobile-menu-btn span,
+.mobile-menu-btn .hamburger-bar {
   display: block;
-  width: 22px;
+  width: 20px;
   height: 2px;
   background-color: var(--text-primary);
   border-radius: 2px;
-  transition: all var(--transition-fast);
+  pointer-events: none;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+
+.mobile-menu-btn.open .hamburger-bar:nth-child(1),
+.mobile-menu-btn.open span:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.mobile-menu-btn.open .hamburger-bar:nth-child(2),
+.mobile-menu-btn.open span:nth-child(2) {
+  opacity: 0;
+  transform: scaleX(0);
+}
+
+.mobile-menu-btn.open .hamburger-bar:nth-child(3),
+.mobile-menu-btn.open span:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* Mobile Nav Drawer Backdrop */
+.mobile-drawer-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 998;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast);
+}
+
+.mobile-drawer-backdrop.open {
+  display: block;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* Mobile Nav Drawer */
 .mobile-nav-drawer {
-  display: none;
+  display: block;
   position: fixed;
   top: 72px;
   left: 0;
   width: 100%;
+  max-height: calc(100dvh - 72px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background: var(--mobile-drawer-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   border-bottom: 1px solid var(--border-subtle);
-  padding: 24px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+  padding: 20px 24px 32px;
   z-index: 999;
+  transform: translateY(-100%);
+  opacity: 0;
+  visibility: hidden;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, visibility 0.2s ease;
+  pointer-events: none;
+  box-sizing: border-box;
 }
 
 .mobile-nav-drawer.open {
-  display: block;
+  transform: translateY(0);
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .mobile-nav-content {
@@ -689,11 +805,19 @@ ul {
 }
 
 .mobile-nav-link {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--text-primary);
-  padding-bottom: 8px;
+  padding: 10px 0;
   border-bottom: 1px solid var(--border-subtle);
+  touch-action: manipulation;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mobile-nav-link:active {
+  color: var(--accent-emerald);
 }
 
 /* ==========================================================================
@@ -1889,9 +2013,18 @@ ul {
 }
 
 @media (max-width: 768px) {
+  .header-nav, .site-header {
+    height: 64px;
+  }
+
   .nav-container {
     padding: 0 16px;
     height: 64px;
+  }
+
+  .mobile-nav-drawer {
+    top: 64px;
+    max-height: calc(100dvh - 64px);
   }
 
   .nav-links {
@@ -1903,9 +2036,10 @@ ul {
   }
 
   .nav-actions {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
   }
 
   .nav-actions .apk-download-nav {
@@ -1916,6 +2050,7 @@ ul {
     white-space: nowrap;
     gap: 6px;
     flex-shrink: 0;
+    touch-action: manipulation;
   }
 
   .nav-actions .apk-download-nav .btn-icon {
@@ -1923,15 +2058,22 @@ ul {
     height: 14px;
   }
 
+  .nav-actions .btn-secondary-pill {
+    padding: 7px 12px;
+    font-size: 13px;
+    white-space: nowrap;
+    touch-action: manipulation;
+  }
+
   .mobile-menu-btn {
-    display: flex;
+    display: inline-flex;
     flex-shrink: 0;
-    padding: 6px;
   }
 
   .logo {
     gap: 8px;
     font-size: 17px;
+    flex-shrink: 0;
   }
 
   .comparison-card {
@@ -1961,5 +2103,58 @@ ul {
 
   .footer-container {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-nav, .site-header {
+    height: 60px;
+  }
+
+  .nav-container {
+    padding: 0 12px;
+    height: 60px;
+  }
+
+  .mobile-nav-drawer {
+    top: 60px;
+    max-height: calc(100dvh - 60px);
+    padding: 16px 16px 28px;
+  }
+
+  .logo {
+    gap: 6px;
+    font-size: 16px;
+  }
+
+  .nav-logo-img {
+    width: 24px;
+    height: 24px;
+  }
+
+  .nav-actions {
+    gap: 6px;
+  }
+
+  .nav-actions .apk-download-nav {
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+    gap: 4px;
+  }
+
+  .nav-actions .apk-download-nav span {
+    font-size: 12px;
+  }
+
+  .nav-actions .btn-secondary-pill {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .mobile-menu-btn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
   }
 }

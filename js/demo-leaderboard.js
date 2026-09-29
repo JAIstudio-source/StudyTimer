@@ -12,30 +12,27 @@ function openProfileModal() {
   const profile = appState.userProfile || {
     displayName: 'Student',
     avatarPreset: '',
-    avatarRing: 'glow-gold',
-    bannerTheme: 'banner-midnight',
-    countryFlag: '🌐',
-    mood: '☕ Deep Focus',
-    examTarget: '🎯 4h Daily Target',
-    motto: '🎯 Deep focus & daily consistency',
-    primarySubjectId: 'general',
-    isStealth: false,
+    avatarUrl: '',
+    avatarPresetId: 'avatar_default',
+    bio: '',
+    targetExam: 'Self-Study',
+    dailyGoalMinutes: 120,
+    leaderboard_participate: true,
+    leaderboard_share_live_status: true,
     isPublicLeaderboard: true
   };
 
-  selectedAvatarPreset = profile.avatarPreset || '';
-  selectedAvatarRing = profile.avatarRing || 'glow-gold';
-  selectedBannerTheme = profile.bannerTheme || 'banner-midnight';
-  selectedCountryFlag = profile.countryFlag || '🌐';
+  selectedAvatarPreset = profile.avatarUrl || profile.avatarPreset || '';
+  selectedAvatarRing = 'glow-gold';
+  selectedBannerTheme = 'banner-midnight';
+  selectedCountryFlag = '🌐';
 
   const nameInput = document.getElementById('inputProfileDisplayName');
-  const moodInput = document.getElementById('inputProfileMood');
+  const bioInput = document.getElementById('inputProfileBio') || document.getElementById('inputProfileMood');
   const examInput = document.getElementById('inputProfileExam');
-  const mottoInput = document.getElementById('inputProfileMotto');
-  const flagSelect = document.getElementById('selectProfileCountryFlag');
-  const subjectSelect = document.getElementById('selectProfilePrimarySubject');
-  const stealthToggle = document.getElementById('checkStealthScholar');
-  const publicToggle = document.getElementById('checkLeaderboardPublic');
+  const goalInput = document.getElementById('inputProfileDailyGoal');
+  const participateToggle = document.getElementById('checkLeaderboardParticipate') || document.getElementById('checkLeaderboardPublic');
+  const liveStatusToggle = document.getElementById('checkShareLiveStatus');
 
   if (nameInput) {
     nameInput.value = profile.displayName || 
@@ -44,20 +41,14 @@ function openProfileModal() {
                       appState.currentUser?.email?.split('@')[0] || 
                       'Student';
   }
-  if (moodInput) moodInput.value = profile.mood || '';
-  if (examInput) examInput.value = profile.examTarget || '';
-  if (mottoInput) mottoInput.value = profile.motto || '';
-  if (flagSelect) flagSelect.value = selectedCountryFlag;
-  if (stealthToggle) stealthToggle.checked = Boolean(profile.isStealth);
-
-  if (subjectSelect) {
-    const cleanSubjects = getCleanUniqueSubjects(appState.subjects);
-    subjectSelect.innerHTML = cleanSubjects.map(s => 
-      `<option value="${s.id}" ${s.id === profile.primarySubjectId ? 'selected' : ''}>${s.iconEmoji ? s.iconEmoji + ' ' : ''}${s.name}</option>`
-    ).join('');
+  if (bioInput) bioInput.value = profile.bio || profile.mood || profile.motto || '';
+  if (examInput) examInput.value = profile.targetExam || profile.examTarget || 'Self-Study';
+  if (goalInput) goalInput.value = profile.dailyGoalMinutes || appState.dailyGoalMinutes || 120;
+  if (participateToggle) {
+    participateToggle.checked = profile.leaderboard_participate !== false && profile.isPublicLeaderboard !== false;
   }
-  if (publicToggle) {
-    publicToggle.checked = profile.isPublicLeaderboard !== false;
+  if (liveStatusToggle) {
+    liveStatusToggle.checked = profile.leaderboard_share_live_status !== false;
   }
 
   // Reset Submenu Tabs to Photo & Avatar by default
@@ -81,7 +72,6 @@ function openProfileModal() {
       photoFallback.classList.add('hidden');
       btnRemovePhoto?.classList.remove('hidden');
       
-      // Do not display internal storage or Google OAuth avatar URLs to the user in the input text field
       const isAutoAuthAvatar = selectedAvatarPreset.includes('supabase.co') || 
                                selectedAvatarPreset.includes('googleusercontent.com') ||
                                selectedAvatarPreset.includes('google.com') ||
@@ -94,26 +84,19 @@ function openProfileModal() {
         statusCard.classList.remove('hidden');
         if (statusIcon) statusIcon.textContent = '✓';
         if (statusTitle) statusTitle.textContent = 'Photo Active';
-        if (statusDesc) statusDesc.textContent = profile.photoApproved ? 'Verified' : 'In review';
+        if (statusDesc) statusDesc.textContent = (profile.moderationStatus === 'APPROVED' || profile.photoApproved) ? 'Verified' : 'In review';
       }
     } else {
       photoPreviewImg.src = '';
       photoPreviewImg.classList.add('hidden');
-      photoFallback.textContent = selectedAvatarPreset || (profile.displayName || 'S').trim().charAt(0).toUpperCase() || 'S';
+      const curDisplayName = profile.displayName || appState.currentUser?.user_metadata?.full_name || 'Student';
+      photoFallback.textContent = curDisplayName.trim().charAt(0).toUpperCase() || 'S';
       photoFallback.classList.remove('hidden');
       btnRemovePhoto?.classList.add('hidden');
       if (photoUrlInput) photoUrlInput.value = '';
       if (statusCard) statusCard.classList.add('hidden');
     }
   }
-
-  // Highlight active buttons
-  document.querySelectorAll('.banner-theme-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.banner === selectedBannerTheme);
-  });
-  document.querySelectorAll('.glow-ring-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.ring === selectedAvatarRing);
-  });
 
   updateProfileLivePreview();
   lockBodyScroll();
@@ -147,57 +130,45 @@ function closeProfileModal() {
 
 function updateProfileLivePreview() {
   const nameInput = document.getElementById('inputProfileDisplayName');
-  const moodInput = document.getElementById('inputProfileMood');
+  const bioInput = document.getElementById('inputProfileBio') || document.getElementById('inputProfileMood');
   const examInput = document.getElementById('inputProfileExam');
-  const mottoInput = document.getElementById('inputProfileMotto');
-  const flagSelect = document.getElementById('selectProfileCountryFlag');
-  const stealthToggle = document.getElementById('checkStealthScholar');
+  const goalInput = document.getElementById('inputProfileDailyGoal');
 
   const previewCard = document.getElementById('previewProfileCard');
   const previewBanner = document.getElementById('previewCardBanner');
   const previewAvatarRing = document.getElementById('previewAvatarRing');
   const previewAvatarIcon = document.getElementById('previewAvatarIcon');
-  const previewCountryFlag = document.getElementById('previewCountryFlag');
   const previewDisplayName = document.getElementById('previewDisplayName');
   const previewRolePill = document.getElementById('previewRolePill');
-  const previewMoodPill = document.getElementById('previewMoodPill');
   const previewExamBadge = document.getElementById('previewExamBadge');
-  const previewMottoText = document.getElementById('previewMottoText');
+  const previewGoalBadge = document.getElementById('previewGoalBadge');
+  const previewMottoText = document.getElementById('previewMottoText') || document.getElementById('previewBioText');
 
-  const isStealth = Boolean(stealthToggle?.checked);
   const rawName = (nameInput?.value.trim() || 'Student').slice(0, 24);
-  const nameVal = isStealth ? `Stealth Scholar #${Math.abs(hashString(rawName) % 9000 + 1000)}` : rawName;
-  const rawFlag = flagSelect?.value || selectedCountryFlag || '🌐';
-  const flagVal = getCountryFlagEmoji(rawFlag);
-  const moodVal = (moodInput?.value.trim() || '☕ Deep Focus').slice(0, 40);
-  const examVal = (examInput?.value.trim() || '🎯 Target: 4h Daily').slice(0, 30);
-  const mottoVal = (mottoInput?.value.trim() || '🎯 Deep focus & daily consistency').slice(0, 60);
+  const examVal = (examInput?.value.trim() || 'Self-Study').slice(0, 40);
+  const bioVal = (bioInput?.value.trim() || '🎯 Consistency over intensity').slice(0, 150);
+  const goalVal = parseInt(goalInput?.value || '120', 10) || 120;
 
-  if (previewCard) {
-    previewCard.className = 'profile-hero-showcase';
-  }
-  if (previewBanner) {
-    previewBanner.className = `hero-showcase-bg ${selectedBannerTheme}`;
-  }
-  if (previewAvatarRing) {
-    previewAvatarRing.className = `hero-avatar-ring ${selectedAvatarRing}`;
-  }
+  if (previewCard) previewCard.className = 'profile-hero-showcase';
+  if (previewBanner) previewBanner.className = 'hero-showcase-bg banner-midnight';
+  if (previewAvatarRing) previewAvatarRing.className = 'hero-avatar-ring glow-gold';
+
   if (previewAvatarIcon) {
     const isUrl = /^(http|https|data:|assets\/|\/|blob:)/i.test((selectedAvatarPreset || '').trim());
-    const fallbackInit = escapeHtml((nameVal || 'S').trim().charAt(0).toUpperCase() || 'S');
-    const bgColor = getGoogleAvatarColor(nameVal);
+    const fallbackInit = escapeHtml((rawName || 'S').trim().charAt(0).toUpperCase() || 'S');
+    const bgColor = getGoogleAvatarColor(rawName);
     if (isUrl) {
-      previewAvatarIcon.innerHTML = `<img src="${selectedAvatarPreset}" alt="Avatar Preview" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" onerror="this.outerHTML='<span class=&quot;avatar-initial&quot; style=&quot;background:${bgColor};color:#ffffff;font-weight:700;&quot;>${fallbackInit}</span>'">`;
+      previewAvatarIcon.innerHTML = '<img src="' + selectedAvatarPreset + '" alt="Avatar Preview" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" onerror="this.outerHTML=\'<span class=&quot;avatar-initial&quot; style=&quot;background:' + bgColor + ';color:#ffffff;font-weight:700;&quot;>' + fallbackInit + '</span>\'">';
     } else {
-      previewAvatarIcon.innerHTML = `<span class="avatar-initial" style="background:${bgColor};color:#ffffff;font-weight:700;display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:50%;">${fallbackInit}</span>`;
+      previewAvatarIcon.innerHTML = '<span class="avatar-initial" style="background:' + bgColor + ';color:#ffffff;font-weight:700;display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:50%;">' + fallbackInit + '</span>';
     }
   }
-  if (previewCountryFlag) previewCountryFlag.textContent = flagVal;
-  if (previewDisplayName) previewDisplayName.textContent = nameVal;
-  if (previewRolePill) previewRolePill.textContent = isStealth ? 'Stealth' : 'Scholar';
-  if (previewMoodPill) previewMoodPill.textContent = moodVal;
-  if (previewExamBadge) previewExamBadge.textContent = examVal;
-  if (previewMottoText) previewMottoText.textContent = mottoVal;
+
+  if (previewDisplayName) previewDisplayName.textContent = rawName;
+  if (previewRolePill) previewRolePill.textContent = 'Scholar';
+  if (previewExamBadge) previewExamBadge.textContent = '🎯 ' + examVal;
+  if (previewGoalBadge) previewGoalBadge.textContent = '⏱️ ' + goalVal + 'm Goal';
+  if (previewMottoText) previewMottoText.textContent = bioVal;
 }
 
 // Simple deterministic hash for stealth IDs
@@ -428,30 +399,26 @@ async function notifyAdminModerationWebhook(payload) {
 async function handleSaveProfile(e) {
   e.preventDefault();
   const nameInput = document.getElementById('inputProfileDisplayName');
-  const moodInput = document.getElementById('inputProfileMood');
+  const bioInput = document.getElementById('inputProfileBio') || document.getElementById('inputProfileMood');
   const examInput = document.getElementById('inputProfileExam');
-  const mottoInput = document.getElementById('inputProfileMotto');
-  const flagSelect = document.getElementById('selectProfileCountryFlag');
-  const subjectSelect = document.getElementById('selectProfilePrimarySubject');
-  const stealthToggle = document.getElementById('checkStealthScholar');
-  const publicToggle = document.getElementById('checkLeaderboardPublic');
+  const goalInput = document.getElementById('inputProfileDailyGoal');
+  const participateToggle = document.getElementById('checkLeaderboardParticipate') || document.getElementById('checkLeaderboardPublic');
+  const liveStatusToggle = document.getElementById('checkShareLiveStatus');
 
   const displayName = (nameInput?.value.trim() || 'Student').slice(0, 24);
-  const mood = (moodInput?.value.trim() || '').slice(0, 40);
-  const examTarget = (examInput?.value.trim() || '').slice(0, 30);
-  const motto = (mottoInput?.value.trim() || '').slice(0, 60);
-  const countryFlag = flagSelect?.value || '🌐';
-  const primarySubjectId = subjectSelect?.value || (appState.subjects[0]?.id || 'math');
-  const isStealth = Boolean(stealthToggle?.checked);
-  const isPublicLeaderboard = publicToggle ? publicToggle.checked : true;
+  const bio = (bioInput?.value.trim() || '').slice(0, 150);
+  const targetExam = (examInput?.value.trim() || 'Self-Study').slice(0, 40);
+  const dailyGoalMinutes = Math.min(960, Math.max(15, parseInt(goalInput?.value || '120', 10) || 120));
+  const isParticipate = participateToggle ? Boolean(participateToggle.checked) : true;
+  const isShareLive = liveStatusToggle ? Boolean(liveStatusToggle.checked) : true;
 
-  // Tier 1 Profanity Defense Check
-  if (hasProfanity(displayName) || hasProfanity(mood) || hasProfanity(examTarget) || hasProfanity(motto)) {
-    showToast('Please keep display names, moods, and motto respectful & friendly 🛡️', 'error');
+  // Profanity Defense Check
+  if (hasProfanity(displayName) || hasProfanity(bio) || hasProfanity(targetExam)) {
+    showToast('Please keep display names, bio, and target exam respectful & friendly 🛡️', 'error');
     return;
   }
 
-  // Attempt Supabase Storage upload for custom base64 photo to reduce DB row bandwidth
+  // Attempt Supabase Storage upload for custom base64 photo
   let avatarValueToSave = sanitizeAvatar(selectedAvatarPreset || '');
   if (avatarValueToSave.startsWith('data:image/') && supabaseClient && appState.currentUser) {
     const storageUrl = await uploadAvatarToSupabaseStorage(avatarValueToSave, appState.currentUser.id);
@@ -462,107 +429,82 @@ async function handleSaveProfile(e) {
   }
 
   const isCustomPhoto = /^(http|https|data:|blob:)/i.test(avatarValueToSave.trim());
-
-  // Retain previously approved avatar/sticker as fallback during safety review
-  const previousApprovedAvatar = (appState.userProfile?.photoApproved === true && appState.userProfile?.avatarPreset)
-    ? appState.userProfile.avatarPreset
-    : (appState.userProfile?.fallbackSticker || appState.approvedAvatar || '');
-
   const prevProfile = appState.userProfile || {};
-  const photoChanged = isCustomPhoto && (avatarValueToSave !== prevProfile.avatarPreset);
-  const detailsChanged = (displayName !== prevProfile.displayName) ||
-                         (mood !== prevProfile.mood) ||
-                         (examTarget !== prevProfile.examTarget) ||
-                         (motto !== prevProfile.motto) ||
-                         (countryFlag !== prevProfile.countryFlag) ||
-                         (selectedAvatarRing !== prevProfile.avatarRing);
+  const previousApprovedAvatar = (prevProfile.moderationStatus === 'APPROVED' && prevProfile.avatarUrl)
+    ? prevProfile.avatarUrl
+    : (prevProfile.lastApprovedAvatar || prevProfile.avatarPreset || '');
 
-  const diffs = [];
-  if (displayName !== prevProfile.displayName && prevProfile.displayName) {
-    diffs.push({ field: 'Display Name', old: prevProfile.displayName, new: displayName });
-  }
-  if (mood !== prevProfile.mood && prevProfile.mood !== undefined) {
-    diffs.push({ field: 'Mood', old: prevProfile.mood || 'None', new: mood || 'None' });
-  }
-  if (examTarget !== prevProfile.examTarget && prevProfile.examTarget !== undefined) {
-    diffs.push({ field: 'Exam Target', old: prevProfile.examTarget || 'None', new: examTarget || 'None' });
-  }
-  if (motto !== prevProfile.motto && prevProfile.motto !== undefined) {
-    diffs.push({ field: 'Motto', old: prevProfile.motto || 'None', new: motto || 'None' });
-  }
-  if (countryFlag !== prevProfile.countryFlag && prevProfile.countryFlag) {
-    diffs.push({ field: 'Flag', old: prevProfile.countryFlag, new: countryFlag });
-  }
-  if (selectedAvatarRing !== prevProfile.avatarRing && prevProfile.avatarRing) {
-    diffs.push({ field: 'Glow Ring', old: prevProfile.avatarRing, new: selectedAvatarRing });
-  }
-  if (photoChanged) {
-    diffs.push({ field: 'Profile Photo', old: prevProfile.avatarPreset ? 'Previous Avatar' : 'Default Sticker', new: isCustomPhoto ? 'New Custom Photo' : avatarValueToSave });
-  }
+  const isPhotoChanged = isCustomPhoto && (avatarValueToSave !== prevProfile.avatarUrl && avatarValueToSave !== prevProfile.avatarPreset);
+  const isNameChanged = Boolean(prevProfile.displayName && displayName.trim() !== prevProfile.displayName.trim());
+  const isBioChanged = Boolean(prevProfile.bio !== undefined && bio.trim() !== (prevProfile.bio || prevProfile.mood || '').trim());
 
-  const isStatusApproved = !isCustomPhoto && !hasProfanity(displayName);
+  const isStatusApproved = !isCustomPhoto && !isNameChanged;
   const lastApprovedName = isStatusApproved
     ? displayName
     : (prevProfile.lastApprovedDisplayName || appState.approvedDisplayName || (prevProfile.profileStatus === 'approved' ? prevProfile.displayName : 'Student'));
   const lastApprovedAvatarVal = (!isCustomPhoto && avatarValueToSave)
     ? avatarValueToSave
-    : (prevProfile.lastApprovedAvatar || previousApprovedAvatar || '🐱');
+    : (prevProfile.lastApprovedAvatar || previousApprovedAvatar || '');
 
   appState.userProfile = {
     ...prevProfile,
     displayName,
     lastApprovedDisplayName: lastApprovedName,
+    pendingDisplayName: isNameChanged ? displayName : null,
+    bio,
+    targetExam,
+    dailyGoalMinutes,
+    avatarUrl: avatarValueToSave,
     lastApprovedAvatar: lastApprovedAvatarVal,
+    avatarPresetId: isCustomPhoto ? 'avatar_custom' : (selectedAvatarPreset || 'avatar_default'),
+    moderationStatus: isStatusApproved ? 'APPROVED' : 'PENDING_APPROVAL',
+    profileStatus: isStatusApproved ? 'approved' : 'pending',
+    photoApproved: !isCustomPhoto,
+    leaderboard_participate: isParticipate,
+    leaderboard_share_live_status: isShareLive,
+    // Backward compatibility aliases
+    mood: bio,
+    motto: bio,
+    examTarget: targetExam,
     avatarPreset: avatarValueToSave,
     fallbackSticker: isCustomPhoto ? previousApprovedAvatar : avatarValueToSave,
-    photoApproved: !isCustomPhoto, // Emoji stickers are auto-approved, custom photos strictly require admin approval
-    avatarRing: selectedAvatarRing,
-    bannerTheme: selectedBannerTheme,
-    countryFlag,
-    mood,
-    examTarget,
-    motto,
-    primarySubjectId,
-    isStealth,
-    isPublicLeaderboard,
-    profileStatus: isStatusApproved ? 'approved' : 'pending',
-    moderationStatus: isStatusApproved ? 'APPROVED' : 'PENDING'
+    isPublicLeaderboard: isParticipate,
+    avatarRing: 'glow-gold',
+    bannerTheme: 'banner-midnight',
+    countryFlag: '🌐',
+    updatedAt: Date.now()
   };
 
   if (isStatusApproved) {
     appState.approvedDisplayName = displayName;
   }
+  appState.dailyGoalMinutes = dailyGoalMinutes;
 
   saveLocalState();
   renderUserProfileUI();
   closeProfileModal();
 
-  if (isCustomPhoto) {
-    showToast('Profile saved! Custom photo submitted for safety verification 🛡️', 'success');
+  if (isCustomPhoto || isNameChanged) {
+    showToast('Profile saved! Submitted for admin review 🛡️', 'success');
   } else {
     showToast('Profile updated successfully! ✨', 'success');
   }
 
-  // Public text modifications (display name, bio/motto, custom photos) trigger moderation review.
-  const nameChanged = Boolean(prevProfile.displayName && displayName.trim() !== prevProfile.displayName.trim());
-  const bioChanged = Boolean(prevProfile.mood !== undefined && mood.trim() !== (prevProfile.mood || '').trim());
-  const requiresModeration = nameChanged || bioChanged || photoChanged || hasProfanity(displayName) || hasProfanity(mood);
-
+  const requiresModeration = isNameChanged || isBioChanged || isPhotoChanged || hasProfanity(displayName) || hasProfanity(bio);
   if (requiresModeration) {
     notifyAdminModerationWebhook({
       user_id: appState.currentUser?.id || 'guest_' + Date.now(),
       display_name: displayName,
       previous_name: prevProfile.displayName || '',
       email: appState.currentUser?.email || '',
-      status_mood: mood,
-      previous_bio: prevProfile.mood || '',
+      status_mood: bio,
+      previous_bio: prevProfile.bio || prevProfile.mood || '',
       avatar_url: avatarValueToSave,
-      previous_avatar: prevProfile.avatarPreset || '',
-      photo_changed: photoChanged
+      previous_avatar: prevProfile.avatarUrl || prevProfile.avatarPreset || '',
+      photo_changed: isPhotoChanged
     });
   }
 
-  // Direct cosmetic update to daily_leaderboard using strict approved avatar helper
   const publicAvatarUrl = getPublicLeaderboardAvatarUrl(appState.userProfile);
   if (supabaseClient && appState.currentUser) {
     try {
@@ -895,7 +837,7 @@ function initProfileCustomizationSystem() {
   });
 
   // Live input change listeners
-  ['inputProfileDisplayName', 'inputProfileMood', 'inputProfileExam', 'inputProfileMotto'].forEach(id => {
+  ['inputProfileDisplayName', 'inputProfileBio', 'inputProfileMood', 'inputProfileExam', 'inputProfileDailyGoal'].forEach(id => {
     document.getElementById(id)?.addEventListener('input', updateProfileLivePreview);
   });
   document.getElementById('selectProfileCountryFlag')?.addEventListener('change', (e) => {

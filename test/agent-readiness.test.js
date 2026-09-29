@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import vm from 'vm';
 import { fileURLToPath } from 'url';
 import middleware from '../middleware.js';
 
@@ -222,6 +223,32 @@ if (fs.existsSync(dbDir)) {
 // Verify robots.txt does not advertise admin routes
 const robotsTxt = fs.readFileSync(path.join(rootDir, 'robots.txt'), 'utf8');
 assert(!robotsTxt.toLowerCase().includes('admin'), 'robots.txt contains no leaked /admin/ routes');
+
+// ---------------------------------------------------------------------------
+// TEST 10: JavaScript Runtime Syntax & UI Script Integrity
+// ---------------------------------------------------------------------------
+console.log('\n[10/10] Testing JavaScript Runtime Syntax & UI Integrity...');
+const jsFilesToCheck = [
+  'demo.js',
+  'script.js',
+  'js/demo-audio.js',
+  'js/demo-leaderboard.js',
+  'js/demo-cloud-sync.js',
+  'assets/supabase.js'
+];
+
+for (const jsFile of jsFilesToCheck) {
+  const fullJsPath = path.join(rootDir, jsFile);
+  if (fs.existsSync(fullJsPath)) {
+    try {
+      const code = fs.readFileSync(fullJsPath, 'utf8');
+      new vm.Script(code, { filename: jsFile });
+      assert(true, `${jsFile} syntax is 100% valid (zero syntax errors)`);
+    } catch (err) {
+      assert(false, `${jsFile} has syntax error: ${err.message}`);
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // FINAL SUMMARY

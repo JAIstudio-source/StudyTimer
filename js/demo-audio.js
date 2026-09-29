@@ -22,18 +22,15 @@ const AUDIO_PRESETS = {
   },
   rain: { 
     name: 'Rain & Gentle Thunder', 
-    id: 'mPZkdNFkNps',
-    synthesizer: 'rain'
+    id: 'mPZkdNFkNps'
   },
   cafe: { 
     name: 'Cozy Cafe Ambience', 
-    id: 'gaGrHUekGdc',
-    synthesizer: 'cafe'
+    id: 'h2zkV-l_TbY'
   },
   alpha: { 
     name: '432Hz Alpha Waves', 
-    id: 'WPni755-Krg',
-    synthesizer: 'alpha'
+    id: 'WPni755-Krg'
   },
   classical: { 
     name: 'Baroque Focus Music', 
@@ -68,10 +65,6 @@ function updateAudioEngineBadge(engine = 'ready') {
     badge.classList.add('engine-youtube');
     badge.textContent = 'YouTube';
     badge.title = 'Official YouTube API Stream';
-  } else if (engine === 'webaudio') {
-    badge.classList.add('engine-webaudio');
-    badge.textContent = 'Pure Tone';
-    badge.title = 'Procedural Web Audio Engine';
   } else {
     badge.classList.add('engine-offline');
     badge.textContent = 'Ready';
@@ -118,125 +111,7 @@ function setWebAudioVolume(vol) {
 }
 
 function playProceduralAmbience(type) {
-  stopWebAudioAmbience();
-  const ctx = initWebAudioContext();
-  if (!ctx) return false;
-
-  try {
-    webAudioGainNode = ctx.createGain();
-    const targetGain = Math.max(0, Math.min(100, audioVolume)) / 100 * 0.35;
-    webAudioGainNode.gain.setValueAtTime(targetGain, ctx.currentTime);
-    webAudioGainNode.connect(ctx.destination);
-
-    if (type === 'alpha') {
-      // 432Hz Pure Harmonic Carrier + 440Hz Right Channel (8Hz Brainwave Sync)
-      const osc1 = ctx.createOscillator();
-      const osc2 = ctx.createOscillator();
-      osc1.type = 'sine';
-      osc2.type = 'sine';
-      osc1.frequency.setValueAtTime(432, ctx.currentTime);
-      osc2.frequency.setValueAtTime(440, ctx.currentTime);
-
-      osc1.connect(webAudioGainNode);
-      osc2.connect(webAudioGainNode);
-      osc1.start();
-      osc2.start();
-      webAudioNodes.push(osc1, osc2);
-      currentAudioEngine = 'webaudio';
-      updateAudioEngineBadge('webaudio');
-      return true;
-    } else if (type === 'rain') {
-      const bufferSize = ctx.sampleRate * 2;
-      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const output = noiseBuffer.getChannelData(0);
-      let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
-      for (let i = 0; i < bufferSize; i++) {
-        const white = Math.random() * 2 - 1;
-        b0 = 0.99886 * b0 + white * 0.0555179;
-        b1 = 0.99332 * b1 + white * 0.0750759;
-        b2 = 0.96900 * b2 + white * 0.1538520;
-        b3 = 0.86650 * b3 + white * 0.3104856;
-        b4 = 0.55000 * b4 + white * 0.5329522;
-        b5 = -0.7616 * b5 - white * 0.0168980;
-        output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.08;
-        b6 = white * 0.115926;
-      }
-      const whiteNoise = ctx.createBufferSource();
-      whiteNoise.buffer = noiseBuffer;
-      whiteNoise.loop = true;
-
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(950, ctx.currentTime);
-
-      whiteNoise.connect(filter);
-      filter.connect(webAudioGainNode);
-      whiteNoise.start();
-      webAudioNodes.push(whiteNoise, filter);
-      currentAudioEngine = 'webaudio';
-      updateAudioEngineBadge('webaudio');
-      return true;
-    } else if (type === 'cafe') {
-      // Fix H3: Multi-layer cafe ambience — low rumble + mid chatter for realistic cafe feel
-      const bufferSize = ctx.sampleRate * 3;
-      const noiseBuffer = ctx.createBuffer(2, bufferSize, ctx.sampleRate);
-      for (let ch = 0; ch < 2; ch++) {
-        const output = noiseBuffer.getChannelData(ch);
-        let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
-        for (let i = 0; i < bufferSize; i++) {
-          const white = Math.random() * 2 - 1;
-          b0 = 0.99886 * b0 + white * 0.0555179;
-          b1 = 0.99332 * b1 + white * 0.0750759;
-          b2 = 0.96900 * b2 + white * 0.1538520;
-          b3 = 0.86650 * b3 + white * 0.3104856;
-          b4 = 0.55000 * b4 + white * 0.5329522;
-          b5 = -0.7616 * b5 - white * 0.0168980;
-          output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.04;
-          b6 = white * 0.115926;
-        }
-      }
-      const cafeNoise = ctx.createBufferSource();
-      cafeNoise.buffer = noiseBuffer;
-      cafeNoise.loop = true;
-
-      // Layer 1: Low rumble — crowd warmth (80–300Hz)
-      const rumbleFilter = ctx.createBiquadFilter();
-      rumbleFilter.type = 'lowshelf';
-      rumbleFilter.frequency.setValueAtTime(300, ctx.currentTime);
-      rumbleFilter.gain.setValueAtTime(6, ctx.currentTime);
-
-      // Layer 2: Mid-frequency presence — ambient chatter (600–1800Hz bandpass)
-      const chatterFilter = ctx.createBiquadFilter();
-      chatterFilter.type = 'bandpass';
-      chatterFilter.frequency.setValueAtTime(1000, ctx.currentTime);
-      chatterFilter.Q.setValueAtTime(0.6, ctx.currentTime);
-
-      const chatterGain = ctx.createGain();
-      chatterGain.gain.setValueAtTime(0.18, ctx.currentTime);
-
-      // Layer 3: High cut — remove harsh high frequencies
-      const hpFilter = ctx.createBiquadFilter();
-      hpFilter.type = 'highshelf';
-      hpFilter.frequency.setValueAtTime(3500, ctx.currentTime);
-      hpFilter.gain.setValueAtTime(-12, ctx.currentTime);
-
-      cafeNoise.connect(rumbleFilter);
-      rumbleFilter.connect(hpFilter);
-      hpFilter.connect(webAudioGainNode);
-
-      cafeNoise.connect(chatterFilter);
-      chatterFilter.connect(chatterGain);
-      chatterGain.connect(webAudioGainNode);
-
-      cafeNoise.start();
-      webAudioNodes.push(cafeNoise, rumbleFilter, chatterFilter, chatterGain, hpFilter);
-      currentAudioEngine = 'webaudio';
-      updateAudioEngineBadge('webaudio');
-      return true;
-    }
-  } catch (err) {
-    console.warn('[WebAudio] Synthesis failed:', err);
-  }
+  // Pure tone synthesizer removed per specification
   return false;
 }
 
@@ -245,6 +120,7 @@ function playProceduralAmbience(type) {
 // ----------------------------------------------------------------------------
 let isYtApiLoading = false;
 let isYtPlayerInitializing = false;
+let isUserExplicitPlayAction = false;
 const ytApiReadyCallbacks = [];
 let pendingPlayVideoId = null;
 let pendingAutoPlay = false;
@@ -311,6 +187,57 @@ if (typeof window !== 'undefined' && window.YT && window.YT.Player) {
   isYtApiReady = true;
 }
 
+
+let audioPlaybackWatchdogTimer = null;
+function armAudioPlaybackWatchdog() {
+  clearAudioPlaybackWatchdog();
+  audioPlaybackWatchdogTimer = setTimeout(() => {
+    if (!ytPlayerInstance || typeof ytPlayerInstance.getPlayerState !== 'function') return;
+    try {
+      const state = ytPlayerInstance.getPlayerState();
+      if (state !== 1) { // Not playing
+        setAudioPlayingUI(false);
+        updateAudioEngineBadge('ready');
+        if (isUserExplicitPlayAction) {
+          showToast('Could not start stream. Please try again or select another track 🎵', 'info');
+          isUserExplicitPlayAction = false;
+        }
+      }
+    } catch (_) {}
+  }, 7000);
+}
+
+function clearAudioPlaybackWatchdog() {
+  if (audioPlaybackWatchdogTimer) {
+    clearTimeout(audioPlaybackWatchdogTimer);
+    audioPlaybackWatchdogTimer = null;
+  }
+}
+
+// Global Audio Engine State Poller (Ensures UI never stays in fake playing state)
+if (typeof window !== 'undefined' && !window.__studyTimerAudioPollerInitialized) {
+  window.__studyTimerAudioPollerInitialized = true;
+  setInterval(() => {
+    if (ytPlayerInstance && typeof ytPlayerInstance.getPlayerState === 'function') {
+      try {
+        const state = ytPlayerInstance.getPlayerState();
+        if (state === 1) {
+          if (!isAudioPlaying) {
+            setAudioPlayingUI(true);
+            currentAudioEngine = 'youtube';
+            updateAudioEngineBadge('youtube');
+          }
+        } else if (state === 2 || state === 0 || state === 5 || state === -1) {
+          if (isAudioPlaying) {
+            setAudioPlayingUI(false);
+            updateAudioEngineBadge('ready');
+          }
+        }
+      } catch (_) {}
+    }
+  }, 1200);
+}
+
 function initYouTubePlayerInstance(customVidId, autoPlay = false) {
   const container = document.getElementById('youtubePlayerAnchor');
   if (!container) return;
@@ -334,8 +261,7 @@ function initYouTubePlayerInstance(customVidId, autoPlay = false) {
         ytPlayerInstance.setVolume(audioVolume);
         ytPlayerInstance.playVideo();
         currentAudioEngine = 'youtube';
-        updateAudioEngineBadge('youtube');
-        setAudioPlayingUI(true);
+        updateAudioEngineBadge('buffering');
       } catch (err) {
         console.warn('[Audio Engine] Reuse loadVideoById error:', err);
       }
@@ -416,48 +342,41 @@ function initYouTubePlayerInstance(customVidId, autoPlay = false) {
               }
               event.target.playVideo();
               currentAudioEngine = 'youtube';
-              updateAudioEngineBadge('youtube');
-              setAudioPlayingUI(true);
+              updateAudioEngineBadge('buffering');
             }
           } catch (err) {
             console.warn('[Audio Engine] onReady auto-play error:', err);
           }
         },
         onStateChange: (event) => {
-          if (window.YT && event.data === window.YT.PlayerState.PLAYING) {
+          if (!window.YT) return;
+          if (event.data === window.YT.PlayerState.PLAYING) {
             setAudioPlayingUI(true);
             currentAudioEngine = 'youtube';
             updateAudioEngineBadge('youtube');
-          } else if (window.YT && (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.ENDED)) {
+            isUserExplicitPlayAction = false;
+            clearAudioPlaybackWatchdog();
+          } else if (event.data === window.YT.PlayerState.BUFFERING) {
+            updateAudioEngineBadge('buffering');
+          } else if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.CUED || event.data === window.YT.PlayerState.UNSTARTED || event.data === window.YT.PlayerState.ENDED) {
             if (event.data === window.YT.PlayerState.ENDED) {
               try { event.target.playVideo(); } catch (_) {}
-            } else if (!isAudioPlaying) {
+            } else {
               setAudioPlayingUI(false);
+              updateAudioEngineBadge('ready');
             }
           }
         },
         onError: (event) => {
           console.warn('[Audio Engine] YouTube API error code:', event.data);
           isYtPlayerInitializing = false;
-          const p = AUDIO_PRESETS[activeAudioPresetKey];
-          // Error 150/101/153: Embed disallowed by owner, 100: Not found / deleted, 2/5: Invalid param
-          if ([2, 5, 100, 101, 150, 153].includes(event.data)) {
-            if (targetVidId !== '5yx6BWlEVcY') {
-              showToast('Stream unavailable (Code ' + event.data + '). Switching to Focus Lofi stream...', 'info');
-              setTimeout(() => {
-                initYouTubePlayerInstance('5yx6BWlEVcY', true);
-              }, 300);
-              return;
-            }
-            showToast('YouTube stream restricted (Code ' + event.data + '). Switching to Focus Soundscape 🎧', 'info');
-            const fallbackTone = (p && p.synthesizer) ? p.synthesizer : 'alpha';
-            playProceduralAmbience(fallbackTone);
-            setAudioPlayingUI(true);
-            return;
-          }
-          showToast('YouTube audio error (Code ' + event.data + ').', 'warning');
-          if (p && p.synthesizer) {
-            playProceduralAmbience(p.synthesizer);
+          setAudioPlayingUI(false);
+          isAudioPlaying = false;
+          currentAudioEngine = 'idle';
+          updateAudioEngineBadge('ready');
+          if (isUserExplicitPlayAction) {
+            showToast('Unable to stream this audio track. Please select another station 🎵', 'info');
+            isUserExplicitPlayAction = false;
           }
         }
       }
@@ -576,8 +495,7 @@ function initFocusAudio() {
       closeCustomYoutubeModal();
       switchAudioTrack('custom');
       startCurrentAudio();
-      setAudioPlayingUI(true);
-      showToast('Now Playing YouTube Stream 🎧', 'success');
+      showToast('Connecting to YouTube stream... 🎧', 'info');
     }
   }
 
@@ -843,8 +761,8 @@ function toggleAudioPlay() {
     pauseCurrentAudio();
     setAudioPlayingUI(false);
   } else {
+    updateAudioEngineBadge('buffering');
     resumeCurrentAudio();
-    setAudioPlayingUI(true);
   }
 }
 
@@ -853,6 +771,7 @@ function pauseCurrentAudio() {
     try { ytPlayerInstance.pauseVideo(); } catch (_) {}
   }
   stopWebAudioAmbience();
+  setAudioPlayingUI(false);
 }
 
 function resumeCurrentAudio() {
@@ -867,8 +786,7 @@ function resumeCurrentAudio() {
       ytPlayerInstance.setVolume(audioVolume);
       ytPlayerInstance.playVideo();
       currentAudioEngine = 'youtube';
-      updateAudioEngineBadge('youtube');
-      setAudioPlayingUI(true);
+      updateAudioEngineBadge('buffering');
       return;
     } catch (_) {}
   }
@@ -895,19 +813,24 @@ function setAudioPlayingUI(playing) {
 }
 
 function startCurrentAudio() {
-  initWebAudioContext();
   const preset = AUDIO_PRESETS[activeAudioPresetKey];
   if (!preset) return;
 
-  // 1. YouTube Stream Playback via Official YT.Player API
   const videoId = activeAudioPresetKey === 'custom' ? (customYoutubeVideoId || '5yx6BWlEVcY') : preset.id;
   if (videoId) {
+    if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
+      showToast('YouTube streaming requires running from a web server (e.g. http://localhost or online) due to browser security restrictions on local files 💡', 'info');
+    }
+    isUserExplicitPlayAction = true;
+    updateAudioEngineBadge('buffering');
+    armAudioPlaybackWatchdog();
     startYouTubeEmbedPlayer(videoId);
-    setAudioPlayingUI(true);
-  } else if (preset.synthesizer) {
-    // 2. Procedural Web Audio Ambient Tone (rain / alpha)
-    if (playProceduralAmbience(preset.synthesizer)) {
-      setAudioPlayingUI(true);
+  } else {
+    setAudioPlayingUI(false);
+    isAudioPlaying = false;
+    if (isUserExplicitPlayAction) {
+      showToast('No valid audio track configured.', 'info');
+      isUserExplicitPlayAction = false;
     }
   }
 }
@@ -950,9 +873,8 @@ function startYouTubeEmbedPlayer(videoId) {
       ytPlayerInstance.unMute();
       ytPlayerInstance.setVolume(audioVolume);
       ytPlayerInstance.playVideo();
-      currentAudioEngine = 'youtube';
-      updateAudioEngineBadge('youtube');
-      setAudioPlayingUI(true);
+        currentAudioEngine = 'youtube';
+        updateAudioEngineBadge('buffering');
       return;
     } catch (err) {
       console.warn('[Audio Engine] YT.Player loadVideoById failed:', err);

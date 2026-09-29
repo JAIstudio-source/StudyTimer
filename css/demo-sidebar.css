@@ -402,10 +402,11 @@ body.has-custom-bg .app-sidebar {
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: var(--radius-pill);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
-  z-index: 90;
+  z-index: 500;
   position: sticky;
   top: 8px;
   transition: all var(--transition-fast);
+  touch-action: manipulation;
 }
 
 [data-theme="light"] .studio-floating-topbar {
@@ -504,6 +505,11 @@ body.has-custom-bg .app-sidebar {
   white-space: nowrap;
   font-style: italic;
   font-size: 0.76rem;
+}
+
+/* Mobile full-width quote banner (Hidden on desktop/tablets) */
+.mobile-daily-quote-banner {
+  display: none;
 }
 
 .topbar-actions {
@@ -1073,9 +1079,13 @@ body.has-custom-bg .app-sidebar {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
     border-radius: var(--radius-pill);
+    touch-action: manipulation;
+    pointer-events: auto;
   }
 
   .topbar-sidebar-toggle-btn {
@@ -1146,79 +1156,129 @@ body.has-custom-bg .app-sidebar {
 }
 
 @media (max-width: 680px) {
+  /* Ultra-Clean Mobile Header: Sidebar Menu Button + Full-Width Spacious Quote */
+  .studio-floating-topbar {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 6px 12px !important;
+    min-height: 48px !important;
+    border-radius: 20px !important;
+    margin-bottom: 14px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .floating-topbar-left {
+    display: flex !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
+  }
+
+  .mobile-menu-btn {
+    display: inline-flex !important;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid var(--border-subtle) !important;
+  }
+
+  .topbar-sidebar-toggle-btn {
+    display: none !important;
+  }
+
+  /* Full-Width Quote spanning across the newly available topbar space */
   .daily-quote-capsule {
-    flex: 1 1 auto;
-    max-width: none;
-    padding: 4px 10px;
-    font-size: 0.74rem;
-    min-width: 0;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex: 1 1 auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 4px 6px !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+  }
+
+  .daily-quote-capsule .quote-sparkle-icon {
+    font-size: 0.95rem !important;
+    flex-shrink: 0 !important;
+    margin-right: 6px !important;
   }
 
   .daily-quote-capsule .quote-text {
-    font-size: 0.72rem;
-    max-width: none;
-    flex: 1 1 auto;
-    min-width: 0;
+    font-size: 0.82rem !important;
+    line-height: 1.35 !important;
+    color: var(--text-secondary) !important;
+    font-style: italic !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: unset !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    word-break: break-word !important;
   }
 
+  [data-theme="light"] .daily-quote-capsule .quote-text {
+    color: var(--text-primary) !important;
+  }
+
+  .daily-quote-capsule .quote-refresh-btn {
+    flex-shrink: 0 !important;
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid var(--border-subtle) !important;
+    color: var(--text-muted) !important;
+    cursor: pointer !important;
+    padding: 0 !important;
+    margin-left: 6px !important;
+    transition: all var(--transition-fast) !important;
+  }
+
+  .daily-quote-capsule .quote-refresh-btn svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  .daily-quote-capsule .quote-refresh-btn:hover {
+    color: var(--accent-blue) !important;
+    border-color: var(--accent-blue) !important;
+    transform: rotate(45deg) !important;
+  }
+
+  /* Hide extra topbar buttons on mobile (accessible via sidebar drawer) */
   .topbar-actions {
-    gap: 6px;
-  }
-
-  .topbar-pill-btn {
-    padding: 6px 10px;
-    font-size: 0.78rem;
+    display: none !important;
   }
 }
 
 @media (max-width: 520px) {
-  .daily-quote-capsule {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 6px !important;
-    flex: 1 1 auto !important;
-    max-width: none !important;
-    min-width: 0 !important;
-    padding: 4px 8px !important;
-    font-size: 0.68rem !important;
-    border-radius: var(--radius-pill) !important;
-    background: rgba(255, 255, 255, 0.08) !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
-    border: 1px solid var(--border-subtle) !important;
-    margin: 0 4px !important;
-    overflow: hidden !important;
-    cursor: pointer !important;
-  }
-
-  .daily-quote-capsule .quote-icon,
-  .daily-quote-capsule .quote-sparkle-icon {
-    font-size: 0.70rem !important;
-    flex-shrink: 0 !important;
-  }
-
-  .daily-quote-capsule .quote-text {
-    font-size: 0.68rem !important;
-    overflow: hidden !important;
-    white-space: nowrap !important;
-    text-overflow: ellipsis !important;
-    max-width: none !important;
-    flex: 1 1 auto !important;
-    min-width: 0 !important;
-  }
-
-  .topbar-pill-btn span {
-    display: none !important;
-  }
-
   .topbar-pill-btn {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
     padding: 0 !important;
     border-radius: var(--radius-pill);
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    touch-action: manipulation;
+    pointer-events: auto;
   }
 
   .topbar-pill-btn svg {

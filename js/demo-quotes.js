@@ -29,19 +29,38 @@ function initQuoteManager() {
   const nextBtn = document.getElementById('btnNextQuote');
   const quoteContainer = document.getElementById('dailyQuoteContainer');
 
+  const mobileQuoteText = document.getElementById('mobileDailyQuoteText');
+  const mobileNextBtn = document.getElementById('btnNextMobileQuote');
+  const mobileQuoteContainer = document.getElementById('mobileDailyQuoteBanner');
+
   let currentQuoteIndex = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
 
   function displayQuote(index) {
+    const fullQuote = `"${MOTIVATIONAL_QUOTES[index]}"`;
+    
+    // Desktop topbar quote
     if (quoteText) {
       quoteText.style.opacity = '0';
       quoteText.style.transform = 'translateY(-4px)';
       quoteText.style.transition = 'all 0.2s ease';
       setTimeout(() => {
-        const fullQuote = `"${MOTIVATIONAL_QUOTES[index]}"`;
         quoteText.textContent = fullQuote;
         quoteText.style.opacity = '1';
         quoteText.style.transform = 'translateY(0)';
         quoteContainer?.setAttribute('title', `${fullQuote} • Click for next quote`);
+      }, 200);
+    }
+
+    // Mobile dedicated inspiration banner
+    if (mobileQuoteText) {
+      mobileQuoteText.style.opacity = '0';
+      mobileQuoteText.style.transform = 'translateY(-4px)';
+      mobileQuoteText.style.transition = 'all 0.2s ease';
+      setTimeout(() => {
+        mobileQuoteText.textContent = fullQuote;
+        mobileQuoteText.style.opacity = '1';
+        mobileQuoteText.style.transform = 'translateY(0)';
+        mobileQuoteContainer?.setAttribute('title', `${fullQuote} • Click for next quote`);
       }, 200);
     }
   }
@@ -51,10 +70,14 @@ function initQuoteManager() {
     displayQuote(currentQuoteIndex);
   }
 
+  const initQuote = `"${MOTIVATIONAL_QUOTES[currentQuoteIndex]}"`;
   if (quoteText) {
-    const initQuote = `"${MOTIVATIONAL_QUOTES[currentQuoteIndex]}"`;
     quoteText.textContent = initQuote;
     quoteContainer?.setAttribute('title', `${initQuote} • Click for next quote`);
+  }
+  if (mobileQuoteText) {
+    mobileQuoteText.textContent = initQuote;
+    mobileQuoteContainer?.setAttribute('title', `${initQuote} • Click for next quote`);
   }
 
   nextBtn?.addEventListener('click', (e) => {
@@ -62,8 +85,19 @@ function initQuoteManager() {
     nextQuote();
   });
 
+  mobileNextBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    nextQuote();
+  });
+
   quoteContainer?.addEventListener('click', (e) => {
     if (e.target !== nextBtn && !nextBtn?.contains(e.target)) {
+      nextQuote();
+    }
+  });
+
+  mobileQuoteContainer?.addEventListener('click', (e) => {
+    if (e.target !== mobileNextBtn && !mobileNextBtn?.contains(e.target)) {
       nextQuote();
     }
   });

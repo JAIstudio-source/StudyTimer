@@ -531,7 +531,7 @@ html, body {
   box-shadow: var(--card-shadow-hover);
   padding: clamp(20px, 3vw, 36px);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   transition: var(--transition-smooth);
   width: 100%;
   max-width: 600px;
@@ -817,9 +817,33 @@ html, body {
   border-color: var(--accent-blue);
 }
 
-.subject-menu-add-btn svg {
-  width: 12px;
-  height: 12px;
+.subject-menu-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.subject-menu-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: var(--transition-fast);
+}
+
+.subject-menu-close-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
 }
 
 .subject-menu-items {

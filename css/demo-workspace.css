@@ -1523,9 +1523,152 @@ body.modal-open {
 }
 
 /* ==========================================================================
+   RUNNING TIMER FOCUS AUTO-HIDE (SMOOTH INACTIVITY FADE-OUT & INSPIRATIONAL BANNER)
+   ========================================================================== */
+.studio-floating-topbar,
+.app-sidebar,
+.status-metrics-grid,
+.timer-mode-selector,
+.timer-secondary-actions,
+.btn-timer-primary,
+.floating-audio-dock,
+.studio-compact-footer,
+.subject-dropdown-wrapper {
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), filter 0.5s ease;
+  will-change: opacity, transform;
+}
+
+body.focus-autohide {
+  cursor: default;
+}
+
+body.focus-autohide .studio-floating-topbar {
+  opacity: 0;
+  transform: translateY(-16px);
+  pointer-events: none;
+}
+
+body.focus-autohide .app-sidebar {
+  opacity: 0;
+  transform: translateX(-24px);
+  pointer-events: none;
+}
+
+body.focus-autohide .status-metrics-grid {
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+  transition: opacity 0.45s ease, transform 0.45s ease;
+}
+
+body.focus-autohide .timer-mode-selector {
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition: opacity 0.45s ease, transform 0.45s ease;
+}
+
+body.focus-autohide #btnResetTimer,
+body.focus-autohide #btnStudioZenTimer,
+body.focus-autohide #btnFinishSession {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.4s ease;
+}
+
+body.focus-autohide .btn-timer-primary {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+body.focus-autohide .timer-secondary-actions {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+body.focus-autohide .floating-audio-dock {
+  opacity: 0;
+  transform: translateY(24px);
+  pointer-events: none;
+}
+
+body.focus-autohide .studio-compact-footer {
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.focus-autohide .subject-inline-chevron {
+  opacity: 0;
+}
+
+/* Inspirational Focus Quote Banner (Appears above the timer during focus autohide) */
+.focus-autohide-quote-banner {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.96);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 18px;
+  background: rgba(18, 22, 34, 0.75);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-pill);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  margin-bottom: 10px;
+  max-width: 90vw;
+  text-align: center;
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+[data-theme="light"] .focus-autohide-quote-banner {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+.autohide-sparkle {
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.autohide-quote-text {
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-style: italic;
+  color: #ffffff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80vw;
+}
+
+[data-theme="light"] .autohide-quote-text {
+  color: #0f172a;
+  text-shadow: none;
+}
+
+body.focus-autohide .focus-autohide-quote-banner {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+/* Central Focus Canvas Remains Smooth & Stationary */
+.focus-studio-center-wrap {
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+/* ==========================================================================
    ZEN FULLSCREEN FOCUS TIMER VIEW & BACKGROUND PURITY
    ========================================================================== */
-/* Hide all dashboard background contents completely during Zen fullscreen mode */
+/* Smooth cross-fade of background contents during Zen fullscreen mode */
 body.zen-mode-active .demo-header,
 body.zen-mode-active .studio-floating-topbar,
 body.zen-mode-active .top-nav-bar,
@@ -1540,9 +1683,9 @@ body.zen-mode-active .ambient-audio-dock,
 body.zen-mode-active .app-footer,
 body.zen-mode-active .modal-overlay:not(#zenTimerOverlay),
 body.zen-mode-active .toast-container {
-  visibility: hidden !important;
   opacity: 0 !important;
   pointer-events: none !important;
+  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .zen-timer-overlay {
@@ -1551,7 +1694,7 @@ body.zen-mode-active .toast-container {
   width: 100vw;
   height: 100vh;
   height: 100dvh;
-  background: var(--bg-primary, #090d16);
+  background: transparent !important;
   color: var(--text-primary);
   z-index: 999999;
   display: flex;
@@ -1562,16 +1705,16 @@ body.zen-mode-active .toast-container {
   overflow: hidden;
   touch-action: none;
   overscroll-behavior: none;
-  animation: zen-fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: zen-overlay-fade 0.28s ease-out forwards;
   box-sizing: border-box;
-}
-
-[data-theme="light"] .zen-timer-overlay {
-  background: var(--bg-primary, #f8fafc);
+  will-change: opacity;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 body.has-custom-bg .zen-timer-overlay,
-[data-theme="light"] body.has-custom-bg .zen-timer-overlay {
+[data-theme="light"] body.has-custom-bg .zen-timer-overlay,
+[data-theme="light"] .zen-timer-overlay {
   background: transparent !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
@@ -1618,8 +1761,13 @@ body.has-custom-bg .zen-timer-overlay,
   display: none !important;
 }
 
-@keyframes zen-fade-in {
-  from { opacity: 0; transform: scale(0.98); }
+@keyframes zen-overlay-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes zen-canvas-in {
+  from { opacity: 0; transform: scale(0.96); }
   to { opacity: 1; transform: scale(1); }
 }
 
@@ -1630,28 +1778,60 @@ body.has-custom-bg .zen-timer-overlay,
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
+  padding: 8px 18px;
   border-radius: var(--radius-pill);
-  background: var(--bg-subtle);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(18px) saturate(190%);
+  -webkit-backdrop-filter: blur(18px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #ffffff;
   font-size: 0.84rem;
   font-weight: 600;
   cursor: pointer;
   z-index: 10;
-  transition: var(--transition-fast);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease, border-color 0.2s ease;
+  will-change: opacity, transform;
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .zen-exit-btn:hover {
-  background: var(--bg-card-hover);
-  border-color: var(--border-focus);
-  color: var(--text-primary);
-  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.24);
+  border-color: rgba(255, 255, 255, 0.55);
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 14px rgba(255, 255, 255, 0.15), inset 0 1px 2px rgba(255, 255, 255, 0.6);
 }
 
 .zen-exit-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .zen-exit-btn {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  color: #0f172a;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  text-shadow: none;
+}
+
+[data-theme="light"] .zen-exit-btn:hover {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.28);
+  color: #000000;
+}
+
+/* Zen inactivity fade: Exit Fullscreen button fades out smoothly during focus */
+.zen-timer-overlay.zen-controls-faded .zen-exit-btn,
+body.zen-controls-faded .zen-exit-btn {
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
 }
 
 .zen-timer-canvas {
@@ -1662,6 +1842,8 @@ body.has-custom-bg .zen-timer-overlay,
   width: 100%;
   max-width: 600px;
   margin: auto;
+  animation: zen-canvas-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
 }
 
 .zen-ring-container {
@@ -1728,26 +1910,79 @@ body.has-custom-bg .zen-timer-overlay,
   border-color: rgba(0, 0, 0, 0.08);
 }
 
-.zen-state-badge {
-  font-size: 0.72rem;
+/* Pomodoro Session & Ratio Pill (Subtle, elegant, soft contrast) */
+.timer-session-ratio-badge,
+.zen-session-ratio-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.76rem;
   font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #94a3b8);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  padding: 2px 10px;
+  border-radius: 9999px;
+  margin-bottom: 4px;
+  user-select: none;
+  pointer-events: none;
+  transition: opacity var(--transition-normal, 0.2s ease);
+}
+
+.timer-session-ratio-badge.hidden,
+.zen-session-ratio-badge.hidden {
+  display: none !important;
+}
+
+[data-theme="light"] .timer-session-ratio-badge,
+[data-theme="light"] .zen-session-ratio-badge {
+  color: #64748b;
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.09);
+}
+
+.zen-session-ratio-badge {
+  font-size: 0.82rem;
+  padding: 3px 12px;
+  margin-bottom: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.zen-state-badge {
+  font-size: 0.74rem;
+  font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--text-muted, #94a3b8) !important;
-  opacity: 0.65;
+  color: #ffffff !important;
+  opacity: 0.95;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
   margin-bottom: 6px;
   user-select: none;
+}
+
+[data-theme="light"] .zen-state-badge {
+  color: #334155 !important;
+  opacity: 0.9;
+  text-shadow: none;
 }
 
 .zen-digital-display {
   font-family: var(--font-mono);
   font-size: clamp(3.6rem, 13vw, 6.5rem);
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1;
-  color: var(--text-primary);
+  color: #ffffff !important;
+  text-shadow: 0 2px 30px rgba(255, 255, 255, 0.28), 0 4px 18px rgba(0, 0, 0, 0.7);
   letter-spacing: -0.03em;
   margin-bottom: 12px;
   font-variant-numeric: tabular-nums;
+}
+
+[data-theme="light"] .zen-digital-display {
+  color: #09090b !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .zen-subject-wrapper {
@@ -1761,9 +1996,16 @@ body.has-custom-bg .zen-timer-overlay,
 }
 
 .zen-hint-text {
-  font-size: clamp(0.72rem, 1.8vw, 0.8rem);
-  color: var(--text-muted);
-  opacity: 0.6;
+  font-size: clamp(0.74rem, 1.8vw, 0.82rem);
+  font-weight: 600;
+  color: #ffffff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  opacity: 0.85;
+}
+
+[data-theme="light"] .zen-hint-text {
+  color: #475569;
+  text-shadow: none;
 }
 
 .zen-controls-bar {
@@ -1781,63 +2023,64 @@ body.has-custom-bg .zen-timer-overlay,
   gap: 8px;
   padding: 10px 24px;
   border-radius: var(--radius-pill);
-  font-size: 0.94rem;
-  font-weight: 700;
+  font-size: 0.96rem;
+  font-weight: 800;
   cursor: pointer;
-  border: 1px solid transparent;
+  border: 1px solid rgba(255, 255, 255, 0.35);
   user-select: none;
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  color: #ffffff !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.6);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
   transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-[data-theme="dark"] .btn-zen-ctrl,
-:root:not([data-theme="light"]) .btn-zen-ctrl {
-  background: #ffffff;
-  color: #09090b;
-  border-color: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 4px 24px rgba(255, 255, 255, 0.2), 0 2px 8px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
-
-[data-theme="dark"] .btn-zen-ctrl:hover,
-:root:not([data-theme="light"]) .btn-zen-ctrl:hover {
-  background: #f4f4f5;
-  color: #000000;
+.btn-zen-ctrl:hover {
+  background: rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.65);
+  color: #ffffff !important;
   transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 8px 36px rgba(255, 255, 255, 0.32), 0 4px 12px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), 0 0 24px rgba(255, 255, 255, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.8);
 }
 
-[data-theme="dark"] .btn-zen-ctrl:active,
-:root:not([data-theme="light"]) .btn-zen-ctrl:active {
+.btn-zen-ctrl:active {
   transform: translateY(0px) scale(0.98);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
 }
 
 [data-theme="light"] .btn-zen-ctrl {
-  background: #09090b;
-  color: #ffffff;
-  border-color: #09090b;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.24), 0 2px 6px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  background: rgba(15, 23, 42, 0.9);
+  border-color: rgba(15, 23, 42, 1);
+  color: #ffffff !important;
+  font-weight: 800;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.2);
+  text-shadow: none;
 }
 
 [data-theme="light"] .btn-zen-ctrl:hover {
-  background: #18181b;
-  color: #ffffff;
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35), 0 4px 10px rgba(0, 0, 0, 0.15);
-}
-
-[data-theme="light"] .btn-zen-ctrl:active {
-  transform: translateY(0px) scale(0.98);
+  background: rgba(15, 23, 42, 1);
+  border-color: #000000;
+  color: #ffffff !important;
 }
 
 .btn-zen-ctrl.running {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+  background: rgba(59, 130, 246, 0.26) !important;
+  backdrop-filter: blur(24px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(200%) !important;
+  border-color: rgba(147, 197, 253, 0.65) !important;
   color: #ffffff !important;
-  border-color: rgba(245, 158, 11, 0.7) !important;
-  box-shadow: 0 4px 24px rgba(245, 158, 11, 0.5), 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+  font-weight: 800 !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), 0 0 30px rgba(59, 130, 246, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.7) !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7) !important;
 }
 
 .btn-zen-ctrl.running:hover {
+  background: rgba(59, 130, 246, 0.38) !important;
+  border-color: rgba(191, 219, 254, 0.9) !important;
   transform: translateY(-2px) scale(1.02) !important;
-  box-shadow: 0 8px 32px rgba(245, 158, 11, 0.65) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 38px rgba(59, 130, 246, 0.55), inset 0 1px 2px rgba(255, 255, 255, 0.9) !important;
 }
 
 .btn-zen-ctrl .zen-ctrl-icon {
@@ -1849,42 +2092,56 @@ body.has-custom-bg .zen-timer-overlay,
 .btn-zen-subtle {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 9px 16px;
-  background: var(--bg-subtle);
-  border: 1px solid var(--border-subtle);
+  gap: 7px;
+  padding: 8px 18px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.32);
   border-radius: var(--radius-pill);
-  color: var(--text-secondary);
-  font-size: 0.84rem;
-  font-weight: 600;
+  backdrop-filter: blur(18px) saturate(190%);
+  -webkit-backdrop-filter: blur(18px) saturate(190%);
+  color: #ffffff !important;
+  font-size: 0.86rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: var(--transition-fast);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .btn-zen-subtle:hover {
-  background: var(--bg-card-hover);
-  color: var(--text-primary);
-  border-color: var(--border-focus);
+  background: rgba(255, 255, 255, 0.24);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.55);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 14px rgba(255, 255, 255, 0.15), inset 0 1px 2px rgba(255, 255, 255, 0.6);
 }
 
 .btn-zen-subtle svg {
   width: 15px;
   height: 15px;
+  stroke: currentColor;
+  flex-shrink: 0;
 }
 
 .btn-zen-save {
-  color: #f59e0b !important;
-  border: 1px solid rgba(245, 158, 11, 0.45) !important;
-  background: rgba(245, 158, 11, 0.12) !important;
+  background: rgba(16, 185, 129, 0.12) !important;
+  color: #6ee7b7 !important;
+  border: 1px solid rgba(16, 185, 129, 0.32) !important;
   font-weight: 700 !important;
 }
 
+[data-theme="light"] .btn-zen-save {
+  background: rgba(16, 185, 129, 0.1) !important;
+  color: #059669 !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
 .btn-zen-save:hover {
-  background: #f59e0b !important;
-  border-color: #f59e0b !important;
+  background: rgba(16, 185, 129, 0.24) !important;
+  border-color: rgba(16, 185, 129, 0.6) !important;
   color: #ffffff !important;
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35) !important;
 }
 
 /* ==========================================================================
@@ -2014,29 +2271,30 @@ body.has-custom-bg .zen-timer-overlay,
 
   /* 4-Tab Responsive Modes */
   .timer-mode-selector {
-    padding: 3px;
-    gap: 3px;
-    margin-bottom: 18px;
+    padding: 2px;
+    gap: 2px;
+    margin-bottom: 6px;
     width: 100%;
+    max-width: 360px;
   }
 
   .mode-btn {
-    padding: 8px 2px;
-    font-size: 0.74rem;
+    padding: 6px 2px;
+    font-size: 0.72rem;
     letter-spacing: -0.01em;
   }
 
   /* Subject Dropdown Centered */
   .subject-dropdown-wrapper {
-    margin: 0 auto 16px;
+    margin: 0 auto 6px;
     width: auto;
     display: flex;
     justify-content: center;
   }
 
   .subject-menu-trigger-btn {
-    padding: 6px 14px 6px 10px;
-    font-size: 0.8rem;
+    padding: 4px 12px;
+    font-size: 0.78rem;
   }
 
   /* Fixed Backdrop & Full Floating Subject Menu on Mobile (Always on top of all elements) */
@@ -2092,9 +2350,9 @@ body.has-custom-bg .zen-timer-overlay,
 
   /* Timer Ring Sizing on Mobile */
   .timer-ring-container {
-    width: clamp(210px, 64vw, 280px);
-    height: clamp(210px, 64vw, 280px);
-    margin: 6px auto 20px;
+    width: clamp(176px, 48vw, 216px);
+    height: clamp(176px, 48vw, 216px);
+    margin: 0 auto 6px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2119,52 +2377,52 @@ body.has-custom-bg .zen-timer-overlay,
   }
 
   .timer-digital-display {
-    font-size: clamp(2.4rem, 11vw, 3.8rem);
-    margin-bottom: 6px;
+    font-size: clamp(2.1rem, 9.2vw, 2.9rem);
+    margin-bottom: 2px;
     text-align: center;
   }
 
   .timer-state-badge {
-    font-size: 0.7rem;
-    margin-bottom: 4px;
+    font-size: 0.65rem;
+    margin-bottom: 2px;
     text-align: center;
   }
 
   .timer-current-subject-btn {
-    font-size: 0.75rem;
-    padding: 4px 10px;
-    max-width: 160px;
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    max-width: 150px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  /* Controls Centered */
+  /* Controls Centered & Fully Visible */
   .timer-controls-area {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     width: 100%;
-    margin: 0 auto;
-    gap: 12px;
+    margin: 2px auto 0;
+    gap: 6px;
   }
 
   .btn-timer-primary {
-    max-width: 290px;
-    padding: 13px 20px;
-    font-size: 0.98rem;
+    max-width: 240px;
+    padding: 9px 18px;
+    font-size: 0.92rem;
   }
 
   .timer-secondary-actions {
-    max-width: 290px;
-    gap: 8px;
+    max-width: 280px;
+    gap: 6px;
     justify-content: center;
   }
 
   .btn-timer-subtle {
-    padding: 8px 12px;
-    font-size: 0.8rem;
+    padding: 5px 11px;
+    font-size: 0.76rem;
   }
 
   /* Hub Cards */

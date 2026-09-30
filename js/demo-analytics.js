@@ -93,6 +93,7 @@ function toggleSidebarCollapse() {
   }
   const sidebar = document.getElementById('appSidebar');
   if (!sidebar) return;
+  document.documentElement.classList.remove('sidebar-default-collapsed');
   const isCollapsed = sidebar.classList.toggle('collapsed');
   try {
     localStorage.setItem('studytimer_sidebar_collapsed', isCollapsed ? 'true' : 'false');
@@ -109,6 +110,7 @@ function initSidebarState() {
         sidebar.classList.add('collapsed');
       } else {
         sidebar.classList.remove('collapsed');
+        document.documentElement.classList.remove('sidebar-default-collapsed');
       }
     }
   } catch (_) {}

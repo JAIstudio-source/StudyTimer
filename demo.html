@@ -51,9 +51,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   
-  <!-- Main & Demo Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=4.3.3">
-  <link rel="stylesheet" href="demo.css?v=4.3.3">
+  <!-- Main & Modular Stylesheets (Loaded directly in parallel to eliminate @import waterfall) -->
+  <link rel="stylesheet" href="style.css?v=4.3.8">
+  <link rel="stylesheet" href="css/demo-base.css?v=4.3.8">
+  <link rel="stylesheet" href="css/demo-workspace.css?v=4.3.8">
+  <link rel="stylesheet" href="css/demo-leaderboard.css?v=4.3.8">
+  <link rel="stylesheet" href="css/demo-themes.css?v=4.3.8">
+  <link rel="stylesheet" href="css/demo-audio.css?v=4.3.8">
+  <link rel="stylesheet" href="css/demo-sidebar.css?v=4.3.8">
+  <link rel="stylesheet" href="css/demo-responsive.css?v=4.3.8">
 
   <!-- Vercel Web Analytics & Speed Insights -->
   <script>
@@ -120,11 +126,18 @@
     })();
   </script>
 
-  <!-- Anti-FOUC Theme Initializer -->
+  <!-- Anti-FOUC Theme & Sidebar Initializer (Ensures instant dark/light theme & collapsed sidebar with zero flash) -->
   <script>
     (function() {
-      const savedTheme = localStorage.getItem('studytimer-theme') || 'dark';
-      document.documentElement.setAttribute('data-theme', savedTheme);
+      try {
+        var savedTheme = localStorage.getItem('studytimer-theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        var savedSidebar = localStorage.getItem('studytimer_sidebar_collapsed');
+        var isCollapsed = savedSidebar === null ? true : (savedSidebar === 'true');
+        if (isCollapsed) {
+          document.documentElement.classList.add('sidebar-default-collapsed');
+        }
+      } catch (_) {}
     })();
   </script>
 
@@ -135,8 +148,8 @@
       document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>');
     }
   </script>
-  <!-- YouTube IFrame Player API for Custom Music & Audio Streams -->
-  <script src="https://www.youtube.com/iframe_api"></script>
+  <!-- YouTube IFrame Player API for Custom Music & Audio Streams (Deferred to avoid blocking DOM rendering) -->
+  <script defer src="https://www.youtube.com/iframe_api"></script>
 </head>
 <body class="demo-page-body">
 
@@ -337,6 +350,12 @@
         
         <div class="focus-studio-center-wrap">
           
+          <!-- Focus Inactivity Autohide Motivational Quote Banner (Smoothly appears when controls fade out) -->
+          <div class="focus-autohide-quote-banner" id="focusAutohideQuoteBanner" aria-hidden="true">
+            <span class="autohide-sparkle">✨</span>
+            <span class="autohide-quote-text" id="autohideQuoteText">"Deep focus creates mastery."</span>
+          </div>
+
           <!-- 4 Glanceable Status Metrics Cards -->
           <div class="status-metrics-grid" id="statusMetricsGrid">
             <div class="metric-card" id="metricCardSubject" style="cursor: pointer;" title="Subject: Click to enable or select subject">
@@ -395,6 +414,7 @@
 
               <!-- Central Content Display -->
               <div class="timer-center-content">
+                <div class="timer-session-ratio-badge" id="timerSessionRatioBadge">Session 1/4 &nbsp;#25/5</div>
                 <div class="timer-state-badge" id="timerStateBadge">READY TO FOCUS</div>
                 <div class="timer-digital-display" id="timerDisplay">25:00</div>
                 <div class="subject-dropdown-wrapper" id="subjectDropdownWrapper">
@@ -706,21 +726,113 @@
         </div>
         <span class="audio-current-name" id="audioCurrentName">Focus Lofi Chill</span>
         
-        <select class="audio-preset-select" id="audioPresetSelect" aria-label="Select Focus Ambience Track">
-          <optgroup label="🎧 Focus Ambience Tracks">
-            <option value="lofi">🎧 Lofi Chill Beats</option>
-            <option value="minecraft">⛏️ Minecraft Tracks</option>
-            <option value="piano">🎹 Peaceful Study Piano</option>
-            <option value="synthwave">🌆 Synthwave Chill</option>
-            <option value="rain">🌧️ Rain &amp; Gentle Thunder</option>
-            <option value="cafe">☕ Cozy Cafe Ambience</option>
-            <option value="alpha">🧠 432Hz Alpha Waves</option>
-            <option value="classical">🎻 Baroque Focus Music</option>
-          </optgroup>
-          <optgroup label="🔗 Custom Stream">
-            <option value="custom">🔗 Custom Audio Stream / Link...</option>
-          </optgroup>
-        </select>
+        <!-- Custom Glassmorphic Track Picker Dropdown -->
+        <div class="custom-audio-dropdown-wrap" id="customAudioDropdownWrap">
+          <button type="button" class="custom-audio-select-btn" id="btnCustomAudioSelect" aria-haspopup="listbox" aria-expanded="false" title="Select Focus Ambience Track">
+            <span class="custom-audio-btn-icon" id="customAudioSelectedIcon">🎧</span>
+            <span class="custom-audio-btn-label" id="customAudioSelectedLabel">Lofi Chill Beats</span>
+            <svg class="custom-audio-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          
+          <div class="custom-audio-menu hidden" id="customAudioMenu" role="listbox">
+            <div class="custom-audio-menu-header">
+              <span class="custom-audio-menu-title">Focus Soundscapes</span>
+              <button type="button" class="custom-audio-menu-close" id="btnCloseAudioMenu" aria-label="Close music menu" title="Close">&times;</button>
+            </div>
+            <div class="custom-audio-list">
+              <button type="button" class="custom-audio-item active" data-value="lofi" role="option" aria-selected="true">
+                <span class="audio-item-emoji">🎧</span>
+                <div class="audio-item-meta">
+                  <span class="audio-item-title">Lofi Chill Beats</span>
+                  <span class="audio-item-sub">Smooth beats &amp; study vibes</span>
+                </div>
+                <svg class="audio-item-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </button>
+              <button type="button" class="custom-audio-item" data-value="minecraft" role="option" aria-selected="false">
+                <span class="audio-item-emoji">⛏️</span>
+                <div class="audio-item-meta">
+                  <span class="audio-item-title">Minecraft Tracks</span>
+                  <span class="audio-item-sub">Peaceful piano &amp; synthscapes</span>
+                </div>
+                <svg class="audio-item-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </button>
+              <button type="button" class="custom-audio-item" data-value="piano" role="option" aria-selected="false">
+                <span class="audio-item-emoji">🎹</span>
+                <div class="audio-item-meta">
+                  <span class="audio-item-title">Peaceful Study Piano</span>
+                  <span class="audio-item-sub">Gentle melodies for deep focus</span>
+                </div>
+                <svg class="audio-item-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </button>
+              <button type="button" class="custom-audio-item" data-value="synthwave" role="option" aria-selected="false">
+                <span class="audio-item-emoji">🌆</span>
+                <div class="audio-item-meta">
+                  <span class="audio-item-title">Synthwave Chill</span>
+                  <span class="audio-item-sub">Retro futuristic neon flow</span>
+                </div>
+                <svg class="audio-item-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </button>
+              <button type="button" class="custom-audio-item" data-value="rain" role="option" aria-selected="false">
+                <span class="audio-item-emoji">🌧️</span>
+                <div class="audio-item-meta">
+                  <span class="audio-item-title">Rain &amp; Thunder</span>
+                  <span class="audio-item-sub">Calming rain ambience soundscape</span>
+                </div>
+                <svg class="audio-item-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </button>
+              <button type="button" class="custom-audio-item" data-value="cafe" role="option" aria-selected="false">
+                <span class="audio-item-emoji">☕</span>
+                <div class="audio-item-meta">
+                  <span class="audio-item-title">Cozy Cafe Ambience</span>
+                  <span class="audio-item-sub">Warm coffee shop background</span>
+                </div>
+                <svg class="audio-item-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </button>
+              <button type="button" class="custom-audio-item" data-value="alpha" role="option" aria-selected="false">
+                <span class="audio-item-emoji">🧠</span>
+                <div class="audio-item-meta">
+                  <span class="audio-item-title">432Hz Alpha Waves</span>
+                  <span class="audio-item-sub">Binaural state for concentration</span>
+                </div>
+                <svg class="audio-item-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </button>
+              <button type="button" class="custom-audio-item" data-value="classical" role="option" aria-selected="false">
+                <span class="audio-item-emoji">🎻</span>
+                <div class="audio-item-meta">
+                  <span class="audio-item-title">Baroque Focus Music</span>
+                  <span class="audio-item-sub">Classical violin &amp; string concertos</span>
+                </div>
+                <svg class="audio-item-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </button>
+              <div class="custom-audio-menu-divider"></div>
+              <button type="button" class="custom-audio-item custom-audio-item-custom" data-value="custom" role="option" aria-selected="false">
+                <span class="audio-item-emoji">🔗</span>
+                <div class="audio-item-meta">
+                  <span class="audio-item-title">Custom YouTube Stream...</span>
+                  <span class="audio-item-sub">Paste any YouTube music link</span>
+                </div>
+                <svg class="audio-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Hidden Native Select (maintains programmatic & test compatibility) -->
+          <select class="audio-preset-select hidden-audio-select" id="audioPresetSelect" aria-label="Select Focus Ambience Track" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;">
+            <optgroup label="🎧 Focus Ambience Tracks">
+              <option value="lofi">🎧 Lofi Chill Beats</option>
+              <option value="minecraft">⛏️ Minecraft Tracks</option>
+              <option value="piano">🎹 Peaceful Study Piano</option>
+              <option value="synthwave">🌆 Synthwave Chill</option>
+              <option value="rain">🌧️ Rain &amp; Gentle Thunder</option>
+              <option value="cafe">☕ Cozy Cafe Ambience</option>
+              <option value="alpha">🧠 432Hz Alpha Waves</option>
+              <option value="classical">🎻 Baroque Focus Music</option>
+            </optgroup>
+            <optgroup label="🔗 Custom Stream">
+              <option value="custom">🔗 Custom Audio Stream / Link...</option>
+            </optgroup>
+          </select>
+        </div>
         
         <button type="button" class="audio-play-toggle-btn" id="btnAudioPlayToggle" aria-label="Play / Pause Ambience" title="Play / Pause">
           <svg class="audio-icon-play" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
@@ -729,7 +841,7 @@
 
         <div class="audio-volume-wrap" title="Volume">
           <svg class="audio-vol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-          <input type="range" id="audioVolumeSlider" min="0" max="100" value="60" class="audio-vol-slider" aria-label="Volume">
+          <input type="range" id="audioVolumeSlider" min="0" max="100" value="100" class="audio-vol-slider" aria-label="Volume">
         </div>
 
         <!-- Engine Mode Badge -->
@@ -1400,7 +1512,7 @@
     <!-- Center Giant Minimal Full Screen Timer -->
     <div class="zen-timer-canvas" id="zenTimerCanvas">
       <!-- Minimal Glowing Circular Ring -->
-      <div class="zen-ring-container">
+      <div class="zen-ring-container" id="zenRingContainer">
         <svg class="zen-timer-svg" viewBox="0 0 400 400">
           <defs>
             <linearGradient id="zenTimerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -1413,6 +1525,7 @@
         </svg>
 
         <div class="zen-timer-content">
+          <div class="zen-session-ratio-badge" id="zenSessionRatioBadge">Session 1/4 &nbsp;#25/5</div>
           <div class="zen-state-badge" id="zenStateBadge">READY TO FOCUS</div>
           <div class="zen-digital-display" id="zenTimerDisplay">25:00</div>
           
@@ -1440,7 +1553,7 @@
             </div>
           </div>
 
-          <div class="zen-hint-text">Tap background to Play / Pause</div>
+          <div class="zen-hint-text">Tap timer to Play / Pause</div>
         </div>
       </div>
 
@@ -1735,14 +1848,14 @@
     </div>
   </div>
 
-  <!-- YouTube Audio Embed Anchor (Positioned with layout footprint and zero visual disturbance to satisfy browser media policies) -->
-  <div id="youtubePlayerAnchor" aria-hidden="true" style="position:fixed; bottom:0; right:0; width:200px; height:112px; opacity:0.01; pointer-events:none; z-index:-1; overflow:hidden;"></div>
+  <!-- YouTube Audio Embed Anchor (Hardware composited media surface for uninterrupted background tab playback) -->
+  <div id="youtubePlayerAnchor" aria-hidden="true" style="position:fixed; bottom:4px; right:4px; width:48px; height:32px; opacity:0.02; pointer-events:none; z-index:1; transform:translateZ(0); overflow:hidden;"></div>
 
   <!-- TOAST CONTAINER -->
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- APPLICATION SCRIPT BUNDLE -->
-  <script src="demo.js?v=4.3.2"></script>
+  <script src="demo.js?v=4.3.8"></script>
   <!-- Service Worker Registration for 100% Offline Capability -->
   <script>
     if ('serviceWorker' in navigator) {

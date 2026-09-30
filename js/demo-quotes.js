@@ -4,24 +4,22 @@
 // 8. MOTIVATIONAL DAILY QUOTE ENGINE
 // ============================================================================
 const MOTIVATIONAL_QUOTES = [
-  "Small daily improvements over time lead to stunning results.",
-  "Focus on being productive instead of busy.",
-  "The secret of getting ahead is getting started.",
-  "Discipline is choosing between what you want now and what you want most.",
-  "Deep work is the superpower of the 21st century.",
-  "Action is the foundational key to all success.",
-  "You don't have to be extreme, just consistent.",
-  "Success is the sum of small efforts, repeated day in and day out.",
-  "It always seems impossible until it's done.",
-  "Your future is created by what you do today, not tomorrow.",
+  "Deep focus creates mastery.",
+  "Small daily steps, big results.",
   "Energy flows where attention goes.",
-  "Fall in love with the process and the results will come.",
-  "Don't wish it were easier, wish you were better.",
-  "Continuous learning is the minimum requirement for success in any field.",
-  "Push yourself, because no one else is going to do it for you.",
-  "Great things never come from comfort zones.",
+  "Stay consistent, stay focused.",
+  "Action cures hesitation.",
+  "Quiet the noise, find your flow.",
+  "Your time to build is now.",
+  "Discipline equals true freedom.",
+  "Fall in love with the process.",
+  "Great things take focused time.",
+  "Progress over perfection.",
   "Dream big. Start small. Act now.",
-  "Stay focused, go after your dreams, and keep moving toward your goals."
+  "One focused hour at a time.",
+  "Show up every single day.",
+  "Master your minutes, master your life.",
+  "Consistency is the secret code."
 ];
 
 function initQuoteManager() {
@@ -32,6 +30,8 @@ function initQuoteManager() {
   const mobileQuoteText = document.getElementById('mobileDailyQuoteText');
   const mobileNextBtn = document.getElementById('btnNextMobileQuote');
   const mobileQuoteContainer = document.getElementById('mobileDailyQuoteBanner');
+
+  const autohideQuoteText = document.getElementById('autohideQuoteText');
 
   let currentQuoteIndex = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
 
@@ -63,6 +63,11 @@ function initQuoteManager() {
         mobileQuoteContainer?.setAttribute('title', `${fullQuote} • Click for next quote`);
       }, 200);
     }
+
+    // Autohide focus quote banner
+    if (autohideQuoteText) {
+      autohideQuoteText.textContent = fullQuote;
+    }
   }
 
   function nextQuote() {
@@ -78,6 +83,9 @@ function initQuoteManager() {
   if (mobileQuoteText) {
     mobileQuoteText.textContent = initQuote;
     mobileQuoteContainer?.setAttribute('title', `${initQuote} • Click for next quote`);
+  }
+  if (autohideQuoteText) {
+    autohideQuoteText.textContent = initQuote;
   }
 
   nextBtn?.addEventListener('click', (e) => {

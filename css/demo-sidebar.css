@@ -270,6 +270,7 @@ body.has-custom-bg .app-sidebar {
   cursor: pointer;
   transition: all var(--transition-fast);
   flex-shrink: 0;
+  z-index: 10;
 }
 
 .sidebar-collapse-toggle-btn:hover {
@@ -337,10 +338,36 @@ body.has-custom-bg .app-sidebar {
 .app-sidebar.collapsed .sidebar-brand-header {
   justify-content: center;
   padding: 4px 0 10px;
+  position: relative;
 }
 
+/* Keep arrow toggle visible, rotating 180deg in collapsed state to afford easy expansion */
 .app-sidebar.collapsed .sidebar-collapse-toggle-btn {
-  display: none;
+  display: flex;
+  position: absolute;
+  right: -11px;
+  top: 10px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--bg-card, #131722);
+  border: 1px solid var(--border-default, rgba(255,255,255,0.16));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  color: var(--text-primary);
+  opacity: 0.85;
+  transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+}
+
+.app-sidebar.collapsed .sidebar-collapse-toggle-btn:hover {
+  opacity: 1;
+  background: var(--bg-hover, #1e2436);
+  transform: scale(1.1);
+}
+
+.app-sidebar.collapsed .sidebar-collapse-toggle-btn svg {
+  width: 12px;
+  height: 12px;
+  transform: rotate(180deg);
 }
 
 .app-sidebar.collapsed .sidebar-nav-item {
@@ -366,6 +393,11 @@ body.has-custom-bg .app-sidebar {
 .app-sidebar.collapsed .user-profile-btn {
   justify-content: center !important;
   padding: 6px 0;
+}
+
+.app-sidebar.collapsed ~ .studio-main-content {
+  margin-left: 68px;
+  width: calc(100% - 68px);
 }
 
 /* 2. Main Workspace Canvas */
@@ -472,12 +504,15 @@ body.has-custom-bg .app-sidebar {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 0 1 400px;
+  flex: 0 1 auto;
+  width: fit-content;
+  max-width: min(560px, calc(100% - 220px));
   min-width: 0;
-  max-width: 400px;
   margin: 0 auto;
   padding: 4px 14px;
   background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-pill);
   font-size: 0.78rem;
@@ -499,12 +534,19 @@ body.has-custom-bg .app-sidebar {
   color: var(--text-primary);
 }
 
+.daily-quote-capsule .quote-sparkle-icon {
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
 .daily-quote-capsule .quote-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-style: italic;
-  font-size: 0.76rem;
+  font-size: clamp(0.72rem, 1.1vw, 0.8rem);
+  line-height: 1.25;
+  min-width: 0;
 }
 
 /* Mobile full-width quote banner (Hidden on desktop/tablets) */
@@ -833,6 +875,8 @@ body.has-custom-bg .app-sidebar {
   position: fixed;
   bottom: 24px;
   right: 24px;
+  left: auto;
+  top: auto;
   z-index: 95;
   display: flex;
   align-items: center;
@@ -1036,8 +1080,14 @@ body.has-custom-bg .app-sidebar {
 @media (max-width: 980px) {
   html, body {
     max-width: 100vw;
+    height: 100%;
     overflow-x: hidden;
     -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+
+  .sidebar-collapse-toggle-btn {
+    display: none !important;
   }
 
   .app-sidebar {
@@ -1045,14 +1095,125 @@ body.has-custom-bg .app-sidebar {
     top: 0;
     left: 0;
     bottom: 0;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    width: 270px !important;
+    min-width: 270px !important;
+    display: flex;
+    flex-direction: column;
+    padding: calc(12px + env(safe-area-inset-top, 0px)) 12px calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    box-sizing: border-box;
     transform: translateX(-100%);
     box-shadow: none;
     z-index: 10000;
+    overflow: hidden; /* Sidebar container does not scroll as a whole */
   }
 
-  .app-sidebar.open {
-    transform: translateX(0);
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+  .app-sidebar.collapsed {
+    width: 270px !important;
+    min-width: 270px !important;
+    padding: calc(12px + env(safe-area-inset-top, 0px)) 12px calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    overflow: hidden !important;
+    transform: translateX(-100%);
+  }
+
+  .app-sidebar.open,
+  .app-sidebar.collapsed.open {
+    transform: translateX(0) !important;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.7) !important;
+  }
+
+  /* Restore labels inside mobile drawer even if collapsed class was set on document load */
+  .app-sidebar.collapsed .sidebar-brand-names,
+  .app-sidebar.collapsed .sidebar-nav-label,
+  .app-sidebar.collapsed .nav-item-text,
+  .app-sidebar.collapsed .sidebar-tool-label,
+  .app-sidebar.collapsed .sync-label,
+  .app-sidebar.collapsed .auth-btn-label,
+  .app-sidebar.collapsed .user-name,
+  .app-sidebar.collapsed .dropdown-caret {
+    display: block !important;
+  }
+
+  .app-sidebar.collapsed .sidebar-brand-names {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .app-sidebar.collapsed .sidebar-nav-item {
+    justify-content: flex-start !important;
+    padding: 9px 12px !important;
+  }
+
+  .app-sidebar.collapsed .sidebar-tools-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-around !important;
+    grid-template-columns: none !important;
+    width: 100% !important;
+  }
+
+  .app-sidebar.collapsed .sidebar-tool-btn {
+    flex: 1 !important;
+    padding: 8px 4px !important;
+  }
+
+  .app-sidebar.collapsed .auth-btn-compact,
+  .app-sidebar.collapsed .user-profile-btn {
+    justify-content: flex-start !important;
+    padding: 8px 12px !important;
+  }
+
+  .app-sidebar .sidebar-brand-header {
+    flex-shrink: 0;
+    padding: 4px 6px 8px;
+    margin-bottom: 4px;
+  }
+
+  .app-sidebar .sidebar-nav-menu {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-right: 2px;
+    padding-bottom: 6px;
+  }
+
+  .app-sidebar .sidebar-nav-item {
+    padding: 9px 12px;
+    font-size: 0.88rem;
+  }
+
+  .app-sidebar .sidebar-user-block {
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+
+  .app-sidebar .sidebar-footer {
+    flex-shrink: 0;
+    margin-top: auto;
+    padding-top: 10px;
+    padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .app-sidebar .sidebar-tools-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: 4px;
+    width: 100%;
+  }
+
+  .app-sidebar .sidebar-tool-btn {
+    flex: 1;
+    padding: 8px 4px;
+    font-size: 0.76rem;
   }
 
   .app-sidebar.collapsed ~ .studio-main-content,
@@ -1062,9 +1223,13 @@ body.has-custom-bg .app-sidebar {
     max-width: 100vw !important;
     min-height: 100vh;
     min-height: 100dvh;
-    padding: 0 0 48px 0 !important;
+    height: 100dvh;
+    padding: 0 !important;
     overflow-x: hidden;
+    overflow-y: hidden;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
   }
 
   .sidebar-backdrop {
@@ -1099,21 +1264,22 @@ body.has-custom-bg .app-sidebar {
 
   .studio-floating-topbar {
     width: calc(100% - 16px);
-    margin: 8px 8px 6px;
-    padding: 6px 10px;
-    gap: 8px;
+    margin: 4px 8px 2px;
+    padding: 4px 10px;
+    min-height: 42px;
+    gap: 6px;
     box-sizing: border-box;
   }
 
   .floating-audio-dock {
     bottom: 16px;
-    left: 16px;
-    right: auto;
-    max-width: calc(100vw - 32px);
-    padding: 5px 8px;
+    right: 16px;
+    left: auto;
+    max-width: calc(100vw - 24px);
+    padding: 4px 8px;
     gap: 5px;
     border-radius: var(--radius-pill);
-    overflow: hidden;
+    overflow: visible !important;
     touch-action: none !important;
     box-sizing: border-box;
   }
@@ -1146,11 +1312,75 @@ body.has-custom-bg .app-sidebar {
     padding: 2px 5px !important;
   }
 
+  /* Mobile Focus Studio Viewport Fit: Direct Natural Alignment, Zero Dead Top Space & Full Bottom Buttons Visibility */
+  .workspace-view#viewFocusStudio {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: calc(100dvh - 54px);
+    max-height: calc(100dvh - 54px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 2px 8px 6px;
+    box-sizing: border-box;
+    touch-action: pan-x pan-y;
+  }
+
   .focus-studio-center-wrap {
     width: 100%;
-    max-width: 540px;
-    padding: 0 12px;
+    max-width: 440px;
+    height: 100%;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 0;
+    padding: 0;
     margin: 0 auto;
+    box-sizing: border-box;
+  }
+
+  .status-metrics-grid {
+    margin: 0 0 4px 0;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .metric-card {
+    padding: 4px 6px;
+    border-radius: 12px;
+  }
+
+  .metric-label {
+    font-size: 0.62rem;
+  }
+
+  .metric-value {
+    font-size: 0.84rem;
+  }
+
+  .studio-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Other mobile views (Overview, Analytics, Planner, Leaderboard) scroll normally */
+  .workspace-view:not(#viewFocusStudio) {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: calc(100dvh - 54px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 12px 64px;
     box-sizing: border-box;
   }
 }
@@ -1215,16 +1445,16 @@ body.has-custom-bg .app-sidebar {
   }
 
   .daily-quote-capsule .quote-text {
-    font-size: 0.82rem !important;
-    line-height: 1.35 !important;
+    font-size: 0.78rem !important;
+    line-height: 1.25 !important;
     color: var(--text-secondary) !important;
     font-style: italic !important;
-    white-space: normal !important;
-    overflow: visible !important;
-    text-overflow: unset !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
     flex: 1 1 auto !important;
     min-width: 0 !important;
-    word-break: break-word !important;
+    text-align: left !important;
   }
 
   [data-theme="light"] .daily-quote-capsule .quote-text {

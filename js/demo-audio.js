@@ -45,7 +45,7 @@ const AUDIO_PRESETS = {
 let activeAudioPresetKey = 'lofi';
 let isAudioPlaying = false;
 let currentAudioEngine = 'idle'; // 'youtube' | 'webaudio' | 'idle'
-let audioVolume = parseInt(localStorage.getItem('studytimer_audio_vol') || '60', 10);
+let audioVolume = parseInt(localStorage.getItem('studytimer_audio_vol') || '100', 10);
 let customYoutubeVideoId = localStorage.getItem('studytimer_custom_yt_id') || '';
 
 let ytPlayerInstance = null;
@@ -229,8 +229,12 @@ if (typeof window !== 'undefined' && !window.__studyTimerAudioPollerInitialized)
           }
         } else if (state === 2 || state === 0 || state === 5 || state === -1) {
           if (isAudioPlaying) {
-            setAudioPlayingUI(false);
-            updateAudioEngineBadge('ready');
+            if (document.hidden) {
+              try { ytPlayerInstance.playVideo(); } catch (_) {}
+            } else {
+              setAudioPlayingUI(false);
+              updateAudioEngineBadge('ready');
+            }
           }
         }
       } catch (_) {}
@@ -255,8 +259,12 @@ function initYouTubePlayerInstance(customVidId, autoPlay = false) {
       try {
         ytPlayerInstance.loadVideoById({
           videoId: targetVidId,
-          startSeconds: 0
+          startSeconds: 0,
+          suggestedQuality: 'small'
         });
+        if (typeof ytPlayerInstance.setPlaybackQuality === 'function') {
+          try { ytPlayerInstance.setPlaybackQuality('small'); } catch (_) {}
+        }
         ytPlayerInstance.unMute();
         ytPlayerInstance.setVolume(audioVolume);
         ytPlayerInstance.playVideo();
@@ -269,7 +277,8 @@ function initYouTubePlayerInstance(customVidId, autoPlay = false) {
       try {
         ytPlayerInstance.cueVideoById({
           videoId: targetVidId,
-          startSeconds: 0
+          startSeconds: 0,
+          suggestedQuality: 'small'
         });
       } catch (_) {}
     }
@@ -305,6 +314,7 @@ function initYouTubePlayerInstance(customVidId, autoPlay = false) {
       fs: 0,
       iv_load_policy: 3,
       loop: 1,
+      playlist: targetVidId,
       modestbranding: 1,
       playsinline: 1,
       rel: 0
@@ -332,13 +342,18 @@ function initYouTubePlayerInstance(customVidId, autoPlay = false) {
             }
           } catch (_) {}
           try {
+            if (typeof event.target.setPlaybackQuality === 'function') {
+              event.target.setPlaybackQuality('small');
+            }
+          } catch (_) {}
+          try {
             event.target.unMute();
             event.target.setVolume(audioVolume);
             const shouldPlay = pendingAutoPlay || isAudioPlaying;
             if (shouldPlay) {
               const toPlay = pendingPlayVideoId || targetVidId;
               if (toPlay !== targetVidId && typeof event.target.loadVideoById === 'function') {
-                event.target.loadVideoById({ videoId: toPlay, startSeconds: 0 });
+                event.target.loadVideoById({ videoId: toPlay, startSeconds: 0, suggestedQuality: 'small' });
               }
               event.target.playVideo();
               currentAudioEngine = 'youtube';
@@ -351,19 +366,38 @@ function initYouTubePlayerInstance(customVidId, autoPlay = false) {
         onStateChange: (event) => {
           if (!window.YT) return;
           if (event.data === window.YT.PlayerState.PLAYING) {
+            try {
+              if (typeof event.target.setPlaybackQuality === 'function') {
+                event.target.setPlaybackQuality('small');
+              }
+            } catch (_) {}
             setAudioPlayingUI(true);
             currentAudioEngine = 'youtube';
             updateAudioEngineBadge('youtube');
             isUserExplicitPlayAction = false;
             clearAudioPlaybackWatchdog();
           } else if (event.data === window.YT.PlayerState.BUFFERING) {
+            try {
+              if (typeof event.target.setPlaybackQuality === 'function') {
+                event.target.setPlaybackQuality('small');
+              }
+            } catch (_) {}
             updateAudioEngineBadge('buffering');
           } else if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.CUED || event.data === window.YT.PlayerState.UNSTARTED || event.data === window.YT.PlayerState.ENDED) {
             if (event.data === window.YT.PlayerState.ENDED) {
+              try {
+                if (typeof event.target.seekTo === 'function') {
+                  event.target.seekTo(0, true);
+                }
+                event.target.playVideo();
+              } catch (_) {}
+            } else if (document.hidden && isAudioPlaying) {
               try { event.target.playVideo(); } catch (_) {}
             } else {
-              setAudioPlayingUI(false);
-              updateAudioEngineBadge('ready');
+              if (!document.hidden) {
+                setAudioPlayingUI(false);
+                updateAudioEngineBadge('ready');
+              }
             }
           }
         },
@@ -413,6 +447,56 @@ function initFocusAudio() {
       }
     });
   }
+
+  // Modern Glassmorphic Audio Preset Dropdown Logic
+  const customAudioBtn = document.getElementById('btnCustomAudioSelect');
+  const customAudioMenu = document.getElementById('customAudioMenu');
+  const closeAudioMenuBtn = document.getElementById('btnCloseAudioMenu');
+  const customAudioItems = document.querySelectorAll('.custom-audio-item');
+
+  function openAudioDropdown() {
+    customAudioMenu?.classList.remove('hidden');
+    customAudioBtn?.setAttribute('aria-expanded', 'true');
+  }
+
+  function closeAudioDropdown() {
+    customAudioMenu?.classList.add('hidden');
+    customAudioBtn?.setAttribute('aria-expanded', 'false');
+  }
+
+  customAudioBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (customAudioMenu?.classList.contains('hidden')) {
+      openAudioDropdown();
+    } else {
+      closeAudioDropdown();
+    }
+  });
+
+  closeAudioMenuBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeAudioDropdown();
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#customAudioDropdownWrap')) {
+      closeAudioDropdown();
+    }
+  });
+
+  customAudioItems.forEach(item => {
+    item.addEventListener('click', () => {
+      const val = item.getAttribute('data-value');
+      closeAudioDropdown();
+      if (val === 'custom') {
+        openCustomYoutubeModal();
+      } else {
+        switchAudioTrack(val);
+      }
+    });
+  });
+
+  updateCustomAudioSelectUI(activeAudioPresetKey);
 
   playBtn?.addEventListener('click', () => {
     initWebAudioContext();
@@ -541,20 +625,42 @@ function initDraggableAudioDock() {
   const collapseBtn = document.getElementById('btnAudioCollapse');
   if (!dock) return;
 
+  function resetDockToDefaultPosition() {
+    dock.style.left = '';
+    dock.style.top = '';
+    dock.style.bottom = '';
+    dock.style.right = '';
+    try {
+      localStorage.removeItem('studytimer_audio_dock_pos');
+    } catch (_) {}
+  }
+
   function clampDockPosition() {
     if (!dock.style.left && !dock.style.top) return;
 
     const rect = dock.getBoundingClientRect();
-    const dockW = dock.offsetWidth || rect.width || 200;
-    const dockH = dock.offsetHeight || rect.height || 44;
-    const maxX = Math.max(10, window.innerWidth - dockW - 12);
-    const maxY = Math.max(10, window.innerHeight - dockH - 12);
+    const dockW = rect.width > 0 ? rect.width : (dock.offsetWidth || 220);
+    const dockH = rect.height > 0 ? rect.height : (dock.offsetHeight || 44);
+    const isDesktop = window.innerWidth > 768;
+    const minX = isDesktop ? 88 : 12;
+    const maxX = Math.max(minX, window.innerWidth - dockW - 16);
+    const minY = 12;
+    const maxY = Math.max(minY, window.innerHeight - dockH - 16);
 
-    let currentLeft = parseFloat(dock.style.left) || rect.left;
-    let currentTop = parseFloat(dock.style.top) || rect.top;
+    let currentLeft = parseFloat(dock.style.left);
+    let currentTop = parseFloat(dock.style.top);
 
-    const clampedX = Math.max(10, Math.min(currentLeft, maxX));
-    const clampedY = Math.max(10, Math.min(currentTop, maxY));
+    if (isNaN(currentLeft)) currentLeft = rect.left;
+    if (isNaN(currentTop)) currentTop = rect.top;
+
+    // If positioned inside or over the sidebar on desktop, reset to default bottom-right
+    if (isDesktop && currentLeft < 84) {
+      resetDockToDefaultPosition();
+      return;
+    }
+
+    const clampedX = Math.max(minX, Math.min(currentLeft, maxX));
+    const clampedY = Math.max(minY, Math.min(currentTop, maxY));
 
     dock.style.left = `${clampedX}px`;
     dock.style.top = `${clampedY}px`;
@@ -563,16 +669,6 @@ function initDraggableAudioDock() {
 
     try {
       localStorage.setItem('studytimer_audio_dock_pos', JSON.stringify({ x: clampedX, y: clampedY }));
-    } catch (_) {}
-  }
-
-  function resetDockToDefaultPosition() {
-    dock.style.left = '';
-    dock.style.top = '';
-    dock.style.bottom = '';
-    dock.style.right = '';
-    try {
-      localStorage.removeItem('studytimer_audio_dock_pos');
     } catch (_) {}
   }
 
@@ -593,31 +689,45 @@ function initDraggableAudioDock() {
     }
   });
 
-  // Restore saved position ONLY if it is a genuine user-dragged position
+  // Restore saved position ONLY if it does not overlap the sidebar
   try {
     const rawPos = localStorage.getItem('studytimer_audio_dock_pos');
     if (rawPos) {
       const savedPos = JSON.parse(rawPos);
-      if (savedPos && typeof savedPos.x === 'number' && typeof savedPos.y === 'number') {
-        if (savedPos.x <= 80 && savedPos.y <= 80) {
-          resetDockToDefaultPosition();
-        } else {
-          const maxX = Math.max(10, window.innerWidth - (dock.offsetWidth || 300) - 12);
-          const maxY = Math.max(10, window.innerHeight - (dock.offsetHeight || 44) - 12);
-          const x = Math.max(10, Math.min(savedPos.x, maxX));
-          const y = Math.max(10, Math.min(savedPos.y, maxY));
-          dock.style.left = `${x}px`;
-          dock.style.top = `${y}px`;
-          dock.style.bottom = 'auto';
-          dock.style.right = 'auto';
-        }
-      }
-    }
-  } catch (_) {}
+      const isDesktop = window.innerWidth > 768;
+      const minX = isDesktop ? 88 : 12;
 
-  handle?.addEventListener('dblclick', (e) => {
-    e.stopPropagation();
+      if (savedPos && typeof savedPos.x === 'number' && typeof savedPos.y === 'number' && savedPos.x >= minX && savedPos.y >= 20) {
+        const rect = dock.getBoundingClientRect();
+        const dockW = rect.width > 0 ? rect.width : (dock.offsetWidth || 220);
+        const dockH = rect.height > 0 ? rect.height : (dock.offsetHeight || 44);
+        const maxX = Math.max(minX, window.innerWidth - dockW - 16);
+        const minY = 12;
+        const maxY = Math.max(minY, window.innerHeight - dockH - 16);
+
+        const x = Math.max(minX, Math.min(savedPos.x, maxX));
+        const y = Math.max(minY, Math.min(savedPos.y, maxY));
+        dock.style.left = `${x}px`;
+        dock.style.top = `${y}px`;
+        dock.style.bottom = 'auto';
+        dock.style.right = 'auto';
+      } else {
+        resetDockToDefaultPosition();
+      }
+    } else {
+      resetDockToDefaultPosition();
+    }
+  } catch (_) {
     resetDockToDefaultPosition();
+  }
+
+  // Double click anywhere on dock or drag handle to reset to bottom-right
+  dock.addEventListener('dblclick', (e) => {
+    if (e.target.closest('button, select, input, .custom-audio-menu')) return;
+    resetDockToDefaultPosition();
+    if (typeof showToast === 'function') {
+      showToast('Media player repositioned to bottom-right 🎧', 'info');
+    }
   });
 
   window.addEventListener('resize', () => {
@@ -626,16 +736,18 @@ function initDraggableAudioDock() {
     }
   });
 
+  window.addEventListener('orientationchange', () => {
+    setTimeout(clampDockPosition, 100);
+  });
+
   let isDragging = false;
   let startX = 0;
   let startY = 0;
   let initialLeft = 0;
   let initialTop = 0;
 
-  const dragTarget = handle || dock;
-
   function onPointerDown(e) {
-    if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) {
+    if (e.target.closest('#btnCustomAudioSelect') || e.target.closest('#btnAudioPlayToggle') || e.target.closest('#btnAudioCollapse') || e.target.closest('.custom-audio-menu') || e.target.closest('.audio-volume-wrap') || e.target.closest('select') || e.target.closest('input')) {
       return;
     }
     isDragging = true;
@@ -649,8 +761,8 @@ function initDraggableAudioDock() {
     dock.style.transition = 'none';
 
     try {
-      if (e.pointerId && typeof dragTarget.setPointerCapture === 'function') {
-        dragTarget.setPointerCapture(e.pointerId);
+      if (e.pointerId && typeof dock.setPointerCapture === 'function') {
+        dock.setPointerCapture(e.pointerId);
       }
     } catch (_) {}
 
@@ -668,11 +780,17 @@ function initDraggableAudioDock() {
     let nextX = initialLeft + dx;
     let nextY = initialTop + dy;
 
-    const maxX = Math.max(10, window.innerWidth - (dock.offsetWidth || 200) - 12);
-    const maxY = Math.max(10, window.innerHeight - (dock.offsetHeight || 44) - 12);
+    const rect = dock.getBoundingClientRect();
+    const dockW = rect.width > 0 ? rect.width : (dock.offsetWidth || 220);
+    const dockH = rect.height > 0 ? rect.height : (dock.offsetHeight || 44);
+    const isDesktop = window.innerWidth > 768;
+    const minX = isDesktop ? 88 : 12;
+    const maxX = Math.max(minX, window.innerWidth - dockW - 16);
+    const minY = 12;
+    const maxY = Math.max(minY, window.innerHeight - dockH - 16);
 
-    nextX = Math.max(10, Math.min(nextX, maxX));
-    nextY = Math.max(10, Math.min(nextY, maxY));
+    nextX = Math.max(minX, Math.min(nextX, maxX));
+    nextY = Math.max(minY, Math.min(nextY, maxY));
 
     dock.style.left = `${nextX}px`;
     dock.style.top = `${nextY}px`;
@@ -700,11 +818,13 @@ function initDraggableAudioDock() {
     if (!isDragging) return;
     isDragging = false;
     dock.style.transition = '';
+
     try {
-      if (e && e.pointerId && typeof dragTarget.releasePointerCapture === 'function') {
-        dragTarget.releasePointerCapture(e.pointerId);
+      if (e && e.pointerId && typeof dock.releasePointerCapture === 'function') {
+        dock.releasePointerCapture(e.pointerId);
       }
     } catch (_) {}
+
     document.removeEventListener('pointermove', onPointerMove);
     document.removeEventListener('pointerup', onPointerUp);
     document.removeEventListener('pointercancel', onPointerUp);
@@ -714,14 +834,44 @@ function initDraggableAudioDock() {
     clampDockPosition();
   }
 
-  dragTarget.addEventListener('pointerdown', onPointerDown);
-  dragTarget.addEventListener('touchstart', onPointerDown, { passive: true });
+  dock.addEventListener('pointerdown', onPointerDown);
+  dock.addEventListener('touchstart', onPointerDown, { passive: true });
+}
+
+function updateCustomAudioSelectUI(presetKey) {
+  const iconSpan = document.getElementById('customAudioSelectedIcon');
+  const labelSpan = document.getElementById('customAudioSelectedLabel');
+  const items = document.querySelectorAll('.custom-audio-item');
+  
+  const PRESET_DISPLAY = {
+    'lofi': { icon: '🎧', name: 'Lofi Chill' },
+    'minecraft': { icon: '⛏️', name: 'Minecraft Tracks' },
+    'piano': { icon: '🎹', name: 'Study Piano' },
+    'synthwave': { icon: '🌆', name: 'Synthwave Chill' },
+    'rain': { icon: '🌧️', name: 'Rain & Thunder' },
+    'cafe': { icon: '☕', name: 'Cozy Cafe' },
+    'alpha': { icon: '🧠', name: '432Hz Alpha' },
+    'classical': { icon: '🎻', name: 'Baroque Classical' },
+    'custom': { icon: '🔗', name: 'Custom Stream' }
+  };
+
+  const info = PRESET_DISPLAY[presetKey] || { icon: '🎧', name: 'Ambience' };
+  if (iconSpan) iconSpan.textContent = info.icon;
+  if (labelSpan) labelSpan.textContent = info.name;
+
+  items.forEach(it => {
+    const isSelected = it.getAttribute('data-value') === presetKey;
+    it.classList.toggle('active', isSelected);
+    it.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+  });
 }
 
 function switchAudioTrack(presetKey) {
   activeAudioPresetKey = presetKey;
   const select = document.getElementById('audioPresetSelect');
   if (select && select.value !== presetKey) select.value = presetKey;
+
+  updateCustomAudioSelectUI(presetKey);
 
   const trackName = document.getElementById('audioCurrentName');
   const preset = AUDIO_PRESETS[presetKey];
@@ -845,17 +995,19 @@ function stopCurrentAudio() {
 
 function setAudioVolume(vol) {
   const normVol = Math.max(0, Math.min(100, vol));
+  audioVolume = normVol;
+  const effectiveVol = (typeof isAudioDucked !== 'undefined' && isAudioDucked) ? Math.max(8, Math.round(normVol * 0.18)) : normVol;
   if (ytPlayerInstance && typeof ytPlayerInstance.setVolume === 'function') {
     try {
-      ytPlayerInstance.setVolume(normVol);
-      if (normVol > 0) {
+      ytPlayerInstance.setVolume(effectiveVol);
+      if (effectiveVol > 0) {
         ytPlayerInstance.unMute();
       } else {
         ytPlayerInstance.mute();
       }
     } catch (_) {}
   }
-  setWebAudioVolume(normVol);
+  setWebAudioVolume(effectiveVol);
 }
 
 function startYouTubeEmbedPlayer(videoId) {
@@ -868,13 +1020,17 @@ function startYouTubeEmbedPlayer(videoId) {
     try {
       ytPlayerInstance.loadVideoById({
         videoId: videoId,
-        startSeconds: 0
+        startSeconds: 0,
+        suggestedQuality: 'small'
       });
+      if (typeof ytPlayerInstance.setPlaybackQuality === 'function') {
+        try { ytPlayerInstance.setPlaybackQuality('small'); } catch (_) {}
+      }
       ytPlayerInstance.unMute();
       ytPlayerInstance.setVolume(audioVolume);
       ytPlayerInstance.playVideo();
-        currentAudioEngine = 'youtube';
-        updateAudioEngineBadge('buffering');
+      currentAudioEngine = 'youtube';
+      updateAudioEngineBadge('buffering');
       return;
     } catch (err) {
       console.warn('[Audio Engine] YT.Player loadVideoById failed:', err);

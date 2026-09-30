@@ -316,24 +316,39 @@ function mergeCloudDataIntoLocal(data) {
   }
   appState.plannerGoals = Array.from(goalMap.values()).slice(0, 50);
 
-  // 8. TIMER SETTINGS (Cloud sync interop)
-  const todayKey = getLocalDateStr();
-  const todayGoalSecs = Number(cloudPrefs[`${todayKey}_goal_secs`]) || Number(cloudPrefs.daily_goal_secs) || 0;
-  const goalMins = cloudPrefs.daily_goal_minutes || (todayGoalSecs > 0 ? Math.round(todayGoalSecs / 60) : null);
-  if (goalMins) timerConfig.dailyGoalMinutes = Math.min(1440, Math.max(15, goalMins));
+  // 8. TIMER SETTINGS (Cloud sync interop - Local user settings are authoritative)
+  const hasLocalSavedSettings = (() => {
+    try {
+      const uid = appState.currentUser?.id;
+      const storageKey = uid ? `studytimer_state_${uid}` : 'studytimer_guest_state';
+      const local = localStorage.getItem(storageKey);
+      if (local) {
+        const parsed = JSON.parse(local);
+        return Boolean(parsed && parsed.timerConfig);
+      }
+    } catch (_) {}
+    return false;
+  })();
 
-  if (cloudPrefs.study_interval_minutes || cloudPrefs.pomo_focus_minutes) {
-    timerConfig.pomoFocusMinutes = Math.min(180, Math.max(1, Number(cloudPrefs.study_interval_minutes || cloudPrefs.pomo_focus_minutes)));
-  }
-  if (cloudPrefs.break_interval_minutes || cloudPrefs.pomo_break_minutes) {
-    timerConfig.pomoBreakMinutes = Math.min(60, Math.max(1, Number(cloudPrefs.break_interval_minutes || cloudPrefs.pomo_break_minutes)));
-  }
-  if (cloudPrefs.pomo_long_break_minutes) timerConfig.pomoLongBreakMinutes = Math.min(120, Math.max(1, Number(cloudPrefs.pomo_long_break_minutes)));
-  if (cloudPrefs.pomo_total_cycles) timerConfig.pomoTotalCycles = Math.min(12, Math.max(1, Number(cloudPrefs.pomo_total_cycles)));
-  if (typeof cloudPrefs.pomo_auto_switch_break === 'boolean') timerConfig.pomoAutoSwitchBreak = cloudPrefs.pomo_auto_switch_break;
-  if (typeof cloudPrefs.pomo_auto_switch_focus === 'boolean') timerConfig.pomoAutoSwitchFocus = cloudPrefs.pomo_auto_switch_focus;
-  if (cloudPrefs.custom_timer_minutes) {
-    timerConfig.customTimerMinutes = Math.min(720, Math.max(1, Number(cloudPrefs.custom_timer_minutes)));
+  if (!hasLocalSavedSettings) {
+    const todayKey = getLocalDateStr();
+    const todayGoalSecs = Number(cloudPrefs[`${todayKey}_goal_secs`]) || Number(cloudPrefs.daily_goal_secs) || 0;
+    const goalMins = cloudPrefs.daily_goal_minutes || (todayGoalSecs > 0 ? Math.round(todayGoalSecs / 60) : null);
+    if (goalMins) timerConfig.dailyGoalMinutes = Math.min(1440, Math.max(15, goalMins));
+
+    if (cloudPrefs.study_interval_minutes || cloudPrefs.pomo_focus_minutes) {
+      timerConfig.pomoFocusMinutes = Math.min(180, Math.max(1, Number(cloudPrefs.study_interval_minutes || cloudPrefs.pomo_focus_minutes)));
+    }
+    if (cloudPrefs.break_interval_minutes || cloudPrefs.pomo_break_minutes) {
+      timerConfig.pomoBreakMinutes = Math.min(60, Math.max(1, Number(cloudPrefs.break_interval_minutes || cloudPrefs.pomo_break_minutes)));
+    }
+    if (cloudPrefs.pomo_long_break_minutes) timerConfig.pomoLongBreakMinutes = Math.min(120, Math.max(1, Number(cloudPrefs.pomo_long_break_minutes)));
+    if (cloudPrefs.pomo_total_cycles) timerConfig.pomoTotalCycles = Math.min(12, Math.max(1, Number(cloudPrefs.pomo_total_cycles)));
+    if (typeof cloudPrefs.pomo_auto_switch_break === 'boolean') timerConfig.pomoAutoSwitchBreak = cloudPrefs.pomo_auto_switch_break;
+    if (typeof cloudPrefs.pomo_auto_switch_focus === 'boolean') timerConfig.pomoAutoSwitchFocus = cloudPrefs.pomo_auto_switch_focus;
+    if (cloudPrefs.custom_timer_minutes) {
+      timerConfig.customTimerMinutes = Math.min(720, Math.max(1, Number(cloudPrefs.custom_timer_minutes)));
+    }
   }
 
   // 9. USER PROFILE & MODERATION STATUS

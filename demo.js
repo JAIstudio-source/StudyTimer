@@ -195,6 +195,7 @@ async function initApp() {
   initSidebarState();
   initDomElements();
   setupEventListeners();
+  initFocusAutohideListeners();
   initTimerWorker();
   initBackgroundSyncListeners();
   initAutoSyncEngine();
@@ -972,24 +973,48 @@ function mergeCloudDataIntoLocal(data) {
   }
   appState.plannerGoals = Array.from(goalMap.values()).slice(0, 50);
 
-  // 8. TIMER SETTINGS (Cloud sync interop)
-  const todayKey = getLocalDateStr();
-  const todayGoalSecs = Number(cloudPrefs[`${todayKey}_goal_secs`]) || Number(cloudPrefs.daily_goal_secs) || 0;
-  const goalMins = cloudPrefs.daily_goal_minutes || (todayGoalSecs > 0 ? Math.round(todayGoalSecs / 60) : null);
-  if (goalMins) timerConfig.dailyGoalMinutes = Math.min(1440, Math.max(15, goalMins));
+  // 8. TIMER SETTINGS (Cloud sync interop - Local user settings are authoritative and protected from background overwrite)
+  const hasLocalSavedSettings = (() => {
+    try {
+      const uid = appState.currentUser?.id;
+      const storageKey = uid ? `studytimer_state_${uid}` : 'studytimer_guest_state';
+      const local = localStorage.getItem(storageKey);
+      if (local) {
+        const parsed = JSON.parse(local);
+        return Boolean(parsed && parsed.timerConfig);
+      }
+    } catch (_) {}
+    return false;
+  })();
 
-  if (cloudPrefs.study_interval_minutes || cloudPrefs.pomo_focus_minutes) {
-    timerConfig.pomoFocusMinutes = Math.min(180, Math.max(1, Number(cloudPrefs.study_interval_minutes || cloudPrefs.pomo_focus_minutes)));
-  }
-  if (cloudPrefs.break_interval_minutes || cloudPrefs.pomo_break_minutes) {
-    timerConfig.pomoBreakMinutes = Math.min(60, Math.max(1, Number(cloudPrefs.break_interval_minutes || cloudPrefs.pomo_break_minutes)));
-  }
-  if (cloudPrefs.pomo_long_break_minutes) timerConfig.pomoLongBreakMinutes = Math.min(120, Math.max(1, Number(cloudPrefs.pomo_long_break_minutes)));
-  if (cloudPrefs.pomo_total_cycles) timerConfig.pomoTotalCycles = Math.min(12, Math.max(1, Number(cloudPrefs.pomo_total_cycles)));
-  if (typeof cloudPrefs.pomo_auto_switch_break === 'boolean') timerConfig.pomoAutoSwitchBreak = cloudPrefs.pomo_auto_switch_break;
-  if (typeof cloudPrefs.pomo_auto_switch_focus === 'boolean') timerConfig.pomoAutoSwitchFocus = cloudPrefs.pomo_auto_switch_focus;
-  if (cloudPrefs.custom_timer_minutes) {
-    timerConfig.customTimerMinutes = Math.min(720, Math.max(1, Number(cloudPrefs.custom_timer_minutes)));
+  if (!hasLocalSavedSettings && !isLocalStateDirty) {
+    const todayKey = getLocalDateStr();
+    const todayGoalSecs = Number(cloudPrefs[`${todayKey}_goal_secs`]) || Number(cloudPrefs.daily_goal_secs) || 0;
+    const goalMins = cloudPrefs.daily_goal_minutes || (todayGoalSecs > 0 ? Math.round(todayGoalSecs / 60) : null);
+    if (goalMins) timerConfig.dailyGoalMinutes = Math.min(1440, Math.max(15, goalMins));
+
+    if (cloudPrefs.pomo_focus_minutes || cloudPrefs.study_interval_minutes) {
+      const val = Number(cloudPrefs.pomo_focus_minutes || cloudPrefs.study_interval_minutes);
+      if (!isNaN(val) && val > 0) timerConfig.pomoFocusMinutes = Math.min(180, Math.max(1, val));
+    }
+    if (cloudPrefs.pomo_break_minutes || cloudPrefs.break_interval_minutes) {
+      const val = Number(cloudPrefs.pomo_break_minutes || cloudPrefs.break_interval_minutes);
+      if (!isNaN(val) && val > 0) timerConfig.pomoBreakMinutes = Math.min(60, Math.max(1, val));
+    }
+    if (cloudPrefs.pomo_long_break_minutes) {
+      const val = Number(cloudPrefs.pomo_long_break_minutes);
+      if (!isNaN(val) && val > 0) timerConfig.pomoLongBreakMinutes = Math.min(120, Math.max(1, val));
+    }
+    if (cloudPrefs.pomo_total_cycles) {
+      const val = Number(cloudPrefs.pomo_total_cycles);
+      if (!isNaN(val) && val > 0) timerConfig.pomoTotalCycles = Math.min(12, Math.max(1, val));
+    }
+    if (typeof cloudPrefs.pomo_auto_switch_break === 'boolean') timerConfig.pomoAutoSwitchBreak = cloudPrefs.pomo_auto_switch_break;
+    if (typeof cloudPrefs.pomo_auto_switch_focus === 'boolean') timerConfig.pomoAutoSwitchFocus = cloudPrefs.pomo_auto_switch_focus;
+    if (cloudPrefs.custom_timer_minutes) {
+      const val = Number(cloudPrefs.custom_timer_minutes);
+      if (!isNaN(val) && val > 0) timerConfig.customTimerMinutes = Math.min(720, Math.max(1, val));
+    }
   }
 
   // 9. USER PROFILE & MODERATION STATUS
@@ -1722,10 +1747,19 @@ function saveLocalState() {
 // ============================================================================
 function getModeDurationSec() {
   switch (currentMode) {
-    case 'pomodoro': return (timerConfig.pomoFocusMinutes || 25) * 60;
-    case 'break': return (isLongBreakActive ? (timerConfig.pomoLongBreakMinutes || 15) : (timerConfig.pomoBreakMinutes || 5)) * 60;
-    case 'stopwatch': return 0;
-    default: return (timerConfig.pomoFocusMinutes || 25) * 60;
+    case 'pomodoro':
+      return Math.max(1, Number(timerConfig.pomoFocusMinutes) || 25) * 60;
+    case 'break': {
+      if (isLongBreakActive) {
+        const longBreak = Number(timerConfig.pomoLongBreakMinutes);
+        return Math.max(1, !isNaN(longBreak) && longBreak > 0 ? longBreak : (Number(timerConfig.pomoBreakMinutes) || 5)) * 60;
+      }
+      return Math.max(1, Number(timerConfig.pomoBreakMinutes) || 5) * 60;
+    }
+    case 'stopwatch':
+      return 0;
+    default:
+      return Math.max(1, Number(timerConfig.pomoFocusMinutes) || 25) * 60;
   }
 }
 
@@ -1775,10 +1809,11 @@ function updateCountdownPresetsUI() {
 }
 
 function initDomElements() {
-  // Mode Tabs
-  document.querySelectorAll('.mode-btn').forEach(btn => {
+  // Mode Tabs (only elements that actually define data-mode)
+  document.querySelectorAll('.mode-btn[data-mode]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (btn.dataset.mode === currentMode) return;
+      const targetMode = btn.dataset.mode;
+      if (!targetMode || targetMode === currentMode) return;
       if (timerStatus === 'RUNNING' || (timerStatus === 'PAUSED' && accumulatedElapsedSec > 0)) {
         const confirmed = await showCustomConfirmDialog({
           title: 'Switch Timer Mode?',
@@ -1790,9 +1825,7 @@ function initDomElements() {
         });
         if (!confirmed) return;
       }
-      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      switchMode(btn.dataset.mode);
+      switchMode(targetMode);
     });
   });
 
@@ -1801,8 +1834,12 @@ function initDomElements() {
 }
 
 function setupEventListeners() {
-  // Mode Selector Settings Button
-  document.getElementById('btnModeSettingsGear')?.addEventListener('click', openTimerSettingsModal);
+  // Mode Selector Settings Button (strictly opens modal without touching timer mode)
+  document.getElementById('btnModeSettingsGear')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openTimerSettingsModal();
+  });
 
   // Main Timer Controls
   document.getElementById('btnToggleTimer')?.addEventListener('click', toggleTimer);
@@ -1823,9 +1860,18 @@ function setupEventListeners() {
   document.getElementById('sidebarBackdrop')?.addEventListener('click', closeMobileSidebar);
 
   // Desktop Sidebar Collapse / Expand Toggle
-  document.getElementById('btnToggleSidebarCollapse')?.addEventListener('click', toggleSidebarCollapse);
-  document.getElementById('btnTopSidebarToggle')?.addEventListener('click', toggleSidebarCollapse);
-  document.getElementById('sidebarBrandHeader')?.addEventListener('click', toggleSidebarCollapse);
+  document.getElementById('btnToggleSidebarCollapse')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleSidebarCollapse();
+  });
+  document.getElementById('btnTopSidebarToggle')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleSidebarCollapse();
+  });
+  document.getElementById('sidebarBrandHeader')?.addEventListener('click', (e) => {
+    if (e.target.closest('#btnToggleSidebarCollapse')) return;
+    toggleSidebarCollapse();
+  });
 
   // Dedicated Full Screen Zen Timer Mode Triggers
   document.getElementById('btnOpenZenTimer')?.addEventListener('click', openZenMode);
@@ -2335,12 +2381,27 @@ function setupEventListeners() {
     finishSession();
   });
 
-  // Tap on full screen canvas (outside buttons & subject menu) to toggle play/pause
-  document.getElementById('zenTimerCanvas')?.addEventListener('click', (e) => {
-    if (!e.target.closest('.zen-controls-bar') && !e.target.closest('.zen-exit-btn') && !e.target.closest('#zenSubjectWrapper')) {
-      toggleTimer();
-    }
-  });
+  // Tap directly on full screen timer dial (excluding subject menu & controls) to toggle play/pause
+  const zenTimerRing = document.querySelector('.zen-ring-container');
+  if (zenTimerRing) {
+    zenTimerRing.style.cursor = 'pointer';
+    zenTimerRing.addEventListener('click', (e) => {
+      if (!e.target.closest('#zenSubjectWrapper') && !e.target.closest('.zen-controls-bar') && !e.target.closest('.zen-exit-btn')) {
+        e.stopPropagation();
+        toggleTimer();
+      }
+    });
+  }
+
+  // Full Screen mouse movement, touch & click activity listener to wake exit button
+  const zenOverlayEl = document.getElementById('zenTimerOverlay');
+  if (zenOverlayEl) {
+    ['mousemove', 'mousedown', 'touchstart', 'pointermove'].forEach(evt => {
+      zenOverlayEl.addEventListener(evt, () => {
+        wakeZenControls();
+      }, { passive: true });
+    });
+  }
 
   // Global keybindings
   document.addEventListener('keydown', (e) => {
@@ -2391,20 +2452,49 @@ function setupEventListeners() {
   });
 }
 
+let zenInactivityTimer = null;
+
+function wakeZenControls() {
+  const zenOverlay = document.getElementById('zenTimerOverlay');
+  if (!zenOverlay || !document.body.classList.contains('zen-mode-active')) return;
+
+  zenOverlay.classList.remove('zen-controls-faded');
+  if (zenInactivityTimer) {
+    clearTimeout(zenInactivityTimer);
+    zenInactivityTimer = null;
+  }
+
+  zenInactivityTimer = setTimeout(() => {
+    if (document.body.classList.contains('zen-mode-active')) {
+      zenOverlay.classList.add('zen-controls-faded');
+    }
+  }, 3000);
+}
+
+function clearZenInactivityTimer() {
+  if (zenInactivityTimer) {
+    clearTimeout(zenInactivityTimer);
+    zenInactivityTimer = null;
+  }
+  const zenOverlay = document.getElementById('zenTimerOverlay');
+  if (zenOverlay) zenOverlay.classList.remove('zen-controls-faded');
+}
+
 function openZenMode() {
   const zenOverlay = document.getElementById('zenTimerOverlay');
   if (!zenOverlay) return;
 
+  clearFocusAutohide();
   zenOverlay.classList.remove('hidden');
   document.body.classList.add('zen-mode-active');
-  document.body.style.overflow = 'hidden';
-  document.documentElement.style.overflow = 'hidden';
 
   updateTimerDisplay();
   updateTimerControlsUI();
   updateSelectedSubjectUI();
 
-  // Try native fullscreen if available
+  wakeZenControls();
+
+  // Try native fullscreen if available without breaking document layout
   if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
     document.documentElement.requestFullscreen().catch(() => {});
   }
@@ -2412,15 +2502,18 @@ function openZenMode() {
 }
 
 function closeZenMode() {
+  clearZenInactivityTimer();
   const zenOverlay = document.getElementById('zenTimerOverlay');
   if (zenOverlay) zenOverlay.classList.add('hidden');
 
   document.body.classList.remove('zen-mode-active');
-  document.body.style.overflow = '';
-  document.documentElement.style.overflow = '';
 
   if (document.fullscreenElement && document.exitFullscreen) {
     document.exitFullscreen().catch(() => {});
+  }
+
+  if (timerStatus === 'RUNNING' && currentWorkspaceView === 'timer') {
+    resetFocusAutohideTimer();
   }
 }
 
@@ -2457,6 +2550,7 @@ document.addEventListener('fullscreenchange', () => {
 });
 
 function switchMode(modeKey) {
+  if (!modeKey || !['pomodoro', 'stopwatch', 'break'].includes(modeKey)) return;
   stopInterval();
   continuousStudyElapsedSec = 0;
   dismissInactivityModal();
@@ -2479,7 +2573,7 @@ function switchMode(modeKey) {
   }
 
   // Synchronize top mode buttons
-  document.querySelectorAll('.mode-btn').forEach(btn => {
+  document.querySelectorAll('.mode-btn[data-mode]').forEach(btn => {
     if (btn.dataset.mode === modeKey) {
       btn.classList.add('active');
       btn.setAttribute('aria-selected', 'true');
@@ -2506,8 +2600,26 @@ function toggleTimer() {
 // ============================================================================
 
 let lastTickingSecPlayed = -1;
+let isAudioDucked = false;
 
-// Realistic gentle mechanical clock ticking sound for last 10 seconds of Pomodoro & Break
+// Audio Ducking: lowers background media to ~18% during last 10s countdown so clock ticking cuts through clearly
+function applyAudioDucking(duck) {
+  if (isAudioDucked === duck) return;
+  isAudioDucked = duck;
+
+  const targetVol = duck ? Math.max(8, Math.round(audioVolume * 0.18)) : audioVolume;
+
+  if (ytPlayerInstance && typeof ytPlayerInstance.setVolume === 'function') {
+    try {
+      ytPlayerInstance.setVolume(targetVol);
+    } catch (_) {}
+  }
+  if (typeof setWebAudioVolume === 'function') {
+    setWebAudioVolume(targetVol);
+  }
+}
+
+// Realistic soft mechanical clock ticking sound for last 10 seconds of Pomodoro & Break (Boosted volume, pure soft pitch)
 function playClockTickSound(secRemaining) {
   if (lastTickingSecPlayed === secRemaining) return;
   lastTickingSecPlayed = secRemaining;
@@ -2521,15 +2633,15 @@ function playClockTickSound(secRemaining) {
     const isTick = (secRemaining % 2 === 0);
     const now = ctx.currentTime;
 
-    // 1. Precise metallic strike tone (sine pulse)
+    // 1. Soft mechanical sine click (clean, pleasant tone)
     const osc = ctx.createOscillator();
     const oscGain = ctx.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(isTick ? 1760 : 1320, now);
-    osc.frequency.exponentialRampToValueAtTime(isTick ? 880 : 660, now + 0.025);
+    osc.frequency.setValueAtTime(isTick ? 880 : 660, now);
+    osc.frequency.exponentialRampToValueAtTime(isTick ? 440 : 330, now + 0.025);
 
     oscGain.gain.setValueAtTime(0.0001, now);
-    oscGain.gain.exponentialRampToValueAtTime(0.12, now + 0.003);
+    oscGain.gain.exponentialRampToValueAtTime(0.65, now + 0.002);
     oscGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.035);
 
     osc.connect(oscGain);
@@ -2537,8 +2649,8 @@ function playClockTickSound(secRemaining) {
     osc.start(now);
     osc.stop(now + 0.04);
 
-    // 2. Crisp escapement gear click (filtered noise burst)
-    const bufferSize = Math.floor(ctx.sampleRate * 0.02);
+    // 2. Soft mechanical gear click (filtered noise burst, crisp but gentle)
+    const bufferSize = Math.floor(ctx.sampleRate * 0.022);
     const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const output = noiseBuffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
@@ -2550,13 +2662,13 @@ function playClockTickSound(secRemaining) {
 
     const filter = ctx.createBiquadFilter();
     filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(isTick ? 3200 : 2400, now);
-    filter.Q.setValueAtTime(3.0, now);
+    filter.frequency.setValueAtTime(isTick ? 2800 : 2100, now);
+    filter.Q.setValueAtTime(2.6, now);
 
     const noiseGain = ctx.createGain();
     noiseGain.gain.setValueAtTime(0.0001, now);
-    noiseGain.gain.exponentialRampToValueAtTime(0.14, now + 0.002);
-    noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.025);
+    noiseGain.gain.exponentialRampToValueAtTime(0.70, now + 0.002);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.028);
 
     whiteNoise.connect(filter);
     filter.connect(noiseGain);
@@ -2567,7 +2679,7 @@ function playClockTickSound(secRemaining) {
 
     setTimeout(() => {
       try { ctx.close(); } catch (_) {}
-    }, 100);
+    }, 150);
   } catch (_) {}
 }
 
@@ -2650,7 +2762,7 @@ function initTimerWorker() {
 }
 
 function initBackgroundSyncListeners() {
-  // Seamless sync when returning from minimized window, locked screen, or other tabs
+  // Seamless sync and continuous background playback when returning from minimized window, locked screen, or other tabs
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       if (timerStatus === 'RUNNING') {
@@ -2658,10 +2770,17 @@ function initBackgroundSyncListeners() {
         requestWakeLock();
         if (timerWorker) timerWorker.postMessage('start');
       }
+      if (isAudioPlaying && ytPlayerInstance && typeof ytPlayerInstance.playVideo === 'function') {
+        try { ytPlayerInstance.playVideo(); } catch (_) {}
+      }
     } else {
       if (timerStatus === 'RUNNING' || timerStatus === 'PAUSED') {
         saveActiveSessionState();
         saveLocalState();
+      }
+      // When switching tabs or minimizing, ensure active stream keeps playing
+      if (isAudioPlaying && ytPlayerInstance && typeof ytPlayerInstance.playVideo === 'function') {
+        try { ytPlayerInstance.playVideo(); } catch (_) {}
       }
     }
   });
@@ -2670,11 +2789,17 @@ function initBackgroundSyncListeners() {
     if (timerStatus === 'RUNNING') {
       tickTimer();
     }
+    if (isAudioPlaying && ytPlayerInstance && typeof ytPlayerInstance.playVideo === 'function') {
+      try { ytPlayerInstance.playVideo(); } catch (_) {}
+    }
   });
 
   window.addEventListener('pageshow', () => {
     if (timerStatus === 'RUNNING') {
       tickTimer();
+    }
+    if (isAudioPlaying && ytPlayerInstance && typeof ytPlayerInstance.playVideo === 'function') {
+      try { ytPlayerInstance.playVideo(); } catch (_) {}
     }
   });
 
@@ -2745,8 +2870,15 @@ function releaseWakeLock() {
   }
 }
 
-// Persist active running session to localStorage for crash & tab-switch resilience
-function saveActiveSessionState() {
+// Persist active running session to localStorage for crash & tab-switch resilience (Throttled for high performance)
+let lastActiveSessionSaveTime = 0;
+function saveActiveSessionState(force = false) {
+  const now = Date.now();
+  if (!force && now - lastActiveSessionSaveTime < 2500) {
+    return; // Throttled to prevent unnecessary synchronous disk I/O on rapid worker ticks
+  }
+  lastActiveSessionSaveTime = now;
+
   if (timerStatus === 'RUNNING' || timerStatus === 'PAUSED') {
     const sessionSnapshot = {
       timerStatus,
@@ -2756,7 +2888,7 @@ function saveActiveSessionState() {
       timerStartTimestamp,
       accumulatedElapsedSec,
       selectedSubjectId: appState.selectedSubject?.id || 'general',
-      savedAt: Date.now()
+      savedAt: now
     };
     try {
       localStorage.setItem('studytimer_active_session', JSON.stringify(sessionSnapshot));
@@ -2852,10 +2984,14 @@ function tickTimer() {
     const totalSec = getModeDurationSec();
     timeRemaining = Math.max(0, totalSec - totalElapsedSec);
     if (currentMode !== 'stopwatch' && timeRemaining <= 10 && timeRemaining > 0) {
+      applyAudioDucking(true);
       playClockTickSound(timeRemaining);
+    } else if (isAudioDucked) {
+      applyAudioDucking(false);
     }
     if (timeRemaining === 0) {
       lastTickingSecPlayed = -1;
+      applyAudioDucking(false);
       finishSession(true);
       return;
     }
@@ -3028,6 +3164,67 @@ function confirmContinuousStudy() {
   showToast('Focus session confirmed! Keep going! 🚀', 'success');
 }
 
+// ============================================================================
+// FOCUS INACTIVITY AUTO-HIDE CONTROLLER (Smooth Inactivity Fade for Active Timer)
+// ============================================================================
+let focusAutohideTimer = null;
+const FOCUS_AUTOHIDE_DELAY_MS = 3000; // 3.0s inactivity delay while running
+let lastAutohidePointerX = 0;
+let lastAutohidePointerY = 0;
+
+function resetFocusAutohideTimer() {
+  if (focusAutohideTimer) {
+    clearTimeout(focusAutohideTimer);
+    focusAutohideTimer = null;
+  }
+  
+  if (document.body.classList.contains('focus-autohide')) {
+    document.body.classList.remove('focus-autohide');
+  }
+
+  // Only start inactivity timer if timer is running in Focus Studio view and not in Zen mode
+  if (timerStatus === 'RUNNING' && currentWorkspaceView === 'timer' && !document.body.classList.contains('zen-mode-active')) {
+    focusAutohideTimer = setTimeout(() => {
+      if (timerStatus === 'RUNNING' && currentWorkspaceView === 'timer' && !document.body.classList.contains('zen-mode-active')) {
+        document.body.classList.add('focus-autohide');
+      }
+    }, FOCUS_AUTOHIDE_DELAY_MS);
+  }
+}
+
+function clearFocusAutohide() {
+  if (focusAutohideTimer) {
+    clearTimeout(focusAutohideTimer);
+    focusAutohideTimer = null;
+  }
+  document.body.classList.remove('focus-autohide');
+}
+
+function initFocusAutohideListeners() {
+  const handlePointerWake = (e) => {
+    // Prevent micro-sensor jitter on mouse movements from repeatedly cancelling autohide countdown
+    if (e.type === 'mousemove' || e.type === 'pointermove') {
+      const dx = Math.abs(e.clientX - lastAutohidePointerX);
+      const dy = Math.abs(e.clientY - lastAutohidePointerY);
+      if (dx < 4 && dy < 4) return;
+      lastAutohidePointerX = e.clientX;
+      lastAutohidePointerY = e.clientY;
+    }
+    resetFocusAutohideTimer();
+  };
+
+  ['mousemove', 'pointermove', 'mousedown', 'touchstart', 'touchmove', 'keydown', 'scroll'].forEach(evt => {
+    window.addEventListener(evt, handlePointerWake, { passive: true });
+  });
+
+  // Clicking anywhere while UI is faded returns controls immediately
+  document.addEventListener('click', () => {
+    if (document.body.classList.contains('focus-autohide')) {
+      resetFocusAutohideTimer();
+    }
+  });
+}
+
 function startTimer() {
   timerStatus = 'RUNNING';
   timerStartTimestamp = Date.now();
@@ -3035,7 +3232,8 @@ function startTimer() {
 
   updateTimerControlsUI();
   requestWakeLock();
-  saveActiveSessionState();
+  saveActiveSessionState(true);
+  resetFocusAutohideTimer();
 
   if (currentMode !== 'break') {
     startPresenceHeartbeat();
@@ -3057,10 +3255,12 @@ function pauseTimer() {
   timerStatus = 'PAUSED';
   timerStartTimestamp = null;
   continuousStudyElapsedSec = 0;
+  applyAudioDucking(false);
+  clearFocusAutohide();
   dismissInactivityModal();
   stopPresenceHeartbeat();
   stopInterval();
-  saveActiveSessionState();
+  saveActiveSessionState(true);
   updateTimerControlsUI();
   updateTimerDisplay();
 }
@@ -3085,6 +3285,8 @@ async function handleUserResetTimer() {
 function resetTimer() {
   lastTickingSecPlayed = -1;
   continuousStudyElapsedSec = 0;
+  applyAudioDucking(false);
+  clearFocusAutohide();
   dismissInactivityModal();
   stopPresenceHeartbeat();
   stopInterval();
@@ -3112,6 +3314,7 @@ function stopInterval() {
 }
 
 function finishSession(isAutoFinished = false) {
+  clearFocusAutohide();
   let currentElapsed = accumulatedElapsedSec;
   if (timerStatus === 'RUNNING' && timerStartTimestamp) {
     currentElapsed += Math.floor((Date.now() - timerStartTimestamp) / 1000);
@@ -3217,11 +3420,23 @@ function finishSession(isAutoFinished = false) {
   triggerSaveSuccessFeedback();
 
   if (stateKey === 'BREAK') {
+    const wasLongBreak = isLongBreakActive;
+    isLongBreakActive = false;
+
+    if (wasLongBreak) {
+      // The entire Pomodoro cycle of N sessions has completed!
+      pomoCurrentCycle = 1;
+      switchMode('pomodoro');
+      showToast('🏆 All Pomodoro sessions completed! Great job!', 'success');
+      sendSessionNotification('Pomodoro Goal Complete! 🏆', `Completed all ${timerConfig.pomoTotalCycles || 4} focus sessions.`);
+      // STOP completely: do not auto-start a new session!
+      return;
+    }
+
     showToast('Break finished! Ready to focus.', 'info');
 
     // Automation: Auto-switch back to Pomodoro focus mode after break and auto-start next session
     if (timerConfig.pomoAutoSwitchFocus !== false) {
-      isLongBreakActive = false;
       switchMode('pomodoro');
       const totalCycles = timerConfig.pomoTotalCycles || 4;
       showToast(`Starting Pomodoro Focus (Session ${pomoCurrentCycle}/${totalCycles})`, 'info');
@@ -3241,20 +3456,38 @@ function finishSession(isAutoFinished = false) {
       openSessionCompleteModal(subject, minStr);
     }
 
-    // Pomodoro Automation: Auto-switch to break and immediately start break
-    if (prevMode === 'pomodoro' && timerConfig.pomoAutoSwitchBreak !== false) {
+    // Pomodoro Automation: Handle session progression and break transition
+    if (prevMode === 'pomodoro') {
       const totalCycles = timerConfig.pomoTotalCycles || 4;
-      if (pomoCurrentCycle >= totalCycles) {
-        isLongBreakActive = true;
-        pomoCurrentCycle = 1;
-      } else {
-        isLongBreakActive = false;
-        pomoCurrentCycle++;
-      }
 
-      switchMode('break');
-      startTimer();
-      showToast(isLongBreakActive ? 'Starting Long Break ☕' : 'Starting Short Break ☕', 'info');
+      if (pomoCurrentCycle >= totalCycles) {
+        // Final focus session of the cycle completed!
+        if (timerConfig.pomoAutoSwitchBreak !== false) {
+          // Take the final long break, then stop completely once the break ends
+          isLongBreakActive = true;
+          switchMode('break');
+          startTimer();
+          showToast('Final session completed! Starting Long Break ☕', 'info');
+        } else {
+          // No break auto-switch: Complete cycle and stop completely in IDLE state
+          isLongBreakActive = false;
+          pomoCurrentCycle = 1;
+          switchMode('pomodoro');
+          showToast(`🏆 All ${totalCycles} Pomodoro sessions completed! Great job!`, 'success');
+          sendSessionNotification('Pomodoro Goal Complete! 🏆', `Completed all ${totalCycles} focus sessions.`);
+        }
+      } else {
+        // Intermediate session completed: advance to next session number and start break
+        pomoCurrentCycle++;
+        isLongBreakActive = false;
+        if (timerConfig.pomoAutoSwitchBreak !== false) {
+          switchMode('break');
+          startTimer();
+          showToast('Starting Short Break ☕', 'info');
+        } else {
+          switchMode('break');
+        }
+      }
     }
   }
 }
@@ -3282,10 +3515,10 @@ function triggerSaveSuccessFeedback() {
     `;
   }
 
-  // Reset to original state after 1 minute (60,000ms)
+  // Reset to original state after 1.8 seconds (1,800ms)
   saveFeedbackTimeout = setTimeout(() => {
     resetSaveButtonState();
-  }, 60000);
+  }, 1800);
 }
 
 function resetSaveButtonState() {
@@ -3451,6 +3684,29 @@ function updateTimerDisplay() {
     }
     zenStateBadge.textContent = zenText;
     zenStateBadge.style.color = 'var(--text-muted)';
+  }
+
+  // Pomodoro Session Count & Ratio Badge (e.g. Session 2/5  #50/10)
+  const sessionBadge = document.getElementById('timerSessionRatioBadge');
+  const zenSessionBadge = document.getElementById('zenSessionRatioBadge');
+  if (currentMode === 'pomodoro' || currentMode === 'break') {
+    const totalCycles = timerConfig.pomoTotalCycles || 4;
+    const curCycle = pomoCurrentCycle || 1;
+    const focusMin = timerConfig.pomoFocusMinutes || 25;
+    const breakMin = isLongBreakActive ? (timerConfig.pomoLongBreakMinutes || 15) : (timerConfig.pomoBreakMinutes || 5);
+    const badgeText = `Session ${curCycle}/${totalCycles}  #${focusMin}/${breakMin}`;
+
+    if (sessionBadge) {
+      sessionBadge.textContent = badgeText;
+      sessionBadge.classList.remove('hidden');
+    }
+    if (zenSessionBadge) {
+      zenSessionBadge.textContent = badgeText;
+      zenSessionBadge.classList.remove('hidden');
+    }
+  } else {
+    if (sessionBadge) sessionBadge.classList.add('hidden');
+    if (zenSessionBadge) zenSessionBadge.classList.add('hidden');
   }
 }
 
@@ -3811,6 +4067,13 @@ function switchWorkspaceView(viewKey) {
   // Close mobile drawer if open
   closeMobileSidebar();
 
+  // Coordinate running timer focus autohide state
+  if (viewKey === 'timer' && timerStatus === 'RUNNING') {
+    resetFocusAutohideTimer();
+  } else {
+    clearFocusAutohide();
+  }
+
   // Trigger render of view data
   if (viewKey === 'timer') {
     updateTimerDisplay();
@@ -3858,6 +4121,7 @@ function toggleSidebarCollapse() {
   }
   const sidebar = document.getElementById('appSidebar');
   if (!sidebar) return;
+  document.documentElement.classList.remove('sidebar-default-collapsed');
   const isCollapsed = sidebar.classList.toggle('collapsed');
   try {
     localStorage.setItem('studytimer_sidebar_collapsed', isCollapsed ? 'true' : 'false');
@@ -3874,6 +4138,7 @@ function initSidebarState() {
         sidebar.classList.add('collapsed');
       } else {
         sidebar.classList.remove('collapsed');
+        document.documentElement.classList.remove('sidebar-default-collapsed');
       }
     }
   } catch (_) {}
@@ -7373,32 +7638,43 @@ async function handleSaveTimerSettings(e) {
     if (!confirmed) return;
   }
 
-  const pomoFocus = parseInt(document.getElementById('pomoFocusInput')?.value, 10) || 25;
-  const pomoBreak = parseInt(document.getElementById('pomoBreakInput')?.value, 10) || 5;
-  const pomoLongBreak = parseInt(document.getElementById('pomoLongBreakInput')?.value, 10) || 15;
-  const pomoTotalCycles = parseInt(document.getElementById('pomoTotalCyclesInput')?.value, 10) || 4;
+  const pomoFocusVal = parseInt(document.getElementById('pomoFocusInput')?.value, 10);
+  const pomoBreakVal = parseInt(document.getElementById('pomoBreakInput')?.value, 10);
+  const pomoLongBreakVal = parseInt(document.getElementById('pomoLongBreakInput')?.value, 10);
+  const pomoTotalCyclesVal = parseInt(document.getElementById('pomoTotalCyclesInput')?.value, 10);
   const pomoAutoSwitchBreak = document.getElementById('pomoAutoSwitchBreak')?.checked !== false;
   const pomoAutoSwitchFocus = document.getElementById('pomoAutoSwitchFocus')?.checked !== false;
   const rainbowRing = document.getElementById('checkRainbowRing')?.checked !== false;
   const enableSubjects = document.getElementById('checkEnableSubjects')?.checked === true;
-  const dailyGoal = parseInt(document.getElementById('dailyTargetGoalInput')?.value, 10) || 120;
+  const dailyGoalVal = parseInt(document.getElementById('dailyTargetGoalInput')?.value, 10);
 
-  timerConfig.pomoFocusMinutes = Math.max(1, Math.min(180, pomoFocus));
-  timerConfig.pomoBreakMinutes = Math.max(1, Math.min(60, pomoBreak));
-  timerConfig.pomoLongBreakMinutes = Math.max(1, Math.min(120, pomoLongBreak));
-  timerConfig.pomoTotalCycles = Math.max(1, Math.min(12, pomoTotalCycles));
+  timerConfig.pomoFocusMinutes = Math.max(1, Math.min(180, !isNaN(pomoFocusVal) ? pomoFocusVal : 25));
+  timerConfig.pomoBreakMinutes = Math.max(1, Math.min(60, !isNaN(pomoBreakVal) ? pomoBreakVal : 5));
+  timerConfig.pomoLongBreakMinutes = Math.max(1, Math.min(120, !isNaN(pomoLongBreakVal) ? pomoLongBreakVal : 15));
+  timerConfig.pomoTotalCycles = Math.max(1, Math.min(12, !isNaN(pomoTotalCyclesVal) ? pomoTotalCyclesVal : 4));
   timerConfig.pomoAutoSwitchBreak = pomoAutoSwitchBreak;
   timerConfig.pomoAutoSwitchFocus = pomoAutoSwitchFocus;
   timerConfig.rainbowRing = rainbowRing;
   timerConfig.enableSubjects = enableSubjects;
-  timerConfig.dailyGoalMinutes = Math.max(15, Math.min(1440, dailyGoal));
+  timerConfig.dailyGoalMinutes = Math.max(15, Math.min(1440, !isNaN(dailyGoalVal) ? dailyGoalVal : 120));
+
+  // Reset active session cycle state to start fresh with new timings
+  isLongBreakActive = false;
+  pomoCurrentCycle = 1;
+
+  // Persist locally immediately & clear stale active snapshots
+  saveLocalState();
+  clearActiveSessionState();
 
   closeTimerSettingsModal();
   updateSelectedSubjectUI();
   resetTimer();
   updateProgressAndStreak();
-  pushDataToCloud();
-  showToast('Timer preferences applied!', 'success');
+  updateTimerDisplay();
+
+  // Force push immediately to cloud so remote sync is 100% in sync
+  pushDataToCloud(true, true);
+  showToast('Timer preferences applied & saved!', 'success');
 }
 
 // Post-Session Subject Switch Modal
@@ -7758,24 +8034,22 @@ function showToast(message, type = 'info') {
 // 8. MOTIVATIONAL DAILY QUOTE ENGINE
 // ============================================================================
 const MOTIVATIONAL_QUOTES = [
-  "Small daily improvements over time lead to stunning results.",
-  "Focus on being productive instead of busy.",
-  "The secret of getting ahead is getting started.",
-  "Discipline is choosing between what you want now and what you want most.",
-  "Deep work is the superpower of the 21st century.",
-  "Action is the foundational key to all success.",
-  "You don't have to be extreme, just consistent.",
-  "Success is the sum of small efforts, repeated day in and day out.",
-  "It always seems impossible until it's done.",
-  "Your future is created by what you do today, not tomorrow.",
+  "Deep focus creates mastery.",
+  "Small daily steps, big results.",
   "Energy flows where attention goes.",
-  "Fall in love with the process and the results will come.",
-  "Don't wish it were easier, wish you were better.",
-  "Continuous learning is the minimum requirement for success in any field.",
-  "Push yourself, because no one else is going to do it for you.",
-  "Great things never come from comfort zones.",
+  "Stay consistent, stay focused.",
+  "Action cures hesitation.",
+  "Quiet the noise, find your flow.",
+  "Your time to build is now.",
+  "Discipline equals true freedom.",
+  "Fall in love with the process.",
+  "Great things take focused time.",
+  "Progress over perfection.",
   "Dream big. Start small. Act now.",
-  "Stay focused, go after your dreams, and keep moving toward your goals."
+  "One focused hour at a time.",
+  "Show up every single day.",
+  "Master your minutes, master your life.",
+  "Consistency is the secret code."
 ];
 
 function initQuoteManager() {
@@ -7786,6 +8060,8 @@ function initQuoteManager() {
   const mobileQuoteText = document.getElementById('mobileDailyQuoteText');
   const mobileNextBtn = document.getElementById('btnNextMobileQuote');
   const mobileQuoteContainer = document.getElementById('mobileDailyQuoteBanner');
+
+  const autohideQuoteText = document.getElementById('autohideQuoteText');
 
   let currentQuoteIndex = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
 
@@ -7817,6 +8093,11 @@ function initQuoteManager() {
         mobileQuoteContainer?.setAttribute('title', `${fullQuote} • Click for next quote`);
       }, 200);
     }
+
+    // Autohide focus quote banner
+    if (autohideQuoteText) {
+      autohideQuoteText.textContent = fullQuote;
+    }
   }
 
   function nextQuote() {
@@ -7832,6 +8113,9 @@ function initQuoteManager() {
   if (mobileQuoteText) {
     mobileQuoteText.textContent = initQuote;
     mobileQuoteContainer?.setAttribute('title', `${initQuote} • Click for next quote`);
+  }
+  if (autohideQuoteText) {
+    autohideQuoteText.textContent = initQuote;
   }
 
   nextBtn?.addEventListener('click', (e) => {
@@ -7902,7 +8186,7 @@ const AUDIO_PRESETS = {
 let activeAudioPresetKey = 'lofi';
 let isAudioPlaying = false;
 let currentAudioEngine = 'idle'; // 'youtube' | 'webaudio' | 'idle'
-let audioVolume = parseInt(localStorage.getItem('studytimer_audio_vol') || '60', 10);
+let audioVolume = parseInt(localStorage.getItem('studytimer_audio_vol') || '100', 10);
 let customYoutubeVideoId = localStorage.getItem('studytimer_custom_yt_id') || '';
 
 let ytPlayerInstance = null;
@@ -8071,14 +8355,14 @@ function clearAudioPlaybackWatchdog() {
   }
 }
 
-// Global Audio Engine State Poller (Ensures UI never stays in fake playing state)
+// Global Audio Engine State Poller (Ensures UI state matches audio and maintains continuous playback in background)
 if (typeof window !== 'undefined' && !window.__studyTimerAudioPollerInitialized) {
   window.__studyTimerAudioPollerInitialized = true;
   setInterval(() => {
     if (ytPlayerInstance && typeof ytPlayerInstance.getPlayerState === 'function') {
       try {
         const state = ytPlayerInstance.getPlayerState();
-        if (state === 1) {
+        if (state === 1) { // Playing
           if (!isAudioPlaying) {
             setAudioPlayingUI(true);
             currentAudioEngine = 'youtube';
@@ -8086,8 +8370,13 @@ if (typeof window !== 'undefined' && !window.__studyTimerAudioPollerInitialized)
           }
         } else if (state === 2 || state === 0 || state === 5 || state === -1) {
           if (isAudioPlaying) {
-            setAudioPlayingUI(false);
-            updateAudioEngineBadge('ready');
+            if (document.hidden) {
+              // When tab is in background, resume video stream without resetting state
+              try { ytPlayerInstance.playVideo(); } catch (_) {}
+            } else {
+              setAudioPlayingUI(false);
+              updateAudioEngineBadge('ready');
+            }
           }
         }
       } catch (_) {}
@@ -8112,8 +8401,12 @@ function initYouTubePlayerInstance(customVidId, autoPlay = false) {
       try {
         ytPlayerInstance.loadVideoById({
           videoId: targetVidId,
-          startSeconds: 0
+          startSeconds: 0,
+          suggestedQuality: 'small'
         });
+        if (typeof ytPlayerInstance.setPlaybackQuality === 'function') {
+          try { ytPlayerInstance.setPlaybackQuality('small'); } catch (_) {}
+        }
         ytPlayerInstance.unMute();
         ytPlayerInstance.setVolume(audioVolume);
         ytPlayerInstance.playVideo();
@@ -8126,7 +8419,8 @@ function initYouTubePlayerInstance(customVidId, autoPlay = false) {
       try {
         ytPlayerInstance.cueVideoById({
           videoId: targetVidId,
-          startSeconds: 0
+          startSeconds: 0,
+          suggestedQuality: 'small'
         });
       } catch (_) {}
     }
@@ -8162,6 +8456,7 @@ function initYouTubePlayerInstance(customVidId, autoPlay = false) {
       fs: 0,
       iv_load_policy: 3,
       loop: 1,
+      playlist: targetVidId,
       modestbranding: 1,
       playsinline: 1,
       rel: 0
@@ -8189,13 +8484,18 @@ function initYouTubePlayerInstance(customVidId, autoPlay = false) {
             }
           } catch (_) {}
           try {
+            if (typeof event.target.setPlaybackQuality === 'function') {
+              event.target.setPlaybackQuality('small');
+            }
+          } catch (_) {}
+          try {
             event.target.unMute();
             event.target.setVolume(audioVolume);
             const shouldPlay = pendingAutoPlay || isAudioPlaying;
             if (shouldPlay) {
               const toPlay = pendingPlayVideoId || targetVidId;
               if (toPlay !== targetVidId && typeof event.target.loadVideoById === 'function') {
-                event.target.loadVideoById({ videoId: toPlay, startSeconds: 0 });
+                event.target.loadVideoById({ videoId: toPlay, startSeconds: 0, suggestedQuality: 'small' });
               }
               event.target.playVideo();
               currentAudioEngine = 'youtube';
@@ -8208,19 +8508,39 @@ function initYouTubePlayerInstance(customVidId, autoPlay = false) {
         onStateChange: (event) => {
           if (!window.YT) return;
           if (event.data === window.YT.PlayerState.PLAYING) {
+            try {
+              if (typeof event.target.setPlaybackQuality === 'function') {
+                event.target.setPlaybackQuality('small');
+              }
+            } catch (_) {}
             setAudioPlayingUI(true);
             currentAudioEngine = 'youtube';
             updateAudioEngineBadge('youtube');
             isUserExplicitPlayAction = false;
             clearAudioPlaybackWatchdog();
           } else if (event.data === window.YT.PlayerState.BUFFERING) {
+            try {
+              if (typeof event.target.setPlaybackQuality === 'function') {
+                event.target.setPlaybackQuality('small');
+              }
+            } catch (_) {}
             updateAudioEngineBadge('buffering');
           } else if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.CUED || event.data === window.YT.PlayerState.UNSTARTED || event.data === window.YT.PlayerState.ENDED) {
             if (event.data === window.YT.PlayerState.ENDED) {
+              try {
+                if (typeof event.target.seekTo === 'function') {
+                  event.target.seekTo(0, true);
+                }
+                event.target.playVideo();
+              } catch (_) {}
+            } else if (document.hidden && isAudioPlaying) {
+              // Tab switch or browser minimize triggered background pause: resume immediately
               try { event.target.playVideo(); } catch (_) {}
             } else {
-              setAudioPlayingUI(false);
-              updateAudioEngineBadge('ready');
+              if (!document.hidden) {
+                setAudioPlayingUI(false);
+                updateAudioEngineBadge('ready');
+              }
             }
           }
         },
@@ -8270,6 +8590,56 @@ function initFocusAudio() {
       }
     });
   }
+
+  // Modern Glassmorphic Audio Preset Dropdown Logic
+  const customAudioBtn = document.getElementById('btnCustomAudioSelect');
+  const customAudioMenu = document.getElementById('customAudioMenu');
+  const closeAudioMenuBtn = document.getElementById('btnCloseAudioMenu');
+  const customAudioItems = document.querySelectorAll('.custom-audio-item');
+
+  function openAudioDropdown() {
+    customAudioMenu?.classList.remove('hidden');
+    customAudioBtn?.setAttribute('aria-expanded', 'true');
+  }
+
+  function closeAudioDropdown() {
+    customAudioMenu?.classList.add('hidden');
+    customAudioBtn?.setAttribute('aria-expanded', 'false');
+  }
+
+  customAudioBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (customAudioMenu?.classList.contains('hidden')) {
+      openAudioDropdown();
+    } else {
+      closeAudioDropdown();
+    }
+  });
+
+  closeAudioMenuBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeAudioDropdown();
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#customAudioDropdownWrap')) {
+      closeAudioDropdown();
+    }
+  });
+
+  customAudioItems.forEach(item => {
+    item.addEventListener('click', () => {
+      const val = item.getAttribute('data-value');
+      closeAudioDropdown();
+      if (val === 'custom') {
+        openCustomYoutubeModal();
+      } else {
+        switchAudioTrack(val);
+      }
+    });
+  });
+
+  updateCustomAudioSelectUI(activeAudioPresetKey);
 
   playBtn?.addEventListener('click', () => {
     initWebAudioContext();
@@ -8398,20 +8768,42 @@ function initDraggableAudioDock() {
   const collapseBtn = document.getElementById('btnAudioCollapse');
   if (!dock) return;
 
+  function resetDockToDefaultPosition() {
+    dock.style.left = '';
+    dock.style.top = '';
+    dock.style.bottom = '';
+    dock.style.right = '';
+    try {
+      localStorage.removeItem('studytimer_audio_dock_pos');
+    } catch (_) {}
+  }
+
   function clampDockPosition() {
     if (!dock.style.left && !dock.style.top) return;
 
     const rect = dock.getBoundingClientRect();
-    const dockW = dock.offsetWidth || rect.width || 200;
-    const dockH = dock.offsetHeight || rect.height || 44;
-    const maxX = Math.max(10, window.innerWidth - dockW - 12);
-    const maxY = Math.max(10, window.innerHeight - dockH - 12);
+    const dockW = rect.width > 0 ? rect.width : (dock.offsetWidth || 220);
+    const dockH = rect.height > 0 ? rect.height : (dock.offsetHeight || 44);
+    const isDesktop = window.innerWidth > 768;
+    const minX = isDesktop ? 88 : 12;
+    const maxX = Math.max(minX, window.innerWidth - dockW - 16);
+    const minY = 12;
+    const maxY = Math.max(minY, window.innerHeight - dockH - 16);
 
-    let currentLeft = parseFloat(dock.style.left) || rect.left;
-    let currentTop = parseFloat(dock.style.top) || rect.top;
+    let currentLeft = parseFloat(dock.style.left);
+    let currentTop = parseFloat(dock.style.top);
 
-    const clampedX = Math.max(10, Math.min(currentLeft, maxX));
-    const clampedY = Math.max(10, Math.min(currentTop, maxY));
+    if (isNaN(currentLeft)) currentLeft = rect.left;
+    if (isNaN(currentTop)) currentTop = rect.top;
+
+    // If positioned inside or over the sidebar on desktop, reset to default bottom-right
+    if (isDesktop && currentLeft < 84) {
+      resetDockToDefaultPosition();
+      return;
+    }
+
+    const clampedX = Math.max(minX, Math.min(currentLeft, maxX));
+    const clampedY = Math.max(minY, Math.min(currentTop, maxY));
 
     dock.style.left = `${clampedX}px`;
     dock.style.top = `${clampedY}px`;
@@ -8420,16 +8812,6 @@ function initDraggableAudioDock() {
 
     try {
       localStorage.setItem('studytimer_audio_dock_pos', JSON.stringify({ x: clampedX, y: clampedY }));
-    } catch (_) {}
-  }
-
-  function resetDockToDefaultPosition() {
-    dock.style.left = '';
-    dock.style.top = '';
-    dock.style.bottom = '';
-    dock.style.right = '';
-    try {
-      localStorage.removeItem('studytimer_audio_dock_pos');
     } catch (_) {}
   }
 
@@ -8450,31 +8832,43 @@ function initDraggableAudioDock() {
     }
   });
 
-  // Restore saved position ONLY if it is a genuine user-dragged position
+  // Restore saved position ONLY if it does not overlap the sidebar
   try {
     const rawPos = localStorage.getItem('studytimer_audio_dock_pos');
     if (rawPos) {
       const savedPos = JSON.parse(rawPos);
-      if (savedPos && typeof savedPos.x === 'number' && typeof savedPos.y === 'number') {
-        if (savedPos.x <= 80 && savedPos.y <= 80) {
-          resetDockToDefaultPosition();
-        } else {
-          const maxX = Math.max(10, window.innerWidth - (dock.offsetWidth || 300) - 12);
-          const maxY = Math.max(10, window.innerHeight - (dock.offsetHeight || 44) - 12);
-          const x = Math.max(10, Math.min(savedPos.x, maxX));
-          const y = Math.max(10, Math.min(savedPos.y, maxY));
-          dock.style.left = `${x}px`;
-          dock.style.top = `${y}px`;
-          dock.style.bottom = 'auto';
-          dock.style.right = 'auto';
-        }
-      }
-    }
-  } catch (_) {}
+      const isDesktop = window.innerWidth > 768;
+      const minX = isDesktop ? 88 : 12;
 
-  handle?.addEventListener('dblclick', (e) => {
-    e.stopPropagation();
+      if (savedPos && typeof savedPos.x === 'number' && typeof savedPos.y === 'number' && savedPos.x >= minX && savedPos.y >= 20) {
+        const rect = dock.getBoundingClientRect();
+        const dockW = rect.width > 0 ? rect.width : (dock.offsetWidth || 220);
+        const dockH = rect.height > 0 ? rect.height : (dock.offsetHeight || 44);
+        const maxX = Math.max(minX, window.innerWidth - dockW - 16);
+        const minY = 12;
+        const maxY = Math.max(minY, window.innerHeight - dockH - 16);
+
+        const x = Math.max(minX, Math.min(savedPos.x, maxX));
+        const y = Math.max(minY, Math.min(savedPos.y, maxY));
+        dock.style.left = `${x}px`;
+        dock.style.top = `${y}px`;
+        dock.style.bottom = 'auto';
+        dock.style.right = 'auto';
+      } else {
+        resetDockToDefaultPosition();
+      }
+    } else {
+      resetDockToDefaultPosition();
+    }
+  } catch (_) {
     resetDockToDefaultPosition();
+  }
+
+  // Double click anywhere on dock or drag handle to reset to bottom-right
+  dock.addEventListener('dblclick', (e) => {
+    if (e.target.closest('button, select, input, .custom-audio-menu')) return;
+    resetDockToDefaultPosition();
+    showToast('Media player repositioned to bottom-right 🎧', 'info');
   });
 
   window.addEventListener('resize', () => {
@@ -8483,16 +8877,18 @@ function initDraggableAudioDock() {
     }
   });
 
+  window.addEventListener('orientationchange', () => {
+    setTimeout(clampDockPosition, 100);
+  });
+
   let isDragging = false;
   let startX = 0;
   let startY = 0;
   let initialLeft = 0;
   let initialTop = 0;
 
-  const dragTarget = handle || dock;
-
   function onPointerDown(e) {
-    if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) {
+    if (e.target.closest('#btnCustomAudioSelect') || e.target.closest('#btnAudioPlayToggle') || e.target.closest('#btnAudioCollapse') || e.target.closest('.custom-audio-menu') || e.target.closest('.audio-volume-wrap') || e.target.closest('select') || e.target.closest('input')) {
       return;
     }
     isDragging = true;
@@ -8506,8 +8902,8 @@ function initDraggableAudioDock() {
     dock.style.transition = 'none';
 
     try {
-      if (e.pointerId && typeof dragTarget.setPointerCapture === 'function') {
-        dragTarget.setPointerCapture(e.pointerId);
+      if (e.pointerId && typeof dock.setPointerCapture === 'function') {
+        dock.setPointerCapture(e.pointerId);
       }
     } catch (_) {}
 
@@ -8525,11 +8921,17 @@ function initDraggableAudioDock() {
     let nextX = initialLeft + dx;
     let nextY = initialTop + dy;
 
-    const maxX = Math.max(10, window.innerWidth - (dock.offsetWidth || 200) - 12);
-    const maxY = Math.max(10, window.innerHeight - (dock.offsetHeight || 44) - 12);
+    const rect = dock.getBoundingClientRect();
+    const dockW = rect.width > 0 ? rect.width : (dock.offsetWidth || 220);
+    const dockH = rect.height > 0 ? rect.height : (dock.offsetHeight || 44);
+    const isDesktop = window.innerWidth > 768;
+    const minX = isDesktop ? 88 : 12;
+    const maxX = Math.max(minX, window.innerWidth - dockW - 16);
+    const minY = 12;
+    const maxY = Math.max(minY, window.innerHeight - dockH - 16);
 
-    nextX = Math.max(10, Math.min(nextX, maxX));
-    nextY = Math.max(10, Math.min(nextY, maxY));
+    nextX = Math.max(minX, Math.min(nextX, maxX));
+    nextY = Math.max(minY, Math.min(nextY, maxY));
 
     dock.style.left = `${nextX}px`;
     dock.style.top = `${nextY}px`;
@@ -8558,8 +8960,8 @@ function initDraggableAudioDock() {
     isDragging = false;
     dock.style.transition = '';
     try {
-      if (e && e.pointerId && typeof dragTarget.releasePointerCapture === 'function') {
-        dragTarget.releasePointerCapture(e.pointerId);
+      if (e && e.pointerId && typeof dock.releasePointerCapture === 'function') {
+        dock.releasePointerCapture(e.pointerId);
       }
     } catch (_) {}
     document.removeEventListener('pointermove', onPointerMove);
@@ -8571,14 +8973,44 @@ function initDraggableAudioDock() {
     clampDockPosition();
   }
 
-  dragTarget.addEventListener('pointerdown', onPointerDown);
-  dragTarget.addEventListener('touchstart', onPointerDown, { passive: true });
+  dock.addEventListener('pointerdown', onPointerDown);
+  dock.addEventListener('touchstart', onPointerDown, { passive: true });
+}
+
+function updateCustomAudioSelectUI(presetKey) {
+  const iconSpan = document.getElementById('customAudioSelectedIcon');
+  const labelSpan = document.getElementById('customAudioSelectedLabel');
+  const items = document.querySelectorAll('.custom-audio-item');
+  
+  const PRESET_DISPLAY = {
+    'lofi': { icon: '🎧', name: 'Lofi Chill' },
+    'minecraft': { icon: '⛏️', name: 'Minecraft Tracks' },
+    'piano': { icon: '🎹', name: 'Study Piano' },
+    'synthwave': { icon: '🌆', name: 'Synthwave Chill' },
+    'rain': { icon: '🌧️', name: 'Rain & Thunder' },
+    'cafe': { icon: '☕', name: 'Cozy Cafe' },
+    'alpha': { icon: '🧠', name: '432Hz Alpha' },
+    'classical': { icon: '🎻', name: 'Baroque Classical' },
+    'custom': { icon: '🔗', name: 'Custom Stream' }
+  };
+
+  const info = PRESET_DISPLAY[presetKey] || { icon: '🎧', name: 'Ambience' };
+  if (iconSpan) iconSpan.textContent = info.icon;
+  if (labelSpan) labelSpan.textContent = info.name;
+
+  items.forEach(it => {
+    const isSelected = it.getAttribute('data-value') === presetKey;
+    it.classList.toggle('active', isSelected);
+    it.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+  });
 }
 
 function switchAudioTrack(presetKey) {
   activeAudioPresetKey = presetKey;
   const select = document.getElementById('audioPresetSelect');
   if (select && select.value !== presetKey) select.value = presetKey;
+
+  updateCustomAudioSelectUI(presetKey);
 
   const trackName = document.getElementById('audioCurrentName');
   const preset = AUDIO_PRESETS[presetKey];
@@ -8702,17 +9134,19 @@ function stopCurrentAudio() {
 
 function setAudioVolume(vol) {
   const normVol = Math.max(0, Math.min(100, vol));
+  audioVolume = normVol;
+  const effectiveVol = isAudioDucked ? Math.max(8, Math.round(normVol * 0.18)) : normVol;
   if (ytPlayerInstance && typeof ytPlayerInstance.setVolume === 'function') {
     try {
-      ytPlayerInstance.setVolume(normVol);
-      if (normVol > 0) {
+      ytPlayerInstance.setVolume(effectiveVol);
+      if (effectiveVol > 0) {
         ytPlayerInstance.unMute();
       } else {
         ytPlayerInstance.mute();
       }
     } catch (_) {}
   }
-  setWebAudioVolume(normVol);
+  setWebAudioVolume(effectiveVol);
 }
 
 function startYouTubeEmbedPlayer(videoId) {
@@ -8725,13 +9159,17 @@ function startYouTubeEmbedPlayer(videoId) {
     try {
       ytPlayerInstance.loadVideoById({
         videoId: videoId,
-        startSeconds: 0
+        startSeconds: 0,
+        suggestedQuality: 'small'
       });
+      if (typeof ytPlayerInstance.setPlaybackQuality === 'function') {
+        try { ytPlayerInstance.setPlaybackQuality('small'); } catch (_) {}
+      }
       ytPlayerInstance.unMute();
       ytPlayerInstance.setVolume(audioVolume);
       ytPlayerInstance.playVideo();
-        currentAudioEngine = 'youtube';
-        updateAudioEngineBadge('buffering');
+      currentAudioEngine = 'youtube';
+      updateAudioEngineBadge('buffering');
       return;
     } catch (err) {
       console.warn('[Audio Engine] YT.Player loadVideoById failed:', err);

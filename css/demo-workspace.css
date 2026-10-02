@@ -1569,21 +1569,41 @@ body.focus-autohide .timer-mode-selector {
 }
 
 body.focus-autohide #btnResetTimer,
-body.focus-autohide #btnStudioZenTimer,
-body.focus-autohide #btnFinishSession {
+body.focus-autohide #btnStudioZenTimer {
   opacity: 0 !important;
   pointer-events: none !important;
   transition: opacity 0.4s ease;
 }
 
-body.focus-autohide .btn-timer-primary {
-  opacity: 1 !important;
+/* Very dim pause/resume and save session buttons during focus autohide */
+body.focus-autohide .btn-timer-primary,
+body.focus-autohide #btnToggleTimer {
+  opacity: 0.16 !important;
+  transform: scale(0.98);
   pointer-events: auto !important;
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s ease;
+}
+
+body.focus-autohide #btnFinishSession,
+body.focus-autohide .btn-finish-session {
+  opacity: 0.16 !important;
+  transform: scale(0.98);
+  pointer-events: auto !important;
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s ease;
 }
 
 body.focus-autohide .timer-secondary-actions {
   opacity: 1 !important;
   pointer-events: auto !important;
+}
+
+/* Hovering over timer controls area or buttons immediately brings them to 100% opacity */
+body.focus-autohide .timer-controls-area:hover .btn-timer-primary,
+body.focus-autohide .timer-controls-area:hover #btnFinishSession,
+body.focus-autohide .btn-timer-primary:hover,
+body.focus-autohide #btnFinishSession:hover {
+  opacity: 1 !important;
+  transform: scale(1);
 }
 
 body.focus-autohide .floating-audio-dock {
@@ -1826,12 +1846,43 @@ body.has-custom-bg .zen-timer-overlay,
   color: #000000;
 }
 
-/* Zen inactivity fade: Exit Fullscreen button fades out smoothly during focus */
+/* Zen inactivity fade: Exit Fullscreen button fades out, Pause/Resume & Save buttons become very dim */
 .zen-timer-overlay.zen-controls-faded .zen-exit-btn,
 body.zen-controls-faded .zen-exit-btn {
-  opacity: 0;
+  opacity: 0 !important;
   transform: translateY(-8px);
-  pointer-events: none;
+  pointer-events: none !important;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+/* Very dim pause/resume & save session buttons in Zen Fullscreen mode during inactivity */
+.zen-timer-overlay.zen-controls-faded .btn-zen-ctrl,
+.zen-timer-overlay.zen-controls-faded #btnZenToggle,
+body.zen-controls-faded .btn-zen-ctrl,
+body.zen-controls-faded #btnZenToggle {
+  opacity: 0.16 !important;
+  transform: scale(0.97);
+  pointer-events: auto !important;
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s ease, filter 0.45s ease;
+}
+
+.zen-timer-overlay.zen-controls-faded .btn-zen-save,
+.zen-timer-overlay.zen-controls-faded #btnZenSave,
+body.zen-controls-faded .btn-zen-save,
+body.zen-controls-faded #btnZenSave {
+  opacity: 0.16 !important;
+  transform: scale(0.97);
+  pointer-events: auto !important;
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s ease, filter 0.45s ease;
+}
+
+/* Direct hover over Zen controls bar or buttons immediately brings full normal opacity */
+.zen-timer-overlay.zen-controls-faded .zen-controls-bar:hover .btn-zen-ctrl,
+.zen-timer-overlay.zen-controls-faded .zen-controls-bar:hover .btn-zen-save,
+.zen-timer-overlay.zen-controls-faded .btn-zen-ctrl:hover,
+.zen-timer-overlay.zen-controls-faded .btn-zen-save:hover {
+  opacity: 1 !important;
+  transform: scale(1);
 }
 
 .zen-timer-canvas {
@@ -2841,4 +2892,398 @@ body.zen-controls-faded .zen-exit-btn {
     padding: 8px 11px !important;
     font-size: 0.76rem !important;
   }
+}
+
+
+/* ==========================================================================
+   ENHANCED MODERN SETTINGS UI & SLEEK SWITCHES
+   ========================================================================== */
+
+.modal-card-settings {
+  max-width: 540px !important;
+  width: 94vw !important;
+  max-height: 88vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  border-radius: 20px !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--border-subtle) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  animation: modalPopIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+
+.modal-card-settings .modal-header {
+  padding: 20px 24px 16px 24px !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  background: var(--bg-card) !important;
+}
+
+.modal-icon-settings {
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 12px !important;
+  background: rgba(99, 102, 241, 0.12) !important;
+  color: var(--accent-blue) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  border: 1px solid rgba(99, 102, 241, 0.2) !important;
+}
+
+.modal-icon-settings svg {
+  width: 22px !important;
+  height: 22px !important;
+}
+
+.modal-title-group {
+  flex: 1 !important;
+}
+
+.modal-title-group .modal-title {
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+  margin: 0 0 3px 0 !important;
+  color: var(--text-primary) !important;
+  letter-spacing: -0.01em !important;
+}
+
+.modal-title-group .modal-subtitle {
+  font-size: 0.8rem !important;
+  color: var(--text-muted) !important;
+  margin: 0 !important;
+  line-height: 1.35 !important;
+}
+
+.settings-modal-body {
+  padding: 20px 24px !important;
+  overflow-y: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+  background: var(--bg-page) !important;
+}
+
+/* Group Cards */
+.settings-group-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 14px !important;
+  padding: 16px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.settings-group-card:hover {
+  border-color: var(--border-focus) !important;
+}
+
+.settings-group-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 2px !important;
+}
+
+.settings-group-title {
+  font-size: 0.84rem !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+  letter-spacing: 0.01em !important;
+}
+
+.settings-group-tag {
+  font-size: 0.68rem !important;
+  font-weight: 600 !important;
+  padding: 2px 8px !important;
+  border-radius: 20px !important;
+  background: var(--bg-subtle) !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid var(--border-subtle) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+}
+
+/* Numeric Field Boxes */
+.settings-field-box {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+}
+
+.settings-field-box label {
+  font-size: 0.74rem !important;
+  font-weight: 600 !important;
+  color: var(--text-secondary) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+}
+
+.settings-input-with-unit {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.settings-input-with-unit input {
+  width: 100% !important;
+  padding: 9px 52px 9px 12px !important;
+  background: var(--bg-subtle) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 10px !important;
+  color: var(--text-primary) !important;
+  font-size: 0.95rem !important;
+  font-weight: 600 !important;
+  font-family: inherit !important;
+  outline: none !important;
+  transition: all 0.16s ease !important;
+  box-sizing: border-box !important;
+}
+
+.settings-input-with-unit input:focus {
+  border-color: var(--accent-blue) !important;
+  background: var(--bg-card) !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+}
+
+.input-unit-badge {
+  position: absolute !important;
+  right: 10px !important;
+  font-size: 0.74rem !important;
+  font-weight: 600 !important;
+  color: var(--text-muted) !important;
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+/* Sleek Modern Toggle Cards */
+.settings-toggles-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.settings-toggle-card {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+  padding: 10px 12px !important;
+  border-radius: 10px !important;
+  background: var(--bg-subtle) !important;
+  border: 1px solid transparent !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.settings-toggle-card:hover {
+  background: var(--bg-card-hover) !important;
+  border-color: var(--border-subtle) !important;
+  transform: translateY(-1px) !important;
+}
+
+.settings-toggle-card.highlight-toggle {
+  background: rgba(99, 102, 241, 0.05) !important;
+  border-color: rgba(99, 102, 241, 0.18) !important;
+}
+
+.settings-toggle-card.highlight-toggle:hover {
+  background: rgba(99, 102, 241, 0.09) !important;
+  border-color: var(--accent-blue) !important;
+}
+
+.toggle-info {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+}
+
+.toggle-title-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.toggle-icon {
+  font-size: 0.95rem !important;
+}
+
+.toggle-title {
+  font-size: 0.84rem !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+}
+
+.toggle-desc {
+  font-size: 0.74rem !important;
+  color: var(--text-muted) !important;
+  margin: 0 !important;
+  line-height: 1.35 !important;
+}
+
+/* Modern Sliding Switch Pill */
+.modern-switch {
+  position: relative !important;
+  display: inline-block !important;
+  width: 44px !important;
+  height: 24px !important;
+  flex-shrink: 0 !important;
+}
+
+.modern-switch input {
+  opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  position: absolute !important;
+}
+
+.switch-slider {
+  position: absolute !important;
+  cursor: pointer !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background-color: var(--border-subtle) !important;
+  transition: 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  border-radius: 24px !important;
+  border: 1px solid var(--border-subtle) !important;
+}
+
+.switch-slider:before {
+  position: absolute !important;
+  content: "" !important;
+  height: 18px !important;
+  width: 18px !important;
+  left: 2px !important;
+  bottom: 2px !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25) !important;
+  transition: 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  border-radius: 50% !important;
+}
+
+.modern-switch input:checked + .switch-slider {
+  background-color: var(--accent-blue) !important;
+  border-color: var(--accent-blue) !important;
+}
+
+.modern-switch input:checked + .switch-slider:before {
+  transform: translateX(20px) !important;
+  background-color: #ffffff !important;
+}
+
+.modern-switch input:focus-visible + .switch-slider {
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3) !important;
+}
+
+/* Quick Chips */
+.settings-quick-chips-row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+  margin-top: 4px !important;
+}
+
+.settings-quick-chip {
+  padding: 5px 11px !important;
+  border-radius: 20px !important;
+  background: var(--bg-subtle) !important;
+  border: 1px solid var(--border-subtle) !important;
+  color: var(--text-secondary) !important;
+  font-size: 0.76rem !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  transition: all 0.16s ease !important;
+}
+
+.settings-quick-chip:hover {
+  background: var(--bg-card-hover) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-focus) !important;
+  transform: translateY(-1px) !important;
+}
+
+.settings-quick-chip:active {
+  transform: scale(0.96) !important;
+}
+
+/* Settings Actions Footer */
+.settings-actions-footer {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 10px !important;
+  margin-top: 4px !important;
+  padding-top: 4px !important;
+}
+
+.btn-settings-reset {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 10px 16px !important;
+  border-radius: 10px !important;
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  background: var(--bg-subtle) !important;
+  border: 1px solid var(--border-subtle) !important;
+  color: var(--text-secondary) !important;
+  cursor: pointer !important;
+  transition: all 0.16s ease !important;
+}
+
+.btn-settings-reset svg {
+  width: 15px !important;
+  height: 15px !important;
+}
+
+.btn-settings-reset:hover {
+  background: var(--bg-card-hover) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-focus) !important;
+}
+
+.btn-settings-save {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  padding: 10px 22px !important;
+  border-radius: 10px !important;
+  font-size: 0.88rem !important;
+  font-weight: 700 !important;
+  background: var(--accent-blue) !important;
+  color: #ffffff !important;
+  border: none !important;
+  cursor: pointer !important;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35) !important;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.btn-settings-save svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.btn-settings-save:hover {
+  filter: brightness(1.1) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.45) !important;
+}
+
+.btn-settings-save:active {
+  transform: scale(0.97) !important;
 }

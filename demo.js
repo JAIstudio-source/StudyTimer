@@ -138,6 +138,8 @@ let defaultPageTitle = (typeof document !== 'undefined' && document.title) ? doc
 const CONTINUOUS_STUDY_LIMIT_SEC = 12600; // 3.5 hours uninterrupted limit
 const INACTIVITY_CHECK_WINDOW_SEC = 300; // 5 minutes confirmation window
 const MAX_DAILY_LEADERBOARD_SECONDS = 57600; // 16 hours daily hard cap
+let continuousStudyAccumulatedSec = 0;
+let continuousStudyStartTimestamp = null;
 let continuousStudyElapsedSec = 0;
 let inactivityCheckPending = false;
 let inactivityPromptTimestamp = 0;
@@ -2237,6 +2239,44 @@ function setupEventListeners() {
   });
   document.getElementById('timerSettingsForm')?.addEventListener('submit', handleSaveTimerSettings);
 
+  // Settings Quick Goal Chips
+  document.querySelectorAll('.settings-quick-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const goalMin = parseInt(chip.dataset.goal, 10);
+      const goalInput = document.getElementById('dailyTargetGoalInput');
+      if (goalInput && !isNaN(goalMin)) {
+        goalInput.value = goalMin;
+      }
+    });
+  });
+
+  // Reset Timer Settings to Defaults Button
+  document.getElementById('btnResetTimerDefaults')?.addEventListener('click', () => {
+    const pomoFocusInput = document.getElementById('pomoFocusInput');
+    const pomoBreakInput = document.getElementById('pomoBreakInput');
+    const pomoLongBreakInput = document.getElementById('pomoLongBreakInput');
+    const pomoTotalCyclesInput = document.getElementById('pomoTotalCyclesInput');
+    const pomoEnableLongBreak = document.getElementById('pomoEnableLongBreak');
+    const pomoAutoSwitchBreak = document.getElementById('pomoAutoSwitchBreak');
+    const pomoAutoSwitchFocus = document.getElementById('pomoAutoSwitchFocus');
+    const checkRainbowRing = document.getElementById('checkRainbowRing');
+    const checkEnableSubjects = document.getElementById('checkEnableSubjects');
+    const dailyGoalInput = document.getElementById('dailyTargetGoalInput');
+
+    if (pomoFocusInput) pomoFocusInput.value = 25;
+    if (pomoBreakInput) pomoBreakInput.value = 5;
+    if (pomoLongBreakInput) pomoLongBreakInput.value = 15;
+    if (pomoTotalCyclesInput) pomoTotalCyclesInput.value = 4;
+    if (pomoEnableLongBreak) pomoEnableLongBreak.checked = true;
+    if (pomoAutoSwitchBreak) pomoAutoSwitchBreak.checked = true;
+    if (pomoAutoSwitchFocus) pomoAutoSwitchFocus.checked = true;
+    if (checkRainbowRing) checkRainbowRing.checked = true;
+    if (checkEnableSubjects) checkEnableSubjects.checked = false;
+    if (dailyGoalInput) dailyGoalInput.value = 120;
+
+    showToast('Preferences reset to default values', 'info');
+  });
+
   // Presets in Settings Modal
   document.querySelectorAll('.settings-chip').forEach(chip => {
     chip.addEventListener('click', () => {
@@ -2552,6 +2592,8 @@ document.addEventListener('fullscreenchange', () => {
 function switchMode(modeKey) {
   if (!modeKey || !['pomodoro', 'stopwatch', 'break'].includes(modeKey)) return;
   stopInterval();
+  continuousStudyAccumulatedSec = 0;
+  continuousStudyStartTimestamp = null;
   continuousStudyElapsedSec = 0;
   dismissInactivityModal();
   if (modeKey === 'pomodoro' || modeKey === 'stopwatch') {
@@ -2738,7 +2780,7 @@ function initTimerWorker() {
           if (interval) clearInterval(interval);
           interval = setInterval(() => {
             self.postMessage('tick');
-          }, 200);
+          }, 500);
         } else if (e.data === 'stop') {
           if (interval) {
             clearInterval(interval);
@@ -2764,6 +2806,7 @@ function initTimerWorker() {
 function initBackgroundSyncListeners() {
   // Seamless sync and continuous background playback when returning from minimized window, locked screen, or other tabs
   document.addEventListener('visibilitychange', () => {
+    const bgVideo = document.getElementById('studioBgVideo');
     if (document.visibilityState === 'visible') {
       if (timerStatus === 'RUNNING') {
         tickTimer();
@@ -2773,6 +2816,9 @@ function initBackgroundSyncListeners() {
       if (isAudioPlaying && ytPlayerInstance && typeof ytPlayerInstance.playVideo === 'function') {
         try { ytPlayerInstance.playVideo(); } catch (_) {}
       }
+      if (bgVideo && !bgVideo.classList.contains('hidden') && bgVideo.src) {
+        bgVideo.play().catch(() => {});
+      }
     } else {
       if (timerStatus === 'RUNNING' || timerStatus === 'PAUSED') {
         saveActiveSessionState();
@@ -2781,6 +2827,9 @@ function initBackgroundSyncListeners() {
       // When switching tabs or minimizing, ensure active stream keeps playing
       if (isAudioPlaying && ytPlayerInstance && typeof ytPlayerInstance.playVideo === 'function') {
         try { ytPlayerInstance.playVideo(); } catch (_) {}
+      }
+      if (bgVideo && !bgVideo.classList.contains('hidden')) {
+        try { bgVideo.pause(); } catch (_) {}
       }
     }
   });
@@ -2887,6 +2936,9 @@ function saveActiveSessionState(force = false) {
       isLongBreakActive,
       timerStartTimestamp,
       accumulatedElapsedSec,
+      continuousStudyAccumulatedSec,
+      continuousStudyStartTimestamp,
+      lastAutoSavedMinute,
       selectedSubjectId: appState.selectedSubject?.id || 'general',
       savedAt: now
     };
@@ -2920,9 +2972,17 @@ function restoreActiveSessionIfAny() {
       if (foundSub) appState.selectedSubject = foundSub;
     }
 
+    if (session.continuousStudyAccumulatedSec !== undefined) {
+      continuousStudyAccumulatedSec = session.continuousStudyAccumulatedSec || 0;
+    }
+    if (session.continuousStudyStartTimestamp) {
+      continuousStudyStartTimestamp = session.continuousStudyStartTimestamp;
+    }
+
     if (session.timerStatus === 'PAUSED') {
       timerStatus = 'PAUSED';
       accumulatedElapsedSec = session.accumulatedElapsedSec || 0;
+      lastAutoSavedMinute = session.lastAutoSavedMinute !== undefined ? session.lastAutoSavedMinute : Math.floor(accumulatedElapsedSec / 60);
       timerStartTimestamp = null;
       if (currentMode === 'stopwatch') {
         stopwatchElapsed = accumulatedElapsedSec;
@@ -2938,6 +2998,7 @@ function restoreActiveSessionIfAny() {
       const elapsedSinceStart = Math.floor((now - session.timerStartTimestamp) / 1000);
       const totalElapsed = (session.accumulatedElapsedSec || 0) + elapsedSinceStart;
       const totalSec = getModeDurationSec();
+      lastAutoSavedMinute = session.lastAutoSavedMinute !== undefined ? session.lastAutoSavedMinute : Math.floor(totalElapsed / 60);
 
       if (currentMode !== 'stopwatch' && totalElapsed >= totalSec && totalSec > 0) {
         // Session finished while tab/browser was away
@@ -2958,9 +3019,12 @@ function restoreActiveSessionIfAny() {
         updateTimerControlsUI();
         updateTimerDisplay();
         requestWakeLock();
-        if (timerWorker) timerWorker.postMessage('start');
-        if (timerInterval) clearInterval(timerInterval);
-        timerInterval = setInterval(tickTimer, 200);
+        if (timerWorker) {
+          timerWorker.postMessage('start');
+        } else {
+          if (timerInterval) clearInterval(timerInterval);
+          timerInterval = setInterval(tickTimer, 500);
+        }
         return true;
       }
     }
@@ -2999,13 +3063,18 @@ function tickTimer() {
   updateTimerDisplay();
   saveActiveSessionState();
 
-  // Anti-Cheat: Track continuous uninterrupted study & trigger 3.5h check-in prompt
+  // Anti-Cheat: Track continuous uninterrupted study & trigger 3.5h check-in prompt (Accurate wall-clock time)
   if (currentMode !== 'break') {
-    continuousStudyElapsedSec = (continuousStudyElapsedSec || 0) + 1;
+    if (!continuousStudyStartTimestamp) {
+      continuousStudyStartTimestamp = now;
+    }
+    const currentContinuousElapsed = (continuousStudyAccumulatedSec || 0) + Math.floor((now - continuousStudyStartTimestamp) / 1000);
+    continuousStudyElapsedSec = currentContinuousElapsed;
+
     if (!inactivityCheckPending && continuousStudyElapsedSec >= CONTINUOUS_STUDY_LIMIT_SEC) {
       triggerInactivityCheck();
     }
-    if (inactivityCheckPending && (Date.now() - inactivityPromptTimestamp >= INACTIVITY_CHECK_WINDOW_SEC * 1000)) {
+    if (inactivityCheckPending && (now - inactivityPromptTimestamp >= INACTIVITY_CHECK_WINDOW_SEC * 1000)) {
       pauseTimer();
       dismissInactivityModal();
       showToast('Timer auto-paused after 3.5h continuous session without check-in.', 'warning');
@@ -3013,28 +3082,30 @@ function tickTimer() {
     }
   }
 
-  // Minute-by-Minute Auto-Save (Saves locally & syncs to cloud every 60s for logged-in user)
+  // Minute-by-Minute Auto-Save (Saves locally & syncs to cloud every 60s for logged-in user, resilient to multi-minute background wakes)
   const currentMinute = Math.floor(totalElapsedSec / 60);
   if (currentMinute > lastAutoSavedMinute && currentMinute > 0) {
+    const deltaMinutes = currentMinute - lastAutoSavedMinute;
+    const deltaSec = deltaMinutes * 60;
     lastAutoSavedMinute = currentMinute;
     if (currentMode !== 'break') {
       const todayKey = getLocalDateStr();
-      appState.dailyFocusTotals[todayKey] = (appState.dailyFocusTotals[todayKey] || 0) + 60;
+      appState.dailyFocusTotals[todayKey] = (appState.dailyFocusTotals[todayKey] || 0) + deltaSec;
 
       const subId = appState.selectedSubject?.id || 'general';
-      appState.subjectDurations[subId] = (appState.subjectDurations[subId] || 0) + 60;
+      appState.subjectDurations[subId] = (appState.subjectDurations[subId] || 0) + deltaSec;
 
       if (!appState.dailySubjectDurations[todayKey]) {
         appState.dailySubjectDurations[todayKey] = {};
       }
-      appState.dailySubjectDurations[todayKey][subId] = (appState.dailySubjectDurations[todayKey][subId] || 0) + 60;
+      appState.dailySubjectDurations[todayKey][subId] = (appState.dailySubjectDurations[todayKey][subId] || 0) + deltaSec;
 
       saveLocalState();
 
       // If user is logged in, auto-save to cloud & leaderboard progress
       if (appState.currentUser && supabaseClient && navigator.onLine) {
         pushDataToCloud(true);
-        syncStudyProgressToLeaderboard(60);
+        syncStudyProgressToLeaderboard(deltaSec);
 
         const syncStatusPill = document.getElementById('syncStatusPill');
         const syncStatusText = document.getElementById('syncStatusText');
@@ -3060,18 +3131,25 @@ function triggerInactivityCheck() {
   inactivityPromptTimestamp = Date.now();
 
   try {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
-    osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.15);
-    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.5);
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) {
+      const audioCtx = new AudioCtx();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+      osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.5);
+      setTimeout(() => {
+        try { audioCtx.close(); } catch (_) {}
+      }, 700);
+    }
   } catch (e) {}
 
   if ('Notification' in window && Notification.permission === 'granted') {
@@ -3158,6 +3236,8 @@ function dismissInactivityModal() {
 }
 
 function confirmContinuousStudy() {
+  continuousStudyAccumulatedSec = 0;
+  continuousStudyStartTimestamp = Date.now();
   continuousStudyElapsedSec = 0;
   inactivityCheckPending = false;
   dismissInactivityModal();
@@ -3228,6 +3308,11 @@ function initFocusAutohideListeners() {
 function startTimer() {
   timerStatus = 'RUNNING';
   timerStartTimestamp = Date.now();
+  if (currentMode !== 'break') {
+    if (!continuousStudyStartTimestamp) {
+      continuousStudyStartTimestamp = Date.now();
+    }
+  }
   lastAutoSavedMinute = Math.floor(accumulatedElapsedSec / 60);
 
   updateTimerControlsUI();
@@ -3241,10 +3326,10 @@ function startTimer() {
 
   if (timerWorker) {
     timerWorker.postMessage('start');
+  } else {
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(tickTimer, 500);
   }
-
-  if (timerInterval) clearInterval(timerInterval);
-  timerInterval = setInterval(tickTimer, 500);
 }
 
 function pauseTimer() {
@@ -3252,9 +3337,14 @@ function pauseTimer() {
     const elapsedSinceResume = Math.floor((Date.now() - timerStartTimestamp) / 1000);
     accumulatedElapsedSec += elapsedSinceResume;
   }
+  if (continuousStudyStartTimestamp) {
+    const continuousElapsed = Math.floor((Date.now() - continuousStudyStartTimestamp) / 1000);
+    continuousStudyAccumulatedSec += continuousElapsed;
+    continuousStudyStartTimestamp = null;
+  }
   timerStatus = 'PAUSED';
   timerStartTimestamp = null;
-  continuousStudyElapsedSec = 0;
+  continuousStudyElapsedSec = continuousStudyAccumulatedSec;
   applyAudioDucking(false);
   clearFocusAutohide();
   dismissInactivityModal();
@@ -3284,6 +3374,8 @@ async function handleUserResetTimer() {
 
 function resetTimer() {
   lastTickingSecPlayed = -1;
+  continuousStudyAccumulatedSec = 0;
+  continuousStudyStartTimestamp = null;
   continuousStudyElapsedSec = 0;
   applyAudioDucking(false);
   clearFocusAutohide();
@@ -3345,97 +3437,30 @@ function finishSession(isAutoFinished = false) {
   // Sound chime & trigger system notification
   playAlarmChime();
   if (stateKey === 'BREAK') {
-    sendSessionNotification('Break Complete! ⚡', 'Ready for your next focus study session.');
-  } else {
-    const minCount = Math.max(1, Math.round(studiedDurationSec / 60));
-    sendSessionNotification(`Focus Complete! 🎉 (+${minCount}m)`, `Great job studying ${subject?.name || 'Subject'}. Time for a break!`);
-  }
-
-  if (stateKey !== 'BREAK') {
-    const todayKey = getLocalDateStr();
-    // Add any remaining seconds that were not auto-saved on the minute tick
-    const autoSavedSec = (lastAutoSavedMinute || 0) * 60;
-    const remainderSec = Math.max(0, studiedDurationSec - autoSavedSec);
-    if (remainderSec > 0) {
-      appState.dailyFocusTotals[todayKey] = (appState.dailyFocusTotals[todayKey] || 0) + remainderSec;
-      const subId = subject.id || 'general';
-      appState.subjectDurations[subId] = (appState.subjectDurations[subId] || 0) + remainderSec;
-      if (!appState.dailySubjectDurations[todayKey]) {
-        appState.dailySubjectDurations[todayKey] = {};
-      }
-      appState.dailySubjectDurations[todayKey][subId] = (appState.dailySubjectDurations[todayKey][subId] || 0) + remainderSec;
-    }
-
-    const startEntry = {
-      t: startMs,
-      s: stateKey,
-      subId: subject.id,
-      subName: subject.name,
-      subColor: subject.color,
-      durationSec: studiedDurationSec,
-      endT: now
-    };
-    const idleEntry = {
-      t: now,
-      s: 'IDLE'
-    };
-
-    appState.timelineEntries.push(startEntry, idleEntry);
-
-    const newSession = {
-      id: 'sess_' + Date.now(),
-      subject: { ...subject },
-      durationSec: studiedDurationSec,
-      startTime: startMs,
-      endTime: now,
-      timestamp: startMs,
-      mode: modeLabel
-    };
-
-    appState.todaySessions.unshift(newSession);
-
-    // Update Streak
-    checkAndUpdateStreak();
-  }
-
-  clearActiveSessionState();
-  resetTimer();
-  updateProgressAndStreak();
-  renderSubjectDonutChart();
-  renderActivityHeatmap();
-  renderMonthlyCalendar();
-  renderPlannerGoals();
-  saveLocalState();
-
-  // Log to Supabase Cloud Leaderboard & sync
-  if (stateKey !== 'BREAK' && studiedDurationSec >= 10) {
-    logSessionToLeaderboard(studiedDurationSec, subject);
-  }
-
-  // Push to cloud database whenever session is at least 10s and not a break
-  if (stateKey !== 'BREAK' && studiedDurationSec >= 10) {
-    pushDataToCloud();
-  }
-
-  triggerSaveSuccessFeedback();
-
-  if (stateKey === 'BREAK') {
     const wasLongBreak = isLongBreakActive;
     isLongBreakActive = false;
 
     if (wasLongBreak) {
-      // The entire Pomodoro cycle of N sessions has completed!
+      // The Long Break has completed!
+      // Reset cycle count to start a brand new cycle
       pomoCurrentCycle = 1;
       switchMode('pomodoro');
-      showToast('🏆 All Pomodoro sessions completed! Great job!', 'success');
-      sendSessionNotification('Pomodoro Goal Complete! 🏆', `Completed all ${timerConfig.pomoTotalCycles || 4} focus sessions.`);
-      // STOP completely: do not auto-start a new session!
+      const totalCycles = timerConfig.pomoTotalCycles || 4;
+      
+      showToast('☕ Long break finished! Ready for next cycle.', 'info');
+      sendSessionNotification('Long Break Complete! ⚡', 'Ready to start a fresh Pomodoro cycle.');
+
+      // If continuous cycling is on and auto-switch focus is enabled, keep going and start the new session!
+      if (timerConfig.pomoAutoSwitchFocus !== false) {
+        showToast(`🚀 Starting new Pomodoro cycle (Session 1/${totalCycles})`, 'info');
+        startTimer();
+      }
       return;
     }
 
     showToast('Break finished! Ready to focus.', 'info');
 
-    // Automation: Auto-switch back to Pomodoro focus mode after break and auto-start next session
+    // Automation: Auto-switch back to Pomodoro focus mode after short break and auto-start next session
     if (timerConfig.pomoAutoSwitchFocus !== false) {
       switchMode('pomodoro');
       const totalCycles = timerConfig.pomoTotalCycles || 4;
@@ -3459,33 +3484,43 @@ function finishSession(isAutoFinished = false) {
     // Pomodoro Automation: Handle session progression and break transition
     if (prevMode === 'pomodoro') {
       const totalCycles = timerConfig.pomoTotalCycles || 4;
+      const isLongBreakEnabled = timerConfig.pomoEnableLongBreak === true;
 
       if (pomoCurrentCycle >= totalCycles) {
-        // Final focus session of the cycle completed!
-        if (timerConfig.pomoAutoSwitchBreak !== false) {
-          // Take the final long break, then stop completely once the break ends
+        // Final focus session of the entire cycle completed!
+        if (isLongBreakEnabled) {
+          // Setting is ON: Take the final long break, then loop into a fresh Pomodoro cycle after break
           isLongBreakActive = true;
-          switchMode('break');
-          startTimer();
-          showToast('Final session completed! Starting Long Break ☕', 'info');
+          if (timerConfig.pomoAutoSwitchBreak !== false) {
+            switchMode('break');
+            startTimer();
+            showToast('All sessions completed! Starting Long Break ☕', 'info');
+          } else {
+            switchMode('break');
+            showToast('All sessions completed! Ready for Long Break ☕', 'info');
+          }
         } else {
-          // No break auto-switch: Complete cycle and stop completely in IDLE state
+          // Setting is OFF: NO long break! The entire session completes and timer stops completely.
           isLongBreakActive = false;
           pomoCurrentCycle = 1;
+          stopInterval();
           switchMode('pomodoro');
-          showToast(`🏆 All ${totalCycles} Pomodoro sessions completed! Great job!`, 'success');
-          sendSessionNotification('Pomodoro Goal Complete! 🏆', `Completed all ${totalCycles} focus sessions.`);
+          resetTimer();
+          showToast(`🏆 All ${totalCycles} Pomodoro sessions completed! Focus goal finished.`, 'success');
+          sendSessionNotification('Pomodoro Goal Complete! 🏆', `Completed all ${totalCycles} focus sessions. Timer finished.`);
+          return;
         }
       } else {
-        // Intermediate session completed: advance to next session number and start break
+        // Intermediate session completed: advance to next session number and start short break
         pomoCurrentCycle++;
         isLongBreakActive = false;
         if (timerConfig.pomoAutoSwitchBreak !== false) {
           switchMode('break');
           startTimer();
-          showToast('Starting Short Break ☕', 'info');
+          showToast(`Starting Short Break ☕ (Next: Session ${pomoCurrentCycle}/${totalCycles})`, 'info');
         } else {
           switchMode('break');
+          showToast(`Short Break ready ☕ (Next: Session ${pomoCurrentCycle}/${totalCycles})`, 'info');
         }
       }
     }
@@ -6932,10 +6967,10 @@ function startPresenceHeartbeat() {
     clearInterval(presenceHeartbeatInterval);
   }
   syncStudyProgressToLeaderboard(0);
-  // Send single aggregated heartbeat and incremental sync every 60 seconds while timer is actively running
+  // Keep live study presence refreshed every 60 seconds without duplicating incremental second syncs
   presenceHeartbeatInterval = setInterval(() => {
     if (timerStatus === 'RUNNING' && currentMode !== 'break') {
-      syncStudyProgressToLeaderboard(60);
+      syncStudyProgressToLeaderboard(0);
     }
   }, 60000);
 }
@@ -7598,6 +7633,7 @@ function openTimerSettingsModal() {
   const pomoBreakInput = document.getElementById('pomoBreakInput');
   const pomoLongBreakInput = document.getElementById('pomoLongBreakInput');
   const pomoTotalCyclesInput = document.getElementById('pomoTotalCyclesInput');
+  const pomoEnableLongBreak = document.getElementById('pomoEnableLongBreak');
   const pomoAutoSwitchBreak = document.getElementById('pomoAutoSwitchBreak');
   const pomoAutoSwitchFocus = document.getElementById('pomoAutoSwitchFocus');
   const checkRainbowRing = document.getElementById('checkRainbowRing');
@@ -7608,6 +7644,7 @@ function openTimerSettingsModal() {
   if (pomoBreakInput) pomoBreakInput.value = timerConfig.pomoBreakMinutes || 5;
   if (pomoLongBreakInput) pomoLongBreakInput.value = timerConfig.pomoLongBreakMinutes || 15;
   if (pomoTotalCyclesInput) pomoTotalCyclesInput.value = timerConfig.pomoTotalCycles || 4;
+  if (pomoEnableLongBreak) pomoEnableLongBreak.checked = timerConfig.pomoEnableLongBreak === true;
   if (pomoAutoSwitchBreak) pomoAutoSwitchBreak.checked = timerConfig.pomoAutoSwitchBreak !== false;
   if (pomoAutoSwitchFocus) pomoAutoSwitchFocus.checked = timerConfig.pomoAutoSwitchFocus !== false;
   if (checkRainbowRing) checkRainbowRing.checked = timerConfig.rainbowRing !== false;
@@ -7625,7 +7662,7 @@ function closeTimerSettingsModal() {
 }
 
 async function handleSaveTimerSettings(e) {
-  e.preventDefault();
+  if (e && typeof e.preventDefault === 'function') e.preventDefault();
   if (timerStatus === 'RUNNING' || (timerStatus === 'PAUSED' && accumulatedElapsedSec > 0)) {
     const confirmed = await showCustomConfirmDialog({
       title: 'Apply Timer Settings?',
@@ -7642,6 +7679,7 @@ async function handleSaveTimerSettings(e) {
   const pomoBreakVal = parseInt(document.getElementById('pomoBreakInput')?.value, 10);
   const pomoLongBreakVal = parseInt(document.getElementById('pomoLongBreakInput')?.value, 10);
   const pomoTotalCyclesVal = parseInt(document.getElementById('pomoTotalCyclesInput')?.value, 10);
+  const pomoEnableLongBreak = document.getElementById('pomoEnableLongBreak')?.checked === true;
   const pomoAutoSwitchBreak = document.getElementById('pomoAutoSwitchBreak')?.checked !== false;
   const pomoAutoSwitchFocus = document.getElementById('pomoAutoSwitchFocus')?.checked !== false;
   const rainbowRing = document.getElementById('checkRainbowRing')?.checked !== false;
@@ -7652,6 +7690,7 @@ async function handleSaveTimerSettings(e) {
   timerConfig.pomoBreakMinutes = Math.max(1, Math.min(60, !isNaN(pomoBreakVal) ? pomoBreakVal : 5));
   timerConfig.pomoLongBreakMinutes = Math.max(1, Math.min(120, !isNaN(pomoLongBreakVal) ? pomoLongBreakVal : 15));
   timerConfig.pomoTotalCycles = Math.max(1, Math.min(12, !isNaN(pomoTotalCyclesVal) ? pomoTotalCyclesVal : 4));
+  timerConfig.pomoEnableLongBreak = pomoEnableLongBreak;
   timerConfig.pomoAutoSwitchBreak = pomoAutoSwitchBreak;
   timerConfig.pomoAutoSwitchFocus = pomoAutoSwitchFocus;
   timerConfig.rainbowRing = rainbowRing;
@@ -7674,7 +7713,7 @@ async function handleSaveTimerSettings(e) {
 
   // Force push immediately to cloud so remote sync is 100% in sync
   pushDataToCloud(true, true);
-  showToast('Timer preferences applied & saved!', 'success');
+  showToast('Timer preferences applied & saved! ⚙️', 'success');
 }
 
 // Post-Session Subject Switch Modal
@@ -9219,7 +9258,7 @@ function closeCustomYoutubeModal() {
 }
 
 // ============================================================================
-// 10. STUDIO BACKGROUND & ATMOSPHERE MANAGER
+// 10. STUDIO BACKGROUND & ATMOSPHERE MANAGER (Wallpapers, Videos & YouTube Loops)
 // ============================================================================
 const BG_PRESETS = {
   default: '',
@@ -9234,12 +9273,212 @@ const BG_PRESETS = {
   amoled: '#000000'
 };
 
+const VIDEO_PRESETS = {
+  'v-rain': 'assets/videos/rain.mp4',
+  'v-space': 'assets/videos/cosmos.mp4'
+};
+
 let currentBgKey = localStorage.getItem('studytimer_bg_preset') || 'rain';
 let customBgDataUrl = localStorage.getItem('studytimer_custom_bg') || '';
+let customBgType = localStorage.getItem('studytimer_custom_bg_type') || (customBgDataUrl ? 'image' : ''); // 'image' | 'video' | 'youtube'
+let customBgBlobUrl = '';
 let bgDimmerVal = parseInt(localStorage.getItem('studytimer_bg_dimmer') || '30', 10);
 let bgBlurVal = parseInt(localStorage.getItem('studytimer_bg_blur') || '0', 10);
+let mediaVerificationSeq = 0; // Monotonic sequence to discard stale async verifications
 
-function initBackgroundManager() {
+// Smart URL Normalizer & Cleaner for Any Video / Image / YouTube / Pexels Link
+function cleanAndNormalizeMediaUrl(raw) {
+  if (!raw || typeof raw !== 'string') return { type: 'unknown', cleanUrl: '', raw: '' };
+  let str = raw.trim();
+
+  // Strip wrapping quotes, markdown brackets, and angle brackets
+  str = str.replace(/^["'<]+|["'>]+$/g, '');
+  const mdMatch = str.match(/\((https?:\/\/[^)]+)\)/);
+  if (mdMatch) str = mdMatch[1];
+
+  // 1. YouTube video check (watch?v=, youtu.be/, shorts/, embed/, live/)
+  const ytMatch = str.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/|live\/))([a-zA-Z0-9_-]{11})/i);
+  if (ytMatch && ytMatch[1]) {
+    const id = ytMatch[1];
+    return {
+      type: 'youtube',
+      id: id,
+      cleanUrl: 'https://www.youtube.com/watch?v=' + id,
+      embedUrl: 'https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1&mute=1&loop=1&playlist=' + id + '&controls=0&showinfo=0&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&enablejsapi=1'
+    };
+  }
+
+  // Raw 11-character YouTube ID check
+  if (/^[a-zA-Z0-9_-]{11}$/.test(str)) {
+    return {
+      type: 'youtube',
+      id: str,
+      cleanUrl: 'https://www.youtube.com/watch?v=' + str,
+      embedUrl: 'https://www.youtube-nocookie.com/embed/' + str + '?autoplay=1&mute=1&loop=1&playlist=' + str + '&controls=0&showinfo=0&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&enablejsapi=1'
+    };
+  }
+
+  // 2. Pexels page link -> direct download stream
+  const pexelsMatch = str.match(/pexels\.com\/(?:video|download\/video)\/(?:.*?-)?(\d+)(?:\/|\?|$)/i);
+  if (pexelsMatch && pexelsMatch[1]) {
+    return {
+      type: 'video',
+      cleanUrl: 'https://www.pexels.com/download/video/' + pexelsMatch[1] + '/'
+    };
+  }
+
+  // 3. Giphy link -> direct mp4/gif
+  const giphyMatch = str.match(/giphy\.com\/(?:gifs|media)\/(?:[a-zA-Z0-9_-]*-)?([a-zA-Z0-9]+)(?:\/|\?|$)/i);
+  if (giphyMatch && giphyMatch[1] && !str.includes('media.giphy.com')) {
+    return {
+      type: 'video',
+      cleanUrl: 'https://media.giphy.com/media/' + giphyMatch[1] + '/giphy.mp4'
+    };
+  }
+
+  // 4. Imgur gifv / gallery -> direct mp4
+  const imgurMatch = str.match(/imgur\.com\/(?:gallery\/|a\/)?([a-zA-Z0-9]+)(?:\.gifv)?$/i);
+  if (imgurMatch && imgurMatch[1] && !str.includes('i.imgur.com/' + imgurMatch[1] + '.mp4')) {
+    return {
+      type: 'video',
+      cleanUrl: 'https://i.imgur.com/' + imgurMatch[1] + '.mp4'
+    };
+  }
+
+  // 5. Dropbox dl=0 -> raw=1
+  if (str.includes('dropbox.com') && str.includes('dl=0')) {
+    return {
+      type: 'direct',
+      cleanUrl: str.replace('dl=0', 'raw=1')
+    };
+  }
+
+  // 6. Strip tracker query params from general URLs
+  try {
+    if (str.startsWith('http://') || str.startsWith('https://')) {
+      const u = new URL(str);
+      const trackers = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'fbclid', 'gclid', 'igshid', 'ref', 'ref_src', '_r', 'si', 'share'];
+      trackers.forEach(t => u.searchParams.delete(t));
+      return {
+        type: 'direct',
+        cleanUrl: u.toString()
+      };
+    }
+  } catch(_) {}
+
+  return {
+    type: 'direct',
+    cleanUrl: str
+  };
+}
+
+// Instant synchronous clearing of the preview card without DOM overhead or lag
+function clearMediaPreview() {
+  const card = document.getElementById('bgUrlPreviewCard');
+  const img = document.getElementById('bgUrlPreviewImg');
+  const video = document.getElementById('bgUrlPreviewVideo');
+  const ytWrap = document.getElementById('bgUrlPreviewYtWrap');
+  const ytThumb = document.getElementById('bgUrlPreviewYtThumb');
+  const placeholder = document.getElementById('bgUrlPreviewPlaceholder');
+  const status = document.getElementById('bgUrlPreviewStatus');
+  const msg = document.getElementById('bgUrlPreviewMsg');
+
+  if (card) {
+    card.classList.add('hidden');
+    card.classList.remove('is-valid', 'is-error');
+  }
+  if (img) { img.src = ''; img.classList.add('hidden'); }
+  if (video) { video.pause(); video.removeAttribute('src'); video.load(); video.classList.add('hidden'); }
+  if (ytWrap) { ytWrap.classList.add('hidden'); }
+  if (ytThumb) { ytThumb.src = ''; }
+  if (placeholder) placeholder.classList.remove('hidden');
+  if (status) status.textContent = 'Checking format...';
+  if (msg) msg.textContent = 'Paste an image, GIF, video, or YouTube link';
+}
+
+// IndexedDB Helper for Large Custom Video Files (< 1 min, up to 50MB)
+function openMediaStore() {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === 'undefined') {
+      return reject(new Error('IndexedDB not supported'));
+    }
+    const request = indexedDB.open('StudyTimerMediaDB', 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('media')) {
+        db.createObjectStore('media');
+      }
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function saveCustomVideoBlob(blob) {
+  try {
+    const db = await openMediaStore();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('media', 'readwrite');
+      const store = tx.objectStore('media');
+      const req = store.put(blob, 'custom_bg_video');
+      req.onsuccess = () => resolve(true);
+      req.onerror = (e) => reject(e.target.error);
+    });
+  } catch (err) {
+    console.warn('[StudyTimer MediaDB] Save error:', err);
+    return false;
+  }
+}
+
+async function loadCustomVideoBlob() {
+  try {
+    const db = await openMediaStore();
+    return new Promise((resolve) => {
+      const tx = db.transaction('media', 'readonly');
+      const store = tx.objectStore('media');
+      const req = store.get('custom_bg_video');
+      req.onsuccess = (e) => {
+        const result = e.target.result;
+        if (result instanceof Blob) {
+          resolve(result);
+        } else {
+          resolve(null);
+        }
+      };
+      req.onerror = () => resolve(null);
+    });
+  } catch (err) {
+    return null;
+  }
+}
+
+async function deleteCustomVideoBlob() {
+  try {
+    const db = await openMediaStore();
+    return new Promise((resolve) => {
+      const tx = db.transaction('media', 'readwrite');
+      const store = tx.objectStore('media');
+      const req = store.delete('custom_bg_video');
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => resolve(false);
+    });
+  } catch (_) {
+    return false;
+  }
+}
+
+async function initBackgroundManager() {
+  // If active preset is custom video from local IndexedDB, restore its blob URL first
+  if (currentBgKey === 'custom' && customBgType === 'video' && customBgDataUrl === 'indexeddb:custom_bg_video') {
+    const blob = await loadCustomVideoBlob();
+    if (blob) {
+      if (customBgBlobUrl) {
+        URL.revokeObjectURL(customBgBlobUrl);
+      }
+      customBgBlobUrl = URL.createObjectURL(blob);
+    }
+  }
+
   applyStudioBackground();
 
   // Dimmer & Blur slider handlers
@@ -9270,6 +9509,29 @@ function initBackgroundManager() {
     });
   }
 
+  // Tab switching: Wallpapers vs Video Loops
+  const tabWallpapers = document.getElementById('bgTabWallpapers');
+  const tabVideos = document.getElementById('bgTabVideos');
+  const sectionWallpapers = document.getElementById('bgWallpapersSection');
+  const sectionVideos = document.getElementById('bgVideosSection');
+
+  function switchBgTab(tab) {
+    if (tab === 'videos') {
+      tabVideos?.classList.add('active');
+      tabWallpapers?.classList.remove('active');
+      sectionVideos?.classList.remove('hidden');
+      sectionWallpapers?.classList.add('hidden');
+    } else {
+      tabWallpapers?.classList.add('active');
+      tabVideos?.classList.remove('active');
+      sectionWallpapers?.classList.remove('hidden');
+      sectionVideos?.classList.add('hidden');
+    }
+  }
+
+  tabWallpapers?.addEventListener('click', () => switchBgTab('wallpapers'));
+  tabVideos?.addEventListener('click', () => switchBgTab('videos'));
+
   // Preset Card click handlers
   document.querySelectorAll('.bg-preset-card').forEach(card => {
     card.addEventListener('click', () => {
@@ -9287,160 +9549,330 @@ function initBackgroundManager() {
 
   let previewDebounceTimer = null;
 
-  function testAndPreviewImageUrl(url, callback) {
+  function testAndPreviewMediaUrl(url, callback) {
+    const seq = ++mediaVerificationSeq;
     const card = document.getElementById('bgUrlPreviewCard');
     const img = document.getElementById('bgUrlPreviewImg');
+    const video = document.getElementById('bgUrlPreviewVideo');
+    const ytWrap = document.getElementById('bgUrlPreviewYtWrap');
+    const ytThumb = document.getElementById('bgUrlPreviewYtThumb');
     const placeholder = document.getElementById('bgUrlPreviewPlaceholder');
     const status = document.getElementById('bgUrlPreviewStatus');
     const msg = document.getElementById('bgUrlPreviewMsg');
 
-    if (!card || !status || !msg) {
-      if (typeof callback === 'function') callback(false);
-      return;
-    }
-
     const trimmed = (url || '').trim();
     if (!trimmed) {
-      card.classList.add('hidden');
-      card.classList.remove('is-valid', 'is-error');
-      if (img) { img.src = ''; img.classList.add('hidden'); }
-      if (placeholder) placeholder.classList.remove('hidden');
-      if (typeof callback === 'function') callback(false);
+      clearMediaPreview();
+      if (typeof callback === 'function') callback(false, null, null);
       return;
     }
 
-    card.classList.remove('hidden', 'is-valid', 'is-error');
-    status.textContent = 'Verifying image/GIF format...';
-    msg.textContent = trimmed.length > 55 ? trimmed.substring(0, 52) + '...' : trimmed;
+    if (!card || !status || !msg) {
+      if (typeof callback === 'function') callback(false, null, null);
+      return;
+    }
 
-    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://') && !trimmed.startsWith('data:image/')) {
+    const normalized = cleanAndNormalizeMediaUrl(trimmed);
+    const targetUrl = normalized.cleanUrl || trimmed;
+
+    card.classList.remove('hidden', 'is-valid', 'is-error');
+    status.textContent = 'Verifying media format & duration...';
+    msg.textContent = targetUrl.length > 55 ? targetUrl.substring(0, 52) + '...' : targetUrl;
+
+    // 1. YouTube Handler
+    if (normalized.type === 'youtube' && normalized.id) {
+      card.classList.remove('is-error');
+      card.classList.add('is-valid');
+      status.textContent = '✓ YouTube Ambient Stream';
+      msg.textContent = `YouTube Video ID: ${normalized.id} (Muted auto-loop background)`;
+      if (img) img.classList.add('hidden');
+      if (video) { video.src = ''; video.classList.add('hidden'); video.pause(); }
+      if (ytWrap) {
+        ytWrap.classList.remove('hidden');
+        if (ytThumb) ytThumb.src = `https://img.youtube.com/vi/${normalized.id}/hqdefault.jpg`;
+      }
+      if (placeholder) placeholder.classList.add('hidden');
+      if (typeof callback === 'function') callback(true, 'youtube', normalized.embedUrl, normalized.id);
+      return;
+    }
+
+    if (ytWrap) ytWrap.classList.add('hidden');
+
+    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://') && !targetUrl.startsWith('data:') && !targetUrl.startsWith('blob:') && !targetUrl.startsWith('assets/')) {
       card.classList.add('is-error');
       status.textContent = '❌ Not supported format';
       msg.textContent = 'Link must start with https:// or http://';
       if (img) { img.src = ''; img.classList.add('hidden'); }
+      if (video) { video.src = ''; video.classList.add('hidden'); }
       if (placeholder) placeholder.classList.remove('hidden');
-      if (typeof callback === 'function') callback(false);
+      if (typeof callback === 'function') callback(false, null, null);
       return;
     }
 
-    const testImg = new Image();
-    testImg.onload = () => {
-      card.classList.remove('is-error');
-      card.classList.add('is-valid');
-      status.textContent = '✓ Supported Image/GIF Preview';
-      const isGif = trimmed.toLowerCase().includes('.gif') || (testImg.src && testImg.src.toLowerCase().includes('.gif'));
-      msg.textContent = `${isGif ? 'Animated GIF' : 'Image format'} (${testImg.naturalWidth || 0}×${testImg.naturalHeight || 0}px)`;
-      if (img) {
-        img.src = trimmed;
-        img.classList.remove('hidden');
-      }
-      if (placeholder) placeholder.classList.add('hidden');
-      if (typeof callback === 'function') callback(true);
-    };
+    const isVideoLikely = normalized.type === 'video' || /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(targetUrl) || targetUrl.startsWith('data:video/') || targetUrl.includes('pexels.com/download/video/');
 
-    testImg.onerror = () => {
-      card.classList.remove('is-valid');
-      card.classList.add('is-error');
-      status.textContent = '❌ Not supported format';
-      msg.textContent = 'Could not load image or GIF. Link is broken or format unsupported.';
-      if (img) {
-        img.src = '';
-        img.classList.add('hidden');
-      }
-      if (placeholder) placeholder.classList.remove('hidden');
-      if (typeof callback === 'function') callback(false);
-    };
+    if (isVideoLikely) {
+      const testVideo = document.createElement('video');
+      testVideo.preload = 'metadata';
+      testVideo.muted = true;
+      testVideo.playsInline = true;
 
-    testImg.src = trimmed;
+      let isFinished = false;
+      const timeout = setTimeout(() => {
+        if (!isFinished && seq === mediaVerificationSeq) {
+          isFinished = true;
+          tryImageFallback();
+        }
+      }, 5000);
+
+      testVideo.onloadedmetadata = () => {
+        if (isFinished || seq !== mediaVerificationSeq) return;
+        isFinished = true;
+        clearTimeout(timeout);
+
+        const duration = testVideo.duration;
+        if (duration && duration > 60.5) {
+          card.classList.remove('is-valid');
+          card.classList.add('is-error');
+          status.textContent = '⚠️ Video too long (Max 1 min)';
+          msg.textContent = `Video is ${Math.round(duration)}s. Background video loops must be under 1 minute.`;
+          if (video) { video.src = ''; video.classList.add('hidden'); }
+          if (img) { img.src = ''; img.classList.add('hidden'); }
+          if (placeholder) placeholder.classList.remove('hidden');
+          if (typeof callback === 'function') callback(false, 'duration_exceeded', null);
+          return;
+        }
+
+        card.classList.remove('is-error');
+        card.classList.add('is-valid');
+        const durText = duration ? `${Math.round(duration)}s` : '< 1m';
+        status.textContent = `✓ Supported Video Loop (${durText})`;
+        msg.textContent = `Valid ambient video format (${testVideo.videoWidth || 0}×${testVideo.videoHeight || 0}px, muted loop)`;
+        if (img) { img.src = ''; img.classList.add('hidden'); }
+        if (video) {
+          video.src = targetUrl;
+          video.muted = true;
+          video.loop = true;
+          video.playsInline = true;
+          video.classList.remove('hidden');
+          video.play().catch(() => {});
+        }
+        if (placeholder) placeholder.classList.add('hidden');
+        if (typeof callback === 'function') callback(true, 'video', targetUrl);
+      };
+
+      testVideo.onerror = () => {
+        if (isFinished || seq !== mediaVerificationSeq) return;
+        isFinished = true;
+        clearTimeout(timeout);
+        tryImageFallback();
+      };
+
+      testVideo.src = targetUrl;
+    } else {
+      tryImageFallback();
+    }
+
+    function tryImageFallback() {
+      if (seq !== mediaVerificationSeq) return;
+      const testImg = new Image();
+      testImg.onload = () => {
+        if (seq !== mediaVerificationSeq) return;
+        card.classList.remove('is-error');
+        card.classList.add('is-valid');
+        status.textContent = '✓ Supported Image/GIF Preview';
+        const isGif = targetUrl.toLowerCase().includes('.gif') || (testImg.src && testImg.src.toLowerCase().includes('.gif'));
+        msg.textContent = `${isGif ? 'Animated GIF' : 'Image format'} (${testImg.naturalWidth || 0}×${testImg.naturalHeight || 0}px)`;
+        if (video) { video.src = ''; video.classList.add('hidden'); video.pause(); }
+        if (img) {
+          img.src = targetUrl;
+          img.classList.remove('hidden');
+        }
+        if (placeholder) placeholder.classList.add('hidden');
+        if (typeof callback === 'function') callback(true, 'image', targetUrl);
+      };
+
+      testImg.onerror = () => {
+        if (seq !== mediaVerificationSeq) return;
+        card.classList.remove('is-valid');
+        card.classList.add('is-error');
+        status.textContent = '❌ Not supported format';
+        msg.textContent = 'Could not load media. Link is broken or format unsupported.';
+        if (img) { img.src = ''; img.classList.add('hidden'); }
+        if (video) { video.src = ''; video.classList.add('hidden'); }
+        if (placeholder) placeholder.classList.remove('hidden');
+        if (typeof callback === 'function') callback(false, null, null);
+      };
+
+      testImg.src = targetUrl;
+    }
   }
 
+  // Smooth, non-blocking real-time input listener (never hijacks the input value while typing/backspacing)
   bgUrlInput?.addEventListener('input', (e) => {
     clearTimeout(previewDebounceTimer);
-    const val = e.target.value;
-    if (!val || (!val.startsWith('http://') && !val.startsWith('https://') && !val.startsWith('data:image/'))) {
-      testAndPreviewImageUrl(val);
-    } else {
-      previewDebounceTimer = setTimeout(() => {
-        testAndPreviewImageUrl(val);
-      }, 200);
+    const val = (e.target.value || '').trim();
+    if (!val) {
+      clearMediaPreview();
+      return;
     }
+    previewDebounceTimer = setTimeout(() => {
+      testAndPreviewMediaUrl(bgUrlInput.value);
+    }, 300);
   });
 
+  // Smart normalizer on paste event only
   bgUrlInput?.addEventListener('paste', () => {
     setTimeout(() => {
-      testAndPreviewImageUrl(bgUrlInput.value);
-    }, 50);
+      const val = bgUrlInput.value;
+      const norm = cleanAndNormalizeMediaUrl(val);
+      if (norm.cleanUrl && norm.cleanUrl !== val) {
+        bgUrlInput.value = norm.cleanUrl;
+      }
+      testAndPreviewMediaUrl(bgUrlInput.value);
+    }, 30);
   });
 
   triggerBtn?.addEventListener('click', () => uploadInput?.click());
 
-  uploadInput?.addEventListener('change', (e) => {
+  uploadInput?.addEventListener('change', async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      showToast('Image is too large (max 5MB).', 'warning');
-      return;
-    }
+    const isVideo = file.type.startsWith('video/');
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result;
-      if (typeof result === 'string') {
+    if (isVideo) {
+      if (file.size > 50 * 1024 * 1024) {
+        showToast('Video file is too large (max 50MB).', 'warning');
+        return;
+      }
+
+      // Check duration before saving (< 60s)
+      const fileUrl = URL.createObjectURL(file);
+      const testVid = document.createElement('video');
+      testVid.preload = 'metadata';
+      testVid.src = fileUrl;
+
+      testVid.onloadedmetadata = async () => {
+        const duration = testVid.duration;
+        if (duration && duration > 60.5) {
+          URL.revokeObjectURL(fileUrl);
+          showToast(`Video is ${Math.round(duration)}s. Background video loops must be under 1 minute.`, 'warning');
+          return;
+        }
+
         try {
-          localStorage.setItem('studytimer_custom_bg', result);
-          customBgDataUrl = result;
+          await saveCustomVideoBlob(file);
+          if (customBgBlobUrl) {
+            URL.revokeObjectURL(customBgBlobUrl);
+          }
+          customBgBlobUrl = fileUrl;
+          customBgDataUrl = 'indexeddb:custom_bg_video';
+          customBgType = 'video';
           currentBgKey = 'custom';
+          localStorage.setItem('studytimer_custom_bg', 'indexeddb:custom_bg_video');
+          localStorage.setItem('studytimer_custom_bg_type', 'video');
+          localStorage.removeItem('studytimer_custom_bg_yt_id');
           localStorage.setItem('studytimer_bg_preset', 'custom');
           applyStudioBackground();
-          testAndPreviewImageUrl(result);
+          testAndPreviewMediaUrl(customBgBlobUrl);
           if (resetBtn) resetBtn.style.display = 'inline-block';
-          showToast('Custom wallpaper applied!', 'success');
+          showToast('Custom video loop applied! 🎥', 'success');
         } catch (err) {
-          showToast('Failed to save wallpaper: browser storage full.', 'danger');
+          showToast('Failed to save video to local browser storage.', 'danger');
         }
+      };
+
+      testVid.onerror = () => {
+        URL.revokeObjectURL(fileUrl);
+        showToast('Unable to read video file.', 'danger');
+      };
+    } else {
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('Image is too large (max 5MB).', 'warning');
+        return;
       }
-    };
-    reader.readAsDataURL(file);
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result;
+        if (typeof result === 'string') {
+          try {
+            localStorage.setItem('studytimer_custom_bg', result);
+            localStorage.setItem('studytimer_custom_bg_type', 'image');
+            localStorage.removeItem('studytimer_custom_bg_yt_id');
+            customBgDataUrl = result;
+            customBgType = 'image';
+            currentBgKey = 'custom';
+            localStorage.setItem('studytimer_bg_preset', 'custom');
+            applyStudioBackground();
+            testAndPreviewMediaUrl(result);
+            if (resetBtn) resetBtn.style.display = 'inline-block';
+            showToast('Custom wallpaper applied! ✨', 'success');
+          } catch (err) {
+            showToast('Failed to save wallpaper: browser storage full.', 'danger');
+          }
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   });
 
-  // Apply custom URL wallpaper
+  // Apply custom URL wallpaper / video / YouTube
   btnApplyBgUrl?.addEventListener('click', () => {
-    const url = bgUrlInput?.value.trim();
-    if (!url) {
-      showToast('Please enter an image or GIF URL.', 'warning');
+    const rawVal = bgUrlInput?.value.trim();
+    if (!rawVal) {
+      showToast('Please enter an image, video, GIF, or YouTube link.', 'warning');
       return;
     }
-    if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('data:image/')) {
-      testAndPreviewImageUrl(url);
-      showToast('Please enter a valid URL starting with https://', 'warning');
-      return;
+    const norm = cleanAndNormalizeMediaUrl(rawVal);
+    if (norm.cleanUrl) {
+      bgUrlInput.value = norm.cleanUrl;
     }
 
-    testAndPreviewImageUrl(url, (isValid) => {
+    testAndPreviewMediaUrl(norm.cleanUrl || rawVal, (isValid, mediaType, cleanMediaSrc, optId) => {
       if (isValid) {
         try {
-          localStorage.setItem('studytimer_custom_bg', url);
-          customBgDataUrl = url;
+          const finalVal = mediaType === 'youtube' ? norm.cleanUrl : (cleanMediaSrc || norm.cleanUrl || rawVal);
+          localStorage.setItem('studytimer_custom_bg', finalVal);
+          localStorage.setItem('studytimer_custom_bg_type', mediaType || 'image');
+          if (optId) {
+            localStorage.setItem('studytimer_custom_bg_yt_id', optId);
+          } else {
+            localStorage.removeItem('studytimer_custom_bg_yt_id');
+          }
+          customBgDataUrl = finalVal;
+          customBgType = mediaType || 'image';
           currentBgKey = 'custom';
           localStorage.setItem('studytimer_bg_preset', 'custom');
           applyStudioBackground();
           if (resetBtn) resetBtn.style.display = 'inline-block';
-          showToast('Custom wallpaper URL applied! ✨', 'success');
+          const typeLabel = mediaType === 'youtube' ? 'YouTube ambient stream' : (mediaType === 'video' ? 'video loop' : 'wallpaper');
+          showToast(`Custom ${typeLabel} applied! ✨`, 'success');
         } catch (err) {
-          showToast('Failed to apply wallpaper URL.', 'danger');
+          showToast('Failed to apply media URL.', 'danger');
         }
+      } else if (mediaType === 'duration_exceeded') {
+        showToast('Video is longer than 1 minute. Please use a short loop (< 60s).', 'warning');
       } else {
-        showToast('Not supported format or unable to load image/GIF.', 'danger');
+        showToast('Not supported format or unable to load media URL.', 'danger');
       }
     });
   });
 
-  resetBtn?.addEventListener('click', () => {
+  resetBtn?.addEventListener('click', async () => {
     localStorage.removeItem('studytimer_custom_bg');
+    localStorage.removeItem('studytimer_custom_bg_type');
+    localStorage.removeItem('studytimer_custom_bg_yt_id');
+    await deleteCustomVideoBlob();
+    if (customBgBlobUrl) {
+      URL.revokeObjectURL(customBgBlobUrl);
+      customBgBlobUrl = '';
+    }
     customBgDataUrl = '';
+    customBgType = '';
     if (bgUrlInput) bgUrlInput.value = '';
-    testAndPreviewImageUrl('');
+    clearMediaPreview();
     setStudioBackgroundPreset('rain');
     if (resetBtn) resetBtn.style.display = 'none';
     showToast('Reset to default Rainy Window wallpaper.', 'info');
@@ -9476,6 +9908,8 @@ function setStudioBackgroundPreset(bgKey) {
 
 function applyStudioBackground() {
   const bgLayer = document.getElementById('studioBgLayer');
+  const bgVideo = document.getElementById('studioBgVideo');
+  const bgYtIframe = document.getElementById('studioBgYoutubeIframe');
   const bgDimmer = document.getElementById('studioBgDimmer');
 
   if (bgDimmer) {
@@ -9485,22 +9919,93 @@ function applyStudioBackground() {
   if (bgLayer) {
     bgLayer.style.filter = bgBlurVal > 0 ? `blur(${bgBlurVal}px)` : 'none';
 
-    if (currentBgKey === 'custom' && customBgDataUrl) {
-      bgLayer.style.backgroundImage = `url("${customBgDataUrl}")`;
-      bgLayer.style.backgroundColor = 'transparent';
-      document.body.classList.add('has-custom-bg');
-    } else if (currentBgKey === 'amoled') {
+    // Determine background type
+    const isVideoPreset = VIDEO_PRESETS[currentBgKey] ? true : false;
+    const isCustomVideo = currentBgKey === 'custom' && customBgType === 'video';
+    const isCustomYoutube = currentBgKey === 'custom' && customBgType === 'youtube';
+
+    if (isCustomYoutube) {
+      if (bgVideo) {
+        bgVideo.pause();
+        bgVideo.removeAttribute('src');
+        bgVideo.classList.add('hidden');
+      }
       bgLayer.style.backgroundImage = 'none';
       bgLayer.style.backgroundColor = '#000000';
       document.body.classList.add('has-custom-bg');
-    } else if (BG_PRESETS[currentBgKey]) {
-      bgLayer.style.backgroundImage = `url("${BG_PRESETS[currentBgKey]}")`;
-      bgLayer.style.backgroundColor = 'transparent';
-      document.body.classList.add('has-custom-bg');
-    } else {
+
+      if (bgYtIframe) {
+        const norm = cleanAndNormalizeMediaUrl(customBgDataUrl);
+        const ytId = norm.id || localStorage.getItem('studytimer_custom_bg_yt_id') || '5yx6BWlEVcY';
+        const embedSrc = `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&controls=0&showinfo=0&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&enablejsapi=1`;
+        if (bgYtIframe.src !== embedSrc && bgYtIframe.getAttribute('src') !== embedSrc) {
+          bgYtIframe.src = embedSrc;
+        }
+        bgYtIframe.classList.remove('hidden');
+      }
+    } else if (isVideoPreset || isCustomVideo) {
+      if (bgYtIframe) {
+        bgYtIframe.src = '';
+        bgYtIframe.classList.add('hidden');
+      }
+      const rawSrc = isVideoPreset ? VIDEO_PRESETS[currentBgKey] : (customBgBlobUrl || customBgDataUrl);
       bgLayer.style.backgroundImage = 'none';
-      bgLayer.style.backgroundColor = 'transparent';
-      document.body.classList.remove('has-custom-bg');
+      bgLayer.style.backgroundColor = '#000000';
+      document.body.classList.add('has-custom-bg');
+
+      if (bgVideo) {
+        bgVideo.classList.remove('hidden');
+        bgVideo.muted = true;
+        bgVideo.defaultMuted = true;
+        bgVideo.playsInline = true;
+        bgVideo.loop = true;
+
+        let resolvedSrc = rawSrc;
+        try {
+          resolvedSrc = new URL(rawSrc, window.location.href).href;
+        } catch (_) {}
+
+        if (bgVideo.src !== resolvedSrc) {
+          bgVideo.src = rawSrc;
+          bgVideo.load();
+        }
+
+        const playPromise = bgVideo.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(err => {
+            console.warn('[Studio Background Video] Play error:', err);
+          });
+        }
+      }
+    } else {
+      if (bgVideo) {
+        bgVideo.pause();
+        bgVideo.removeAttribute('src');
+        bgVideo.load();
+        bgVideo.classList.add('hidden');
+      }
+      if (bgYtIframe) {
+        bgYtIframe.src = '';
+        bgYtIframe.classList.add('hidden');
+      }
+
+      if (currentBgKey === 'custom' && customBgDataUrl) {
+        bgLayer.style.backgroundImage = `url("${customBgDataUrl}")`;
+        bgLayer.style.backgroundColor = 'transparent';
+        document.body.classList.add('has-custom-bg');
+      } else if (currentBgKey === 'amoled') {
+        bgLayer.style.backgroundImage = 'none';
+        bgLayer.style.backgroundColor = '#000000';
+        document.body.classList.add('has-custom-bg');
+      } else if (BG_PRESETS[currentBgKey]) {
+        bgLayer.style.backgroundImage = `url("${BG_PRESETS[currentBgKey]}")`;
+        bgLayer.style.backgroundColor = 'transparent';
+        document.body.classList.add('has-custom-bg');
+      } else {
+        bgLayer.style.backgroundImage = 'none';
+        bgLayer.style.backgroundColor = 'transparent';
+        document.body.classList.remove('has-custom-bg');
+      }
     }
   }
 
@@ -9517,23 +10022,72 @@ function applyStudioBackground() {
 function openStudioBgModal() {
   const modal = document.getElementById('studioBgModalOverlay');
   const bgUrlInput = document.getElementById('bgUrlInput');
+  const tabWallpapers = document.getElementById('bgTabWallpapers');
+  const tabVideos = document.getElementById('bgTabVideos');
+  const sectionWallpapers = document.getElementById('bgWallpapersSection');
+  const sectionVideos = document.getElementById('bgVideosSection');
+
+  // Activate appropriate tab depending on currentBgKey
+  if (currentBgKey && (currentBgKey.startsWith('v-') || (currentBgKey === 'custom' && (customBgType === 'video' || customBgType === 'youtube')))) {
+    tabVideos?.classList.add('active');
+    tabWallpapers?.classList.remove('active');
+    sectionVideos?.classList.remove('hidden');
+    sectionWallpapers?.classList.add('hidden');
+  } else {
+    tabWallpapers?.classList.add('active');
+    tabVideos?.classList.remove('active');
+    sectionWallpapers?.classList.remove('hidden');
+    sectionVideos?.classList.add('hidden');
+  }
+
   if (customBgDataUrl && bgUrlInput && (!bgUrlInput.value || bgUrlInput.value === customBgDataUrl)) {
     if (customBgDataUrl.startsWith('http://') || customBgDataUrl.startsWith('https://')) {
       bgUrlInput.value = customBgDataUrl;
     }
     const card = document.getElementById('bgUrlPreviewCard');
     const img = document.getElementById('bgUrlPreviewImg');
+    const video = document.getElementById('bgUrlPreviewVideo');
+    const ytWrap = document.getElementById('bgUrlPreviewYtWrap');
+    const ytThumb = document.getElementById('bgUrlPreviewYtThumb');
     const placeholder = document.getElementById('bgUrlPreviewPlaceholder');
     const status = document.getElementById('bgUrlPreviewStatus');
     const msg = document.getElementById('bgUrlPreviewMsg');
     if (card && status) {
       card.classList.remove('hidden', 'is-error');
       card.classList.add('is-valid');
-      status.textContent = '✓ Active Custom Wallpaper';
-      if (msg) msg.textContent = customBgDataUrl.startsWith('data:') ? 'Custom local uploaded image / GIF' : customBgDataUrl;
-      if (img) {
-        img.src = customBgDataUrl;
-        img.classList.remove('hidden');
+      if (customBgType === 'youtube') {
+        status.textContent = '✓ Active YouTube Background';
+        const norm = cleanAndNormalizeMediaUrl(customBgDataUrl);
+        const ytId = norm.id || localStorage.getItem('studytimer_custom_bg_yt_id') || '5yx6BWlEVcY';
+        if (msg) msg.textContent = customBgDataUrl;
+        if (img) img.classList.add('hidden');
+        if (video) { video.src = ''; video.classList.add('hidden'); video.pause(); }
+        if (ytWrap) {
+          ytWrap.classList.remove('hidden');
+          if (ytThumb) ytThumb.src = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
+        }
+      } else if (customBgType === 'video') {
+        status.textContent = '✓ Active Custom Video Loop';
+        if (msg) msg.textContent = customBgDataUrl.startsWith('data:') || customBgDataUrl.startsWith('indexeddb:') ? 'Custom local uploaded media (< 1 min)' : customBgDataUrl;
+        if (img) img.classList.add('hidden');
+        if (ytWrap) ytWrap.classList.add('hidden');
+        if (video) {
+          video.src = customBgBlobUrl || customBgDataUrl;
+          video.muted = true;
+          video.loop = true;
+          video.playsInline = true;
+          video.classList.remove('hidden');
+          video.play().catch(() => {});
+        }
+      } else {
+        status.textContent = '✓ Active Custom Wallpaper';
+        if (msg) msg.textContent = customBgDataUrl.startsWith('data:') ? 'Custom local uploaded image / GIF' : customBgDataUrl;
+        if (video) { video.src = ''; video.classList.add('hidden'); }
+        if (ytWrap) ytWrap.classList.add('hidden');
+        if (img) {
+          img.src = customBgDataUrl;
+          img.classList.remove('hidden');
+        }
       }
       if (placeholder) placeholder.classList.add('hidden');
     }
@@ -9549,7 +10103,6 @@ function closeStudioBgModal() {
   if (modal) modal.classList.add('hidden');
   unlockBodyScroll();
 }
-
 
 
 

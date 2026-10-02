@@ -154,7 +154,10 @@
 <body class="demo-page-body">
 
   <!-- DYNAMIC AMBIENT STUDIO BACKGROUND & GLASS DIMMER -->
-  <div class="studio-bg-layer" id="studioBgLayer" aria-hidden="true"></div>
+  <div class="studio-bg-layer" id="studioBgLayer" aria-hidden="true">
+    <video id="studioBgVideo" class="studio-bg-video hidden" autoplay loop muted playsinline aria-hidden="true"></video>
+    <iframe id="studioBgYoutubeIframe" class="studio-bg-yt-iframe hidden" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen aria-hidden="true"></iframe>
+  </div>
   <div class="studio-bg-dimmer" id="studioBgDimmer" aria-hidden="true"></div>
 
 
@@ -1233,86 +1236,192 @@
 
   <!-- 3. TIMER SETTINGS MODAL -->
   <div class="modal-overlay hidden" id="timerSettingsModalOverlay">
-    <div class="modal-card" id="timerSettingsModalCard">
+    <div class="modal-card modal-card-settings" id="timerSettingsModalCard">
       <button class="modal-close-btn" id="btnCloseTimerSettingsModal" aria-label="Close modal">&times;</button>
       
       <div class="modal-header">
-        <div class="modal-icon-wrap">
+        <div class="modal-icon-wrap modal-icon-settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"></circle>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
         </div>
-        <h3 class="modal-title">Timer Preferences</h3>
-        <p class="modal-subtitle">Customize Pomodoro cycles, rainbow effects, subject visibility, and daily targets.</p>
+        <div class="modal-title-group">
+          <h3 class="modal-title">Timer Preferences</h3>
+          <p class="modal-subtitle">Configure intervals, continuous cycle automations, and focus visuals.</p>
+        </div>
       </div>
 
-      <form class="modal-body" id="timerSettingsForm">
-        <!-- Pomodoro Focus / Break & Automation -->
-        <div class="settings-section">
-          <label class="settings-label">Pomodoro Intervals &amp; Automation</label>
+      <form class="modal-body settings-modal-body" id="timerSettingsForm">
+        
+        <!-- 1. POMODORO INTERVALS -->
+        <div class="settings-group-card">
+          <div class="settings-group-header">
+            <span class="settings-group-title">⏱️ Pomodoro Intervals</span>
+            <span class="settings-group-tag">Durations</span>
+          </div>
+
           <div class="settings-grid-row">
-            <div class="input-group">
-              <label for="pomoFocusInput">Focus (min)</label>
-              <input type="number" id="pomoFocusInput" min="1" max="180" value="25">
+            <div class="settings-field-box">
+              <label for="pomoFocusInput">Focus Duration</label>
+              <div class="settings-input-with-unit">
+                <input type="number" id="pomoFocusInput" min="1" max="180" value="25" required>
+                <span class="input-unit-badge">min</span>
+              </div>
             </div>
-            <div class="input-group">
-              <label for="pomoBreakInput">Short Break (min)</label>
-              <input type="number" id="pomoBreakInput" min="1" max="60" value="5">
+            <div class="settings-field-box">
+              <label for="pomoBreakInput">Short Break</label>
+              <div class="settings-input-with-unit">
+                <input type="number" id="pomoBreakInput" min="1" max="60" value="5" required>
+                <span class="input-unit-badge">min</span>
+              </div>
             </div>
           </div>
+
           <div class="settings-grid-row" style="margin-top: 10px;">
-            <div class="input-group">
-              <label for="pomoLongBreakInput">Long Break (min)</label>
-              <input type="number" id="pomoLongBreakInput" min="1" max="120" value="15">
+            <div class="settings-field-box">
+              <label for="pomoTotalCyclesInput">Sessions / Cycle</label>
+              <div class="settings-input-with-unit">
+                <input type="number" id="pomoTotalCyclesInput" min="1" max="12" value="4" required>
+                <span class="input-unit-badge">cycles</span>
+              </div>
             </div>
-            <div class="input-group">
-              <label for="pomoTotalCyclesInput">Sessions / Long Break</label>
-              <input type="number" id="pomoTotalCyclesInput" min="1" max="12" value="4">
+            <div class="settings-field-box" id="pomoLongBreakFieldBox">
+              <label for="pomoLongBreakInput">Long Break</label>
+              <div class="settings-input-with-unit">
+                <input type="number" id="pomoLongBreakInput" min="1" max="120" value="15" required>
+                <span class="input-unit-badge">min</span>
+              </div>
             </div>
           </div>
-          <div class="settings-toggles-wrap" style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
-            <label class="settings-toggle-row">
-              <input type="checkbox" id="pomoAutoSwitchBreak" checked>
-              <span class="toggle-text">Auto-switch to Break when focus ends</span>
+        </div>
+
+        <!-- 2. CYCLE AUTOMATION & LONG BREAK BEHAVIOR -->
+        <div class="settings-group-card">
+          <div class="settings-group-header">
+            <span class="settings-group-title">🔄 Flow &amp; Automation</span>
+            <span class="settings-group-tag">Smart Cycle</span>
+          </div>
+
+          <div class="settings-toggles-list">
+            <!-- LONG BREAK & CONTINUOUS CYCLE TOGGLE -->
+            <label class="settings-toggle-card highlight-toggle" for="pomoEnableLongBreak">
+              <div class="toggle-info">
+                <div class="toggle-title-row">
+                  <span class="toggle-icon">☕</span>
+                  <span class="toggle-title">Long Break &amp; Continuous Cycles</span>
+                </div>
+                <p class="toggle-desc" id="pomoLongBreakDesc">When turned on, takes a long break after all sessions and continues into a fresh Pomodoro cycle. When off, the timer automatically stops when sessions complete.</p>
+              </div>
+              <div class="modern-switch">
+                <input type="checkbox" id="pomoEnableLongBreak" checked>
+                <span class="switch-slider"></span>
+              </div>
             </label>
-            <label class="settings-toggle-row">
-              <input type="checkbox" id="pomoAutoSwitchFocus" checked>
-              <span class="toggle-text">Auto-switch to Focus when break ends</span>
+
+            <!-- AUTO-SWITCH TO BREAK -->
+            <label class="settings-toggle-card" for="pomoAutoSwitchBreak">
+              <div class="toggle-info">
+                <div class="toggle-title-row">
+                  <span class="toggle-icon">🔔</span>
+                  <span class="toggle-title">Auto-start Break</span>
+                </div>
+                <p class="toggle-desc">Automatically begins break countdown when focus session ends.</p>
+              </div>
+              <div class="modern-switch">
+                <input type="checkbox" id="pomoAutoSwitchBreak" checked>
+                <span class="switch-slider"></span>
+              </div>
+            </label>
+
+            <!-- AUTO-SWITCH TO FOCUS -->
+            <label class="settings-toggle-card" for="pomoAutoSwitchFocus">
+              <div class="toggle-info">
+                <div class="toggle-title-row">
+                  <span class="toggle-icon">⚡</span>
+                  <span class="toggle-title">Auto-start Focus</span>
+                </div>
+                <p class="toggle-desc">Automatically begins next focus session when break countdown ends.</p>
+              </div>
+              <div class="modern-switch">
+                <input type="checkbox" id="pomoAutoSwitchFocus" checked>
+                <span class="switch-slider"></span>
+              </div>
             </label>
           </div>
         </div>
 
-        <div class="dropdown-divider"></div>
+        <!-- 3. VISUALS & SUBJECTS -->
+        <div class="settings-group-card">
+          <div class="settings-group-header">
+            <span class="settings-group-title">🎨 Visuals &amp; Subject Tracking</span>
+          </div>
 
-        <!-- Visual & Subject Customization -->
-        <div class="settings-section">
-          <label class="settings-label">Visuals &amp; Focus Subject Display</label>
-          <div class="settings-toggles-wrap" style="display: flex; flex-direction: column; gap: 8px;">
-            <label class="settings-toggle-row">
-              <input type="checkbox" id="checkRainbowRing" checked>
-              <span class="toggle-text">🌈 Rainbow Ring: Smooth pastel color cycling</span>
+          <div class="settings-toggles-list">
+            <label class="settings-toggle-card" for="checkRainbowRing">
+              <div class="toggle-info">
+                <div class="toggle-title-row">
+                  <span class="toggle-icon">🌈</span>
+                  <span class="toggle-title">Rainbow Progress Dial</span>
+                </div>
+                <p class="toggle-desc">Smooth chromatic pastel glow cycling around the timer dial.</p>
+              </div>
+              <div class="modern-switch">
+                <input type="checkbox" id="checkRainbowRing" checked>
+                <span class="switch-slider"></span>
+              </div>
             </label>
-            <label class="settings-toggle-row">
-              <input type="checkbox" id="checkEnableSubjects">
-              <span class="toggle-text">📚 Enable Subject Selector (Shows on Timer &amp; Menus)</span>
+
+            <label class="settings-toggle-card" for="checkEnableSubjects">
+              <div class="toggle-info">
+                <div class="toggle-title-row">
+                  <span class="toggle-icon">📚</span>
+                  <span class="toggle-title">Subject Tagging Display</span>
+                </div>
+                <p class="toggle-desc">Show subject selector on timer dial and enable per-subject analytics.</p>
+              </div>
+              <div class="modern-switch">
+                <input type="checkbox" id="checkEnableSubjects">
+                <span class="switch-slider"></span>
+              </div>
             </label>
           </div>
         </div>
 
-        <div class="dropdown-divider"></div>
+        <!-- 4. DAILY STUDY TARGET -->
+        <div class="settings-group-card">
+          <div class="settings-group-header">
+            <span class="settings-group-title">🎯 Daily Study Target</span>
+          </div>
 
-        <!-- Daily Target -->
-        <div class="settings-section">
-          <div class="input-group">
-            <label for="dailyTargetGoalInput">Daily Study Target Goal (Minutes)</label>
-            <input type="number" id="dailyTargetGoalInput" min="15" max="1440" value="120">
+          <div class="settings-field-box">
+            <label for="dailyTargetGoalInput">Target Goal Duration</label>
+            <div class="settings-input-with-unit">
+              <input type="number" id="dailyTargetGoalInput" min="15" max="1440" value="120" required>
+              <span class="input-unit-badge">minutes</span>
+            </div>
+          </div>
+
+          <div class="settings-quick-chips-row">
+            <button type="button" class="settings-quick-chip" data-goal="60">1 hour</button>
+            <button type="button" class="settings-quick-chip" data-goal="120">2 hours</button>
+            <button type="button" class="settings-quick-chip" data-goal="180">3 hours</button>
+            <button type="button" class="settings-quick-chip" data-goal="240">4 hours</button>
+            <button type="button" class="settings-quick-chip" data-goal="360">6 hours</button>
           </div>
         </div>
 
-        <button type="submit" class="btn btn-primary btn-full" style="margin-top: 10px;">
-          <span>Apply Preferences</span>
-        </button>
+        <!-- ACTION BUTTONS -->
+        <div class="settings-actions-footer">
+          <button type="button" class="btn btn-secondary btn-settings-reset" id="btnResetTimerDefaults">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+            <span>Reset Defaults</span>
+          </button>
+          <button type="submit" class="btn btn-primary btn-settings-save">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>Apply Preferences</span>
+          </button>
+        </div>
       </form>
     </div>
   </div>
@@ -1690,81 +1799,120 @@
         </div>
         <div>
           <h3 class="modal-title">Studio Ambience &amp; Background</h3>
-          <p class="modal-subtitle">Choose aesthetic themes, upload custom wallpapers, paste image links, or adjust glass dimming.</p>
+          <p class="modal-subtitle">Choose aesthetic wallpapers, dynamic video loops (&lt;1 min), upload custom media, or adjust glass dimming.</p>
         </div>
       </div>
       <div class="modal-body">
-        <div class="bg-section-label">Preset Aesthetic Wallpapers</div>
-        <div class="bg-preset-grid">
-          <button type="button" class="bg-preset-card" data-bg="default">
-            <div class="bg-preset-preview default-bg"></div>
-            <span>Minimal Dark</span>
+        <!-- Media Type Filter Tabs -->
+        <div class="bg-type-tabs" role="tablist">
+          <button type="button" class="bg-type-tab active" id="bgTabWallpapers" data-tab="wallpapers">
+            <span>🖼️ Static Wallpapers</span>
           </button>
-          <button type="button" class="bg-preset-card" data-bg="lofi">
-            <div class="bg-preset-preview lofi-bg"></div>
-            <span>Lofi Study Room</span>
-          </button>
-          <button type="button" class="bg-preset-card active" data-bg="rain">
-            <div class="bg-preset-preview rain-bg"></div>
-            <span>Rainy Window</span>
-          </button>
-          <button type="button" class="bg-preset-card" data-bg="library">
-            <div class="bg-preset-preview library-bg"></div>
-            <span>Cozy Library</span>
-          </button>
-          <button type="button" class="bg-preset-card" data-bg="space">
-            <div class="bg-preset-preview space-bg"></div>
-            <span>Deep Cosmos</span>
-          </button>
-          <button type="button" class="bg-preset-card" data-bg="forest">
-            <div class="bg-preset-preview forest-bg"></div>
-            <span>Misty Forest</span>
-          </button>
-          <button type="button" class="bg-preset-card" data-bg="tokyo">
-            <div class="bg-preset-preview tokyo-bg"></div>
-            <span>Tokyo Neon</span>
-          </button>
-          <button type="button" class="bg-preset-card" data-bg="sunset">
-            <div class="bg-preset-preview sunset-bg"></div>
-            <span>Sunset Clouds</span>
-          </button>
-          <button type="button" class="bg-preset-card" data-bg="cafe">
-            <div class="bg-preset-preview cafe-bg"></div>
-            <span>Warm Cafe</span>
-          </button>
-          <button type="button" class="bg-preset-card" data-bg="amoled">
-            <div class="bg-preset-preview amoled-bg"></div>
-            <span>AMOLED Black</span>
+          <button type="button" class="bg-type-tab" id="bgTabVideos" data-tab="videos">
+            <span>🎥 Live Video Loops (&lt; 1 min)</span>
           </button>
         </div>
 
-        <div class="bg-section-label" style="margin-top: 18px;">Custom Wallpaper Selector</div>
+        <!-- 1. STATIC WALLPAPERS CONTAINER -->
+        <div id="bgWallpapersSection">
+          <div class="bg-section-label">Preset Aesthetic Wallpapers</div>
+          <div class="bg-preset-grid">
+            <button type="button" class="bg-preset-card" data-bg="default">
+              <div class="bg-preset-preview default-bg"></div>
+              <span>Minimal Dark</span>
+            </button>
+            <button type="button" class="bg-preset-card" data-bg="lofi">
+              <div class="bg-preset-preview lofi-bg"></div>
+              <span>Lofi Study Room</span>
+            </button>
+            <button type="button" class="bg-preset-card active" data-bg="rain">
+              <div class="bg-preset-preview rain-bg"></div>
+              <span>Rainy Window</span>
+            </button>
+            <button type="button" class="bg-preset-card" data-bg="library">
+              <div class="bg-preset-preview library-bg"></div>
+              <span>Cozy Library</span>
+            </button>
+            <button type="button" class="bg-preset-card" data-bg="space">
+              <div class="bg-preset-preview space-bg"></div>
+              <span>Deep Cosmos</span>
+            </button>
+            <button type="button" class="bg-preset-card" data-bg="forest">
+              <div class="bg-preset-preview forest-bg"></div>
+              <span>Misty Forest</span>
+            </button>
+            <button type="button" class="bg-preset-card" data-bg="tokyo">
+              <div class="bg-preset-preview tokyo-bg"></div>
+              <span>Tokyo Neon</span>
+            </button>
+            <button type="button" class="bg-preset-card" data-bg="sunset">
+              <div class="bg-preset-preview sunset-bg"></div>
+              <span>Sunset Clouds</span>
+            </button>
+            <button type="button" class="bg-preset-card" data-bg="cafe">
+              <div class="bg-preset-preview cafe-bg"></div>
+              <span>Warm Cafe</span>
+            </button>
+            <button type="button" class="bg-preset-card" data-bg="amoled">
+              <div class="bg-preset-preview amoled-bg"></div>
+              <span>AMOLED Black</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. LIVE VIDEO LOOPS CONTAINER -->
+        <div id="bgVideosSection" class="hidden">
+          <div class="bg-section-label">Preset Ambient Video Loops (&lt; 1 min)</div>
+          <div class="bg-preset-grid">
+            <button type="button" class="bg-preset-card" data-bg="v-rain">
+              <div class="bg-preset-preview v-rain-bg">
+                <span class="bg-video-badge">▶ 0:44</span>
+              </div>
+              <span>Rain Window</span>
+            </button>
+            <button type="button" class="bg-preset-card" data-bg="v-space">
+              <div class="bg-preset-preview v-space-bg">
+                <span class="bg-video-badge">▶ 0:45</span>
+              </div>
+              <span>Deep Cosmos</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-section-label" style="margin-top: 18px;">Custom Media Selector (Images, GIFs, or Videos &lt; 1 min)</div>
         <div class="bg-upload-zone" id="bgUploadZone">
           <div class="bg-upload-options-row">
-            <input type="file" id="bgImageFileInput" accept="image/png, image/jpeg, image/webp, image/gif" style="display:none;">
+            <input type="file" id="bgImageFileInput" accept="image/png, image/jpeg, image/webp, image/gif, video/mp4, video/webm, video/ogg" style="display:none;">
             <button type="button" class="btn btn-secondary btn-sm" id="btnTriggerBgUpload">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-              <span>Upload Local Image / GIF</span>
+              <span>Upload Local Media (Img / Video &lt;1m)</span>
             </button>
             <button type="button" class="btn btn-ghost btn-xs text-muted" id="btnResetCustomBg" style="display:none;">Reset to Default</button>
           </div>
           
           <div class="bg-url-input-wrap">
-            <input type="url" id="bgUrlInput" class="form-input" placeholder="Or paste image / GIF URL (https://...)" style="font-size:0.82rem; padding: 7px 12px;">
+            <input type="url" id="bgUrlInput" class="form-input" placeholder="Or paste image, GIF, or video URL (https://...)" style="font-size:0.82rem; padding: 7px 12px;">
             <button type="button" class="btn btn-secondary btn-xs" id="btnApplyBgUrl" style="white-space:nowrap;">Apply URL</button>
           </div>
 
-          <!-- Live Image / GIF URL Preview Card -->
+          <!-- Live Image / GIF / Video URL Preview Card -->
           <div class="bg-url-preview-card hidden" id="bgUrlPreviewCard">
             <div class="bg-url-preview-thumb-wrap">
               <img id="bgUrlPreviewImg" src="" alt="Wallpaper Preview" class="bg-url-preview-thumb hidden">
+              <video id="bgUrlPreviewVideo" class="bg-url-preview-thumb hidden" autoplay loop muted playsinline></video>
+              <div id="bgUrlPreviewYtWrap" class="bg-url-preview-thumb hidden" style="background:#000;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;">
+                <img id="bgUrlPreviewYtThumb" src="" alt="YouTube Thumbnail" style="width:100%;height:100%;object-fit:cover;">
+                <div style="position:absolute;color:#ef4444;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.7));pointer-events:none;">
+                  <svg viewBox="0 0 24 24" fill="currentColor" style="width:26px;height:26px;"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                </div>
+              </div>
               <div class="bg-url-preview-placeholder" id="bgUrlPreviewPlaceholder">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>
               </div>
             </div>
             <div class="bg-url-preview-info">
               <div class="bg-url-preview-status" id="bgUrlPreviewStatus">Checking format...</div>
-              <div class="bg-url-preview-msg" id="bgUrlPreviewMsg">Paste an image or animated GIF link</div>
+              <div class="bg-url-preview-msg" id="bgUrlPreviewMsg">Paste an image, GIF, video, or YouTube link</div>
             </div>
           </div>
         </div>

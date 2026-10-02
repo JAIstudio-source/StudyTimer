@@ -960,10 +960,10 @@ function startPresenceHeartbeat() {
     clearInterval(presenceHeartbeatInterval);
   }
   syncStudyProgressToLeaderboard(0);
-  // Send single aggregated heartbeat and incremental sync every 60 seconds while timer is actively running
+  // Keep live study presence refreshed every 60 seconds without duplicating incremental second syncs
   presenceHeartbeatInterval = setInterval(() => {
     if (timerStatus === 'RUNNING' && currentMode !== 'break') {
-      syncStudyProgressToLeaderboard(60);
+      syncStudyProgressToLeaderboard(0);
     }
   }, 60000);
 }

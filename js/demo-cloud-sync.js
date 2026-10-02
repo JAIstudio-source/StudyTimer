@@ -344,6 +344,7 @@ function mergeCloudDataIntoLocal(data) {
     }
     if (cloudPrefs.pomo_long_break_minutes) timerConfig.pomoLongBreakMinutes = Math.min(120, Math.max(1, Number(cloudPrefs.pomo_long_break_minutes)));
     if (cloudPrefs.pomo_total_cycles) timerConfig.pomoTotalCycles = Math.min(12, Math.max(1, Number(cloudPrefs.pomo_total_cycles)));
+    if (typeof cloudPrefs.pomo_enable_long_break === 'boolean') timerConfig.pomoEnableLongBreak = cloudPrefs.pomo_enable_long_break;
     if (typeof cloudPrefs.pomo_auto_switch_break === 'boolean') timerConfig.pomoAutoSwitchBreak = cloudPrefs.pomo_auto_switch_break;
     if (typeof cloudPrefs.pomo_auto_switch_focus === 'boolean') timerConfig.pomoAutoSwitchFocus = cloudPrefs.pomo_auto_switch_focus;
     if (cloudPrefs.custom_timer_minutes) {
@@ -667,6 +668,7 @@ async function pushDataToCloud(silent = false, force = false) {
       pomo_break_minutes: Math.min(60, Math.max(1, Number(timerConfig.pomoBreakMinutes) || 5)),
       pomo_long_break_minutes: Math.min(120, Math.max(1, Number(timerConfig.pomoLongBreakMinutes) || 15)),
       pomo_total_cycles: Math.min(12, Math.max(1, Number(timerConfig.pomoTotalCycles) || 4)),
+      pomo_enable_long_break: timerConfig.pomoEnableLongBreak !== false,
       pomo_auto_switch_break: timerConfig.pomoAutoSwitchBreak !== false,
       pomo_auto_switch_focus: timerConfig.pomoAutoSwitchFocus !== false,
       current_streak: Math.max(0, Number(appState.streakCount) || 0),

@@ -108,6 +108,7 @@ let timerConfig = {
   pomoBreakMinutes: 5,
   pomoLongBreakMinutes: 15,
   pomoTotalCycles: 4,
+  pomoEnableLongBreak: true,
   pomoAutoSwitchBreak: true,
   pomoAutoSwitchFocus: true,
   dailyGoalMinutes: 120,
@@ -3412,7 +3413,7 @@ function finishSession(isAutoFinished = false) {
     currentElapsed += Math.floor((Date.now() - timerStartTimestamp) / 1000);
   }
 
-  if (currentElapsed < 10 && !isAutoFinished) {
+  if (currentMode !== 'break' && currentElapsed < 10 && !isAutoFinished) {
     showToast('Session too short to save (< 10s). Focus a bit longer!', 'info');
     return;
   }
@@ -3440,12 +3441,14 @@ function finishSession(isAutoFinished = false) {
     const wasLongBreak = isLongBreakActive;
     isLongBreakActive = false;
 
+    const totalCycles = timerConfig.pomoTotalCycles || 4;
+    const isLongBreakEnabled = timerConfig.pomoEnableLongBreak !== false;
+
     if (wasLongBreak) {
       // The Long Break has completed!
       // Reset cycle count to start a brand new cycle
       pomoCurrentCycle = 1;
       switchMode('pomodoro');
-      const totalCycles = timerConfig.pomoTotalCycles || 4;
       
       showToast('☕ Long break finished! Ready for next cycle.', 'info');
       sendSessionNotification('Long Break Complete! ⚡', 'Ready to start a fresh Pomodoro cycle.');
@@ -3458,12 +3461,26 @@ function finishSession(isAutoFinished = false) {
       return;
     }
 
+    // A Short Break has completed!
+    if (!isLongBreakEnabled && pomoCurrentCycle >= totalCycles) {
+      // Continuous / Long break is OFF and all sessions (including their final break) are completed!
+      // Stop the timer, reset cycle to 1, and complete the goal.
+      pomoCurrentCycle = 1;
+      stopInterval();
+      switchMode('pomodoro');
+      resetTimer();
+      showToast(`🏆 All ${totalCycles} Pomodoro session${totalCycles > 1 ? 's' : ''} completed! Focus goal finished.`, 'success');
+      sendSessionNotification('Pomodoro Goal Complete! 🏆', `Completed all ${totalCycles} focus session${totalCycles > 1 ? 's' : ''} and breaks. Timer finished.`);
+      return;
+    }
+
+    // More sessions remain in the current cycle:
+    pomoCurrentCycle++;
+    switchMode('pomodoro');
     showToast('Break finished! Ready to focus.', 'info');
 
     // Automation: Auto-switch back to Pomodoro focus mode after short break and auto-start next session
     if (timerConfig.pomoAutoSwitchFocus !== false) {
-      switchMode('pomodoro');
-      const totalCycles = timerConfig.pomoTotalCycles || 4;
       showToast(`Starting Pomodoro Focus (Session ${pomoCurrentCycle}/${totalCycles})`, 'info');
       startTimer();
     }
@@ -3484,43 +3501,40 @@ function finishSession(isAutoFinished = false) {
     // Pomodoro Automation: Handle session progression and break transition
     if (prevMode === 'pomodoro') {
       const totalCycles = timerConfig.pomoTotalCycles || 4;
-      const isLongBreakEnabled = timerConfig.pomoEnableLongBreak === true;
+      const isLongBreakEnabled = timerConfig.pomoEnableLongBreak !== false;
 
       if (pomoCurrentCycle >= totalCycles) {
         // Final focus session of the entire cycle completed!
         if (isLongBreakEnabled) {
           // Setting is ON: Take the final long break, then loop into a fresh Pomodoro cycle after break
           isLongBreakActive = true;
+          switchMode('break');
           if (timerConfig.pomoAutoSwitchBreak !== false) {
-            switchMode('break');
             startTimer();
-            showToast('All sessions completed! Starting Long Break ☕', 'info');
+            showToast(`All ${totalCycles} focus session${totalCycles > 1 ? 's' : ''} completed! Starting Long Break ☕`, 'info');
           } else {
-            switchMode('break');
-            showToast('All sessions completed! Ready for Long Break ☕', 'info');
+            showToast(`All ${totalCycles} focus session${totalCycles > 1 ? 's' : ''} completed! Ready for Long Break ☕`, 'info');
           }
         } else {
-          // Setting is OFF: NO long break! The entire session completes and timer stops completely.
+          // Setting is OFF: Take a short break for the final session, and stop after the break finishes
           isLongBreakActive = false;
-          pomoCurrentCycle = 1;
-          stopInterval();
-          switchMode('pomodoro');
-          resetTimer();
-          showToast(`🏆 All ${totalCycles} Pomodoro sessions completed! Focus goal finished.`, 'success');
-          sendSessionNotification('Pomodoro Goal Complete! 🏆', `Completed all ${totalCycles} focus sessions. Timer finished.`);
-          return;
+          switchMode('break');
+          if (timerConfig.pomoAutoSwitchBreak !== false) {
+            startTimer();
+            showToast(`Focus session ${pomoCurrentCycle}/${totalCycles} complete! Starting Short Break ☕`, 'info');
+          } else {
+            showToast(`Focus session ${pomoCurrentCycle}/${totalCycles} complete! Short Break ready ☕`, 'info');
+          }
         }
       } else {
-        // Intermediate session completed: advance to next session number and start short break
-        pomoCurrentCycle++;
+        // Intermediate session completed: start short break
         isLongBreakActive = false;
+        switchMode('break');
         if (timerConfig.pomoAutoSwitchBreak !== false) {
-          switchMode('break');
           startTimer();
-          showToast(`Starting Short Break ☕ (Next: Session ${pomoCurrentCycle}/${totalCycles})`, 'info');
+          showToast(`Starting Short Break ☕ (Session ${pomoCurrentCycle}/${totalCycles})`, 'info');
         } else {
-          switchMode('break');
-          showToast(`Short Break ready ☕ (Next: Session ${pomoCurrentCycle}/${totalCycles})`, 'info');
+          showToast(`Short Break ready ☕ (Session ${pomoCurrentCycle}/${totalCycles})`, 'info');
         }
       }
     }
@@ -7644,7 +7658,7 @@ function openTimerSettingsModal() {
   if (pomoBreakInput) pomoBreakInput.value = timerConfig.pomoBreakMinutes || 5;
   if (pomoLongBreakInput) pomoLongBreakInput.value = timerConfig.pomoLongBreakMinutes || 15;
   if (pomoTotalCyclesInput) pomoTotalCyclesInput.value = timerConfig.pomoTotalCycles || 4;
-  if (pomoEnableLongBreak) pomoEnableLongBreak.checked = timerConfig.pomoEnableLongBreak === true;
+  if (pomoEnableLongBreak) pomoEnableLongBreak.checked = timerConfig.pomoEnableLongBreak !== false;
   if (pomoAutoSwitchBreak) pomoAutoSwitchBreak.checked = timerConfig.pomoAutoSwitchBreak !== false;
   if (pomoAutoSwitchFocus) pomoAutoSwitchFocus.checked = timerConfig.pomoAutoSwitchFocus !== false;
   if (checkRainbowRing) checkRainbowRing.checked = timerConfig.rainbowRing !== false;
@@ -7679,7 +7693,7 @@ async function handleSaveTimerSettings(e) {
   const pomoBreakVal = parseInt(document.getElementById('pomoBreakInput')?.value, 10);
   const pomoLongBreakVal = parseInt(document.getElementById('pomoLongBreakInput')?.value, 10);
   const pomoTotalCyclesVal = parseInt(document.getElementById('pomoTotalCyclesInput')?.value, 10);
-  const pomoEnableLongBreak = document.getElementById('pomoEnableLongBreak')?.checked === true;
+  const pomoEnableLongBreak = document.getElementById('pomoEnableLongBreak')?.checked !== false;
   const pomoAutoSwitchBreak = document.getElementById('pomoAutoSwitchBreak')?.checked !== false;
   const pomoAutoSwitchFocus = document.getElementById('pomoAutoSwitchFocus')?.checked !== false;
   const rainbowRing = document.getElementById('checkRainbowRing')?.checked !== false;

@@ -336,11 +336,18 @@ function mergeCloudDataIntoLocal(data) {
     const goalMins = cloudPrefs.daily_goal_minutes || (todayGoalSecs > 0 ? Math.round(todayGoalSecs / 60) : null);
     if (goalMins) timerConfig.dailyGoalMinutes = Math.min(1440, Math.max(15, goalMins));
 
-    if (cloudPrefs.study_interval_minutes || cloudPrefs.pomo_focus_minutes) {
-      timerConfig.pomoFocusMinutes = Math.min(180, Math.max(1, Number(cloudPrefs.study_interval_minutes || cloudPrefs.pomo_focus_minutes)));
+    if (cloudPrefs.pomo_focus_minutes || cloudPrefs.study_interval_minutes) {
+      const rawFocus = Number(cloudPrefs.pomo_focus_minutes);
+      const rawInterval = Number(cloudPrefs.study_interval_minutes);
+      let val = !isNaN(rawFocus) && rawFocus > 0 ? rawFocus : rawInterval;
+      if (val === 120 && (isNaN(rawFocus) || rawFocus === 120)) {
+        val = 50;
+      }
+      if (!isNaN(val) && val > 0) timerConfig.pomoFocusMinutes = Math.min(180, Math.max(1, val));
     }
     if (cloudPrefs.break_interval_minutes || cloudPrefs.pomo_break_minutes) {
-      timerConfig.pomoBreakMinutes = Math.min(60, Math.max(1, Number(cloudPrefs.break_interval_minutes || cloudPrefs.pomo_break_minutes)));
+      const val = Number(cloudPrefs.break_interval_minutes || cloudPrefs.pomo_break_minutes);
+      if (!isNaN(val) && val > 0) timerConfig.pomoBreakMinutes = Math.min(60, Math.max(1, val));
     }
     if (cloudPrefs.pomo_long_break_minutes) timerConfig.pomoLongBreakMinutes = Math.min(120, Math.max(1, Number(cloudPrefs.pomo_long_break_minutes)));
     if (cloudPrefs.pomo_total_cycles) timerConfig.pomoTotalCycles = Math.min(12, Math.max(1, Number(cloudPrefs.pomo_total_cycles)));
@@ -348,7 +355,11 @@ function mergeCloudDataIntoLocal(data) {
     if (typeof cloudPrefs.pomo_auto_switch_break === 'boolean') timerConfig.pomoAutoSwitchBreak = cloudPrefs.pomo_auto_switch_break;
     if (typeof cloudPrefs.pomo_auto_switch_focus === 'boolean') timerConfig.pomoAutoSwitchFocus = cloudPrefs.pomo_auto_switch_focus;
     if (cloudPrefs.custom_timer_minutes) {
-      timerConfig.customTimerMinutes = Math.min(720, Math.max(1, Number(cloudPrefs.custom_timer_minutes)));
+      const val = Number(cloudPrefs.custom_timer_minutes);
+      if (!isNaN(val) && val > 0) timerConfig.customTimerMinutes = Math.min(720, Math.max(1, val));
+    }
+    if (cloudPrefs.last_used_mode && ['pomodoro', 'stopwatch', 'break'].includes(cloudPrefs.last_used_mode)) {
+      currentMode = cloudPrefs.last_used_mode;
     }
   }
 
@@ -661,16 +672,17 @@ async function pushDataToCloud(silent = false, force = false) {
     const prefsObj = {
       daily_goal_minutes: dailyGoalMin,
       daily_goal_secs: dailyGoalMin * 60,
-      study_interval_minutes: Math.min(180, Math.max(1, Number(timerConfig.pomoFocusMinutes) || 25)),
-      break_interval_minutes: Math.min(60, Math.max(1, Number(timerConfig.pomoBreakMinutes) || 5)),
-      custom_timer_minutes: Math.min(720, Math.max(1, Number(timerConfig.customTimerMinutes) || 45)),
-      pomo_focus_minutes: Math.min(180, Math.max(1, Number(timerConfig.pomoFocusMinutes) || 25)),
-      pomo_break_minutes: Math.min(60, Math.max(1, Number(timerConfig.pomoBreakMinutes) || 5)),
-      pomo_long_break_minutes: Math.min(120, Math.max(1, Number(timerConfig.pomoLongBreakMinutes) || 15)),
+      study_interval_minutes: Math.min(180, Math.max(1, Number(timerConfig.pomoFocusMinutes) || 50)),
+      break_interval_minutes: Math.min(60, Math.max(1, Number(timerConfig.pomoBreakMinutes) || 10)),
+      custom_timer_minutes: Math.min(720, Math.max(1, Number(timerConfig.customTimerMinutes) || 50)),
+      pomo_focus_minutes: Math.min(180, Math.max(1, Number(timerConfig.pomoFocusMinutes) || 50)),
+      pomo_break_minutes: Math.min(60, Math.max(1, Number(timerConfig.pomoBreakMinutes) || 10)),
+      pomo_long_break_minutes: Math.min(120, Math.max(1, Number(timerConfig.pomoLongBreakMinutes) || 20)),
       pomo_total_cycles: Math.min(12, Math.max(1, Number(timerConfig.pomoTotalCycles) || 4)),
       pomo_enable_long_break: timerConfig.pomoEnableLongBreak !== false,
       pomo_auto_switch_break: timerConfig.pomoAutoSwitchBreak !== false,
       pomo_auto_switch_focus: timerConfig.pomoAutoSwitchFocus !== false,
+      last_used_mode: currentMode,
       current_streak: Math.max(0, Number(appState.streakCount) || 0),
       streak_count: Math.max(0, Number(appState.streakCount) || 0),
       last_study_date: sanitizeString(appState.lastStudyDate || '', 20),

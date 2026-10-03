@@ -7,6 +7,11 @@ import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
 data class UpdateInfo(
     val versionCode: Int,
     val versionName: String,
@@ -22,11 +27,17 @@ object UpdateChecker {
     private const val MANIFEST_URL = "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/version.json"
     private const val FALLBACK_URL = "https://get-studytimer.vercel.app/?download=true"
 
+    suspend fun check(): UpdateInfo? = withContext(Dispatchers.IO) {
+        runCatching { fetch() }.getOrNull()
+    }
+
     fun check(context: Context, onResult: (UpdateInfo?) -> Unit) {
-        Thread {
+        CoroutineScope(Dispatchers.IO).launch {
             val result = runCatching { fetch() }.getOrNull()
-            context.applicationContext.mainExecutor.execute { onResult(result) }
-        }.start()
+            withContext(Dispatchers.Main) {
+                onResult(result)
+            }
+        }
     }
 
     private fun fetch(): UpdateInfo? {

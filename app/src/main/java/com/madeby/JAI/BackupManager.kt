@@ -8,6 +8,9 @@ import java.io.*
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class BackupManager(private val context: Context) {
 
@@ -360,11 +363,9 @@ class BackupManager(private val context: Context) {
 
                 if (allowCloudSync && AuthManager.isLoggedIn(context)) {
                     // Safe async sync check handled by caller or background worker
-                    Thread {
-                        kotlinx.coroutines.runBlocking {
-                            CloudSyncManager.syncWithConflictCheck(context)
-                        }
-                    }.start()
+                    CoroutineScope(Dispatchers.IO).launch {
+                        CloudSyncManager.syncWithConflictCheck(context)
+                    }
                 }
 
                 return committed

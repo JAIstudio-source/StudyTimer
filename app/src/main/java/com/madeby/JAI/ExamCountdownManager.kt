@@ -7,6 +7,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 data class ExamCountdown(
     val id: String,
@@ -83,11 +86,9 @@ object ExamCountdownManager {
             BackupManager(context).markDataModified()
             BackupManager(context).runSilentAutoBackup()
             if (AuthManager.isLoggedIn(context)) {
-                Thread {
-                    kotlinx.coroutines.runBlocking {
-                        CloudSyncManager.syncDataToCloud(context, force = true)
-                    }
-                }.start()
+                CoroutineScope(Dispatchers.IO).launch {
+                    CloudSyncManager.syncDataToCloud(context, force = true)
+                }
             }
         } catch (_: Exception) {}
     }

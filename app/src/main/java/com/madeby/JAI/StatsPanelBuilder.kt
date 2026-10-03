@@ -4,6 +4,9 @@ import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
@@ -280,55 +283,17 @@ class StatsPanelBuilder(private val host: MainActivity) {
 
     internal fun showDeleteGoalDialog(dateStr: String, dateLabel: String) {
         val focusSecs = sharedPrefs.getLong("day_focus_$dateStr", 0L)
-        val dialog = Dialog(host)
-        val root = LinearLayout(host).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(22), dp(20), dp(22), dp(20))
-            background = themeCoordinator.createDialogBackground(24f)
-        }
-
-        root.addView(TextView(host).apply {
-            text = "Delete Goal & Habit History?"
-            setTextColor(themeCoordinator.textColor)
-            textSize = 18f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-        })
-
         val formattedFocus = if (focusSecs >= 3600) "${focusSecs / 3600}h ${(focusSecs % 3600) / 60}m" else "${(focusSecs % 3600) / 60}m"
-        root.addView(TextView(host).apply {
-            text = "Date: $dateLabel\nRecorded Focus: $formattedFocus\n\nWould you like to keep or delete this goal history entry?"
-            setTextColor(themeCoordinator.textColor)
-            alpha = 0.85f
-            textSize = 13f
-            setPadding(0, dp(10), 0, dp(18))
-        })
 
-        val btnRow = LinearLayout(host).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.END
-        }
-
-        btnRow.addView(TextView(host).apply {
-            text = "Keep"
-            setTextColor(themeCoordinator.textColor)
-            textSize = 14f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(dp(16), dp(10), dp(16), dp(10))
-            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 16f)
-            setOnClickListener { dialog.dismiss() }
-        })
-
-        btnRow.addView(View(host).apply { layoutParams = LinearLayout.LayoutParams(dp(10), 1) })
-
-        btnRow.addView(TextView(host).apply {
-            text = "Delete"
-            setTextColor(Color.parseColor("#FF5252"))
-            textSize = 14f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(dp(16), dp(10), dp(16), dp(10))
-            background = themeCoordinator.createGlassChip(Color.argb(40, 255, 82, 82), 16f)
-            setOnClickListener {
-                dialog.dismiss()
+        DialogFactory.showConfirmationDialog(
+            context = host,
+            themeCoordinator = themeCoordinator,
+            title = "Delete Goal & Habit History?",
+            message = "Date: $dateLabel\nRecorded Focus: $formattedFocus\n\nWould you like to keep or delete this goal history entry?",
+            positiveText = "Delete",
+            negativeText = "Keep",
+            isDestructive = true,
+            onConfirm = {
                 sharedPrefs.edit()
                     .remove("day_focus_$dateStr")
                     .remove("daily_goal_sec_$dateStr")
@@ -342,18 +307,11 @@ class StatsPanelBuilder(private val host: MainActivity) {
                     navigateToPanel(currentPanel)
                 }
                 Toast.makeText(host, "Goal history deleted for $dateLabel", Toast.LENGTH_SHORT).show()
-                Thread {
-                    kotlinx.coroutines.runBlocking {
-                        CloudSyncManager.syncDataToCloud(host)
-                    }
-                }.start()
+                CoroutineScope(Dispatchers.IO).launch {
+                    CloudSyncManager.syncDataToCloud(host)
+                }
             }
-        })
-
-        root.addView(btnRow)
-        dialog.setContentView(root)
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-        dialog.show()
+        )
     }
 
     private var insightsPillBarRef: InsightsPillNavBar? = null

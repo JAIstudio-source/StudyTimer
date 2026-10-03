@@ -183,81 +183,20 @@ class SubjectDialogHelper(private val host: MainActivity) {
 
     fun showDeleteSubjectConfirmDialog(subj: SubjectTag) {
         try {
-            val dialog = Dialog(host)
-            dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
-            dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-            val container = LinearLayout(host).apply {
-                orientation = LinearLayout.VERTICAL
-                background = themeCoordinator.createDialogBackground(24f)
-                setPadding(dp(22), dp(22), dp(22), dp(22))
-            }
-
-            val title = TextView(host).apply {
-                text = "Delete '${subj.name}' Subject?"
-                textSize = 17f
-                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                setTextColor(themeCoordinator.textColor)
-                gravity = Gravity.CENTER
-                setPadding(0, 0, 0, dp(8))
-            }
-            container.addView(title)
-
-            val msg = TextView(host).apply {
-                text = "Are you sure you want to remove ${subj.iconEmoji} ${subj.name}? Existing recorded stats for this subject will remain saved."
-                textSize = 13f
-                setTextColor(themeCoordinator.textColor)
-                alpha = 0.7f
-                gravity = Gravity.CENTER
-                setPadding(0, 0, 0, dp(18))
-            }
-            container.addView(msg)
-
-            val btnRow = LinearLayout(host).apply {
-                orientation = LinearLayout.HORIZONTAL
-            }
-
-            val cancelBtn = Button(host).apply {
-                text = "Cancel"
-                textSize = 13.5f
-                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                setTextColor(themeCoordinator.textColor)
-                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 12f)
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                    setMargins(0, 0, dp(6), 0)
-                }
-                setOnClickListener {
-                    dialog.dismiss()
-                    showSubjectPickerDialog()
-                }
-            }
-
-            val delBtn = Button(host).apply {
-                text = "Delete"
-                textSize = 13.5f
-                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                setTextColor(Color.WHITE)
-                background = GradientDrawable().apply {
-                    setColor(Color.parseColor("#EF4444"))
-                    cornerRadius = dp(12).toFloat()
-                }
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                    setMargins(dp(6), 0, 0, 0)
-                }
-                setOnClickListener {
+            DialogFactory.showConfirmationDialog(
+                context = host,
+                themeCoordinator = themeCoordinator,
+                title = "Delete '${subj.name}' Subject?",
+                message = "Are you sure you want to remove ${subj.iconEmoji} ${subj.name}? Existing recorded stats for this subject will remain saved.",
+                positiveText = "Delete",
+                negativeText = "Cancel",
+                isDestructive = true,
+                onConfirm = {
                     SubjectTagManager.removeSubject(host, subj.id)
-                    dialog.dismiss()
                     host.navigateToPanel(AppPanel.FOCUS)
                     showSubjectPickerDialog()
                 }
-            }
-
-            btnRow.addView(cancelBtn)
-            btnRow.addView(delBtn)
-            container.addView(btnRow)
-
-            dialog.setContentView(container)
-            dialog.show()
+            )
         } catch (_: Exception) {}
     }
 

@@ -69,10 +69,18 @@ import kotlin.math.max
 import kotlin.math.min
 
 
+import androidx.activity.viewModels
+
 class MainActivity : AppCompatActivity() {
 
+    internal val timerViewModel: TimerViewModel by viewModels()
+
     internal var currentPanel = AppPanel.FOCUS
-    internal var currentTimerState = TimerState.IDLE
+    internal var currentTimerState: TimerState
+        get() = timerViewModel.uiState.value.state
+        set(value) {
+            timerViewModel.setTimerState(value)
+        }
     internal var currentStatsTab = AppStatsTab.OVERVIEW
     internal var currentSettingsTab = AppSettingsTab.HUB
     private var tabDragSlop = 12
@@ -94,22 +102,41 @@ class MainActivity : AppCompatActivity() {
     internal val tabPageCache = HashMap<String, CachedTabPage>()
     internal var selectedDaysFilter = 7
 
-    internal var accumulatedStudy: Long = 0
-    internal var currentBreakSeconds: Long = 0
+    internal var accumulatedStudy: Long
+        get() = timerViewModel.uiState.value.accumulatedStudy
+        set(value) {
+            getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit().putLong("accumulatedStudy", value).apply()
+        }
+    internal var currentBreakSeconds: Long
+        get() = timerViewModel.uiState.value.currentBreakSeconds
+        set(value) {
+            getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit().putLong("currentBreakSeconds", value).apply()
+        }
 
     internal fun resetRunningSessionAccumulators() {
-        accumulatedStudy = 0L
-        currentBreakSeconds = 0L
-        getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit()
-            .putLong("accumulatedStudy", 0L)
-            .putLong("currentBreakSeconds", 0L)
-            .apply()
+        timerViewModel.resetRunningSessionAccumulators()
     }
 
-    internal var timerMode: String = "STOPWATCH"
-    internal var focusCountdownSecs: Long = 1500L
-    internal var focusRemainingSecs: Long = 0L
-    internal var prePauseState: TimerState = TimerState.STUDYING
+    internal var timerMode: String
+        get() = timerViewModel.uiState.value.mode
+        set(value) {
+            timerViewModel.setTimerMode(value)
+        }
+    internal var focusCountdownSecs: Long
+        get() = timerViewModel.uiState.value.focusCountdownSecs
+        set(value) {
+            getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).edit().putLong("focusCountdownSecs", value).apply()
+        }
+    internal var focusRemainingSecs: Long
+        get() = timerViewModel.uiState.value.focusRemainingSecs
+        set(value) {
+            timerViewModel.updateFocusRemaining(value)
+        }
+    internal var prePauseState: TimerState
+        get() = timerViewModel.uiState.value.prePauseState
+        set(value) {
+            timerViewModel.pause(value)
+        }
 
     private var lastKeepScreenOn = -1
 

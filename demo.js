@@ -2606,7 +2606,7 @@ function switchMode(modeKey) {
   if (modeBadge) {
     if (modeKey === 'pomodoro') {
       const total = timerConfig.pomoTotalCycles || 4;
-      modeBadge.textContent = `Pomodoro Focus (${pomoCurrentCycle}/${total})`;
+      modeBadge.textContent = `Focus (${pomoCurrentCycle}/${total})`;
     } else if (modeKey === 'stopwatch') {
       modeBadge.textContent = 'Stopwatch';
     } else if (modeKey === 'break') {
@@ -3283,25 +3283,46 @@ function clearFocusAutohide() {
 
 function initFocusAutohideListeners() {
   const handlePointerWake = (e) => {
-    // Prevent micro-sensor jitter on mouse movements from repeatedly cancelling autohide countdown
+    // Prevent micro-sensor subpixel noise on mouse movements from repeatedly resetting
     if (e.type === 'mousemove' || e.type === 'pointermove') {
       const dx = Math.abs(e.clientX - lastAutohidePointerX);
       const dy = Math.abs(e.clientY - lastAutohidePointerY);
-      if (dx < 4 && dy < 4) return;
+      if (dx < 3 && dy < 3) return;
       lastAutohidePointerX = e.clientX;
       lastAutohidePointerY = e.clientY;
     }
     resetFocusAutohideTimer();
+    if (document.body.classList.contains('zen-mode-active')) {
+      wakeZenControls();
+    }
   };
 
   ['mousemove', 'pointermove', 'mousedown', 'touchstart', 'touchmove', 'keydown', 'scroll'].forEach(evt => {
     window.addEventListener(evt, handlePointerWake, { passive: true });
   });
 
+  // Hovering directly over controls keeps them active
+  const timerControlsArea = document.querySelector('.timer-controls-area');
+  if (timerControlsArea) {
+    timerControlsArea.addEventListener('pointerenter', () => {
+      resetFocusAutohideTimer();
+    });
+  }
+
+  const zenControlsBar = document.querySelector('.zen-controls-bar');
+  if (zenControlsBar) {
+    zenControlsBar.addEventListener('pointerenter', () => {
+      wakeZenControls();
+    });
+  }
+
   // Clicking anywhere while UI is faded returns controls immediately
   document.addEventListener('click', () => {
     if (document.body.classList.contains('focus-autohide')) {
       resetFocusAutohideTimer();
+    }
+    if (document.body.classList.contains('zen-mode-active')) {
+      wakeZenControls();
     }
   });
 }
@@ -3451,11 +3472,11 @@ function finishSession(isAutoFinished = false) {
       switchMode('pomodoro');
       
       showToast('☕ Long break finished! Ready for next cycle.', 'info');
-      sendSessionNotification('Long Break Complete! ⚡', 'Ready to start a fresh Pomodoro cycle.');
+      sendSessionNotification('Long Break Complete! ⚡', 'Ready to start a fresh focus cycle.');
 
       // If continuous cycling is on and auto-switch focus is enabled, keep going and start the new session!
       if (timerConfig.pomoAutoSwitchFocus !== false) {
-        showToast(`🚀 Starting new Pomodoro cycle (Session 1/${totalCycles})`, 'info');
+        showToast(`🚀 Starting new focus cycle (Session 1/${totalCycles})`, 'info');
         startTimer();
       }
       return;
@@ -3469,8 +3490,8 @@ function finishSession(isAutoFinished = false) {
       stopInterval();
       switchMode('pomodoro');
       resetTimer();
-      showToast(`🏆 All ${totalCycles} Pomodoro session${totalCycles > 1 ? 's' : ''} completed! Focus goal finished.`, 'success');
-      sendSessionNotification('Pomodoro Goal Complete! 🏆', `Completed all ${totalCycles} focus session${totalCycles > 1 ? 's' : ''} and breaks. Timer finished.`);
+      showToast(`🏆 All ${totalCycles} focus session${totalCycles > 1 ? 's' : ''} completed! Focus goal finished.`, 'success');
+      sendSessionNotification('Focus Goal Complete! 🏆', `Completed all ${totalCycles} focus session${totalCycles > 1 ? 's' : ''} and breaks. Timer finished.`);
       return;
     }
 
@@ -3479,9 +3500,9 @@ function finishSession(isAutoFinished = false) {
     switchMode('pomodoro');
     showToast('Break finished! Ready to focus.', 'info');
 
-    // Automation: Auto-switch back to Pomodoro focus mode after short break and auto-start next session
+    // Automation: Auto-switch back to focus mode after short break and auto-start next session
     if (timerConfig.pomoAutoSwitchFocus !== false) {
-      showToast(`Starting Pomodoro Focus (Session ${pomoCurrentCycle}/${totalCycles})`, 'info');
+      showToast(`Starting Focus (Session ${pomoCurrentCycle}/${totalCycles})`, 'info');
       startTimer();
     }
   } else {
@@ -3493,12 +3514,12 @@ function finishSession(isAutoFinished = false) {
       showToast(`Focus session saved! +${studiedDurationSec}s${subLabel}`, 'success');
     }
 
-    // Only give option to change subject if subject tracking is enabled
-    if (timerConfig.enableSubjects !== false) {
+    // Only give option to change subject if subject tracking is enabled and user manually finished (not auto-switch)
+    if (timerConfig.enableSubjects !== false && !isAutoFinished) {
       openSessionCompleteModal(subject, minStr);
     }
 
-    // Pomodoro Automation: Handle session progression and break transition
+    // Automation: Handle session progression and break transition
     if (prevMode === 'pomodoro') {
       const totalCycles = timerConfig.pomoTotalCycles || 4;
       const isLongBreakEnabled = timerConfig.pomoEnableLongBreak !== false;
@@ -3506,7 +3527,7 @@ function finishSession(isAutoFinished = false) {
       if (pomoCurrentCycle >= totalCycles) {
         // Final focus session of the entire cycle completed!
         if (isLongBreakEnabled) {
-          // Setting is ON: Take the final long break, then loop into a fresh Pomodoro cycle after break
+          // Setting is ON: Take the final long break, then loop into a fresh cycle after break
           isLongBreakActive = true;
           switchMode('break');
           if (timerConfig.pomoAutoSwitchBreak !== false) {
@@ -3690,50 +3711,75 @@ function updateTimerDisplay() {
     }
   }
 
-  // State Badge Text and Colors
+  // State Badge Text, Colors & Status Classes
   const stateBadge = document.getElementById('timerStateBadge');
   const zenStateBadge = document.getElementById('zenStateBadge');
-  let stateText = 'READY TO FOCUS';
-  let stateColor = 'var(--text-muted)';
+  const breakBanner = document.getElementById('breakOngoingBanner');
+  const zenBreakBanner = document.getElementById('zenBreakOngoingBanner');
+  const breakBannerText = document.getElementById('breakBannerText');
+  const zenBreakBannerText = document.getElementById('zenBreakBannerText');
+
+  let stateText = 'READY';
+  let statusClass = 'state-ready';
 
   if (currentMode === 'break') {
     if (timerStatus === 'RUNNING') {
-      stateText = '☕ TAKING A BREAK';
-      stateColor = 'var(--accent-emerald)';
+      stateText = 'BREAK';
+      statusClass = 'state-running-break';
     } else if (timerStatus === 'PAUSED') {
-      stateText = '⏸️ BREAK PAUSED';
-      stateColor = '#f59e0b';
+      stateText = 'PAUSED';
+      statusClass = 'state-paused';
     } else {
-      stateText = '☕ READY FOR BREAK';
-      stateColor = 'var(--accent-emerald)';
+      stateText = 'READY';
+      statusClass = 'state-ready';
+    }
+
+    const breakTitle = timerStatus === 'RUNNING'
+      ? 'BREAK TIME'
+      : (timerStatus === 'PAUSED' ? 'BREAK PAUSED' : 'READY FOR BREAK');
+
+    if (breakBanner) {
+      if (breakBannerText) breakBannerText.textContent = breakTitle;
+      breakBanner.classList.remove('hidden');
+      if (timerStatus === 'RUNNING') {
+        breakBanner.classList.add('is-breathing');
+      } else {
+        breakBanner.classList.remove('is-breathing');
+      }
+    }
+    if (zenBreakBanner) {
+      if (zenBreakBannerText) zenBreakBannerText.textContent = breakTitle;
+      zenBreakBanner.classList.remove('hidden');
+      if (timerStatus === 'RUNNING') {
+        zenBreakBanner.classList.add('is-breathing');
+      } else {
+        zenBreakBanner.classList.remove('is-breathing');
+      }
     }
   } else {
     if (timerStatus === 'RUNNING') {
-      stateText = currentMode === 'pomodoro' ? '🔥 POMODORO FOCUS' : '🔥 FOCUSING';
-      stateColor = currentMode === 'pomodoro' ? 'var(--accent-red)' : 'var(--accent-blue)';
+      stateText = 'FOCUSING';
+      statusClass = 'state-running-focus';
     } else if (timerStatus === 'PAUSED') {
-      stateText = '⏸️ PAUSED';
-      stateColor = '#f59e0b';
+      stateText = 'PAUSED';
+      statusClass = 'state-paused';
     } else {
-      stateText = 'READY TO FOCUS';
-      stateColor = 'var(--text-muted)';
+      stateText = 'READY';
+      statusClass = 'state-ready';
     }
+
+    if (breakBanner) breakBanner.classList.add('hidden');
+    if (zenBreakBanner) zenBreakBanner.classList.add('hidden');
   }
 
-  if (stateBadge) {
-    stateBadge.textContent = stateText;
-    stateBadge.style.color = stateColor;
-  }
-  if (zenStateBadge) {
-    let zenText = 'READY TO FOCUS';
-    if (currentMode === 'break') {
-      zenText = timerStatus === 'RUNNING' ? 'BREAK' : (timerStatus === 'PAUSED' ? 'BREAK PAUSED' : 'READY FOR BREAK');
-    } else {
-      zenText = timerStatus === 'RUNNING' ? 'FOCUSING' : (timerStatus === 'PAUSED' ? 'PAUSED' : 'READY TO FOCUS');
+  [stateBadge, zenStateBadge].forEach(badge => {
+    if (badge) {
+      badge.textContent = stateText;
+      badge.style.color = '';
+      badge.classList.remove('state-running-break', 'state-running-focus', 'state-paused', 'state-ready');
+      badge.classList.add(statusClass);
     }
-    zenStateBadge.textContent = zenText;
-    zenStateBadge.style.color = 'var(--text-muted)';
-  }
+  });
 
   // Pomodoro Session Count & Ratio Badge (e.g. Session 2/5  #50/10)
   const sessionBadge = document.getElementById('timerSessionRatioBadge');
@@ -3788,17 +3834,27 @@ function updateTimerControlsUI() {
   const zenFinishLabel = isBreak ? 'End Break' : 'Save Session';
 
   if (btnFinishSession && !btnFinishSession.classList.contains('saved-success')) {
-    btnFinishSession.innerHTML = `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-      <span>${finishLabel}</span>
-    `;
+    const span = btnFinishSession.querySelector('span');
+    if (span) {
+      if (span.innerHTML !== finishLabel) span.innerHTML = finishLabel;
+    } else {
+      btnFinishSession.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <span>${finishLabel}</span>
+      `;
+    }
   }
 
   if (btnZenSave && !btnZenSave.classList.contains('saved-success')) {
-    btnZenSave.innerHTML = `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-      <span>${zenFinishLabel}</span>
-    `;
+    const zenSpan = btnZenSave.querySelector('span');
+    if (zenSpan) {
+      if (zenSpan.innerHTML !== zenFinishLabel) zenSpan.innerHTML = zenFinishLabel;
+    } else {
+      btnZenSave.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <span>${zenFinishLabel}</span>
+      `;
+    }
   }
 
   if (timerStatus === 'RUNNING') {

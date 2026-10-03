@@ -402,6 +402,11 @@
               </button>
             </div>
 
+            <!-- Break Ongoing Floating Text with Breathing Animation (Above Main Timer Dial) -->
+            <div class="break-ongoing-banner hidden" id="breakOngoingBanner" role="status" aria-live="polite">
+              <span class="break-banner-text" id="breakBannerText">BREAK TIME</span>
+            </div>
+
             <!-- Central Circular Timer Ring -->
             <div class="timer-ring-container">
               <svg class="timer-svg" viewBox="0 0 320 320">
@@ -418,7 +423,7 @@
               <!-- Central Content Display -->
               <div class="timer-center-content">
                 <div class="timer-session-ratio-badge" id="timerSessionRatioBadge">Session 1/4 &nbsp;#25/5</div>
-                <div class="timer-state-badge" id="timerStateBadge">READY TO FOCUS</div>
+                <div class="timer-state-badge" id="timerStateBadge">READY</div>
                 <div class="timer-digital-display" id="timerDisplay">25:00</div>
                 <div class="subject-dropdown-wrapper" id="subjectDropdownWrapper">
                   <button class="timer-current-subject-btn" id="timerSubjectDisplay" title="Click to change subject">
@@ -1620,6 +1625,11 @@
 
     <!-- Center Giant Minimal Full Screen Timer -->
     <div class="zen-timer-canvas" id="zenTimerCanvas">
+      <!-- Break Ongoing Floating Text for Zen View -->
+      <div class="break-ongoing-banner zen-break-banner hidden" id="zenBreakOngoingBanner" role="status" aria-live="polite">
+        <span class="break-banner-text" id="zenBreakBannerText">BREAK TIME</span>
+      </div>
+
       <!-- Minimal Glowing Circular Ring -->
       <div class="zen-ring-container" id="zenRingContainer">
         <svg class="zen-timer-svg" viewBox="0 0 400 400">
@@ -1635,7 +1645,7 @@
 
         <div class="zen-timer-content">
           <div class="zen-session-ratio-badge" id="zenSessionRatioBadge">Session 1/4 &nbsp;#25/5</div>
-          <div class="zen-state-badge" id="zenStateBadge">READY TO FOCUS</div>
+          <div class="zen-state-badge" id="zenStateBadge">READY</div>
           <div class="zen-digital-display" id="zenTimerDisplay">25:00</div>
           
           <!-- Fullscreen Subject Selector -->

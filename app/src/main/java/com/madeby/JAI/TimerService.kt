@@ -714,12 +714,23 @@ class TimerService : Service() {
                     StudyWidgetProvider.refresh(this)
                 }
             } else if (currentTimerState != TimerState.IDLE && lastTimestamp > 0L) {
-                val gap = now - lastTimestamp
-                if (gap > 0L) {
+                val rawGap = now - lastTimestamp
+                if (rawGap > MAX_ACCEPTABLE_GAP_SECS) {
+                    android.util.Log.w("TimerService", "Giant time gap of ${rawGap}s detected (>10m). Resetting timer state to PAUSED to prevent 12h inflation.")
+                    prePauseState = currentTimerState
+                    currentTimerState = TimerState.PAUSED
+                    lastTimestamp = now
+                    continuousStudySecs = 0L
+                    saveState()
+                    updateForegroundNotification()
+                    StudyWidgetProvider.refresh(this)
+                } else if (rawGap > 0L) {
+                    val gap = rawGap
                     when (currentTimerState) {
                         TimerState.STUDYING -> {
                             accumulatedStudy += gap
                             continuousStudySecs += gap
+
 
                             // Anti-Cheat: 3.5 Hours Continuous Study Inactivity Check-in
                             if (!isPendingActivityConfirmation && continuousStudySecs >= CONTINUOUS_STUDY_LIMIT_SECS) {
@@ -1051,7 +1062,7 @@ class TimerService : Service() {
         val prevBreak = sp.getLong("${prevDayStr}_break_total", 0L)
 
         val preMidnightGap = if (lastTimestamp > 0L && lastTimestamp < midnightSecs) {
-            (midnightSecs - lastTimestamp).coerceAtLeast(0L)
+            (midnightSecs - lastTimestamp).coerceIn(0L, MAX_ACCEPTABLE_GAP_SECS)
         } else 0L
 
         val studyForPrevDay = if (currentTimerState == TimerState.STUDYING) {
@@ -1091,14 +1102,15 @@ class TimerService : Service() {
 
         // 4. Sync previous day's remaining study chunk to Leaderboard
         if (studyForPrevDay > lastLeaderboardSyncStudySecs) {
-            val chunk = (studyForPrevDay - lastLeaderboardSyncStudySecs).toInt()
+            val chunk = (studyForPrevDay - lastLeaderboardSyncStudySecs).toInt().coerceIn(0, MAX_ACCEPTABLE_GAP_SECS.toInt())
             CoroutineScope(Dispatchers.IO).launch {
                 LeaderboardManager.syncStudyProgress(this@TimerService, chunk, isStudying = (currentTimerState == TimerState.STUDYING), currentSub.name, currentSub.colorHex)
             }
         }
 
         // 5. Post-midnight remainder (time elapsed on the new day so far)
-        val postMidnightGap = if (now > midnightSecs) (now - midnightSecs).coerceAtLeast(0L) else 0L
+        val postMidnightGap = if (now > midnightSecs) (now - midnightSecs).coerceIn(0L, MAX_ACCEPTABLE_GAP_SECS) else 0L
+
         accumulatedStudy = if (currentTimerState == TimerState.STUDYING) postMidnightGap else 0L
         currentBreakSeconds = if (currentTimerState == TimerState.BREAK) postMidnightGap else 0L
         lastLeaderboardSyncStudySecs = 0L
@@ -1123,6 +1135,16 @@ class TimerService : Service() {
         currentBreakSeconds = sharedPrefs.getLong("currentBreakSeconds", 0L)
         activeSessionDateStr = sharedPrefs.getString("active_session_date_str", SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()))
         timerMode = sharedPrefs.getString("timer_mode", "STOPWATCH") ?: "STOPWATCH"
+
+        val nowSecs = System.currentTimeMillis() / 1000L
+        if (lastTimestamp > 0L && (nowSecs - lastTimestamp) > MAX_ACCEPTABLE_GAP_SECS && currentTimerState != TimerState.IDLE) {
+            android.util.Log.w("TimerService", "loadSavedState: Stale active timer state detected with gap of ${nowSecs - lastTimestamp}s. Resetting state to PAUSED to prevent 12h inflation.")
+            prePauseState = currentTimerState
+            currentTimerState = TimerState.PAUSED
+            lastTimestamp = nowSecs
+            continuousStudySecs = 0L
+        }
+
         val pomodoroConfiguredSecs = sharedPrefs.safeLong("study_interval_minutes", 25L) * 60L
         focusCountdownSecs = if (timerMode == "LECTURE") {
             sharedPrefs.getLong("focus_countdown_secs", pomodoroConfiguredSecs)

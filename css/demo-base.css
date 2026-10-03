@@ -1085,37 +1085,115 @@ html, body {
   width: 82%;
   height: 82%;
   border-radius: 50%;
-  background: rgba(16, 20, 30, 0.48);
+  background: rgba(15, 23, 42, 0.35);
   backdrop-filter: blur(16px) saturate(180%);
   -webkit-backdrop-filter: blur(16px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.3), 0 8px 32px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.25), 0 8px 32px rgba(0, 0, 0, 0.2);
   pointer-events: none;
   z-index: 2;
 }
 
 [data-theme="light"] .timer-center-content {
-  background: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.45);
   border-color: rgba(0, 0, 0, 0.08);
-  box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.5), 0 6px 20px rgba(0, 0, 0, 0.06);
+  box-shadow: inset 0 0 16px rgba(255, 255, 255, 0.4), 0 6px 20px rgba(0, 0, 0, 0.05);
 }
 
+/* Minimalist Pure Typographic State Indicator Inside Ring (Zero Clunky Boxes) */
 .timer-state-badge {
-  font-size: clamp(0.72rem, 1.8vw, 0.82rem);
-  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(0.82rem, 2vw, 0.94rem);
+  font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #ffffff !important;
-  opacity: 0.95;
-  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
-  margin-bottom: 6px;
+  white-space: nowrap !important;
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 2px 0 4px;
   user-select: none;
+  transition: opacity 0.25s ease;
+  color: #ffffff !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
 }
 
-[data-theme="light"] .timer-state-badge {
-  color: #334155 !important;
-  opacity: 0.9;
+.zen-state-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(0.95rem, 2.6vw, 1.2rem);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap !important;
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 4px 0 8px;
+  user-select: none;
+  transition: opacity 0.25s ease;
+  color: #ffffff !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+
+[data-theme="light"] .timer-state-badge,
+[data-theme="light"] .zen-state-badge {
+  color: #0f172a !important;
   text-shadow: none;
+}
+
+/* Floating Break Text with Breathing Animation (Above Main Timer Dial) */
+.break-ongoing-banner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px auto 14px;
+  padding: 6px 16px;
+  user-select: none;
+  transition: all 0.3s ease;
+  z-index: 5;
+}
+
+.break-ongoing-banner.hidden {
+  display: none !important;
+}
+
+.break-banner-text {
+  font-size: clamp(1.2rem, 3.4vw, 1.65rem);
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  white-space: nowrap !important;
+  color: #ffffff !important;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.75), 0 0 20px rgba(255, 255, 255, 0.4);
+}
+
+.break-ongoing-banner.is-breathing .break-banner-text {
+  animation: break-text-breathe 2.8s ease-in-out infinite;
+}
+
+[data-theme="light"] .break-banner-text {
+  color: #0f172a !important;
+  text-shadow: none;
+}
+
+@keyframes break-text-breathe {
+  0%, 100% {
+    opacity: 0.75;
+    transform: scale(0.97);
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6), 0 0 12px rgba(255, 255, 255, 0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+    text-shadow: 0 2px 16px rgba(0, 0, 0, 0.8), 0 0 28px rgba(255, 255, 255, 0.85);
+  }
 }
 
 .timer-digital-display {
@@ -1175,78 +1253,95 @@ html, body {
   width: 100%;
 }
 
-/* Signature Frosted Translucent Primary Action Button */
+/* Signature High-Contrast Frosted Glass Primary CTA Action Button */
 .btn-timer-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  width: min(280px, 86%);
+  width: min(290px, 88%);
   padding: 13px 28px;
-  font-size: 1.02rem;
-  font-weight: 800;
-  letter-spacing: 0.01em;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
   border-radius: var(--radius-pill);
   cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   user-select: none;
   -webkit-user-select: none;
-  background: rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(24px) saturate(200%);
-  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   color: #ffffff !important;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.6);
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+  transition: opacity 0.25s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .btn-timer-primary:hover {
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.22);
   border-color: rgba(255, 255, 255, 0.65);
   color: #ffffff !important;
-  transform: translateY(-2px) scale(1.015);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), 0 0 24px rgba(255, 255, 255, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.8);
+  transform: translateY(-2px) scale(1.015) translateZ(0);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35), 0 0 24px rgba(255, 255, 255, 0.2), inset 0 1px 2px rgba(255, 255, 255, 0.6);
 }
 
 .btn-timer-primary:active {
-  transform: translateY(0px) scale(0.98);
+  transform: translateY(0px) scale(0.98) translateZ(0);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
 }
 
-/* Light Theme: Sleek Smoked Translucent Primary Button */
+/* Light Theme: Adaptive Contrast Smoked Translucent Primary Button */
 [data-theme="light"] .btn-timer-primary {
-  background: rgba(15, 23, 42, 0.9);
-  border-color: rgba(15, 23, 42, 1);
-  color: #ffffff !important;
-  font-weight: 800;
-  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  background: rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  color: #0f172a !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06), inset 0 1px 1px rgba(255, 255, 255, 0.8);
   text-shadow: none;
 }
 
 [data-theme="light"] .btn-timer-primary:hover {
-  background: rgba(15, 23, 42, 1);
-  border-color: #000000;
-  color: #ffffff !important;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  background: rgba(15, 23, 42, 0.14);
+  border-color: rgba(15, 23, 42, 0.35);
+  color: #000000 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
-/* Active / Running State (Pause Focus) - Translucent Electric Azure Glow */
+/* Active / Running State (Pause Action) - Pure Translucent Frosted Glass */
 .btn-timer-primary.running {
-  background: rgba(59, 130, 246, 0.26) !important;
-  backdrop-filter: blur(24px) saturate(200%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(200%) !important;
-  border-color: rgba(147, 197, 253, 0.65) !important;
+  background: rgba(255, 255, 255, 0.18) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
   color: #ffffff !important;
-  font-weight: 800 !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), 0 0 30px rgba(59, 130, 246, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.7) !important;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.45) !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
 }
 
 .btn-timer-primary.running:hover {
-  background: rgba(59, 130, 246, 0.38) !important;
-  border-color: rgba(191, 219, 254, 0.9) !important;
-  transform: translateY(-2px) scale(1.015) !important;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 38px rgba(59, 130, 246, 0.55), inset 0 1px 2px rgba(255, 255, 255, 0.9) !important;
+  background: rgba(255, 255, 255, 0.28) !important;
+  border-color: rgba(255, 255, 255, 0.8) !important;
+  transform: translateY(-2px) scale(1.015) translateZ(0) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.7) !important;
+}
+
+[data-theme="light"] .btn-timer-primary.running {
+  background: rgba(15, 23, 42, 0.12) !important;
+  border-color: rgba(15, 23, 42, 0.28) !important;
+  color: #0f172a !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.8) !important;
+  text-shadow: none !important;
+}
+
+[data-theme="light"] .btn-timer-primary.running:hover {
+  background: rgba(15, 23, 42, 0.18) !important;
+  border-color: rgba(15, 23, 42, 0.45) !important;
+  color: #000000 !important;
 }
 
 .btn-ctrl-icon {
@@ -1272,48 +1367,50 @@ html, body {
   padding: 8px 18px;
   border-radius: var(--radius-pill);
   font-size: 0.86rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   cursor: pointer;
-  backdrop-filter: blur(18px) saturate(190%);
-  -webkit-backdrop-filter: blur(18px) saturate(190%);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
   user-select: none;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   color: #ffffff !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.25);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+  transition: opacity 0.25s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .btn-timer-subtle:hover {
-  background: rgba(255, 255, 255, 0.26);
-  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.5);
   color: #ffffff !important;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 16px rgba(255, 255, 255, 0.2), inset 0 1px 2px rgba(255, 255, 255, 0.7);
+  transform: translateY(-2px) translateZ(0);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.5);
 }
 
 .btn-timer-subtle:active {
-  transform: translateY(0px) scale(0.97);
+  transform: translateY(0px) scale(0.97) translateZ(0);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 [data-theme="light"] .btn-timer-subtle {
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(0, 0, 0, 0.16);
+  background: rgba(15, 23, 42, 0.05);
+  border: 1px solid rgba(15, 23, 42, 0.14);
   color: #0f172a !important;
-  font-weight: 700;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8);
   text-shadow: none;
 }
 
 [data-theme="light"] .btn-timer-subtle:hover {
-  background: #ffffff;
-  border-color: rgba(0, 0, 0, 0.32);
+  background: rgba(15, 23, 42, 0.1);
+  border-color: rgba(15, 23, 42, 0.28);
   color: #000000 !important;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px) translateZ(0);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
 
 .btn-timer-subtle svg {
@@ -1323,30 +1420,40 @@ html, body {
   flex-shrink: 0;
 }
 
-/* Finish & Save Session Button (Translucent Emerald Frosted Pill) */
+/* Finish & Save Session Button (Pure Translucent Frosted Glass Pill) */
 .btn-finish-session {
-  background: rgba(16, 185, 129, 0.24) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
   color: #ffffff !important;
-  border: 1px solid rgba(52, 211, 153, 0.55) !important;
-  font-weight: 800 !important;
-  box-shadow: 0 4px 18px rgba(16, 185, 129, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.5) !important;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.25) !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 [data-theme="light"] .btn-finish-session {
-  background: rgba(16, 185, 129, 0.15) !important;
-  color: #047857 !important;
-  border-color: rgba(16, 185, 129, 0.45) !important;
-  font-weight: 800 !important;
+  background: rgba(15, 23, 42, 0.05) !important;
+  color: #0f172a !important;
+  border-color: rgba(15, 23, 42, 0.16) !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
   text-shadow: none !important;
 }
 
 .btn-finish-session:hover {
-  background: rgba(16, 185, 129, 0.35) !important;
+  background: rgba(255, 255, 255, 0.18) !important;
   color: #ffffff !important;
-  border-color: rgba(52, 211, 153, 0.85) !important;
-  transform: translateY(-1px);
-  box-shadow: 0 8px 26px rgba(16, 185, 129, 0.45), inset 0 1px 2px rgba(255, 255, 255, 0.7) !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
+  transform: translateY(-1px) translateZ(0);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.5) !important;
+}
+
+[data-theme="light"] .btn-finish-session:hover {
+  background: rgba(15, 23, 42, 0.1) !important;
+  border-color: rgba(15, 23, 42, 0.3) !important;
+  color: #000000 !important;
 }
 
 /* Saved Success State (Active for 1 minute - vibrant green) */

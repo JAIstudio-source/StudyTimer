@@ -1534,8 +1534,7 @@ body.modal-open {
 .floating-audio-dock,
 .studio-compact-footer,
 .subject-dropdown-wrapper {
-  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), filter 0.5s ease;
-  will-change: opacity, transform;
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), filter 0.45s ease;
 }
 
 body.focus-autohide {
@@ -1572,24 +1571,22 @@ body.focus-autohide #btnResetTimer,
 body.focus-autohide #btnStudioZenTimer {
   opacity: 0 !important;
   pointer-events: none !important;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.35s ease;
 }
 
-/* Very dim pause/resume and save session buttons during focus autohide */
+/* Very dim pause/resume and save session buttons during focus autohide - smooth opacity transition without boundary scale oscillation */
 body.focus-autohide .btn-timer-primary,
 body.focus-autohide #btnToggleTimer {
   opacity: 0.16 !important;
-  transform: scale(0.98);
   pointer-events: auto !important;
-  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s ease;
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 body.focus-autohide #btnFinishSession,
 body.focus-autohide .btn-finish-session {
   opacity: 0.16 !important;
-  transform: scale(0.98);
   pointer-events: auto !important;
-  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s ease;
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 body.focus-autohide .timer-secondary-actions {
@@ -1603,7 +1600,6 @@ body.focus-autohide .timer-controls-area:hover #btnFinishSession,
 body.focus-autohide .btn-timer-primary:hover,
 body.focus-autohide #btnFinishSession:hover {
   opacity: 1 !important;
-  transform: scale(1);
 }
 
 body.focus-autohide .floating-audio-dock {
@@ -1861,9 +1857,8 @@ body.zen-controls-faded .zen-exit-btn {
 body.zen-controls-faded .btn-zen-ctrl,
 body.zen-controls-faded #btnZenToggle {
   opacity: 0.16 !important;
-  transform: scale(0.97);
   pointer-events: auto !important;
-  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s ease, filter 0.45s ease;
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .zen-timer-overlay.zen-controls-faded .btn-zen-save,
@@ -1871,9 +1866,8 @@ body.zen-controls-faded #btnZenToggle {
 body.zen-controls-faded .btn-zen-save,
 body.zen-controls-faded #btnZenSave {
   opacity: 0.16 !important;
-  transform: scale(0.97);
   pointer-events: auto !important;
-  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s ease, filter 0.45s ease;
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Direct hover over Zen controls bar or buttons immediately brings full normal opacity */
@@ -1882,7 +1876,6 @@ body.zen-controls-faded #btnZenSave {
 .zen-timer-overlay.zen-controls-faded .btn-zen-ctrl:hover,
 .zen-timer-overlay.zen-controls-faded .btn-zen-save:hover {
   opacity: 1 !important;
-  transform: scale(1);
 }
 
 .zen-timer-canvas {
@@ -1895,6 +1888,19 @@ body.zen-controls-faded #btnZenSave {
   margin: auto;
   animation: zen-canvas-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: transform, opacity;
+}
+
+/* Full-Screen (Zen Mode) Giant Break Floating Breathing Banner */
+.zen-break-banner {
+  margin: 0 auto clamp(14px, 3vh, 24px);
+  padding: 8px 24px;
+}
+
+.zen-break-banner .break-banner-text {
+  font-size: clamp(1.6rem, 4.2vw, 2.35rem);
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.8), 0 0 32px rgba(255, 255, 255, 0.5);
 }
 
 .zen-ring-container {
@@ -1961,23 +1967,27 @@ body.zen-controls-faded #btnZenSave {
   border-color: rgba(0, 0, 0, 0.08);
 }
 
-/* Pomodoro Session & Ratio Pill (Subtle, elegant, soft contrast) */
+/* Pomodoro Session & Ratio Pill (High-Clarity Contrast & Clean Visibility) */
 .timer-session-ratio-badge,
 .zen-session-ratio-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.76rem;
-  font-weight: 600;
+  font-size: 0.82rem;
+  font-weight: 700;
   letter-spacing: 0.04em;
-  color: var(--text-muted, #94a3b8);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  padding: 2px 10px;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 3px 12px;
   border-radius: 9999px;
   margin-bottom: 4px;
   user-select: none;
   pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   transition: opacity var(--transition-normal, 0.2s ease);
 }
 
@@ -1988,25 +1998,30 @@ body.zen-controls-faded #btnZenSave {
 
 [data-theme="light"] .timer-session-ratio-badge,
 [data-theme="light"] .zen-session-ratio-badge {
-  color: #64748b;
-  background: rgba(0, 0, 0, 0.04);
-  border-color: rgba(0, 0, 0, 0.09);
+  color: #1e293b;
+  background: rgba(15, 23, 42, 0.08);
+  border-color: rgba(15, 23, 42, 0.16);
+  text-shadow: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 }
 
 .zen-session-ratio-badge {
-  font-size: 0.82rem;
-  padding: 3px 12px;
-  margin-bottom: 6px;
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.12);
+  font-size: 0.92rem;
+  padding: 4px 16px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.26);
 }
 
 .zen-state-badge {
-  font-size: 0.74rem;
+  font-size: clamp(0.92rem, 2.6vw, 1.2rem);
   font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #ffffff !important;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 5px 18px;
   opacity: 0.95;
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
   margin-bottom: 6px;
@@ -2014,7 +2029,8 @@ body.zen-controls-faded #btnZenSave {
 }
 
 [data-theme="light"] .zen-state-badge {
-  color: #334155 !important;
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.12);
   opacity: 0.9;
   text-shadow: none;
 }
@@ -2047,16 +2063,29 @@ body.zen-controls-faded #btnZenSave {
 }
 
 .zen-hint-text {
-  font-size: clamp(0.74rem, 1.8vw, 0.82rem);
-  font-weight: 600;
-  color: #ffffff;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
-  opacity: 0.85;
+  font-size: clamp(0.72rem, 1.6vw, 0.78rem);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.38);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  margin-top: 4px;
+  user-select: none;
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s ease;
+  will-change: opacity, transform;
 }
 
 [data-theme="light"] .zen-hint-text {
-  color: #475569;
+  color: rgba(15, 23, 42, 0.38);
   text-shadow: none;
+}
+
+/* Smooth fade out during running session / inactivity */
+.zen-timer-overlay.zen-controls-faded .zen-hint-text,
+body.zen-controls-faded .zen-hint-text,
+body.focus-autohide .zen-hint-text {
+  opacity: 0 !important;
+  transform: translateY(4px);
+  pointer-events: none !important;
 }
 
 .zen-controls-bar {
@@ -2075,63 +2104,81 @@ body.zen-controls-faded #btnZenSave {
   padding: 10px 24px;
   border-radius: var(--radius-pill);
   font-size: 0.96rem;
-  font-weight: 800;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   user-select: none;
-  background: rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(24px) saturate(200%);
-  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   color: #ffffff !important;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.6);
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+  transition: opacity 0.25s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .btn-zen-ctrl:hover {
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.22);
   border-color: rgba(255, 255, 255, 0.65);
   color: #ffffff !important;
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), 0 0 24px rgba(255, 255, 255, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.8);
+  transform: translateY(-2px) scale(1.02) translateZ(0);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4), 0 0 24px rgba(255, 255, 255, 0.2), inset 0 1px 2px rgba(255, 255, 255, 0.6);
 }
 
 .btn-zen-ctrl:active {
-  transform: translateY(0px) scale(0.98);
+  transform: translateY(0px) scale(0.98) translateZ(0);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
 }
 
 [data-theme="light"] .btn-zen-ctrl {
-  background: rgba(15, 23, 42, 0.9);
-  border-color: rgba(15, 23, 42, 1);
-  color: #ffffff !important;
-  font-weight: 800;
-  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.2);
+  background: rgba(15, 23, 42, 0.08);
+  border-color: rgba(15, 23, 42, 0.18);
+  color: #0f172a !important;
+  font-weight: 700;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06), inset 0 1px 1px rgba(255, 255, 255, 0.8);
   text-shadow: none;
 }
 
 [data-theme="light"] .btn-zen-ctrl:hover {
-  background: rgba(15, 23, 42, 1);
-  border-color: #000000;
-  color: #ffffff !important;
+  background: rgba(15, 23, 42, 0.14);
+  border-color: rgba(15, 23, 42, 0.35);
+  color: #000000 !important;
 }
 
 .btn-zen-ctrl.running {
-  background: rgba(59, 130, 246, 0.26) !important;
-  backdrop-filter: blur(24px) saturate(200%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(200%) !important;
-  border-color: rgba(147, 197, 253, 0.65) !important;
+  background: rgba(255, 255, 255, 0.18) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
   color: #ffffff !important;
-  font-weight: 800 !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), 0 0 30px rgba(59, 130, 246, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.7) !important;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.45) !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6) !important;
 }
 
 .btn-zen-ctrl.running:hover {
-  background: rgba(59, 130, 246, 0.38) !important;
-  border-color: rgba(191, 219, 254, 0.9) !important;
-  transform: translateY(-2px) scale(1.02) !important;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 38px rgba(59, 130, 246, 0.55), inset 0 1px 2px rgba(255, 255, 255, 0.9) !important;
+  background: rgba(255, 255, 255, 0.28) !important;
+  border-color: rgba(255, 255, 255, 0.8) !important;
+  transform: translateY(-2px) scale(1.02) translateZ(0) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.7) !important;
+}
+
+[data-theme="light"] .btn-zen-ctrl.running {
+  background: rgba(15, 23, 42, 0.12) !important;
+  border-color: rgba(15, 23, 42, 0.28) !important;
+  color: #0f172a !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.8) !important;
+  text-shadow: none !important;
+}
+
+[data-theme="light"] .btn-zen-ctrl.running:hover {
+  background: rgba(15, 23, 42, 0.18) !important;
+  border-color: rgba(15, 23, 42, 0.45) !important;
+  color: #000000 !important;
 }
 
 .btn-zen-ctrl .zen-ctrl-icon {
@@ -2145,8 +2192,8 @@ body.zen-controls-faded #btnZenSave {
   align-items: center;
   gap: 7px;
   padding: 8px 18px;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.24);
   border-radius: var(--radius-pill);
   backdrop-filter: blur(18px) saturate(190%);
   -webkit-backdrop-filter: blur(18px) saturate(190%);
@@ -2156,14 +2203,17 @@ body.zen-controls-faded #btnZenSave {
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.4);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+  transition: opacity 0.25s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .btn-zen-subtle:hover {
-  background: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.22);
   color: #ffffff;
   border-color: rgba(255, 255, 255, 0.55);
-  transform: translateY(-2px);
+  transform: translateY(-2px) translateZ(0);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 14px rgba(255, 255, 255, 0.15), inset 0 1px 2px rgba(255, 255, 255, 0.6);
 }
 
@@ -2175,24 +2225,30 @@ body.zen-controls-faded #btnZenSave {
 }
 
 .btn-zen-save {
-  background: rgba(16, 185, 129, 0.12) !important;
-  color: #6ee7b7 !important;
-  border: 1px solid rgba(16, 185, 129, 0.32) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
   font-weight: 700 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.3) !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 [data-theme="light"] .btn-zen-save {
-  background: rgba(16, 185, 129, 0.1) !important;
-  color: #059669 !important;
-  border-color: rgba(16, 185, 129, 0.35) !important;
+  background: rgba(15, 23, 42, 0.06) !important;
+  color: #0f172a !important;
+  border-color: rgba(15, 23, 42, 0.18) !important;
+  text-shadow: none !important;
 }
 
 .btn-zen-save:hover {
-  background: rgba(16, 185, 129, 0.24) !important;
-  border-color: rgba(16, 185, 129, 0.6) !important;
+  background: rgba(255, 255, 255, 0.22) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
   color: #ffffff !important;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35) !important;
+  transform: translateY(-1px) translateZ(0);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
 }
 
 /* ==========================================================================
@@ -2434,7 +2490,8 @@ body.zen-controls-faded #btnZenSave {
   }
 
   .timer-state-badge {
-    font-size: 0.65rem;
+    font-size: clamp(0.78rem, 2vw, 0.88rem);
+    padding: 3px 10px;
     margin-bottom: 2px;
     text-align: center;
   }
@@ -2851,7 +2908,8 @@ body.zen-controls-faded #btnZenSave {
     margin-bottom: 6px !important;
   }
   .zen-state-badge {
-    font-size: 0.68rem !important;
+    font-size: clamp(0.82rem, 2.2vw, 0.95rem) !important;
+    padding: 4px 12px !important;
     margin-bottom: 4px !important;
   }
   .zen-controls-bar {

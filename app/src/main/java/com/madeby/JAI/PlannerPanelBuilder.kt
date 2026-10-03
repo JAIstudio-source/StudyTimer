@@ -4,6 +4,9 @@ import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -2621,54 +2624,15 @@ class PlannerPanelBuilder(private val host: MainActivity) {
     }
 
     internal fun showDeletePlannerGoalMatrixDialog(goalId: String, goalTitle: String, onDeleted: () -> Unit) {
-        val dialog = Dialog(host)
-        val root = LinearLayout(host).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(22), dp(20), dp(22), dp(20))
-            background = themeCoordinator.createDialogBackground(24f)
-        }
-
-        root.addView(TextView(host).apply {
-            text = "Delete Goal from History?"
-            setTextColor(themeCoordinator.textColor)
-            textSize = 18f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-        })
-
-        root.addView(TextView(host).apply {
-            text = "Goal: $goalTitle\n\nWould you like to keep or delete this goal from your Goal & Habit Grid history?"
-            setTextColor(themeCoordinator.textColor)
-            alpha = 0.85f
-            textSize = 13f
-            setPadding(0, dp(10), 0, dp(18))
-        })
-
-        val btnRow = LinearLayout(host).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.END
-        }
-
-        btnRow.addView(TextView(host).apply {
-            text = "Keep"
-            setTextColor(themeCoordinator.textColor)
-            textSize = 14f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(dp(16), dp(10), dp(16), dp(10))
-            background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 16f)
-            setOnClickListener { dialog.dismiss() }
-        })
-
-        btnRow.addView(View(host).apply { layoutParams = LinearLayout.LayoutParams(dp(10), 1) })
-
-        btnRow.addView(TextView(host).apply {
-            text = "Delete"
-            setTextColor(Color.parseColor("#FF5252"))
-            textSize = 14f
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setPadding(dp(16), dp(10), dp(16), dp(10))
-            background = themeCoordinator.createGlassChip(Color.argb(40, 255, 82, 82), 16f)
-            setOnClickListener {
-                dialog.dismiss()
+        DialogFactory.showConfirmationDialog(
+            context = host,
+            themeCoordinator = themeCoordinator,
+            title = "Delete Goal from History?",
+            message = "Goal: $goalTitle\n\nWould you like to keep or delete this goal from your Goal & Habit Grid history?",
+            positiveText = "Delete",
+            negativeText = "Keep",
+            isDestructive = true,
+            onConfirm = {
                 val prefs = host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
                 val activeJson = prefs.getString("session_goals_json", "[]") ?: "[]"
                 val activeList = loadSessionGoalsFromJson(activeJson).filterNot { it.id == goalId }
@@ -2678,18 +2642,11 @@ class PlannerPanelBuilder(private val host: MainActivity) {
 
                 Toast.makeText(host, "Deleted '$goalTitle' from grid history", Toast.LENGTH_SHORT).show()
                 onDeleted()
-                Thread {
-                    kotlinx.coroutines.runBlocking {
-                        CloudSyncManager.syncDataToCloud(host)
-                    }
-                }.start()
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                    CloudSyncManager.syncDataToCloud(host)
+                }
             }
-        })
-
-        root.addView(btnRow)
-        dialog.setContentView(root)
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-        dialog.show()
+        )
     }
 
     internal fun showAddSessionGoalDialog() {

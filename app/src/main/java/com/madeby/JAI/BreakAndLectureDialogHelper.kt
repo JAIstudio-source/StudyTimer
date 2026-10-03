@@ -30,14 +30,7 @@ class BreakAndLectureDialogHelper(private val host: MainActivity) {
     private fun tintedColor(color: Int, alpha: Int): Int = host.tintedColor(color, alpha)
 
     fun showBreakDurationDialog() {
-        val dialog = Dialog(host)
-        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
-
-        val content = LinearLayout(host).apply {
-            orientation = LinearLayout.VERTICAL
-            background = themeCoordinator.createDialogBackground(28f)
-            setPadding(dp(22), dp(20), dp(22), dp(20))
-        }
+        val (dialog, content) = DialogFactory.createBaseDialog(host, themeCoordinator)
 
         content.addView(TextView(host).apply {
             text = "☕ Choose Break Duration"
@@ -102,14 +95,7 @@ class BreakAndLectureDialogHelper(private val host: MainActivity) {
     }
 
     fun showLectureEndDialog() {
-        val dialog = Dialog(host)
-        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
-
-        val content = LinearLayout(host).apply {
-            orientation = LinearLayout.VERTICAL
-            background = themeCoordinator.createDialogBackground(28f)
-            setPadding(dp(22), dp(22), dp(22), dp(20))
-        }
+        val (dialog, content) = DialogFactory.createBaseDialog(host, themeCoordinator)
 
         content.addView(TextView(host).apply {
             text = "🎓 Class Session Finished!"
@@ -185,14 +171,7 @@ class BreakAndLectureDialogHelper(private val host: MainActivity) {
     }
 
     fun showScheduledLecturePromptDialog(item: LectureScheduleItem, remainingSecs: Long, skipKey: String) {
-        val dialog = Dialog(host)
-        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
-
-        val content = LinearLayout(host).apply {
-            orientation = LinearLayout.VERTICAL
-            background = themeCoordinator.createDialogBackground(28f)
-            setPadding(dp(22), dp(22), dp(22), dp(20))
-        }
+        val (dialog, content) = DialogFactory.createBaseDialog(host, themeCoordinator)
 
         content.addView(TextView(host).apply {
             text = "📅 ${item.title}"

@@ -3712,13 +3712,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(CHANNEL_ID, "Study Timer Control", NotificationManager.IMPORTANCE_LOW).apply { 
-                description = "Persistent tray utilities for active sessions"
-                setShowBadge(false) 
-            }
-            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(channel)
-        }
+        NotificationHelper.createAllNotificationChannels(this)
     }
 
     internal fun ensureExactAlarmPermissionIfNeeded() {

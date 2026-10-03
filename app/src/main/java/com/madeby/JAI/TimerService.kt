@@ -981,23 +981,7 @@ class TimerService : Service() {
     }
 
     private fun ensureCompletionChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            if (nm.getNotificationChannel(COMPLETION_CHANNEL_ID) == null) {
-                val soundUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
-                val audioAttributes = android.media.AudioAttributes.Builder()
-                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_EVENT)
-                    .build()
-                val channel = NotificationChannel(COMPLETION_CHANNEL_ID, getString(R.string.channel_completion_name), NotificationManager.IMPORTANCE_HIGH).apply {
-                    description = getString(R.string.channel_completion_desc)
-                    enableVibration(false)
-                    setSound(soundUri, audioAttributes)
-                    setShowBadge(true)
-                }
-                nm.createNotificationChannel(channel)
-            }
-        }
+        NotificationHelper.createAllNotificationChannels(this)
     }
 
     private fun maybeFireGoalReached() {
@@ -1214,15 +1198,7 @@ class TimerService : Service() {
     }
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID, getString(R.string.channel_control_name), NotificationManager.IMPORTANCE_LOW
-            ).apply { 
-                description = getString(R.string.channel_control_desc)
-                setShowBadge(false) 
-            }
-            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(channel)
-        }
+        NotificationHelper.createAllNotificationChannels(this)
     }
 
     override fun onDestroy() {

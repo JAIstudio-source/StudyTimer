@@ -17,23 +17,7 @@ object GoalReminderScheduler {
     private const val REMIND_MINUTE = 0
 
     fun ensureChannel(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            if (nm.getNotificationChannel(CHANNEL_ID) == null) {
-                val soundUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
-                val audioAttributes = android.media.AudioAttributes.Builder()
-                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_EVENT)
-                    .build()
-                val channel = NotificationChannel(CHANNEL_ID, context.getString(R.string.goal_channel_name), NotificationManager.IMPORTANCE_HIGH).apply {
-                    description = context.getString(R.string.goal_channel_desc)
-                    enableVibration(false)
-                    setSound(soundUri, audioAttributes)
-                    setShowBadge(true)
-                }
-                nm.createNotificationChannel(channel)
-            }
-        }
+        NotificationHelper.createAllNotificationChannels(context)
     }
 
     fun schedule(context: Context) {

@@ -37,10 +37,32 @@ object TimelineLogger {
     ) {
         synchronized(this) {
             val entries = load(context).toMutableList()
-            entries.add(TimelineEntry(System.currentTimeMillis(), state.name, id, subId, subName, subColor))
+            val entryId = id ?: java.util.UUID.randomUUID().toString()
+            entries.add(TimelineEntry(System.currentTimeMillis(), state.name, entryId, subId, subName, subColor))
             persist(context, entries)
         }
     }
+
+    fun mergeAndDeduplicate(existing: List<TimelineEntry>, incoming: List<TimelineEntry>): List<TimelineEntry> {
+        val idSet = HashSet<String>()
+        val tsStateSet = HashSet<String>()
+        val result = mutableListOf<TimelineEntry>()
+
+        for (e in existing + incoming) {
+            val hasId = !e.id.isNullOrEmpty()
+            val keyId = e.id ?: ""
+            val keyTs = "${e.timestamp}_${e.state}_${e.subId ?: ""}"
+
+            if (hasId && idSet.contains(keyId)) continue
+            if (!hasId && tsStateSet.contains(keyTs)) continue
+
+            if (hasId) idSet.add(keyId)
+            tsStateSet.add(keyTs)
+            result.add(e)
+        }
+        return result.sortedBy { it.timestamp }
+    }
+
 
     fun recordRaw(
         context: Context,

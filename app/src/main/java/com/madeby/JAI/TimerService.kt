@@ -820,7 +820,12 @@ class TimerService : Service() {
                                             if (autoBreak) {
                                                 currentTimerState = TimerState.BREAK
                                                 focusRemainingSecs = 0L
-                                                val configuredBreakSecs = sp.safeLong("break_interval_minutes", 5L) * 60L
+                                                val pomoCount = sp.safeInt("pomo_completed_count", 0) + 1
+                                                sp.edit().putInt("pomo_completed_count", pomoCount).apply()
+                                                val longBreakInterval = sp.safeInt("pomo_long_break_interval", 4)
+                                                val longBreakMins = sp.safeLong("pomo_long_break_duration_mins", 15L)
+                                                val shortBreakMins = sp.safeLong("break_interval_minutes", 5L)
+                                                val configuredBreakSecs = (if (pomoCount % longBreakInterval == 0) longBreakMins else shortBreakMins) * 60L
                                                 breakCountdownSecs = configuredBreakSecs
                                                 breakRemainingSecs = configuredBreakSecs
                                                 lastTimestamp = now
@@ -855,11 +860,23 @@ class TimerService : Service() {
                             if (timerMode == "COUNTDOWN" && breakRemainingSecs > 0L) {
                                 breakRemainingSecs -= gap
                                 if (breakRemainingSecs <= 0L) {
-                                    currentTimerState = TimerState.IDLE
-                                    breakRemainingSecs = 0L
-                                    lastTimestamp = 0L
                                     triggerBreakEndVibration()
-                                    TimelineLogger.record(this, TimerState.IDLE)
+                                    val autoStartFocus = sp.getBoolean("pomo_auto_start_focus", false)
+                                    if (autoStartFocus) {
+                                        currentTimerState = TimerState.STUDYING
+                                        val pomodoroConfiguredSecs = sp.safeLong("study_interval_minutes", 25L) * 60L
+                                        focusCountdownSecs = pomodoroConfiguredSecs
+                                        focusRemainingSecs = pomodoroConfiguredSecs
+                                        breakRemainingSecs = 0L
+                                        breakCountdownSecs = 0L
+                                        lastTimestamp = now
+                                        TimelineLogger.record(this, TimerState.STUDYING)
+                                    } else {
+                                        currentTimerState = TimerState.IDLE
+                                        breakRemainingSecs = 0L
+                                        lastTimestamp = 0L
+                                        TimelineLogger.record(this, TimerState.IDLE)
+                                    }
                                     saveState()
                                     updateForegroundNotification()
                                     postCountdownComplete()

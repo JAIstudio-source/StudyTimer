@@ -31,14 +31,19 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
 
     private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { sharedPreferences, key ->
         when (key) {
-            "accumulatedStudy" -> _uiState.value = _uiState.value.copy(accumulatedStudy = sharedPreferences.getLong(key, 0L))
+            "accumulatedStudy" -> {
+                _uiState.value = _uiState.value.copy(accumulatedStudy = sharedPreferences.getLong(key, 0L))
+                StudyWidgetProvider.refresh(getApplication())
+            }
             "currentBreakSeconds" -> _uiState.value = _uiState.value.copy(currentBreakSeconds = sharedPreferences.getLong(key, 0L))
             "timerMode" -> _uiState.value = _uiState.value.copy(mode = sharedPreferences.getString(key, "STOPWATCH") ?: "STOPWATCH")
             "focusCountdownSecs" -> _uiState.value = _uiState.value.copy(focusCountdownSecs = sharedPreferences.getLong(key, 1500L))
             "timerState" -> {
                 val stateStr = sharedPreferences.getString(key, "IDLE") ?: "IDLE"
                 _uiState.value = _uiState.value.copy(state = TimerState.valueOf(stateStr))
+                StudyWidgetProvider.refresh(getApplication())
             }
+
         }
     }
 

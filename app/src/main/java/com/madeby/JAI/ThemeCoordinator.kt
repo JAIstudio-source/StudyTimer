@@ -88,6 +88,7 @@ class ThemeCoordinator(private val context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && sharedPrefs.getBoolean("dynamic_color", false)) {
             primaryColor = context.getColor(android.R.color.system_accent1_500)
             secondaryColor = context.getColor(android.R.color.system_accent2_500)
+            accentColor = context.getColor(android.R.color.system_accent1_300)
         } else {
             val defaultPrimary = if (activeBgMode == "LIGHT") Color.parseColor("#4F46E5") else Color.parseColor("#A78BFA")
             val defaultSecondary = if (activeBgMode == "LIGHT") Color.parseColor("#0284C7") else Color.parseColor("#38BDF8")
@@ -95,6 +96,7 @@ class ThemeCoordinator(private val context: Context) {
             secondaryColor = sharedPrefs.safeInt("customSecondary", defaultSecondary)
         }
     }
+
 
     private fun blend(from: Int, to: Int, t: Float): Int {
         val r = (Color.red(from) + (Color.red(to) - Color.red(from)) * t).toInt()

@@ -422,9 +422,9 @@
 
               <!-- Central Content Display -->
               <div class="timer-center-content">
-                <div class="timer-session-ratio-badge" id="timerSessionRatioBadge">Session 1/4 &nbsp;#25/5</div>
+                <div class="timer-session-ratio-badge" id="timerSessionRatioBadge">Session 1/4 &nbsp;• 50/10m</div>
                 <div class="timer-state-badge" id="timerStateBadge">READY</div>
-                <div class="timer-digital-display" id="timerDisplay">25:00</div>
+                <div class="timer-digital-display" id="timerDisplay">50:00</div>
                 <div class="subject-dropdown-wrapper" id="subjectDropdownWrapper">
                   <button class="timer-current-subject-btn" id="timerSubjectDisplay" title="Click to change subject">
                     <span class="subject-color-dot" id="currentSubjectDot" style="background-color: #3b82f6;"></span>
@@ -1270,14 +1270,14 @@
             <div class="settings-field-box">
               <label for="pomoFocusInput">Focus Duration</label>
               <div class="settings-input-with-unit">
-                <input type="number" id="pomoFocusInput" min="1" max="180" value="25" required>
+                <input type="number" id="pomoFocusInput" min="1" max="180" value="50" required>
                 <span class="input-unit-badge">min</span>
               </div>
             </div>
             <div class="settings-field-box">
               <label for="pomoBreakInput">Short Break</label>
               <div class="settings-input-with-unit">
-                <input type="number" id="pomoBreakInput" min="1" max="60" value="5" required>
+                <input type="number" id="pomoBreakInput" min="1" max="60" value="10" required>
                 <span class="input-unit-badge">min</span>
               </div>
             </div>
@@ -1294,7 +1294,7 @@
             <div class="settings-field-box" id="pomoLongBreakFieldBox">
               <label for="pomoLongBreakInput">Long Break</label>
               <div class="settings-input-with-unit">
-                <input type="number" id="pomoLongBreakInput" min="1" max="120" value="15" required>
+                <input type="number" id="pomoLongBreakInput" min="1" max="120" value="20" required>
                 <span class="input-unit-badge">min</span>
               </div>
             </div>
@@ -1644,9 +1644,9 @@
         </svg>
 
         <div class="zen-timer-content">
-          <div class="zen-session-ratio-badge" id="zenSessionRatioBadge">Session 1/4 &nbsp;#25/5</div>
+          <div class="zen-session-ratio-badge" id="zenSessionRatioBadge">Session 1/4 &nbsp;• 50/10m</div>
           <div class="zen-state-badge" id="zenStateBadge">READY</div>
-          <div class="zen-digital-display" id="zenTimerDisplay">25:00</div>
+          <div class="zen-digital-display" id="zenTimerDisplay">50:00</div>
           
           <!-- Fullscreen Subject Selector -->
           <div class="zen-subject-wrapper" id="zenSubjectWrapper">
@@ -2013,7 +2013,7 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- APPLICATION SCRIPT BUNDLE -->
-  <script src="demo.js?v=4.3.8"></script>
+  <script src="demo.js?v=4.3.9"></script>
   <!-- Service Worker Registration for 100% Offline Capability -->
   <script>
     if ('serviceWorker' in navigator) {

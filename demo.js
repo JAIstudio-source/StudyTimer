@@ -104,9 +104,9 @@ function getCleanUniqueSubjects(subjectsList) {
 
 // Timer Configuration Settings (Persisted)
 let timerConfig = {
-  pomoFocusMinutes: 25,
-  pomoBreakMinutes: 5,
-  pomoLongBreakMinutes: 15,
+  pomoFocusMinutes: 50,
+  pomoBreakMinutes: 10,
+  pomoLongBreakMinutes: 20,
   pomoTotalCycles: 4,
   pomoEnableLongBreak: true,
   pomoAutoSwitchBreak: true,
@@ -127,7 +127,7 @@ let timerStatus = 'IDLE';  // 'IDLE', 'RUNNING', 'PAUSED'
 // Millisecond-Accurate Tracking Variables
 let timerStartTimestamp = null;
 let accumulatedElapsedSec = 0;
-let timeRemaining = 25 * 60;
+let timeRemaining = 50 * 60;
 let stopwatchElapsed = 0;
 let timerInterval = null;
 let timerWorker = null;
@@ -207,7 +207,10 @@ async function initApp() {
   initBackgroundManager();
   renderSubjects();
   if (!restoreActiveSessionIfAny()) {
+    if (typeof syncModeUI === 'function') syncModeUI(currentMode);
     resetTimer();
+  } else {
+    if (typeof syncModeUI === 'function') syncModeUI(currentMode);
   }
   updateProgressAndStreak();
   renderSubjectDonutChart();
@@ -997,7 +1000,13 @@ function mergeCloudDataIntoLocal(data) {
     if (goalMins) timerConfig.dailyGoalMinutes = Math.min(1440, Math.max(15, goalMins));
 
     if (cloudPrefs.pomo_focus_minutes || cloudPrefs.study_interval_minutes) {
-      const val = Number(cloudPrefs.pomo_focus_minutes || cloudPrefs.study_interval_minutes);
+      const rawFocus = Number(cloudPrefs.pomo_focus_minutes);
+      const rawInterval = Number(cloudPrefs.study_interval_minutes);
+      let val = !isNaN(rawFocus) && rawFocus > 0 ? rawFocus : rawInterval;
+      // Guard: 120 minutes is the daily study goal default; if study_interval was mapped to 120, heal it to 50
+      if (val === 120 && (isNaN(rawFocus) || rawFocus === 120)) {
+        val = 50;
+      }
       if (!isNaN(val) && val > 0) timerConfig.pomoFocusMinutes = Math.min(180, Math.max(1, val));
     }
     if (cloudPrefs.pomo_break_minutes || cloudPrefs.break_interval_minutes) {
@@ -1017,6 +1026,9 @@ function mergeCloudDataIntoLocal(data) {
     if (cloudPrefs.custom_timer_minutes) {
       const val = Number(cloudPrefs.custom_timer_minutes);
       if (!isNaN(val) && val > 0) timerConfig.customTimerMinutes = Math.min(720, Math.max(1, val));
+    }
+    if (cloudPrefs.last_used_mode && ['pomodoro', 'stopwatch', 'break'].includes(cloudPrefs.last_used_mode)) {
+      currentMode = cloudPrefs.last_used_mode;
     }
   }
 
@@ -1312,15 +1324,16 @@ async function pushDataToCloud(silent = false, force = false) {
     const prefsObj = {
       daily_goal_minutes: dailyGoalMin,
       daily_goal_secs: dailyGoalMin * 60,
-      study_interval_minutes: Math.min(180, Math.max(1, Number(timerConfig.pomoFocusMinutes) || 25)),
-      break_interval_minutes: Math.min(60, Math.max(1, Number(timerConfig.pomoBreakMinutes) || 5)),
-      custom_timer_minutes: Math.min(720, Math.max(1, Number(timerConfig.customTimerMinutes) || 45)),
-      pomo_focus_minutes: Math.min(180, Math.max(1, Number(timerConfig.pomoFocusMinutes) || 25)),
-      pomo_break_minutes: Math.min(60, Math.max(1, Number(timerConfig.pomoBreakMinutes) || 5)),
-      pomo_long_break_minutes: Math.min(120, Math.max(1, Number(timerConfig.pomoLongBreakMinutes) || 15)),
+      study_interval_minutes: Math.min(180, Math.max(1, Number(timerConfig.pomoFocusMinutes) || 50)),
+      break_interval_minutes: Math.min(60, Math.max(1, Number(timerConfig.pomoBreakMinutes) || 10)),
+      custom_timer_minutes: Math.min(720, Math.max(1, Number(timerConfig.customTimerMinutes) || 50)),
+      pomo_focus_minutes: Math.min(180, Math.max(1, Number(timerConfig.pomoFocusMinutes) || 50)),
+      pomo_break_minutes: Math.min(60, Math.max(1, Number(timerConfig.pomoBreakMinutes) || 10)),
+      pomo_long_break_minutes: Math.min(120, Math.max(1, Number(timerConfig.pomoLongBreakMinutes) || 20)),
       pomo_total_cycles: Math.min(12, Math.max(1, Number(timerConfig.pomoTotalCycles) || 4)),
       pomo_auto_switch_break: timerConfig.pomoAutoSwitchBreak !== false,
       pomo_auto_switch_focus: timerConfig.pomoAutoSwitchFocus !== false,
+      last_used_mode: currentMode,
       current_streak: Math.max(0, Number(appState.streakCount) || 0),
       streak_count: Math.max(0, Number(appState.streakCount) || 0),
       last_study_date: sanitizeString(appState.lastStudyDate || '', 20),
@@ -1666,7 +1679,40 @@ function loadLocalState(targetUserId = null) {
     }
 
     if (parsed) {
-      if (parsed.timerConfig) timerConfig = { ...timerConfig, ...parsed.timerConfig };
+      if (parsed.currentMode && ['pomodoro', 'stopwatch', 'break'].includes(parsed.currentMode)) {
+        currentMode = parsed.currentMode;
+      } else if (parsed.lastUsedMode && ['pomodoro', 'stopwatch', 'break'].includes(parsed.lastUsedMode)) {
+        currentMode = parsed.lastUsedMode;
+      }
+      if (parsed.lastFocusMode && ['pomodoro', 'stopwatch'].includes(parsed.lastFocusMode)) {
+        lastFocusMode = parsed.lastFocusMode;
+      }
+      if (typeof parsed.pomoCurrentCycle === 'number' && parsed.pomoCurrentCycle > 0) {
+        pomoCurrentCycle = parsed.pomoCurrentCycle;
+      }
+      if (typeof parsed.isLongBreakActive === 'boolean') {
+        isLongBreakActive = parsed.isLongBreakActive;
+      }
+
+      if (parsed.timerConfig) {
+        timerConfig = { ...timerConfig, ...parsed.timerConfig };
+        // Auto-heal 120m focus setting corrupted by legacy dailyGoal overlap or cloud sync misconfiguration
+        if (timerConfig.pomoFocusMinutes === 120) {
+          timerConfig.pomoFocusMinutes = 50;
+          if (timerConfig.pomoBreakMinutes === 5) {
+            timerConfig.pomoBreakMinutes = 10;
+          }
+        }
+        if (!timerConfig.pomoFocusMinutes || timerConfig.pomoFocusMinutes <= 0) {
+          timerConfig.pomoFocusMinutes = 50;
+        }
+        if (!timerConfig.pomoBreakMinutes || timerConfig.pomoBreakMinutes <= 0) {
+          timerConfig.pomoBreakMinutes = 10;
+        }
+        if (!timerConfig.pomoLongBreakMinutes || timerConfig.pomoLongBreakMinutes <= 0) {
+          timerConfig.pomoLongBreakMinutes = 20;
+        }
+      }
       if (typeof parsed.streakCount === 'number') appState.streakCount = parsed.streakCount;
       if (parsed.lastStudyDate) appState.lastStudyDate = parsed.lastStudyDate;
       if (Array.isArray(parsed.subjects) && parsed.subjects.length > 0) {
@@ -1721,6 +1767,11 @@ function saveLocalState() {
     markLocalDataModified();
     const uid = appState.currentUser?.id;
     const stateToSave = {
+      currentMode,
+      lastUsedMode: currentMode,
+      lastFocusMode,
+      pomoCurrentCycle,
+      isLongBreakActive,
       timerConfig,
       streakCount: appState.streakCount,
       lastStudyDate: appState.lastStudyDate,
@@ -1751,18 +1802,18 @@ function saveLocalState() {
 function getModeDurationSec() {
   switch (currentMode) {
     case 'pomodoro':
-      return Math.max(1, Number(timerConfig.pomoFocusMinutes) || 25) * 60;
+      return Math.max(1, Number(timerConfig.pomoFocusMinutes) || 50) * 60;
     case 'break': {
       if (isLongBreakActive) {
         const longBreak = Number(timerConfig.pomoLongBreakMinutes);
-        return Math.max(1, !isNaN(longBreak) && longBreak > 0 ? longBreak : (Number(timerConfig.pomoBreakMinutes) || 5)) * 60;
+        return Math.max(1, !isNaN(longBreak) && longBreak > 0 ? longBreak : (Number(timerConfig.pomoBreakMinutes) || 10)) * 60;
       }
-      return Math.max(1, Number(timerConfig.pomoBreakMinutes) || 5) * 60;
+      return Math.max(1, Number(timerConfig.pomoBreakMinutes) || 10) * 60;
     }
     case 'stopwatch':
       return 0;
     default:
-      return Math.max(1, Number(timerConfig.pomoFocusMinutes) || 25) * 60;
+      return Math.max(1, Number(timerConfig.pomoFocusMinutes) || 50) * 60;
   }
 }
 
@@ -2264,9 +2315,9 @@ function setupEventListeners() {
     const checkEnableSubjects = document.getElementById('checkEnableSubjects');
     const dailyGoalInput = document.getElementById('dailyTargetGoalInput');
 
-    if (pomoFocusInput) pomoFocusInput.value = 25;
-    if (pomoBreakInput) pomoBreakInput.value = 5;
-    if (pomoLongBreakInput) pomoLongBreakInput.value = 15;
+    if (pomoFocusInput) pomoFocusInput.value = 50;
+    if (pomoBreakInput) pomoBreakInput.value = 10;
+    if (pomoLongBreakInput) pomoLongBreakInput.value = 20;
     if (pomoTotalCyclesInput) pomoTotalCyclesInput.value = 4;
     if (pomoEnableLongBreak) pomoEnableLongBreak.checked = true;
     if (pomoAutoSwitchBreak) pomoAutoSwitchBreak.checked = true;
@@ -2275,7 +2326,7 @@ function setupEventListeners() {
     if (checkEnableSubjects) checkEnableSubjects.checked = false;
     if (dailyGoalInput) dailyGoalInput.value = 120;
 
-    showToast('Preferences reset to default values', 'info');
+    showToast('Preferences reset to default values (50m focus, 10m break)', 'info');
   });
 
   // Presets in Settings Modal
@@ -2590,18 +2641,7 @@ document.addEventListener('fullscreenchange', () => {
   }
 });
 
-function switchMode(modeKey) {
-  if (!modeKey || !['pomodoro', 'stopwatch', 'break'].includes(modeKey)) return;
-  stopInterval();
-  continuousStudyAccumulatedSec = 0;
-  continuousStudyStartTimestamp = null;
-  continuousStudyElapsedSec = 0;
-  dismissInactivityModal();
-  if (modeKey === 'pomodoro' || modeKey === 'stopwatch') {
-    lastFocusMode = modeKey;
-  }
-  currentMode = modeKey;
-  
+function syncModeUI(modeKey) {
   const modeBadge = document.getElementById('activeModeBadge');
   if (modeBadge) {
     if (modeKey === 'pomodoro') {
@@ -2610,7 +2650,7 @@ function switchMode(modeKey) {
     } else if (modeKey === 'stopwatch') {
       modeBadge.textContent = 'Stopwatch';
     } else if (modeKey === 'break') {
-      const dur = isLongBreakActive ? (timerConfig.pomoLongBreakMinutes || 15) : (timerConfig.pomoBreakMinutes || 5);
+      const dur = isLongBreakActive ? (timerConfig.pomoLongBreakMinutes || 20) : (timerConfig.pomoBreakMinutes || 10);
       modeBadge.textContent = `${isLongBreakActive ? 'Long Break' : 'Short Break'} (${dur}m)`;
     }
   }
@@ -2627,6 +2667,22 @@ function switchMode(modeKey) {
   });
 
   updateCountdownPresetsUI();
+}
+
+function switchMode(modeKey) {
+  if (!modeKey || !['pomodoro', 'stopwatch', 'break'].includes(modeKey)) return;
+  stopInterval();
+  continuousStudyAccumulatedSec = 0;
+  continuousStudyStartTimestamp = null;
+  continuousStudyElapsedSec = 0;
+  dismissInactivityModal();
+  if (modeKey === 'pomodoro' || modeKey === 'stopwatch') {
+    lastFocusMode = modeKey;
+  }
+  currentMode = modeKey;
+  
+  syncModeUI(modeKey);
+  saveLocalState();
   resetTimer();
 }
 
@@ -3787,9 +3843,9 @@ function updateTimerDisplay() {
   if (currentMode === 'pomodoro' || currentMode === 'break') {
     const totalCycles = timerConfig.pomoTotalCycles || 4;
     const curCycle = pomoCurrentCycle || 1;
-    const focusMin = timerConfig.pomoFocusMinutes || 25;
-    const breakMin = isLongBreakActive ? (timerConfig.pomoLongBreakMinutes || 15) : (timerConfig.pomoBreakMinutes || 5);
-    const badgeText = `Session ${curCycle}/${totalCycles}  #${focusMin}/${breakMin}`;
+    const focusMin = timerConfig.pomoFocusMinutes || 50;
+    const breakMin = isLongBreakActive ? (timerConfig.pomoLongBreakMinutes || 20) : (timerConfig.pomoBreakMinutes || 10);
+    const badgeText = `Session ${curCycle}/${totalCycles}  • ${focusMin}/${breakMin}m`;
 
     if (sessionBadge) {
       sessionBadge.textContent = badgeText;
@@ -7710,9 +7766,9 @@ function openTimerSettingsModal() {
   const checkEnableSubjects = document.getElementById('checkEnableSubjects');
   const dailyGoalInput = document.getElementById('dailyTargetGoalInput');
 
-  if (pomoFocusInput) pomoFocusInput.value = timerConfig.pomoFocusMinutes || 25;
-  if (pomoBreakInput) pomoBreakInput.value = timerConfig.pomoBreakMinutes || 5;
-  if (pomoLongBreakInput) pomoLongBreakInput.value = timerConfig.pomoLongBreakMinutes || 15;
+  if (pomoFocusInput) pomoFocusInput.value = timerConfig.pomoFocusMinutes || 50;
+  if (pomoBreakInput) pomoBreakInput.value = timerConfig.pomoBreakMinutes || 10;
+  if (pomoLongBreakInput) pomoLongBreakInput.value = timerConfig.pomoLongBreakMinutes || 20;
   if (pomoTotalCyclesInput) pomoTotalCyclesInput.value = timerConfig.pomoTotalCycles || 4;
   if (pomoEnableLongBreak) pomoEnableLongBreak.checked = timerConfig.pomoEnableLongBreak !== false;
   if (pomoAutoSwitchBreak) pomoAutoSwitchBreak.checked = timerConfig.pomoAutoSwitchBreak !== false;
@@ -7756,9 +7812,9 @@ async function handleSaveTimerSettings(e) {
   const enableSubjects = document.getElementById('checkEnableSubjects')?.checked === true;
   const dailyGoalVal = parseInt(document.getElementById('dailyTargetGoalInput')?.value, 10);
 
-  timerConfig.pomoFocusMinutes = Math.max(1, Math.min(180, !isNaN(pomoFocusVal) ? pomoFocusVal : 25));
-  timerConfig.pomoBreakMinutes = Math.max(1, Math.min(60, !isNaN(pomoBreakVal) ? pomoBreakVal : 5));
-  timerConfig.pomoLongBreakMinutes = Math.max(1, Math.min(120, !isNaN(pomoLongBreakVal) ? pomoLongBreakVal : 15));
+  timerConfig.pomoFocusMinutes = Math.max(1, Math.min(180, !isNaN(pomoFocusVal) ? pomoFocusVal : 50));
+  timerConfig.pomoBreakMinutes = Math.max(1, Math.min(60, !isNaN(pomoBreakVal) ? pomoBreakVal : 10));
+  timerConfig.pomoLongBreakMinutes = Math.max(1, Math.min(120, !isNaN(pomoLongBreakVal) ? pomoLongBreakVal : 20));
   timerConfig.pomoTotalCycles = Math.max(1, Math.min(12, !isNaN(pomoTotalCyclesVal) ? pomoTotalCyclesVal : 4));
   timerConfig.pomoEnableLongBreak = pomoEnableLongBreak;
   timerConfig.pomoAutoSwitchBreak = pomoAutoSwitchBreak;
@@ -7839,9 +7895,14 @@ function closeDeleteAllDataModal() {
 
 function confirmDeleteAllData() {
   try {
+    localStorage.removeItem('studytimer_guest_state');
+    const uid = appState.currentUser?.id;
+    if (uid) localStorage.removeItem(`studytimer_state_${uid}`);
     localStorage.removeItem('studytimer_demo_state');
   } catch (e) {}
 
+  currentMode = 'pomodoro';
+  lastFocusMode = 'pomodoro';
   appState.streakCount = 1;
   appState.lastStudyDate = '';
   appState.subjects = [...DEFAULT_SUBJECTS];
@@ -7854,10 +7915,10 @@ function confirmDeleteAllData() {
   appState.todaySessions = [];
 
   timerConfig = {
-    customTimerMinutes: 25,
-    pomoFocusMinutes: 25,
-    pomoBreakMinutes: 5,
-    pomoLongBreakMinutes: 15,
+    customTimerMinutes: 50,
+    pomoFocusMinutes: 50,
+    pomoBreakMinutes: 10,
+    pomoLongBreakMinutes: 20,
     pomoTotalCycles: 4,
     pomoAutoSwitchBreak: true,
     pomoAutoSwitchFocus: true,
@@ -7869,6 +7930,7 @@ function confirmDeleteAllData() {
 
   closeDeleteAllDataModal();
   renderSubjects();
+  syncModeUI(currentMode);
   resetTimer();
   updateProgressAndStreak();
   renderSubjectDonutChart();

@@ -35,7 +35,7 @@ This ensures:
 │                 ▲                                                           │
 │                 │                                                           │
 │   🛡️ Profile Approval Bot (Studytimer_approval)                            │
-│   ├─ Token: 8755792560:AAFrTNyOjveVTV9vtRgwVD6tkNMwfRBDG2k                  │
+│   ├─ Token: REDACTED_TOKEN                                  │
 │   ├─ /queue, /audit, /backup, /restore commands                             │
 │   └─ Inline Webhook [✅ Approve] / [❌ Reject] Callback Actions              │
 │                                                                             │

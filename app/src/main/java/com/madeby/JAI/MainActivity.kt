@@ -70,6 +70,7 @@ import kotlin.math.min
 
 
 import androidx.activity.viewModels
+import androidx.lifecycle.lifecycleScope
 
 class MainActivity : AppCompatActivity() {
 
@@ -623,20 +624,17 @@ class MainActivity : AppCompatActivity() {
                 try {
                     rootLayout.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                 } catch (_: Exception) {}
-                dialog.dismiss()
-                Thread {
-                    kotlinx.coroutines.runBlocking {
+                lifecycleScope.launch {
+                    withContext(Dispatchers.IO) {
                         CloudSyncManager.deleteUserCloudData(this@MainActivity)
                     }
-                    runOnUiThread {
-                        AuthManager.deleteLocalUserData(this@MainActivity)
-                        Toast.makeText(this@MainActivity, "Account & all data permanently erased.", Toast.LENGTH_LONG).show()
-                        val intent = Intent(this@MainActivity, LoginActivity::class.java)
-                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                        startActivity(intent)
-                        finish()
-                    }
-                }.start()
+                    AuthManager.deleteLocalUserData(this@MainActivity)
+                    Toast.makeText(this@MainActivity, "Account & all data permanently erased.", Toast.LENGTH_LONG).show()
+                    val intent = Intent(this@MainActivity, LoginActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    startActivity(intent)
+                    finish()
+                }
             }
             layoutParams = LinearLayout.LayoutParams(0, dp(46), 1.2f).apply { setMargins(dp(8), 0, 0, 0) }
         }
@@ -744,25 +742,23 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Check if there is a conflict with existing cloud data
-        Thread {
-            kotlinx.coroutines.runBlocking {
-                val syncResult = CloudSyncManager.syncWithConflictCheck(this@MainActivity)
-                runOnUiThread {
-                    when (syncResult) {
-                        is CloudSyncManager.SyncCheckResult.Conflict -> {
-                            showSyncConflictDialog(syncResult.localTimestamp, syncResult.cloudTimestamp, syncResult.cloudRecord)
-                        }
-                        is CloudSyncManager.SyncCheckResult.Success -> {
-                            Toast.makeText(this@MainActivity, "Cloud sync updated successfully", Toast.LENGTH_SHORT).show()
-                            recreate()
-                        }
-                        else -> {
-                            recreate()
-                        }
-                    }
+        lifecycleScope.launch {
+            val syncResult = withContext(Dispatchers.IO) {
+                CloudSyncManager.syncWithConflictCheck(this@MainActivity)
+            }
+            when (syncResult) {
+                is CloudSyncManager.SyncCheckResult.Conflict -> {
+                    showSyncConflictDialog(syncResult.localTimestamp, syncResult.cloudTimestamp, syncResult.cloudRecord)
+                }
+                is CloudSyncManager.SyncCheckResult.Success -> {
+                    Toast.makeText(this@MainActivity, "Cloud sync updated successfully", Toast.LENGTH_SHORT).show()
+                    recreate()
+                }
+                else -> {
+                    recreate()
                 }
             }
-        }.start()
+        }
     }
 
     internal fun showSyncConflictDialog(localTs: Long, cloudTs: Long, cloudRecord: org.json.JSONObject) {
@@ -815,16 +811,14 @@ class MainActivity : AppCompatActivity() {
             }
             setOnClickListener {
                 dialog.dismiss()
-                Thread {
-                    kotlinx.coroutines.runBlocking {
+                lifecycleScope.launch {
+                    withContext(Dispatchers.IO) {
                         CloudSyncManager.restoreDataFromCloud(this@MainActivity)
-                        runOnUiThread {
-                            Toast.makeText(this@MainActivity, "Restored newer cloud data", Toast.LENGTH_SHORT).show()
-                            tabPageCache.clear()
-                            recreate()
-                        }
                     }
-                }.start()
+                    Toast.makeText(this@MainActivity, "Restored newer cloud data", Toast.LENGTH_SHORT).show()
+                    tabPageCache.clear()
+                    recreate()
+                }
             }
         }
         content.addView(keepCloudBtn)
@@ -841,20 +835,18 @@ class MainActivity : AppCompatActivity() {
             }
             setOnClickListener {
                 dialog.dismiss()
-                Thread {
-                    kotlinx.coroutines.runBlocking {
-                        val merged = CloudSyncManager.mergeCloudAndLocalData(this@MainActivity, cloudRecord)
-                        runOnUiThread {
-                            if (merged) {
-                                Toast.makeText(this@MainActivity, "Merged local and cloud data", Toast.LENGTH_SHORT).show()
-                            } else {
-                                Toast.makeText(this@MainActivity, "Merge failed, keeping local state", Toast.LENGTH_SHORT).show()
-                            }
-                            tabPageCache.clear()
-                            recreate()
-                        }
+                lifecycleScope.launch {
+                    val merged = withContext(Dispatchers.IO) {
+                        CloudSyncManager.mergeCloudAndLocalData(this@MainActivity, cloudRecord)
                     }
-                }.start()
+                    if (merged) {
+                        Toast.makeText(this@MainActivity, "Merged local and cloud data", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(this@MainActivity, "Merge failed, keeping local state", Toast.LENGTH_SHORT).show()
+                    }
+                    tabPageCache.clear()
+                    recreate()
+                }
             }
         }
         content.addView(mergeBtn)
@@ -869,15 +861,13 @@ class MainActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(40))
             setOnClickListener {
                 dialog.dismiss()
-                Thread {
-                    kotlinx.coroutines.runBlocking {
+                lifecycleScope.launch {
+                    withContext(Dispatchers.IO) {
                         CloudSyncManager.syncDataToCloud(this@MainActivity, force = true)
-                        runOnUiThread {
-                            Toast.makeText(this@MainActivity, "Cloud overwritten with local backup", Toast.LENGTH_SHORT).show()
-                            recreate()
-                        }
                     }
-                }.start()
+                    Toast.makeText(this@MainActivity, "Cloud overwritten with local backup", Toast.LENGTH_SHORT).show()
+                    recreate()
+                }
             }
         }
         content.addView(overwriteBtn)
@@ -2064,7 +2054,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (currentPanel == AppPanel.SETTINGS && targetPanel != AppPanel.SETTINGS) {
-            Thread { backupManager.runSilentAutoBackup() }.start()
+            CoroutineScope(Dispatchers.IO).launch {
+                backupManager.runSilentAutoBackup()
+            }
         }
 
         if (targetPanel == AppPanel.HEATMAP && currentPanel != AppPanel.HEATMAP) {
@@ -2133,6 +2125,13 @@ class MainActivity : AppCompatActivity() {
             .setDuration(300L)
             .setInterpolator(springPhysics)
             .withLayer()
+            .withEndAction {
+                if (overlay.parent != null) panelHost.removeView(overlay)
+                overlay.setImageBitmap(null)
+                if (!snapshot.isRecycled) {
+                    snapshot.recycle()
+                }
+            }
             .start()
 
         for (j in 0 until panelContainer.childCount) {
@@ -2146,10 +2145,6 @@ class MainActivity : AppCompatActivity() {
                 .withLayer()
                 .start()
         }
-
-        handler.postDelayed({
-            if (overlay.parent != null) panelHost.removeView(overlay)
-        }, 360L)
     }
 
     private fun buildFocusPanel() {

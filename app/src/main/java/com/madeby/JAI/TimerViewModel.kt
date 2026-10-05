@@ -36,11 +36,11 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
                 StudyWidgetProvider.refresh(getApplication())
             }
             "currentBreakSeconds" -> _uiState.value = _uiState.value.copy(currentBreakSeconds = sharedPreferences.getLong(key, 0L))
-            "timerMode" -> _uiState.value = _uiState.value.copy(mode = sharedPreferences.getString(key, "STOPWATCH") ?: "STOPWATCH")
-            "focusCountdownSecs" -> _uiState.value = _uiState.value.copy(focusCountdownSecs = sharedPreferences.getLong(key, 1500L))
+            "timerMode", "timer_mode" -> _uiState.value = _uiState.value.copy(mode = sharedPreferences.getString("timer_mode", sharedPreferences.getString("timerMode", "STOPWATCH")) ?: "STOPWATCH")
+            "focusCountdownSecs", "focus_countdown_secs" -> _uiState.value = _uiState.value.copy(focusCountdownSecs = if (sharedPreferences.contains("focus_countdown_secs")) sharedPreferences.getLong("focus_countdown_secs", 1500L) else sharedPreferences.getLong("focusCountdownSecs", 1500L))
             "timerState" -> {
                 val stateStr = sharedPreferences.getString(key, "IDLE") ?: "IDLE"
-                _uiState.value = _uiState.value.copy(state = TimerState.valueOf(stateStr))
+                _uiState.value = _uiState.value.copy(state = runCatching { TimerState.valueOf(stateStr) }.getOrDefault(TimerState.IDLE))
                 StudyWidgetProvider.refresh(getApplication())
             }
 
@@ -52,8 +52,8 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = _uiState.value.copy(
             accumulatedStudy = prefs.getLong("accumulatedStudy", 0L),
             currentBreakSeconds = prefs.getLong("currentBreakSeconds", 0L),
-            mode = prefs.getString("timerMode", "STOPWATCH") ?: "STOPWATCH",
-            focusCountdownSecs = prefs.getLong("focusCountdownSecs", 1500L)
+            mode = prefs.getString("timer_mode", prefs.getString("timerMode", "STOPWATCH")) ?: "STOPWATCH",
+            focusCountdownSecs = if (prefs.contains("focus_countdown_secs")) prefs.getLong("focus_countdown_secs", 1500L) else prefs.getLong("focusCountdownSecs", 1500L)
         )
         prefs.registerOnSharedPreferenceChangeListener(preferenceChangeListener)
     }

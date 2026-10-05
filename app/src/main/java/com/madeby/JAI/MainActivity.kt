@@ -1001,7 +1001,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private val CHANNEL_ID = "study_timer_channels"
+    private val CHANNEL_ID = NotificationHelper.CHANNEL_TIMER
 
     private fun requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT < 33) return
@@ -1551,6 +1551,7 @@ class MainActivity : AppCompatActivity() {
         themeCoordinator = ThemeCoordinator(this)
         backupManager = BackupManager(this)
         themeCoordinator.applyThemeCoordinates()
+        createNotificationChannel()
 
         Thread {
             try {
@@ -1593,6 +1594,15 @@ class MainActivity : AppCompatActivity() {
         accumulatedStudy = sharedPrefs.getLong("accumulatedStudy", 0L)
         currentBreakSeconds = sharedPrefs.getLong("currentBreakSeconds", 0L)
         selectedDaysFilter = sharedPrefs.safeInt("selected_days_filter", 7)
+
+        // Self-heal corrupted 0-second PAUSED session to clean IDLE
+        if (currentTimerState == TimerState.PAUSED && accumulatedStudy == 0L && currentBreakSeconds == 0L) {
+            currentTimerState = TimerState.IDLE
+            sharedPrefs.edit()
+                .putString("timerState", TimerState.IDLE.name)
+                .putLong("lastTimestamp", 0L)
+                .apply()
+        }
 
         if (currentTimerState != TimerState.IDLE) {
             val resumeIntent = Intent(this, TimerService::class.java)
@@ -2753,6 +2763,15 @@ class MainActivity : AppCompatActivity() {
             accumulatedStudy = sharedPrefs.getLong("accumulatedStudy", 0L)
             currentBreakSeconds = sharedPrefs.getLong("currentBreakSeconds", 0L)
             currentTimerState = TimerState.valueOf(sharedPrefs.getString("timerState", "IDLE") ?: "IDLE")
+
+            // Self-heal corrupted 0-second PAUSED session to clean IDLE
+            if (currentTimerState == TimerState.PAUSED && accumulatedStudy == 0L && currentBreakSeconds == 0L) {
+                currentTimerState = TimerState.IDLE
+                sharedPrefs.edit()
+                    .putString("timerState", TimerState.IDLE.name)
+                    .putLong("lastTimestamp", 0L)
+                    .apply()
+            }
             timerMode = sharedPrefs.getString("timer_mode", "STOPWATCH") ?: "STOPWATCH"
             val pomodoroConfiguredSecs = sharedPrefs.safeLong("study_interval_minutes", 25L) * 60L
             focusCountdownSecs = if (timerMode == "LECTURE") {
@@ -3272,7 +3291,9 @@ class MainActivity : AppCompatActivity() {
         val intent = Intent(this, TimerService::class.java).apply {
             action = if (silent) TimerService.ACTION_STOP_SILENT else TimerService.ACTION_STOP
         }
-        startService(intent)
+        try {
+            startService(intent)
+        } catch (_: Exception) {}
 
         currentTimerState = TimerState.IDLE
         accumulatedStudy = 0L
@@ -3280,8 +3301,15 @@ class MainActivity : AppCompatActivity() {
         focusRemainingSecs = 0L
 
         getSharedPreferences("StudyTimerPrefs", MODE_PRIVATE).edit()
+            .putString("timerState", TimerState.IDLE.name)
+            .putLong("accumulatedStudy", 0L)
+            .putLong("currentBreakSeconds", 0L)
+            .putLong("focus_remaining_secs", 0L)
             .putLong("break_countdown_secs", 0L)
             .putLong("break_remaining_secs", 0L)
+            .putLong("lastTimestamp", 0L)
+            .putBoolean("lecture_mode_enabled", false)
+            .putString("pre_pause_state", TimerState.STUDYING.name)
             .apply()
 
         statsDirty = true

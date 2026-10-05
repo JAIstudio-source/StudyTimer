@@ -6,5 +6,6 @@ class StudyTimerApp : Application() {
     override fun onCreate() {
         super.onCreate()
         AppAnalytics.init(this)
+        NotificationHelper.createAllNotificationChannels(this)
     }
 }

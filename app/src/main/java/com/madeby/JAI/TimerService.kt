@@ -19,10 +19,10 @@ import java.util.*
 
 class TimerService : Service() {
 
-    private val NOTIFICATION_ID = 1001
-    private val CHANNEL_ID = "study_timer_channels"
-    private val COMPLETION_CHANNEL_ID = "study_timer_completion_v4"
-    private val COMPLETION_NOTIFICATION_ID = 1002
+    private val NOTIFICATION_ID = NotificationHelper.NOTIFICATION_ID_TIMER
+    private val CHANNEL_ID = NotificationHelper.CHANNEL_TIMER
+    private val COMPLETION_CHANNEL_ID = NotificationHelper.CHANNEL_COMPLETION
+    private val COMPLETION_NOTIFICATION_ID = NotificationHelper.NOTIFICATION_ID_COMPLETION
 
     private var currentTimerState = TimerState.IDLE
     private var lastTimestamp: Long = 0
@@ -89,11 +89,19 @@ class TimerService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         loadSavedState()
+        when (intent?.action) {
+            ACTION_STOP -> {
+                handleStop()
+                return START_NOT_STICKY
+            }
+            ACTION_STOP_SILENT -> {
+                handleStopSilent()
+                return START_NOT_STICKY
+            }
+        }
         updateForegroundNotification()
         when (intent?.action) {
             ACTION_TOGGLE -> handleToggle()
-            ACTION_STOP -> handleStop()
-            ACTION_STOP_SILENT -> handleStopSilent()
             ACTION_PAUSE -> handlePause()
             ACTION_EXTEND_LECTURE -> {
                 val extendSecs = intent.getLongExtra("EXTEND_SECS", 300L)
@@ -191,8 +199,16 @@ class TimerService : Service() {
         if (foregroundStarted) {
             (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(NOTIFICATION_ID, notification)
         } else {
-            startForeground(NOTIFICATION_ID, notification)
-            foregroundStarted = true
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+                } else {
+                    startForeground(NOTIFICATION_ID, notification)
+                }
+                foregroundStarted = true
+            } catch (e: Exception) {
+                android.util.Log.e("TimerService", "Failed to startForeground: ${e.message}", e)
+            }
         }
     }
 
@@ -309,7 +325,7 @@ class TimerService : Service() {
                 AppAnalytics.trackFeatureUsage(this, "resumed_from_break")
             }
             TimerState.PAUSED -> {
-                currentTimerState = prePauseState
+                currentTimerState = if (prePauseState == TimerState.BREAK) TimerState.BREAK else TimerState.STUDYING
                 AppAnalytics.trackSessionResume(this)
             }
         }
@@ -419,6 +435,7 @@ class TimerService : Service() {
         saveState()
 
         stopForeground(STOP_FOREGROUND_REMOVE)
+        foregroundStarted = false
         stopSelf()
         StudyWidgetProvider.refresh(this)
     }
@@ -448,6 +465,7 @@ class TimerService : Service() {
         saveState()
 
         stopForeground(STOP_FOREGROUND_REMOVE)
+        foregroundStarted = false
         stopSelf()
         StudyWidgetProvider.refresh(this)
     }
@@ -713,7 +731,7 @@ class TimerService : Service() {
                     updateForegroundNotification()
                     StudyWidgetProvider.refresh(this)
                 }
-            } else if (currentTimerState != TimerState.IDLE && lastTimestamp > 0L) {
+            } else if ((currentTimerState == TimerState.STUDYING || currentTimerState == TimerState.BREAK) && lastTimestamp > 0L) {
                 val rawGap = now - lastTimestamp
                 if (rawGap > MAX_ACCEPTABLE_GAP_SECS) {
                     android.util.Log.w("TimerService", "Giant time gap of ${rawGap}s detected (>10m). Resetting timer state to PAUSED to prevent 12h inflation.")
@@ -1137,12 +1155,23 @@ class TimerService : Service() {
         timerMode = sharedPrefs.getString("timer_mode", "STOPWATCH") ?: "STOPWATCH"
 
         val nowSecs = System.currentTimeMillis() / 1000L
-        if (lastTimestamp > 0L && (nowSecs - lastTimestamp) > MAX_ACCEPTABLE_GAP_SECS && currentTimerState != TimerState.IDLE) {
+
+        // Self-heal corrupted 0-second PAUSED session to clean IDLE
+        if (currentTimerState == TimerState.PAUSED && accumulatedStudy == 0L && currentBreakSeconds == 0L) {
+            android.util.Log.w("TimerService", "loadSavedState: Zero-second PAUSED state detected. Resetting to IDLE.")
+            currentTimerState = TimerState.IDLE
+            lastTimestamp = 0L
+            saveState()
+        }
+
+        // Only pause if active running session (STUDYING or BREAK). A PAUSED session is already paused.
+        if (lastTimestamp > 0L && (nowSecs - lastTimestamp) > MAX_ACCEPTABLE_GAP_SECS && (currentTimerState == TimerState.STUDYING || currentTimerState == TimerState.BREAK)) {
             android.util.Log.w("TimerService", "loadSavedState: Stale active timer state detected with gap of ${nowSecs - lastTimestamp}s. Resetting state to PAUSED to prevent 12h inflation.")
             prePauseState = currentTimerState
             currentTimerState = TimerState.PAUSED
             lastTimestamp = nowSecs
             continuousStudySecs = 0L
+            saveState()
         }
 
         val pomodoroConfiguredSecs = sharedPrefs.safeLong("study_interval_minutes", 25L) * 60L
@@ -1156,7 +1185,11 @@ class TimerService : Service() {
         breakRemainingSecs = sharedPrefs.getLong("break_remaining_secs", 0L)
         lectureModeEnabled = sharedPrefs.getBoolean("lecture_mode_enabled", false)
         lecturePromptTimestamp = sharedPrefs.getLong("lecture_prompt_timestamp", 0L)
-        prePauseState = runCatching { TimerState.valueOf(sharedPrefs.getString("pre_pause_state", "STUDYING") ?: "STUDYING") }.getOrDefault(TimerState.STUDYING)
+        val rawPrePause = sharedPrefs.getString("pre_pause_state", "STUDYING") ?: "STUDYING"
+        prePauseState = runCatching { TimerState.valueOf(rawPrePause) }.getOrDefault(TimerState.STUDYING)
+        if (prePauseState != TimerState.STUDYING && prePauseState != TimerState.BREAK) {
+            prePauseState = TimerState.STUDYING
+        }
         continuousStudySecs = sharedPrefs.getLong("continuous_study_secs", 0L)
         isPendingActivityConfirmation = sharedPrefs.getBoolean("is_pending_activity_confirmation", false)
         activityConfirmationPromptTime = sharedPrefs.getLong("activity_confirmation_prompt_time", 0L)
@@ -1242,6 +1275,7 @@ class TimerService : Service() {
 
     override fun onDestroy() {
         handler.removeCallbacks(timerRunnable)
+        foregroundStarted = false
         super.onDestroy()
     }
 }

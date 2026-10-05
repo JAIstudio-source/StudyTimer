@@ -279,7 +279,13 @@ class BreakAndLectureDialogHelper(private val host: MainActivity) {
                 val confirmIntent = Intent(host, TimerService::class.java).apply {
                     action = TimerService.ACTION_CONFIRM_ACTIVITY
                 }
-                host.startService(confirmIntent)
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        host.startForegroundService(confirmIntent)
+                    } else {
+                        host.startService(confirmIntent)
+                    }
+                } catch (_: Exception) {}
             }
         }
         content.addView(btnKeep)
@@ -295,7 +301,13 @@ class BreakAndLectureDialogHelper(private val host: MainActivity) {
                 val confirmIntent = Intent(host, TimerService::class.java).apply {
                     action = TimerService.ACTION_CONFIRM_ACTIVITY
                 }
-                host.startService(confirmIntent)
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        host.startForegroundService(confirmIntent)
+                    } else {
+                        host.startService(confirmIntent)
+                    }
+                } catch (_: Exception) {}
                 host.handleStartBreak()
             }
         }

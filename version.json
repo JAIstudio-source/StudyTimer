@@ -1,7 +1,8 @@
 {
     "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
     "url": "https://get-studytimer.vercel.app/?download=true",
-    "versionCode": 37,
-    "versionName": "3.1.4",
-    "releaseNotes": "• New subject select menu. • New profile pic crop feature. • Minor UI improvements."
+    "versionCode": 38,
+    "versionName": "3.1.5",
+    "releaseNotes": "1. Fixed 12 hours wrong focus time accumulation. 2. Improved profile sync. 3. Minor changes."
+
 }

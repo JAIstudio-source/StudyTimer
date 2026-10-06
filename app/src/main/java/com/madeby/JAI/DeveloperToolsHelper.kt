@@ -24,6 +24,9 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 /**
@@ -810,31 +813,27 @@ object DeveloperToolsHelper {
             })
 
             addView(devButton("Force Immediate Cloud Push", "Uploads current local state directly to cloud storage") {
-                Thread {
-                    kotlinx.coroutines.runBlocking {
-                        val success = CloudSyncManager.syncDataToCloud(activity, force = true)
-                        activity.runOnUiThread {
-                            Toast.makeText(activity, if (success) "Cloud push succeeded" else "Cloud push failed (Check network/login)", Toast.LENGTH_SHORT).show()
-                        }
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                    val success = CloudSyncManager.syncDataToCloud(activity, force = true)
+                    activity.runOnUiThread {
+                        Toast.makeText(activity, if (success) "Cloud push succeeded" else "Cloud push failed (Check network/login)", Toast.LENGTH_SHORT).show()
                     }
-                }.start()
+                }
             })
 
             addView(devButton("Force Cloud Pull & Restore", "Downloads and overwrites with latest cloud copy") {
-                Thread {
-                    kotlinx.coroutines.runBlocking {
-                        val success = CloudSyncManager.restoreDataFromCloud(activity)
-                        activity.runOnUiThread {
-                            if (success) {
-                                Toast.makeText(activity, "Cloud restored successfully", Toast.LENGTH_SHORT).show()
-                                activity.tabPageCache.clear()
-                                activity.recreate()
-                            } else {
-                                Toast.makeText(activity, "No cloud backup found or pull failed", Toast.LENGTH_SHORT).show()
-                            }
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                    val success = CloudSyncManager.restoreDataFromCloud(activity)
+                    activity.runOnUiThread {
+                        if (success) {
+                            Toast.makeText(activity, "Cloud restored successfully", Toast.LENGTH_SHORT).show()
+                            activity.tabPageCache.clear()
+                            activity.recreate()
+                        } else {
+                            Toast.makeText(activity, "No cloud backup found or pull failed", Toast.LENGTH_SHORT).show()
                         }
                     }
-                }.start()
+                }
             })
         }
 
@@ -2546,16 +2545,14 @@ object DeveloperToolsHelper {
                 if (isFocusCategory && syncLeaderboard) {
                     val subName = selectedSubject?.name ?: "General Focus"
                     val subColor = selectedSubject?.colorHex ?: "#3b82f6"
-                    Thread {
-                        kotlinx.coroutines.runBlocking {
-                            LeaderboardManager.overrideLeaderboardDailyTotal(
-                                context = activity,
-                                totalSeconds = newTotalFocus.toInt(),
-                                subject = subName,
-                                color = subColor
-                            )
-                        }
-                    }.start()
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                        LeaderboardManager.overrideLeaderboardDailyTotal(
+                            context = activity,
+                            totalSeconds = newTotalFocus.toInt(),
+                            subject = subName,
+                            color = subColor
+                        )
+                    }
                 }
 
                 val subName = selectedSubject?.name ?: "General Focus"
@@ -2634,11 +2631,9 @@ object DeveloperToolsHelper {
             activity.updateVisualStyles()
             StudyWidgetProvider.refresh(activity)
 
-            Thread {
-                kotlinx.coroutines.runBlocking {
-                    CloudSyncManager.syncDataToCloud(activity)
-                }
-            }.start()
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                CloudSyncManager.syncDataToCloud(activity)
+            }
 
             dialog.dismiss()
         }

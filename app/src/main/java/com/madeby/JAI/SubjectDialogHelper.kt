@@ -29,6 +29,18 @@ class SubjectDialogHelper(private val host: MainActivity) {
     private fun tintedColor(color: Int, alpha: Int): Int = host.tintedColor(color, alpha)
 
     fun showSubjectPickerDialog() {
+        if (host.currentTimerState != TimerState.IDLE || host.accumulatedStudy > 0L || host.currentBreakSeconds > 0L) {
+            DeveloperToolsHelper.showThemedConfirmDialog(
+                activity = host,
+                themeCoordinator = themeCoordinator,
+                title = "⏱️ Timer Is Running",
+                message = "Subject can only be changed when no timer is running.\n\nPlease pause or stop your active timer before switching subjects.",
+                confirmText = "OK",
+                isDestructive = false,
+                onCancel = {}
+            ) {}
+            return
+        }
         try {
             val dialog = Dialog(host)
             dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)

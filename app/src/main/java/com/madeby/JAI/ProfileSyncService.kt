@@ -25,6 +25,9 @@ object ProfileSyncService {
         data class NetworkError(val message: String) : SubmissionResult()
     }
 
+    private var lastSubmitTimestamp = 0L
+    private const val SUBMIT_COOLDOWN_MS = 15_000L
+
     suspend fun submitProfile(
         context: Context,
         displayName: String,
@@ -34,6 +37,14 @@ object ProfileSyncService {
         avatarPresetId: String,
         avatarUrl: String
     ): SubmissionResult = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        val elapsed = now - lastSubmitTimestamp
+        if (elapsed < SUBMIT_COOLDOWN_MS) {
+            val waitSecs = ((SUBMIT_COOLDOWN_MS - elapsed) / 1000L).coerceAtLeast(1L)
+            return@withContext SubmissionResult.NetworkError("Please wait $waitSecs seconds before submitting another profile update.")
+        }
+        lastSubmitTimestamp = now
+
         // Step 1: Pre-sanitization profanity check
         val nameCheck = ProfanityFilter.checkName(displayName)
         if (!nameCheck.isClean) {

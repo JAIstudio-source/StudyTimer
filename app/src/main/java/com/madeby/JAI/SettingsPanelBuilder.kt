@@ -58,11 +58,9 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
             if (captureScrollRef) {
                 tabPageCache.keys.removeIf { it.startsWith("ST:") }
-                Thread {
-                    kotlinx.coroutines.runBlocking {
-                        CloudSyncManager.syncDataToCloud(this@with)
-                    }
-                }.start()
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                    CloudSyncManager.syncDataToCloud(this@with)
+                }
             }
 
             val settingsRootLayout = LinearLayout(this).apply {
@@ -955,15 +953,22 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                                     setMargins(0, 0, 0, dp(14))
                                 }
                             }
+                            val reqName = currentProfile.pendingDisplayName
+                            val hasNameReview = !reqName.isNullOrBlank() && reqName != currentProfile.displayName
+                            val bannerTitle = if (hasNameReview) "⏳ Display Name Pending Approval" else "⏳ Profile Edit Under Review"
+                            val bannerMsg = if (hasNameReview) {
+                                "Your requested name \"$reqName\" is being reviewed by moderators. Leaderboards will display \"${currentProfile.displayName}\" until approved."
+                            } else {
+                                "Your profile changes are being reviewed by moderators. Public leaderboards will show your currently approved details until reviewed."
+                            }
                             pendingCard.addView(TextView(this).apply {
-                                text = "⏳ Display Name Pending Approval"
+                                text = bannerTitle
                                 setTextColor(Color.parseColor("#F59E0B"))
                                 textSize = 13f
                                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                             })
                             pendingCard.addView(TextView(this).apply {
-                                val reqName = currentProfile.pendingDisplayName ?: "New Name"
-                                text = "Your requested name \"$reqName\" is being reviewed by moderators. Leaderboards will display \"${currentProfile.displayName}\" until approved."
+                                text = bannerMsg
                                 setTextColor(themeCoordinator.textColor)
                                 alpha = 0.75f
                                 textSize = 11.5f
@@ -1002,6 +1007,10 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
                     var selectedAvatarId = ""
 
+                    val draftName = ProfileManager.getDraftName(this)
+                    val draftBio = ProfileManager.getDraftBio(this)
+                    val draftExam = ProfileManager.getDraftExam(this)
+
                     // --- DISPLAY NAME INPUT ---
                     val nameLabel = TextView(this).apply {
                         text = "DISPLAY NAME (PUBLIC)"
@@ -1015,7 +1024,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
                     val editNameField = EditText(this).apply {
                         hint = "e.g. Alex_Studies"
-                        setText(currentProfile.pendingDisplayName ?: currentProfile.displayName)
+                        setText(draftName ?: (currentProfile.pendingDisplayName ?: currentProfile.displayName))
                         setTextColor(themeCoordinator.textColor)
                         setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
                         textSize = 14f
@@ -1025,8 +1034,26 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                             setMargins(0, 0, 0, dp(12))
                         }
                         setSingleLine(true)
+                        addTextChangedListener(object : android.text.TextWatcher {
+                            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                            override fun afterTextChanged(s: android.text.Editable?) {
+                                ProfileManager.saveDraftForm(this@with, s?.toString(), null, null)
+                            }
+                        })
                     }
                     profileContent.addView(editNameField)
+
+                    // Save draft on avatar click so any current focus text is saved
+                    avatarWrapper.setOnClickListener {
+                        ProfileManager.saveDraftForm(
+                            this@with,
+                            editNameField.text.toString(),
+                            null,
+                            null
+                        )
+                        host.pickProfileAvatar()
+                    }
 
                     // --- TARGET EXAM / GOAL SELECTOR ---
                     val examLabel = TextView(this).apply {
@@ -1040,7 +1067,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     profileContent.addView(examLabel)
 
                     val examTracks = listOf("JEE / NEET", "UPSC / Govt", "Board Exams", "College / Uni", "Self-Study", "Programming")
-                    var selectedExam = currentProfile.targetExam.ifBlank { "Self-Study" }
+                    var selectedExam = draftExam ?: currentProfile.targetExam.ifBlank { "Self-Study" }
 
                     val chipsScroll = android.widget.HorizontalScrollView(this).apply {
                         isHorizontalScrollBarEnabled = false
@@ -1071,6 +1098,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                             }
                             setOnClickListener {
                                 selectedExam = track
+                                ProfileManager.saveDraftForm(this@with, null, null, track)
                                 for (c in chipViews) {
                                     val sel = c.text == track
                                     c.typeface = Typeface.create("sans-serif-medium", if (sel) Typeface.BOLD else Typeface.NORMAL)
@@ -1102,7 +1130,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
                     val editBioField = EditText(this).apply {
                         hint = "e.g. Focused on daily consistency • Consistency is key"
-                        setText(currentProfile.bio)
+                        setText(draftBio ?: currentProfile.bio)
                         setTextColor(themeCoordinator.textColor)
                         setHintTextColor(tintedColor(themeCoordinator.textColor, 100))
                         textSize = 13f
@@ -1112,6 +1140,13 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                             setMargins(0, 0, 0, dp(14))
                         }
                         maxLines = 2
+                        addTextChangedListener(object : android.text.TextWatcher {
+                            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                            override fun afterTextChanged(s: android.text.Editable?) {
+                                ProfileManager.saveDraftForm(this@with, null, s?.toString(), null)
+                            }
+                        })
                     }
                     profileContent.addView(editBioField)
 
@@ -1278,6 +1313,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
                                         when (result) {
                                             is ProfileSyncService.SubmissionResult.Success -> {
+                                                ProfileManager.clearDraftForm(this@with)
                                                 Toast.makeText(this@with, result.message, Toast.LENGTH_LONG).show()
                                                 navigateToPanel(AppPanel.SETTINGS)
                                             }
@@ -1430,8 +1466,25 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     }
                 }
 
+                fun checkTimerRunningBeforeModeChange(): Boolean {
+                    if (currentTimerState != TimerState.IDLE || accumulatedStudy > 0L || currentBreakSeconds > 0L) {
+                        DeveloperToolsHelper.showThemedConfirmDialog(
+                            activity = this@with,
+                            themeCoordinator = themeCoordinator,
+                            title = "⏱️ Timer Is Running",
+                            message = "Timer mode can only be changed when no timer is running.\n\nPlease pause or stop your active timer before switching timer modes.",
+                            confirmText = "OK",
+                            isDestructive = false,
+                            onCancel = {}
+                        ) {}
+                        return true
+                    }
+                    return false
+                }
+
                 val stopwatchRow = createSettingsRow("", getString(R.string.mode_stopwatch), getString(R.string.mode_stopwatch_sub), modeRadio(isStopwatch))
                 stopwatchRow.setOnClickListener {
+                    if (checkTimerRunningBeforeModeChange()) return@setOnClickListener
                     sharedPrefs.edit().putString("timer_mode", "STOPWATCH").putBoolean("lecture_mode_enabled", false).apply()
                     timerMode = "STOPWATCH"
                     if (currentTimerState == TimerState.IDLE) {
@@ -1444,6 +1497,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
                 val countdownRow = createSettingsRow("", getString(R.string.mode_pomodoro), getString(R.string.mode_pomodoro_sub), modeRadio(isCountdown))
                 countdownRow.setOnClickListener {
+                    if (checkTimerRunningBeforeModeChange()) return@setOnClickListener
                     val pomoMins = sharedPrefs.safeLong("study_interval_minutes", 25L)
                     val pomoSecs = pomoMins * 60L
                     sharedPrefs.edit()
@@ -1463,6 +1517,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
                 val subjectRow = createSettingsRow("", "Subject Focus", "Pick a subject and track your study time", modeRadio(isSubject))
                 subjectRow.setOnClickListener {
+                    if (checkTimerRunningBeforeModeChange()) return@setOnClickListener
                     val pomoMins = sharedPrefs.safeLong("study_interval_minutes", 25L)
                     val pomoSecs = pomoMins * 60L
                     sharedPrefs.edit()
@@ -1483,6 +1538,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
 
                 val lectureRow = createSettingsRow("", "Class Schedule", "Follow your custom class timetable", modeRadio(isLecture))
                 lectureRow.setOnClickListener {
+                    if (checkTimerRunningBeforeModeChange()) return@setOnClickListener
                     val isConfigured = !sharedPrefs.getString("lecture_schedules_json", "").isNullOrEmpty() && sharedPrefs.getString("lecture_schedules_json", "[]") != "[]"
                     sharedPrefs.edit().putString("timer_mode", "LECTURE").putBoolean("lecture_mode_enabled", true).apply()
                     timerMode = "LECTURE"
@@ -1653,7 +1709,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                     intervalCard.addView(createDivider())
                     intervalCard.addView(makeIntervalStepper("Sessions Until Long Break", if (isFreedomMode) "Cycle limit (uncapped in Freedom Mode)" else "Number of study sessions before a longer rest", "long_break_interval", 4L, 2L, 10L, 1L, "sessions"))
                     intervalCard.addView(createDivider())
-                    val isPureWhitePomo = sharedPrefs.getBoolean("pomodoro_pure_white_theme", false)
+                    val isPureWhitePomo = sharedPrefs.getBoolean("pomodoro_pure_white_theme", true)
                     val pureWhiteSwitch = SwitchMaterial(this).apply {
                         isChecked = isPureWhitePomo
                         setOnCheckedChangeListener { _, isChecked ->
@@ -1943,20 +1999,18 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         setMargins(dp(16), dp(12), dp(16), dp(6))
                     }
                     setOnClickListener {
-                        Thread {
-                            kotlinx.coroutines.runBlocking {
-                                val result = CloudSyncManager.syncDataToCloudDetailed(this@with, force = true)
-                                runOnUiThread {
-                                    if (result.isSuccess) {
-                                        Toast.makeText(this@with, "Cloud backup completed successfully!", Toast.LENGTH_SHORT).show()
-                                    } else if (result.isUnauthenticated) {
-                                        Toast.makeText(this@with, "Please sign in with Google first.", Toast.LENGTH_LONG).show()
-                                    } else {
-                                        Toast.makeText(this@with, "Backup failed: ${result.errorMessage ?: "Check your internet connection"}", Toast.LENGTH_LONG).show()
-                                    }
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                            val result = CloudSyncManager.syncDataToCloudDetailed(this@with, force = true)
+                            runOnUiThread {
+                                if (result.isSuccess) {
+                                    Toast.makeText(this@with, "Cloud backup completed successfully!", Toast.LENGTH_SHORT).show()
+                                } else if (result.isUnauthenticated) {
+                                    Toast.makeText(this@with, "Please sign in with Google first.", Toast.LENGTH_LONG).show()
+                                } else {
+                                    Toast.makeText(this@with, "Backup failed: ${result.errorMessage ?: "Check your internet connection"}", Toast.LENGTH_LONG).show()
                                 }
                             }
-                        }.start()
+                        }
                     }
                 }
                 cloudCard.addView(syncPushBtn)
@@ -1972,21 +2026,19 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                         setMargins(dp(16), 0, dp(16), dp(14))
                     }
                     setOnClickListener {
-                        Thread {
-                            kotlinx.coroutines.runBlocking {
-                                val ok = CloudSyncManager.restoreDataFromCloud(this@with)
-                                runOnUiThread {
-                                    if (ok) {
-                                        Toast.makeText(this@with, "Cloud backup restored successfully!", Toast.LENGTH_SHORT).show()
-                                        tabPageCache.clear()
-                                        statsDirty = true
-                                        navigateToPanel(currentPanel)
-                                    } else {
-                                        Toast.makeText(this@with, "No cloud backup found or restore failed", Toast.LENGTH_SHORT).show()
-                                    }
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                            val ok = CloudSyncManager.restoreDataFromCloud(this@with)
+                            runOnUiThread {
+                                if (ok) {
+                                    Toast.makeText(this@with, "Cloud backup restored successfully!", Toast.LENGTH_SHORT).show()
+                                    tabPageCache.clear()
+                                    statsDirty = true
+                                    navigateToPanel(currentPanel)
+                                } else {
+                                    Toast.makeText(this@with, "No cloud backup found or restore failed", Toast.LENGTH_SHORT).show()
                                 }
                             }
-                        }.start()
+                        }
                     }
                 }
                 cloudCard.addView(syncPullBtn)

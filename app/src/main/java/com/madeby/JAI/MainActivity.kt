@@ -136,7 +136,7 @@ class MainActivity : AppCompatActivity() {
     internal var prePauseState: TimerState
         get() = timerViewModel.uiState.value.prePauseState
         set(value) {
-            timerViewModel.pause(value)
+            timerViewModel.setPrePauseState(value)
         }
 
     private var lastKeepScreenOn = -1
@@ -468,11 +468,9 @@ class MainActivity : AppCompatActivity() {
                     AuthManager.updateUserName(this@MainActivity, newName)
                     tabPageCache.remove(settingsTabKey(AppSettingsTab.PROFILE))
                     navigateToPanel(AppPanel.SETTINGS)
-                    Thread {
-                        kotlinx.coroutines.runBlocking {
-                            CloudSyncManager.syncDataToCloud(this@MainActivity)
-                        }
-                    }.start()
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                        CloudSyncManager.syncDataToCloud(this@MainActivity)
+                    }
                 }
                 dialog.dismiss()
             }
@@ -990,11 +988,9 @@ class MainActivity : AppCompatActivity() {
                 performHapticConfirm(stopBtn)
                 handleStopSession()
                 Toast.makeText(this@MainActivity, getString(R.string.toast_session_saved), Toast.LENGTH_SHORT).show()
-                Thread {
-                    kotlinx.coroutines.runBlocking {
-                        CloudSyncManager.syncDataToCloud(this@MainActivity)
-                    }
-                }.start()
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                    CloudSyncManager.syncDataToCloud(this@MainActivity)
+                }
             } else {
                 handler.postDelayed(this, 16L)
             }
@@ -1510,7 +1506,7 @@ class MainActivity : AppCompatActivity() {
 
     internal fun isPomodoroPureWhiteActive(): Boolean {
         val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-        val isEnabled = prefs.getBoolean("pomodoro_pure_white_theme", false)
+        val isEnabled = prefs.getBoolean("pomodoro_pure_white_theme", true)
         return isEnabled && timerMode == "COUNTDOWN"
     }
 
@@ -2194,8 +2190,6 @@ class MainActivity : AppCompatActivity() {
     internal fun buildHeatmapFullscreenPanel() {
         StatsPanelBuilder(this).buildHeatmapFullscreenPanel()
     }
-
-    internal fun refreshHeatmapFilterChips() {}
 
     internal fun invalidateStatsCache() {
         StatsPanelBuilder(this).invalidateStatsCache()
@@ -3313,14 +3307,12 @@ class MainActivity : AppCompatActivity() {
             .apply()
 
         statsDirty = true
-        Thread {
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
             backupManager.runSilentAutoBackup()
             if (AuthManager.isLoggedIn(this@MainActivity)) {
-                kotlinx.coroutines.runBlocking {
-                    CloudSyncManager.syncDataToCloud(this@MainActivity)
-                }
+                CloudSyncManager.syncDataToCloud(this@MainActivity)
             }
-        }.start()
+        }
         recalculateStreak(todayExtra = if (silent) 0L else savedStudy)
 
         if (silent) {
@@ -3330,9 +3322,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (currentPanel == AppPanel.FOCUS) {
+            lastIsBreakingState = false
+            applyPortraitFullscreenLayout()
             updateVisualStyles()
             studyTimerDisplay.text = "00:00:00"
             breakTimerDisplay.text = getString(R.string.break_prefix, "00:00:00")
+            breakTimerDisplay.visibility = View.GONE
         }
         StudyWidgetProvider.refresh(this)
         checkCelebration()
@@ -3471,7 +3466,7 @@ class MainActivity : AppCompatActivity() {
                     statusBadge.background = themeCoordinator.createGlassChip(themeCoordinator.primaryColor, 30f)
                 }
                 studyTimerDisplay.setTextColor(timerColor)
-                if (!isZenModeActive) breakTimerDisplay.visibility = if (isPomoWhite) View.VISIBLE else View.GONE
+                if (!isZenModeActive) breakTimerDisplay.visibility = View.GONE
                 if (timerMode == "COUNTDOWN") {
                     mainBtn.text = getString(R.string.start_focus)
                     mainBtn.setTextColor(mainBtnTextColor)

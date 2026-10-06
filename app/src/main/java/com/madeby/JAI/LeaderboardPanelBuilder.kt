@@ -23,6 +23,8 @@ class LeaderboardPanelBuilder(private val host: MainActivity) {
     private var hasLoadedOnce = false
     private var currentEntries: List<LeaderboardEntry> = emptyList()
     private var pollJob: kotlinx.coroutines.Job? = null
+    private var lastManualRefreshTimestamp = 0L
+    private val MANUAL_REFRESH_COOLDOWN_MS = 10_000L
 
     fun build(target: android.view.ViewGroup = host.panelContainer) {
         val root = LinearLayout(host).apply {
@@ -132,6 +134,14 @@ class LeaderboardPanelBuilder(private val host: MainActivity) {
             )
             contentDescription = "Refresh Leaderboard"
             setOnClickListener {
+                val now = System.currentTimeMillis()
+                val elapsed = now - lastManualRefreshTimestamp
+                if (elapsed < MANUAL_REFRESH_COOLDOWN_MS) {
+                    val waitSecs = ((MANUAL_REFRESH_COOLDOWN_MS - elapsed) / 1000L).coerceAtLeast(1L)
+                    Toast.makeText(host, "Please wait ${waitSecs}s before refreshing again", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                lastManualRefreshTimestamp = now
                 loadLeaderboardData(root, forceRefresh = true)
             }
             layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))

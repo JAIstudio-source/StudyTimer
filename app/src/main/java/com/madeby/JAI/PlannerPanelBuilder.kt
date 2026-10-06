@@ -371,7 +371,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
                     if (isChecked) paintFlags = paintFlags or android.graphics.Paint.STRIKE_THRU_TEXT_FLAG
                 })
                 if (!goal.subjectId.isNullOrBlank() && goal.subjectId != "all") {
-                    val sub = SubjectTagManager.getAllSubjects(host).find { it.id == goal.subjectId } ?: SubjectTagManager.DEFAULT_SUBJECTS[0]
+                    val sub = SubjectTagManager.resolveSubject(host, goal.subjectId)
                     val subBadge = TextView(host).apply {
                         text = "${sub.iconEmoji} ${sub.name}"
                         setTextColor(try { Color.parseColor(sub.colorHex) } catch (_: Exception) { plannerPrimary })
@@ -1232,11 +1232,9 @@ class PlannerPanelBuilder(private val host: MainActivity) {
                 recalculateStreak()
                 refreshStatsPanel()
 
-                Thread {
-                    kotlinx.coroutines.runBlocking {
-                        CloudSyncManager.syncDataToCloud(host)
-                    }
-                }.start()
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                    CloudSyncManager.syncDataToCloud(host)
+                }
 
                 Toast.makeText(host, "Yesterday's goals updated!", Toast.LENGTH_SHORT).show()
                 dialog.dismiss()

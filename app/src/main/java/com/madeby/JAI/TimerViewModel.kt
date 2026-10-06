@@ -43,13 +43,21 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.value = _uiState.value.copy(state = runCatching { TimerState.valueOf(stateStr) }.getOrDefault(TimerState.IDLE))
                 StudyWidgetProvider.refresh(getApplication())
             }
-
+            "pre_pause_state", "prePauseState" -> {
+                val stateStr = sharedPreferences.getString("pre_pause_state", "STUDYING") ?: "STUDYING"
+                val stateEnum = runCatching { TimerState.valueOf(stateStr) }.getOrDefault(TimerState.STUDYING)
+                _uiState.value = _uiState.value.copy(prePauseState = stateEnum)
+            }
         }
     }
 
     init {
         // Load initial state from SharedPreferences
+        val initialStateStr = prefs.getString("timerState", "IDLE") ?: "IDLE"
+        val initialPrePauseStr = prefs.getString("pre_pause_state", "STUDYING") ?: "STUDYING"
         _uiState.value = _uiState.value.copy(
+            state = runCatching { TimerState.valueOf(initialStateStr) }.getOrDefault(TimerState.IDLE),
+            prePauseState = runCatching { TimerState.valueOf(initialPrePauseStr) }.getOrDefault(TimerState.STUDYING),
             accumulatedStudy = prefs.getLong("accumulatedStudy", 0L),
             currentBreakSeconds = prefs.getLong("currentBreakSeconds", 0L),
             mode = prefs.getString("timer_mode", prefs.getString("timerMode", "STOPWATCH")) ?: "STOPWATCH",
@@ -70,7 +78,10 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setTimerState(state: TimerState) {
         _uiState.value = _uiState.value.copy(state = state)
-        // Also persist state if needed
+    }
+
+    fun setPrePauseState(prePause: TimerState) {
+        _uiState.value = _uiState.value.copy(prePauseState = prePause)
     }
 
     fun updateFocusRemaining(secs: Long) {

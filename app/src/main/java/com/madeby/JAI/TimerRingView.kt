@@ -96,8 +96,16 @@ class TimerRingView(context: Context) : View(context) {
     private fun applyArcShader(cx: Float, cy: Float) {
         if (sweepDeg <= 0.01f) {
             ringPaint.shader = null
+            ringPaint.clearShadowLayer()
             return
         }
+        if (color == 0xFF000000.toInt() || color == 0xFF475569.toInt()) {
+            ringPaint.shader = null
+            ringPaint.color = color
+            ringPaint.clearShadowLayer()
+            return
+        }
+        ringPaint.color = color
         if (cachedSweepShader == null || lastShaderColor != color || lastShaderCx != cx || lastShaderCy != cy) {
             lastShaderColor = color
             lastShaderCx = cx

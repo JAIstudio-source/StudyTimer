@@ -314,4 +314,26 @@ object ProfileManager {
             false
         }
     }
+
+    fun saveDraftForm(context: Context, name: String?, bio: String?, exam: String?) {
+        getPrefs(context).edit().apply {
+            if (name != null) putString("__draft_profile_name__", name)
+            if (bio != null) putString("__draft_profile_bio__", bio)
+            if (exam != null) putString("__draft_profile_exam__", exam)
+            apply()
+        }
+    }
+
+    fun getDraftName(context: Context): String? = getPrefs(context).getString("__draft_profile_name__", null)
+    fun getDraftBio(context: Context): String? = getPrefs(context).getString("__draft_profile_bio__", null)
+    fun getDraftExam(context: Context): String? = getPrefs(context).getString("__draft_profile_exam__", null)
+
+    fun clearDraftForm(context: Context) {
+        getPrefs(context).edit().apply {
+            remove("__draft_profile_name__")
+            remove("__draft_profile_bio__")
+            remove("__draft_profile_exam__")
+            apply()
+        }
+    }
 }

@@ -291,14 +291,24 @@ class BackupManager(private val context: Context) {
                 val timelineRaw = json.optString("focus_timeline", "")
                 val entryCount = if (timelineRaw.isNotEmpty()) parseTimelineJson(timelineRaw).size else 0
 
-                val goalsRaw = json.optString("session_goals_json", "[]")
-                val goalCount = runCatching { JSONArray(goalsRaw).length() }.getOrDefault(0)
+                val goalCount = runCatching {
+                    val raw = json.opt("session_goals_json")
+                    when (raw) {
+                        is JSONArray -> raw.length()
+                        is String -> if (raw.isNotBlank()) JSONArray(raw).length() else 0
+                        else -> 0
+                    }
+                }.getOrDefault(0)
 
-                val customSubjectsRaw = runCatching {
+                val subjectCount = runCatching {
                     val subObj = json.optJSONObject("subject_tags_data")
-                    subObj?.optString("custom_subjects_json", "[]") ?: "[]"
-                }.getOrDefault("[]")
-                val subjectCount = runCatching { JSONArray(customSubjectsRaw).length() }.getOrDefault(0)
+                    val raw = subObj?.opt("custom_subjects_json") ?: json.opt("custom_subjects_json")
+                    when (raw) {
+                        is JSONArray -> raw.length()
+                        is String -> if (raw.isNotBlank()) JSONArray(raw).length() else 0
+                        else -> 0
+                    }
+                }.getOrDefault(0)
 
                 BackupMetadata(
                     schemaVersion = schemaVer,
@@ -359,6 +369,7 @@ class BackupManager(private val context: Context) {
                 restoreTimeline(importedJsonObject)
                 restoreSubjectTags(importedJsonObject)
                 restoreExamCountdowns(importedJsonObject)
+                StatsEngine(context).sanitizeAndHealHistoricalTotals()
                 runSilentAutoBackup()
 
                 if (allowCloudSync && AuthManager.isLoggedIn(context)) {

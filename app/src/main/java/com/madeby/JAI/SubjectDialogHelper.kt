@@ -33,8 +33,8 @@ class SubjectDialogHelper(private val host: MainActivity) {
             DeveloperToolsHelper.showThemedConfirmDialog(
                 activity = host,
                 themeCoordinator = themeCoordinator,
-                title = "⏱️ Timer Is Running",
-                message = "Subject can only be changed when no timer is running.\n\nPlease pause or stop your active timer before switching subjects.",
+                title = "⏱️ Active Session Running",
+                message = "Subject cannot be changed during an active session.\n\nPlease finish or stop your active timer before switching subjects.",
                 confirmText = "OK",
                 isDestructive = false,
                 onCancel = {}
@@ -67,7 +67,7 @@ class SubjectDialogHelper(private val host: MainActivity) {
             container.addView(title)
 
             val subtitle = TextView(host).apply {
-                text = "Tap to select · Hold any subject to delete"
+                text = "Tap to select · Hold to edit or delete"
                 textSize = 12f
                 setTextColor(themeCoordinator.textColor)
                 alpha = 0.5f
@@ -120,12 +120,8 @@ class SubjectDialogHelper(private val host: MainActivity) {
                         host.navigateToPanel(AppPanel.FOCUS)
                     }
                     setOnLongClickListener {
-                        if (subj.id != "general") {
-                            dialog.dismiss()
-                            showDeleteSubjectConfirmDialog(subj)
-                        } else {
-                            Toast.makeText(host, "General subject cannot be deleted", Toast.LENGTH_SHORT).show()
-                        }
+                        dialog.dismiss()
+                        showSubjectOptionsModal(subj)
                         true
                     }
                 }
@@ -193,6 +189,344 @@ class SubjectDialogHelper(private val host: MainActivity) {
         } catch (_: Exception) {}
     }
 
+    fun showSubjectOptionsModal(subj: SubjectTag) {
+        try {
+            val dialog = Dialog(host)
+            dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+            dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+            val container = LinearLayout(host).apply {
+                orientation = LinearLayout.VERTICAL
+                background = themeCoordinator.createDialogBackground(24f)
+                setPadding(dp(20), dp(20), dp(20), dp(20))
+                layoutParams = LinearLayout.LayoutParams(
+                    (host.resources.displayMetrics.widthPixels * 0.85f).toInt().coerceAtMost(dp(360)),
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            }
+
+            val title = TextView(host).apply {
+                text = "${subj.iconEmoji} ${subj.name}"
+                textSize = 17f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(themeCoordinator.textColor)
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, dp(14))
+            }
+            container.addView(title)
+
+            val editBtn = Button(host).apply {
+                text = "✏️ Edit Name, Emoji & Color"
+                textSize = 13.5f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(Color.WHITE)
+                background = GradientDrawable().apply {
+                    setColor(try { Color.parseColor(subj.colorHex) } catch (_: Exception) { themeCoordinator.primaryColor })
+                    cornerRadius = dp(12).toFloat()
+                }
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(0, 0, 0, dp(10))
+                }
+                setOnClickListener {
+                    dialog.dismiss()
+                    showEditSubjectDialog(subj) {
+                        showSubjectPickerDialog()
+                    }
+                }
+            }
+            container.addView(editBtn)
+
+            if (subj.id != "general") {
+                val deleteBtn = Button(host).apply {
+                    text = "🗑️ Delete Subject"
+                    textSize = 13.5f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    setTextColor(0xFFEF4444.toInt())
+                    background = themeCoordinator.createGlassChip(tintedColor(0xFFEF4444.toInt(), 30), 12f)
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                    setOnClickListener {
+                        dialog.dismiss()
+                        showDeleteSubjectConfirmDialog(subj)
+                    }
+                }
+                container.addView(deleteBtn)
+            }
+
+            dialog.setContentView(container)
+            dialog.show()
+        } catch (_: Exception) {}
+    }
+
+    fun showEditSubjectDialog(subj: SubjectTag, onUpdated: (() -> Unit)? = null) {
+        try {
+            val dialog = Dialog(host)
+            dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+            dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+            val container = LinearLayout(host).apply {
+                orientation = LinearLayout.VERTICAL
+                background = themeCoordinator.createDialogBackground(24f)
+                setPadding(dp(20), dp(20), dp(20), dp(20))
+                layoutParams = LinearLayout.LayoutParams(
+                    (host.resources.displayMetrics.widthPixels * 0.88f).toInt().coerceAtMost(dp(380)),
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            }
+
+            val title = TextView(host).apply {
+                text = "Edit Subject"
+                textSize = 17f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(themeCoordinator.textColor)
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, dp(14))
+            }
+            container.addView(title)
+
+            val input = android.widget.EditText(host).apply {
+                setText(subj.name)
+                hint = "Subject Name (max 25 chars)"
+                setHintTextColor(tintedColor(themeCoordinator.textColor, 120))
+                setTextColor(themeCoordinator.textColor)
+                textSize = 14f
+                filters = arrayOf(android.text.InputFilter.LengthFilter(25))
+                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.textColor, 30), 12f)
+                setPadding(dp(14), dp(12), dp(14), dp(12))
+            }
+            container.addView(input)
+
+            var selectedEmoji = subj.iconEmoji
+            var selectedColorHex = subj.colorHex
+
+            val emojiHeader = TextView(host).apply {
+                text = "Select Icon Emoji"
+                setTextColor(themeCoordinator.textColor)
+                alpha = 0.6f
+                textSize = 12f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setPadding(0, dp(12), 0, dp(4))
+            }
+            container.addView(emojiHeader)
+
+            val presetEmojis = mutableListOf("📚", "💻", "📐", "🧪", "📜", "⚛️", "🎨", "✍️", "🎧", "🎯", "💡", "🧠", "📖", "🔬", "📊", "🏆")
+            if (selectedEmoji.isNotBlank() && !presetEmojis.contains(selectedEmoji)) {
+                presetEmojis.add(0, selectedEmoji)
+            }
+            val emojiScroll = android.widget.HorizontalScrollView(host).apply {
+                isHorizontalScrollBarEnabled = false
+                setPadding(0, 0, 0, dp(6))
+            }
+            val emojiLayout = LinearLayout(host).apply { orientation = LinearLayout.HORIZONTAL }
+
+            fun refreshEmojiViews() {
+                emojiLayout.removeAllViews()
+                for (em in presetEmojis) {
+                    val isMatch = em == selectedEmoji
+                    val eView = TextView(host).apply {
+                        text = em
+                        textSize = 18f
+                        gravity = Gravity.CENTER
+                        background = GradientDrawable().apply {
+                            setColor(if (isMatch) tintedColor(themeCoordinator.primaryColor, 60) else tintedColor(themeCoordinator.textColor, 15))
+                            cornerRadius = dp(10).toFloat()
+                            setStroke(dp(2), if (isMatch) themeCoordinator.primaryColor else Color.TRANSPARENT)
+                        }
+                        layoutParams = LinearLayout.LayoutParams(dp(36), dp(36)).apply { setMargins(0, 0, dp(6), 0) }
+                        setOnClickListener {
+                            selectedEmoji = em
+                            refreshEmojiViews()
+                        }
+                    }
+                    emojiLayout.addView(eView)
+                }
+
+                // Custom Emoji Add Button at the end of the line
+                val customBtn = TextView(host).apply {
+                    text = "➕"
+                    textSize = 15f
+                    gravity = Gravity.CENTER
+                    background = GradientDrawable().apply {
+                        setColor(tintedColor(themeCoordinator.primaryColor, 30))
+                        cornerRadius = dp(10).toFloat()
+                        setStroke(dp(2), tintedColor(themeCoordinator.primaryColor, 100))
+                    }
+                    layoutParams = LinearLayout.LayoutParams(dp(36), dp(36)).apply { setMargins(0, 0, dp(6), 0) }
+                    setOnClickListener {
+                        showCustomEmojiInputDialog(selectedEmoji) { newEmoji ->
+                            selectedEmoji = newEmoji
+                            if (!presetEmojis.contains(newEmoji)) {
+                                presetEmojis.add(newEmoji)
+                            }
+                            refreshEmojiViews()
+                        }
+                    }
+                }
+                emojiLayout.addView(customBtn)
+            }
+
+            refreshEmojiViews()
+            emojiScroll.addView(emojiLayout)
+            container.addView(emojiScroll)
+
+            val previewRow = LinearLayout(host).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, dp(14), 0, dp(8))
+            }
+            val colorPreviewCircle = View(host).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(28), dp(28)).apply { setMargins(0, 0, dp(10), 0) }
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(try { Color.parseColor(selectedColorHex) } catch (_: Exception) { themeCoordinator.primaryColor })
+                }
+            }
+            previewRow.addView(colorPreviewCircle)
+
+            val colorLabel = TextView(host).apply {
+                text = "Subject Color: $selectedColorHex"
+                setTextColor(themeCoordinator.textColor)
+                textSize = 13f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            }
+            previewRow.addView(colorLabel)
+            container.addView(previewRow)
+
+            val swatchesScroll = android.widget.HorizontalScrollView(host).apply {
+                isHorizontalScrollBarEnabled = false
+                setPadding(0, 0, 0, dp(10))
+            }
+            val swatchesLayout = LinearLayout(host).apply { orientation = LinearLayout.HORIZONTAL }
+            val swatchViews = ArrayList<View>()
+            val presetColors = listOf("#6366F1", "#EC4899", "#F97316", "#06B6D4", "#10B981", "#EAB308", "#8B5CF6", "#EF4444", "#3B82F6", "#14B8A6")
+
+            fun refreshSubjectSwatchBorders() {
+                for ((idx, sView) in swatchViews.withIndex()) {
+                    val hex = presetColors[idx]
+                    val isMatch = hex.equals(selectedColorHex, true)
+                    (sView.background as? GradientDrawable)?.setStroke(dp(2), if (isMatch) Color.WHITE else Color.TRANSPARENT)
+                }
+            }
+
+            val curColorInt = try { Color.parseColor(selectedColorHex) } catch (_: Exception) { themeCoordinator.primaryColor }
+            val initHsv = FloatArray(3)
+            Color.colorToHSV(curColorInt, initHsv)
+
+            val hueHeader = LinearLayout(host).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, dp(2), 0, dp(4))
+            }
+            val hueTitle = TextView(host).apply {
+                text = "Fine-Tune Hue Slider"
+                setTextColor(themeCoordinator.textColor)
+                alpha = 0.6f
+                textSize = 12f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+            val hueValLabel = TextView(host).apply {
+                text = "${initHsv[0].toInt()}°"
+                setTextColor(themeCoordinator.textColor)
+                alpha = 0.6f
+                textSize = 12f
+            }
+            hueHeader.addView(hueTitle)
+            hueHeader.addView(hueValLabel)
+
+            val hueSeekBar = android.widget.SeekBar(host).apply {
+                max = 360
+                progress = initHsv[0].toInt()
+                setPadding(dp(4), dp(4), dp(4), dp(4))
+                setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(sb: android.widget.SeekBar?, prog: Int, fromUser: Boolean) {
+                        hueValLabel.text = "$prog°"
+                        if (fromUser) {
+                            val colorInt = Color.HSVToColor(floatArrayOf(prog.toFloat(), 0.70f, 0.95f))
+                            selectedColorHex = String.format("#%06X", 0xFFFFFF and colorInt)
+                            (colorPreviewCircle.background as? GradientDrawable)?.setColor(colorInt)
+                            colorLabel.text = "Subject Color: $selectedColorHex"
+                            refreshSubjectSwatchBorders()
+                        }
+                    }
+                    override fun onStartTrackingTouch(sb: android.widget.SeekBar?) {}
+                    override fun onStopTrackingTouch(sb: android.widget.SeekBar?) {}
+                })
+            }
+
+            for (hex in presetColors) {
+                val swatch = View(host).apply {
+                    layoutParams = LinearLayout.LayoutParams(dp(30), dp(30)).apply { setMargins(0, 0, dp(8), 0) }
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(Color.parseColor(hex))
+                        setStroke(dp(2), if (hex.equals(selectedColorHex, true)) Color.WHITE else Color.TRANSPARENT)
+                    }
+                    setOnClickListener {
+                        selectedColorHex = hex
+                        val cInt = Color.parseColor(hex)
+                        (colorPreviewCircle.background as? GradientDrawable)?.setColor(cInt)
+                        colorLabel.text = "Subject Color: $selectedColorHex"
+                        val swatchHsv = FloatArray(3)
+                        Color.colorToHSV(cInt, swatchHsv)
+                        hueSeekBar.progress = swatchHsv[0].toInt()
+                        hueValLabel.text = "${swatchHsv[0].toInt()}°"
+                        refreshSubjectSwatchBorders()
+                    }
+                }
+                swatchViews.add(swatch)
+                swatchesLayout.addView(swatch)
+            }
+            swatchesScroll.addView(swatchesLayout)
+            container.addView(swatchesScroll)
+            container.addView(hueHeader)
+            container.addView(hueSeekBar)
+
+            val saveBtn = Button(host).apply {
+                text = "Save Changes"
+                textSize = 14f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(Color.WHITE)
+                background = GradientDrawable().apply {
+                    setColor(themeCoordinator.primaryColor)
+                    cornerRadius = dp(12).toFloat()
+                }
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(0, dp(16), 0, 0)
+                }
+                setOnClickListener {
+                    val name = input.text.toString().trim()
+                    if (name.isEmpty()) {
+                        Toast.makeText(host, "Please enter a subject name", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+                    val check = ProfanityFilter.checkSubjectName(name)
+                    if (!check.isClean) {
+                        Toast.makeText(host, check.reason ?: "Subject name contains inappropriate words 🛡️", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+                    val updatedSubj = subj.copy(
+                        name = check.sanitizedText,
+                        iconEmoji = selectedEmoji,
+                        colorHex = selectedColorHex
+                    )
+                    SubjectTagManager.updateSubject(host, updatedSubj)
+                    dialog.dismiss()
+                    Toast.makeText(host, "Subject updated across history! ✨", Toast.LENGTH_SHORT).show()
+                    host.navigateToPanel(AppPanel.FOCUS)
+                    onUpdated?.invoke()
+                }
+            }
+            container.addView(saveBtn)
+
+            dialog.setContentView(container)
+            dialog.window?.setLayout(
+                (host.resources.displayMetrics.widthPixels * 0.88f).toInt().coerceAtMost(dp(380)),
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            dialog.show()
+        } catch (_: Exception) {}
+    }
+
     fun showDeleteSubjectConfirmDialog(subj: SubjectTag) {
         try {
             DialogFactory.showConfirmationDialog(
@@ -248,6 +582,75 @@ class SubjectDialogHelper(private val host: MainActivity) {
                 setPadding(dp(14), dp(12), dp(14), dp(12))
             }
             container.addView(input)
+
+            var selectedEmoji = "📚"
+
+            val emojiHeader = TextView(host).apply {
+                text = "Select Icon Emoji"
+                setTextColor(themeCoordinator.textColor)
+                alpha = 0.6f
+                textSize = 12f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setPadding(0, dp(12), 0, dp(4))
+            }
+            container.addView(emojiHeader)
+
+            val presetEmojis = mutableListOf("📚", "💻", "📐", "🧪", "📜", "⚛️", "🎨", "✍️", "🎧", "🎯", "💡", "🧠", "📖", "🔬", "📊", "🏆")
+            val emojiScroll = android.widget.HorizontalScrollView(host).apply {
+                isHorizontalScrollBarEnabled = false
+                setPadding(0, 0, 0, dp(6))
+            }
+            val emojiLayout = LinearLayout(host).apply { orientation = LinearLayout.HORIZONTAL }
+
+            fun refreshEmojiViews() {
+                emojiLayout.removeAllViews()
+                for (em in presetEmojis) {
+                    val isMatch = em == selectedEmoji
+                    val eView = TextView(host).apply {
+                        text = em
+                        textSize = 18f
+                        gravity = Gravity.CENTER
+                        background = GradientDrawable().apply {
+                            setColor(if (isMatch) tintedColor(themeCoordinator.primaryColor, 60) else tintedColor(themeCoordinator.textColor, 15))
+                            cornerRadius = dp(10).toFloat()
+                            setStroke(dp(2), if (isMatch) themeCoordinator.primaryColor else Color.TRANSPARENT)
+                        }
+                        layoutParams = LinearLayout.LayoutParams(dp(36), dp(36)).apply { setMargins(0, 0, dp(6), 0) }
+                        setOnClickListener {
+                            selectedEmoji = em
+                            refreshEmojiViews()
+                        }
+                    }
+                    emojiLayout.addView(eView)
+                }
+
+                // Custom Emoji Add Button at the end of the line
+                val customBtn = TextView(host).apply {
+                    text = "➕"
+                    textSize = 15f
+                    gravity = Gravity.CENTER
+                    background = GradientDrawable().apply {
+                        setColor(tintedColor(themeCoordinator.primaryColor, 30))
+                        cornerRadius = dp(10).toFloat()
+                        setStroke(dp(2), tintedColor(themeCoordinator.primaryColor, 100))
+                    }
+                    layoutParams = LinearLayout.LayoutParams(dp(36), dp(36)).apply { setMargins(0, 0, dp(6), 0) }
+                    setOnClickListener {
+                        showCustomEmojiInputDialog(selectedEmoji) { newEmoji ->
+                            selectedEmoji = newEmoji
+                            if (!presetEmojis.contains(newEmoji)) {
+                                presetEmojis.add(newEmoji)
+                            }
+                            refreshEmojiViews()
+                        }
+                    }
+                }
+                emojiLayout.addView(customBtn)
+            }
+
+            refreshEmojiViews()
+            emojiScroll.addView(emojiLayout)
+            container.addView(emojiScroll)
 
             var selectedColorHex = SubjectTagManager.generateUniqueColor(host)
 
@@ -321,7 +724,6 @@ class SubjectDialogHelper(private val host: MainActivity) {
             hueHeader.addView(hueTitle)
             hueHeader.addView(hueValLabel)
 
-            var isUpdatingFromSwatch = false
             val hueSeekBar = android.widget.SeekBar(host).apply {
                 max = 360
                 progress = initHsv[0].toInt()
@@ -360,10 +762,8 @@ class SubjectDialogHelper(private val host: MainActivity) {
 
                         val swatchHsv = FloatArray(3)
                         Color.colorToHSV(cInt, swatchHsv)
-                        isUpdatingFromSwatch = true
                         hueSeekBar.progress = swatchHsv[0].toInt()
                         hueValLabel.text = "${swatchHsv[0].toInt()}°"
-                        isUpdatingFromSwatch = false
 
                         refreshSubjectSwatchBorders()
                     }
@@ -399,7 +799,7 @@ class SubjectDialogHelper(private val host: MainActivity) {
                         Toast.makeText(host, check.reason ?: "Subject name contains inappropriate words 🛡️", Toast.LENGTH_SHORT).show()
                         return@setOnClickListener
                     }
-                    val created = SubjectTagManager.addCustomSubject(host, check.sanitizedText, "📚", selectedColorHex)
+                    val created = SubjectTagManager.addCustomSubject(host, check.sanitizedText, selectedEmoji, selectedColorHex)
                     dialog.dismiss()
                     host.navigateToPanel(AppPanel.FOCUS)
                     onSubjectCreated?.invoke(created)
@@ -547,16 +947,6 @@ class SubjectDialogHelper(private val host: MainActivity) {
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, dp(20)) }
             }
 
-            val sharedPrefs = host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-            val isDonut = sharedPrefs.safeBoolean("use_donut_chart", true)
-            val largePieView = SubjectPieChartView(host).apply {
-                primaryColor = themeCoordinator.primaryColor
-                textColor = themeCoordinator.textColor
-                isDonutMode = isDonut
-                boxColor = if (themeCoordinator.isDarkMode()) (if (themeCoordinator.activeBgMode == "ECLIPSE") 0xFF1E293B.toInt() else 0xFF111625.toInt()) else 0xFFFFFFFF.toInt()
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(340))
-            }
-
             val (daySessions, _) = StatsEngine(host).dayBlocks(currentDateKey)
             val subjectMap = LinkedHashMap<String, Pair<SubjectTag, Long>>()
 
@@ -576,6 +966,23 @@ class SubjectDialogHelper(private val host: MainActivity) {
                     val subj = SubjectTagManager.resolveSubject(host, subId)
                     val currentSecs = subjectMap[subj.id]?.second ?: 0L
                     subjectMap[subj.id] = subj to (currentSecs + secs)
+                }
+            }
+
+            val totalSecsAllModal = subjectMap.values.sumOf { it.second }
+
+            val sharedPrefs = host.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
+            val isDonut = sharedPrefs.safeBoolean("use_donut_chart", true)
+            val largePieView = SubjectPieChartView(host).apply {
+                primaryColor = themeCoordinator.primaryColor
+                textColor = themeCoordinator.textColor
+                isDonutMode = isDonut
+                boxColor = if (themeCoordinator.isDarkMode()) (if (themeCoordinator.activeBgMode == "ECLIPSE") 0xFF1E293B.toInt() else 0xFF111625.toInt()) else 0xFFFFFFFF.toInt()
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(340))
+                onSliceSelectedListener = { slice, _ ->
+                    if (slice != null && (slice.label == "Others" || slice.bundledSlices.isNotEmpty())) {
+                        showOthersBreakdownDialog(slice, totalSecsAllModal.toDouble())
+                    }
                 }
             }
 
@@ -759,5 +1166,244 @@ class SubjectDialogHelper(private val host: MainActivity) {
         updateDateView()
         dialog.setContentView(rootLayout)
         dialog.show()
+    }
+
+    fun showCustomEmojiInputDialog(initialEmoji: String, onEmojiSelected: (String) -> Unit) {
+        try {
+            val dialog = Dialog(host)
+            dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+            dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+            val container = LinearLayout(host).apply {
+                orientation = LinearLayout.VERTICAL
+                background = themeCoordinator.createDialogBackground(24f)
+                setPadding(dp(22), dp(20), dp(22), dp(20))
+                layoutParams = LinearLayout.LayoutParams(
+                    (host.resources.displayMetrics.widthPixels * 0.85f).toInt().coerceAtMost(dp(360)),
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            }
+
+            val title = TextView(host).apply {
+                text = "Add Custom Emoji"
+                setTextColor(themeCoordinator.textColor)
+                textSize = 17f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setPadding(0, 0, 0, dp(6))
+            }
+            container.addView(title)
+
+            val subtitle = TextView(host).apply {
+                text = "Type or paste an emoji to use for this subject:"
+                setTextColor(themeCoordinator.textColor)
+                alpha = 0.7f
+                textSize = 12.5f
+                setPadding(0, 0, 0, dp(14))
+            }
+            container.addView(subtitle)
+
+            val input = android.widget.EditText(host).apply {
+                setText(if (initialEmoji.isNotBlank() && initialEmoji.length <= 4) initialEmoji else "")
+                hint = "e.g. 🚀 🎮 🧬 ⚡"
+                setHintTextColor(tintedColor(themeCoordinator.textColor, 80))
+                setTextColor(themeCoordinator.textColor)
+                textSize = 24f
+                gravity = Gravity.CENTER
+                background = GradientDrawable().apply {
+                    setColor(tintedColor(themeCoordinator.textColor, 18))
+                    cornerRadius = dp(12).toFloat()
+                    setStroke(dp(2), tintedColor(themeCoordinator.primaryColor, 90))
+                }
+                setPadding(dp(12), dp(12), dp(12), dp(12))
+            }
+            container.addView(input)
+
+            val btnRow = LinearLayout(host).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.END
+                setPadding(0, dp(18), 0, 0)
+            }
+
+            val cancelBtn = TextView(host).apply {
+                text = "Cancel"
+                setTextColor(themeCoordinator.textColor)
+                alpha = 0.7f
+                textSize = 14f
+                setPadding(dp(14), dp(8), dp(14), dp(8))
+                setOnClickListener { dialog.dismiss() }
+            }
+            val setBtn = TextView(host).apply {
+                text = "Set Emoji"
+                setTextColor(Color.WHITE)
+                textSize = 14f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                background = themeCoordinator.createGlassChip(themeCoordinator.primaryColor, 12f)
+                setPadding(dp(16), dp(8), dp(16), dp(8))
+                setOnClickListener {
+                    val emojiStr = input.text.toString().trim()
+                    if (emojiStr.isNotEmpty()) {
+                        onEmojiSelected(emojiStr)
+                        dialog.dismiss()
+                    } else {
+                        Toast.makeText(host, "Please enter an emoji", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+
+            btnRow.addView(cancelBtn)
+            btnRow.addView(setBtn)
+            container.addView(btnRow)
+
+            dialog.setContentView(container)
+            dialog.show()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun showOthersBreakdownDialog(othersSlice: SubjectPieChartView.PieSlice, totalVal: Double) {
+        try {
+            val dialog = Dialog(host)
+            dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+            dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+            val container = LinearLayout(host).apply {
+                orientation = LinearLayout.VERTICAL
+                background = themeCoordinator.createDialogBackground(28f)
+                setPadding(dp(22), dp(20), dp(22), dp(20))
+                layoutParams = LinearLayout.LayoutParams(
+                    (host.resources.displayMetrics.widthPixels * 0.90f).toInt().coerceAtMost(dp(440)),
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            }
+
+            // Header Row
+            val headerRow = LinearLayout(host).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, 0, 0, dp(10))
+            }
+            headerRow.addView(TextView(host).apply {
+                text = "📂 Others Breakdown"
+                setTextColor(themeCoordinator.textColor)
+                textSize = 18f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            })
+            val closeBtn = TextView(host).apply {
+                text = "✕"
+                setTextColor(themeCoordinator.textColor)
+                alpha = 0.6f
+                textSize = 18f
+                setPadding(dp(8), dp(4), dp(8), dp(4))
+                setOnClickListener { dialog.dismiss() }
+            }
+            headerRow.addView(closeBtn)
+            container.addView(headerRow)
+
+            val bundled = othersSlice.bundledSlices.sortedByDescending { it.value }
+            val othersTotalSecs = othersSlice.value.toLong()
+            val overallPct = if (totalVal > 0) Math.round((othersSlice.value / totalVal) * 100).toInt() else 0
+
+            fun formatDur(secs: Long): String {
+                val h = secs / 3600
+                val m = (secs % 3600) / 60
+                return when {
+                    h > 0 -> "${h}h ${m}m"
+                    m > 0 -> "${m}m"
+                    else -> "<1m"
+                }
+            }
+
+            val totalFormatted = formatDur(othersTotalSecs)
+
+            // Subtitle summary card
+            val summaryCard = LinearLayout(host).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                background = themeCoordinator.createGlassChip(tintedColor(themeCoordinator.primaryColor, 30), 14f)
+                setPadding(dp(14), dp(10), dp(14), dp(10))
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, dp(14)) }
+            }
+            summaryCard.addView(TextView(host).apply {
+                text = "${bundled.size} bundled subjects • $totalFormatted ($overallPct% of total study time)"
+                setTextColor(themeCoordinator.primaryColor)
+                textSize = 12.5f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            })
+            container.addView(summaryCard)
+
+            // ScrollView with subjects list
+            val scrollView = ScrollView(host).apply {
+                isVerticalScrollBarEnabled = false
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(260))
+            }
+            val listContainer = LinearLayout(host).apply { orientation = LinearLayout.VERTICAL }
+
+            for (item in bundled) {
+                val itemSecs = item.value.toLong()
+                val itemDurStr = formatDur(itemSecs)
+                val pctOfTotal = if (totalVal > 0) ((item.value / totalVal) * 100).toInt() else 0
+                val itemColor = try { Color.parseColor(item.colorHex) } catch (_: Exception) { themeCoordinator.primaryColor }
+
+                val rowCard = LinearLayout(host).apply {
+                    orientation = LinearLayout.VERTICAL
+                    background = GradientDrawable().apply {
+                        setColor(tintedColor(themeCoordinator.textColor, 15))
+                        cornerRadius = dp(12).toFloat()
+                    }
+                    setPadding(dp(14), dp(12), dp(14), dp(12))
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, dp(8)) }
+                }
+
+                val rowTop = LinearLayout(host).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                }
+
+                val colorCircle = View(host).apply {
+                    background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(itemColor) }
+                    layoutParams = LinearLayout.LayoutParams(dp(12), dp(12)).apply { setMargins(0, 0, dp(8), 0) }
+                }
+                rowTop.addView(colorCircle)
+
+                rowTop.addView(TextView(host).apply {
+                    text = if (item.emoji.isNotBlank()) "${item.emoji} ${item.label}" else item.label
+                    setTextColor(themeCoordinator.textColor)
+                    textSize = 14.5f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                })
+
+                rowTop.addView(TextView(host).apply {
+                    text = "$itemDurStr ($pctOfTotal%)"
+                    setTextColor(themeCoordinator.primaryColor)
+                    textSize = 13.5f
+                    typeface = Typeface.MONOSPACE
+                })
+                rowCard.addView(rowTop)
+
+                // Visual bar representation
+                val barTrack = View(host).apply {
+                    val barWidthPct = if (othersSlice.value > 0) (item.value / othersSlice.value).toFloat() else 0f
+                    background = GradientDrawable().apply {
+                        setColor(tintedColor(itemColor, 80))
+                        cornerRadius = dp(4).toFloat()
+                    }
+                    layoutParams = LinearLayout.LayoutParams((host.resources.displayMetrics.widthPixels * 0.70f * barWidthPct).toInt().coerceAtLeast(dp(12)), dp(5)).apply { setMargins(0, dp(8), 0, 0) }
+                }
+                rowCard.addView(barTrack)
+
+                listContainer.addView(rowCard)
+            }
+
+            scrollView.addView(listContainer)
+            container.addView(scrollView)
+
+            dialog.setContentView(container)
+            dialog.show()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }

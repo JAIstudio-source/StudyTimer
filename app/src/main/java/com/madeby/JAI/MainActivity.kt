@@ -382,6 +382,7 @@ class MainActivity : AppCompatActivity() {
     internal lateinit var statusBadgeContainer: LinearLayout
     internal var extraControlsContainer: LinearLayout? = null
     internal var statsFloatingIcon: ImageView? = null
+    internal var leaderboardLiveDot: View? = null
     internal var isPortraitFullscreenActive = false
     private var lastConfigOrientation = Configuration.ORIENTATION_UNDEFINED
     private var lastFullscreenToggleTime = 0L
@@ -958,7 +959,7 @@ class MainActivity : AppCompatActivity() {
         isHoldingStop = false
         if (::stopBtn.isInitialized) {
             stopBtn.isPressed = false
-            stopBtn.progress = 0f
+            stopBtn.animateProgressToZero()
         }
         handler.removeCallbacks(holdToEndRunnable)
     }
@@ -978,7 +979,8 @@ class MainActivity : AppCompatActivity() {
             stopBtn.progress = progress
 
             val now = SystemClock.uptimeMillis()
-            if (now - lastHoldHapticMs >= 85L) {
+            val hapticInterval = (120L - (progress * 85L)).toLong().coerceAtLeast(30L)
+            if (now - lastHoldHapticMs >= hapticInterval) {
                 lastHoldHapticMs = now
                 performMicroHapticTick(stopBtn)
             }
@@ -1501,7 +1503,7 @@ class MainActivity : AppCompatActivity() {
 
     internal fun pureWhiteTimerEnabled(): Boolean {
         val prefs = getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-        return prefs.getBoolean("pureWhiteTimer", false) && themeCoordinator.activeBgMode != "LIGHT"
+        return prefs.getBoolean("pureWhiteTimer", true) && themeCoordinator.activeBgMode != "LIGHT"
     }
 
     internal fun isPomodoroPureWhiteActive(): Boolean {
@@ -1540,14 +1542,20 @@ class MainActivity : AppCompatActivity() {
                 .putBoolean("show_pause_button", true)
                 .putBoolean("show_focus_heatmap", true)
                 .putBoolean("show_focus_pattern", true)
-                .putBoolean("pureWhiteTimer", false)
+                .putBoolean("pureWhiteTimer", true)
                 .apply()
         }
 
         themeCoordinator = ThemeCoordinator(this)
         backupManager = BackupManager(this)
         themeCoordinator.applyThemeCoordinates()
+        statsEngine.sanitizeAndHealHistoricalTotals()
+        GoalHistoryManager.reconcileAllHistoricalGoals(this)
         createNotificationChannel()
+
+        if (BuildConfig.DEBUG) {
+            TestServerHelper.startIfDebug(this)
+        }
 
         Thread {
             try {
@@ -2100,8 +2108,30 @@ class MainActivity : AppCompatActivity() {
     private fun performSlidingTransition(exitDir: Int, rebuild: () -> Unit) {
         val width = panelContainer.width.takeIf { it > 0 } ?: dp(160)
         val height = panelContainer.height.takeIf { it > 0 } ?: dp(240)
-        val snapshot = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        panelContainer.draw(Canvas(snapshot))
+
+        // Cancel and remove any previous sliding overlay in panelHost during rapid clicks
+        for (i in panelHost.childCount - 1 downTo 0) {
+            val child = panelHost.getChildAt(i)
+            if (child is ImageView && child !== panelContainer) {
+                child.animate().cancel()
+                panelHost.removeViewAt(i)
+                child.setImageBitmap(null)
+            }
+        }
+
+        // Lightweight scaled snapshot (0.5x) to save memory and eliminate GC jank on low-end hardware
+        var snapshot: Bitmap? = null
+        val scale = 0.5f
+        val snapW = (width * scale).toInt().coerceAtLeast(1)
+        val snapH = (height * scale).toInt().coerceAtLeast(1)
+        try {
+            snapshot = Bitmap.createBitmap(snapW, snapH, Bitmap.Config.RGB_565)
+            val canvas = Canvas(snapshot)
+            canvas.scale(scale, scale)
+            panelContainer.draw(canvas)
+        } catch (_: Throwable) {
+            snapshot = null
+        }
 
         rebuild()
 
@@ -2114,41 +2144,42 @@ class MainActivity : AppCompatActivity() {
             child.alpha = 0f
             child.scaleX = 0.96f
             child.scaleY = 0.96f
-        }
-
-        val overlay = ImageView(this).apply {
-            setImageBitmap(snapshot)
-            setBackgroundColor(android.graphics.Color.TRANSPARENT)
-            layoutParams = FrameLayout.LayoutParams(width, height)
-        }
-        panelHost.addView(overlay)
-
-        overlay.animate()
-            .translationX((exitDir * width * 0.35f))
-            .alpha(0f)
-            .scaleX(0.96f)
-            .scaleY(0.96f)
-            .setDuration(300L)
-            .setInterpolator(springPhysics)
-            .withLayer()
-            .withEndAction {
-                if (overlay.parent != null) panelHost.removeView(overlay)
-                overlay.setImageBitmap(null)
-                if (!snapshot.isRecycled) {
-                    snapshot.recycle()
-                }
-            }
-            .start()
-
-        for (j in 0 until panelContainer.childCount) {
-            panelContainer.getChildAt(j).animate()
+            child.animate()
                 .translationX(0f)
                 .alpha(1f)
                 .scaleX(1f)
                 .scaleY(1f)
-                .setDuration(300L)
+                .setDuration(260L)
                 .setInterpolator(springPhysics)
                 .withLayer()
+                .start()
+        }
+
+        if (snapshot != null) {
+            val localSnapshot = snapshot
+            val overlay = ImageView(this).apply {
+                setImageBitmap(localSnapshot)
+                scaleType = ImageView.ScaleType.FIT_XY
+                setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                layoutParams = FrameLayout.LayoutParams(width, height)
+            }
+            panelHost.addView(overlay)
+
+            overlay.animate()
+                .translationX((exitDir * width * 0.35f))
+                .alpha(0f)
+                .scaleX(0.96f)
+                .scaleY(0.96f)
+                .setDuration(260L)
+                .setInterpolator(springPhysics)
+                .withLayer()
+                .withEndAction {
+                    if (overlay.parent != null) panelHost.removeView(overlay)
+                    overlay.setImageBitmap(null)
+                    if (!localSnapshot.isRecycled) {
+                        localSnapshot.recycle()
+                    }
+                }
                 .start()
         }
     }
@@ -2485,23 +2516,31 @@ class MainActivity : AppCompatActivity() {
         private val arcRect = RectF()
         private var progress = if (animate && progressSupplier == null) 0f else 1f
         private var gradientShader: LinearGradient? = null
+        private var ringAnimator: ValueAnimator? = null
 
         init {
             paint.style = Paint.Style.STROKE
             paint.strokeWidth = strokeWidth.toFloat()
             paint.strokeCap = if (segments.size <= 1) Paint.Cap.ROUND else Paint.Cap.BUTT
             if (animate && progressSupplier == null) {
-                val anim = ValueAnimator.ofFloat(0f, 1f)
-                anim.duration = 600
-                anim.interpolator = android.view.animation.DecelerateInterpolator()
-                anim.addUpdateListener {
-                    progress = it.animatedValue as Float
-                    invalidate()
+                ringAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+                    duration = 600
+                    interpolator = android.view.animation.DecelerateInterpolator()
+                    addUpdateListener {
+                        progress = it.animatedValue as Float
+                        invalidate()
+                    }
+                    start()
                 }
-                anim.start()
             } else if (progressSupplier == null) {
                 progress = 1f
             }
+        }
+
+        override fun onDetachedFromWindow() {
+            super.onDetachedFromWindow()
+            ringAnimator?.cancel()
+            ringAnimator = null
         }
 
         override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -3210,6 +3249,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateTimerRing(showCountdown: Boolean) {
         if (!::timerRing.isInitialized || timerRing.visibility != View.VISIBLE) return
+        timerRing.setTimerActive(currentTimerState == TimerState.STUDYING)
         if (timerMode != "COUNTDOWN") return
         val isPomoWhite = isPomodoroPureWhiteActive()
         val base = if (isPomoWhite) 0xFF000000.toInt() else themeCoordinator.textColor

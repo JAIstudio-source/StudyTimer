@@ -133,6 +133,34 @@ class TimerRingView(context: Context) : View(context) {
         return Color.rgb(r.coerceIn(0, 255), g.coerceIn(0, 255), b.coerceIn(0, 255))
     }
 
+    private val tipGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+    }
+
+    private var pulseAlpha = 0.85f
+    private var pulseAnimator: ValueAnimator? = null
+
+    fun setTimerActive(active: Boolean) {
+        if (active && pulseAnimator == null) {
+            pulseAnimator = ValueAnimator.ofFloat(0.65f, 1.0f).apply {
+                duration = 1500
+                repeatMode = ValueAnimator.REVERSE
+                repeatCount = ValueAnimator.INFINITE
+                interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+                addUpdateListener { a ->
+                    pulseAlpha = a.animatedValue as Float
+                    invalidate()
+                }
+                start()
+            }
+        } else if (!active) {
+            pulseAnimator?.cancel()
+            pulseAnimator = null
+            pulseAlpha = 0.85f
+            invalidate()
+        }
+    }
+
     private val ringBounds = RectF()
 
     override fun onDraw(canvas: Canvas) {
@@ -152,6 +180,36 @@ class TimerRingView(context: Context) : View(context) {
             ringBounds.set(inset, inset, w - inset, h - inset)
             applyArcShader(cx, cy)
             canvas.drawArc(ringBounds, -90f, sweepDeg, false, ringPaint)
+
+            // Draw Breathing Glow Tip Dot at active progress tip
+            val tipAngleRad = Math.toRadians((-90f + sweepDeg).toDouble())
+            val tipX = (cx + radius * Math.cos(tipAngleRad)).toFloat()
+            val tipY = (cy + radius * Math.sin(tipAngleRad)).toFloat()
+
+            val tipRadius = strokePx / 2.2f
+            val glowRadius = tipRadius * (1.2f + 0.3f * (pulseAlpha - 0.65f) / 0.35f)
+
+            tipGlowPaint.color = Color.argb((180 * pulseAlpha).toInt(), Color.red(color), Color.green(color), Color.blue(color))
+            canvas.drawCircle(tipX, tipY, glowRadius, tipGlowPaint)
+
+            tipGlowPaint.color = blend(color, -1, 0.4f)
+            canvas.drawCircle(tipX, tipY, tipRadius, tipGlowPaint)
+        }
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        animator?.cancel()
+        animator = null
+        pulseAnimator?.cancel()
+        pulseAnimator = null
+    }
+
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        if (visibility != View.VISIBLE) {
+            pulseAnimator?.cancel()
+            pulseAnimator = null
         }
     }
 }

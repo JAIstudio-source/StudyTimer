@@ -208,6 +208,23 @@ object TimelineLogger {
         }
     }
 
+    fun updateSubjectMetadata(context: Context, subId: String, newName: String, newColorHex: String) {
+        synchronized(this) {
+            val entries = load(context).toMutableList()
+            var modified = false
+            for (i in entries.indices) {
+                val e = entries[i]
+                if (e.subId == subId) {
+                    entries[i] = e.copy(subName = newName, subColor = newColorHex)
+                    modified = true
+                }
+            }
+            if (modified) {
+                persist(context, entries)
+            }
+        }
+    }
+
     fun deductDurationForDay(
         context: Context,
         dateStr: String,

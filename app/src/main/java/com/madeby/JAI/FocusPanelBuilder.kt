@@ -84,7 +84,9 @@ class FocusPanelBuilder(private val host: MainActivity) {
                 layoutParams = FrameLayout.LayoutParams(dp(8), dp(8), Gravity.TOP or Gravity.END).apply {
                     setMargins(0, dp(5), dp(5), 0)
                 }
+                visibility = if (currentTimerState == TimerState.STUDYING) View.VISIBLE else View.GONE
             }
+            host.leaderboardLiveDot = liveDot
             addView(liveDot)
 
             contentDescription = "Open Leaderboard"

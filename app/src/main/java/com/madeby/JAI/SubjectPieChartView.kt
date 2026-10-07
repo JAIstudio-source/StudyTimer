@@ -26,8 +26,12 @@ class SubjectPieChartView(context: Context) : View(context) {
         val emoji: String,
         val value: Double,
         val colorHex: String,
-        val subCount: Int = 1
-    )
+        val subCount: Int = 1,
+        val bundledSlices: List<PieSlice> = emptyList()
+    ) {
+        val parsedColor: Int = try { Color.parseColor(colorHex) } catch (_: Exception) { 0 }
+        val words: List<String> = label.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+    }
 
     private val slices = ArrayList<PieSlice>()
     private val rawItems = ArrayList<PieSlice>()
@@ -199,7 +203,7 @@ class SubjectPieChartView(context: Context) : View(context) {
             val otherSum = otherItems.sumOf { it.value }
 
             slices.addAll(topItems)
-            slices.add(PieSlice("Others", "", otherSum, "#64748B", otherItems.size))
+            slices.add(PieSlice("Others", "📂", otherSum, "#64748B", otherItems.size, otherItems))
         } else {
             slices.addAll(rawItems)
         }
@@ -208,10 +212,21 @@ class SubjectPieChartView(context: Context) : View(context) {
     }
 
     fun selectSlice(index: Int) {
-        if (index == selectedSliceIndex) return
+        if (index == selectedSliceIndex) {
+            clearSelection()
+            return
+        }
         selectedSliceIndex = if (index in slices.indices) index else -1
         animatePop()
         onSliceSelectedListener?.invoke(if (selectedSliceIndex >= 0) slices[selectedSliceIndex] else null, selectedSliceIndex)
+    }
+
+    fun clearSelection() {
+        if (selectedSliceIndex != -1) {
+            selectedSliceIndex = -1
+            animatePop()
+            onSliceSelectedListener?.invoke(null, -1)
+        }
     }
 
     private fun animatePop() {
@@ -224,6 +239,23 @@ class SubjectPieChartView(context: Context) : View(context) {
                 invalidate()
             }
             start()
+        }
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        popAnimator?.cancel()
+        selectedSliceIndex = -1
+        popAnimProgress = 0f
+    }
+
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        if (visibility != VISIBLE) {
+            popAnimator?.cancel()
+            selectedSliceIndex = -1
+            popAnimProgress = 0f
+            invalidate()
         }
     }
 
@@ -240,11 +272,14 @@ class SubjectPieChartView(context: Context) : View(context) {
                 val innerRadius = if (isDonutMode) outerRadius * 0.56f else 0f
 
                 if (isDonutMode && dist < innerRadius) {
-                    // Tapped the center HUD in Donut mode -> toggle/reset selection
+                    // Tapped the center HUD in Donut mode
                     if (selectedSliceIndex != -1) {
-                        selectedSliceIndex = -1
-                        animatePop()
-                        onSliceSelectedListener?.invoke(null, -1)
+                        val sel = slices[selectedSliceIndex]
+                        if (sel.label == "Others" || sel.bundledSlices.isNotEmpty()) {
+                            onSliceSelectedListener?.invoke(sel, selectedSliceIndex)
+                        } else {
+                            clearSelection()
+                        }
                     } else {
                         performClick()
                     }
@@ -267,16 +302,31 @@ class SubjectPieChartView(context: Context) : View(context) {
                     }
 
                     if (clickedIndex != -1) {
-                        if (selectedSliceIndex == clickedIndex) {
-                            selectedSliceIndex = -1
+                        if (clickedIndex == selectedSliceIndex) {
+                            // Tapping the already elevated slice un-elevates / deselects it!
+                            clearSelection()
                         } else {
                             selectedSliceIndex = clickedIndex
+                            animatePop()
+                            onSliceSelectedListener?.invoke(slices[selectedSliceIndex], selectedSliceIndex)
                         }
-                        animatePop()
-                        onSliceSelectedListener?.invoke(if (selectedSliceIndex >= 0) slices[selectedSliceIndex] else null, selectedSliceIndex)
                         return true
                     }
                 }
+            }
+
+            if (pillRectF.contains(event.x, event.y) && selectedSliceIndex in slices.indices) {
+                val sel = slices[selectedSliceIndex]
+                if (sel.label == "Others" || sel.bundledSlices.isNotEmpty()) {
+                    onSliceSelectedListener?.invoke(sel, selectedSliceIndex)
+                    return true
+                }
+            }
+
+            // Tapping empty space / anywhere outside the chart deselects any elevated slice!
+            if (selectedSliceIndex != -1) {
+                clearSelection()
+                return true
             }
 
             // Default click behavior
@@ -398,7 +448,7 @@ class SubjectPieChartView(context: Context) : View(context) {
 
         rectF.set(sliceCx - midRadius, sliceCy - midRadius, sliceCx + midRadius, sliceCy + midRadius)
 
-        val sliceColor = try { Color.parseColor(slice.colorHex) } catch (_: Exception) { primaryColor }
+        val sliceColor = if (slice.parsedColor != 0) slice.parsedColor else primaryColor
 
         // Clean modern gap between slices
         val gapAngle = if (slices.size > 1) 1.2f else 0f
@@ -442,7 +492,7 @@ class SubjectPieChartView(context: Context) : View(context) {
             insideSubBadgePaint.color = Color.argb(210, Color.red(contrastColor), Color.green(contrastColor), Color.blue(contrastColor))
 
             val maxArcW = (midRadius * Math.toRadians(drawSweep.toDouble())).toFloat() * 0.90f
-            val words = slice.label.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+            val words = slice.words
 
             if (drawSweep >= 34f && words.isNotEmpty()) {
                 // Wide slice: Show subject name (split across 2 lines if multi-word) + percentage
@@ -492,7 +542,7 @@ class SubjectPieChartView(context: Context) : View(context) {
             val sel = slices[selectedSliceIndex]
             val pct = Math.round((sel.value / totalVal) * 100).toInt()
             val durStr = formatDuration(sel.value.toLong())
-            val sliceColor = try { Color.parseColor(sel.colorHex) } catch (_: Exception) { primaryColor }
+            val sliceColor = if (sel.parsedColor != 0) sel.parsedColor else primaryColor
 
             val title = if (sel.subCount > 1) "${sel.emoji} ${sel.label} (${sel.subCount})" else "${sel.emoji} ${sel.label}"
             centerTitlePaint.textSize = dp(13.5f)
@@ -580,7 +630,7 @@ class SubjectPieChartView(context: Context) : View(context) {
         val sliceCy = (cy + popOffset * sin(midAngleRad)).toFloat()
 
         rectF.set(sliceCx - radius, sliceCy - radius, sliceCx + radius, sliceCy + radius)
-        val sliceColor = try { Color.parseColor(slice.colorHex) } catch (_: Exception) { primaryColor }
+        val sliceColor = if (slice.parsedColor != 0) slice.parsedColor else primaryColor
 
         // 3D Glow under popped slice
         if (isSelected && popOffset > 0f) {
@@ -608,7 +658,7 @@ class SubjectPieChartView(context: Context) : View(context) {
             insideSubBadgePaint.color = Color.argb(200, Color.red(contrastColor), Color.green(contrastColor), Color.blue(contrastColor))
 
             val maxInsideW = radius * 0.55f
-            val words = slice.label.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+            val words = slice.words
 
             if (sweepAngle >= 42f && words.isNotEmpty()) {
                 insideBadgePaint.textSize = dp(11f)
@@ -657,7 +707,7 @@ class SubjectPieChartView(context: Context) : View(context) {
             val sel = slices[selectedSliceIndex]
             val pct = Math.round((sel.value / totalVal) * 100).toInt()
             val durStr = formatDuration(sel.value.toLong())
-            val sliceColor = try { Color.parseColor(sel.colorHex) } catch (_: Exception) { primaryColor }
+            val sliceColor = if (sel.parsedColor != 0) sel.parsedColor else primaryColor
 
             pillBgPaint.color = Color.argb(45, Color.red(sliceColor), Color.green(sliceColor), Color.blue(sliceColor))
             pillStrokePaint.color = sliceColor

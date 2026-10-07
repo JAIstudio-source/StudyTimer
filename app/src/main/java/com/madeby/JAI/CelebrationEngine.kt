@@ -41,19 +41,88 @@ object CelebrationEngine {
         val isNewGoalAchieved = goalReachedToday && lastGoalDate != todayStr
 
         val lastStreak = prefs.safeInt(KEY_LAST_CELEBRATED_STREAK, 0)
-        val isNewStreakMilestone = currentStreak > lastStreak && (currentStreak in listOf(1, 2, 3, 5, 7, 10, 14, 21, 30, 50, 75, 100) || currentStreak % 50 == 0)
+        val isStreakIncreased = currentStreak > lastStreak && currentStreak > 0
+        val isNewStreakMilestone = isStreakIncreased && (currentStreak in listOf(7, 14, 21, 28, 50, 75, 100) || currentStreak % 50 == 0)
 
-        if (isNewGoalAchieved || isNewStreakMilestone) {
+        if (isNewGoalAchieved || isStreakIncreased) {
             if (isNewGoalAchieved) {
                 prefs.edit().putString(KEY_LAST_CELEBRATED_GOAL_DATE, todayStr).apply()
             }
-            if (isNewStreakMilestone) {
+            if (isStreakIncreased) {
                 prefs.edit().putInt(KEY_LAST_CELEBRATED_STREAK, currentStreak).apply()
             }
 
             activity.runOnUiThread {
-                showCelebrationDialog(activity, isNewGoalAchieved, currentStreak)
+                if (isNewStreakMilestone) {
+                    showCelebrationDialog(activity, isGoalAchieved = false, streak = currentStreak)
+                } else if (isStreakIncreased) {
+                    StreakUpAnimationDialog.show(activity, oldStreak = lastStreak, newStreak = currentStreak)
+                } else if (isNewGoalAchieved) {
+                    showCelebrationDialog(activity, isGoalAchieved = true, streak = currentStreak)
+                }
             }
+        }
+    }
+
+    private data class StreakMilestoneInfo(
+        val icon: String,
+        val title: String,
+        val subtitle: String,
+        val accentColor: Int,
+        val particles: IntArray
+    )
+
+    private fun getStreakMilestoneInfo(streak: Int, primaryColor: Int): StreakMilestoneInfo {
+        return when (streak) {
+            7 -> StreakMilestoneInfo(
+                icon = "🥉",
+                title = "7-Day Bronze Streak!",
+                subtitle = "1 Week Strong! Fantastic work maintaining consistency for a full week.",
+                accentColor = Color.parseColor("#CD7F32"),
+                particles = intArrayOf(0xFFCD7F32.toInt(), 0xFFFFA726.toInt(), 0xFFFFD700.toInt())
+            )
+            14 -> StreakMilestoneInfo(
+                icon = "🥈",
+                title = "14-Day Silver Streak!",
+                subtitle = "2 Weeks Unstoppable! Two straight weeks of focus and dedication.",
+                accentColor = Color.parseColor("#C0C0C0"),
+                particles = intArrayOf(0xFFE0E0E0.toInt(), 0xFF38BDF8.toInt(), 0xFF818CF8.toInt())
+            )
+            21 -> StreakMilestoneInfo(
+                icon = "🥇",
+                title = "21-Day Gold Streak!",
+                subtitle = "Habit Formed! 21 consecutive days of learning. Your streak is legendary!",
+                accentColor = Color.parseColor("#FFD700"),
+                particles = intArrayOf(0xFFFFD700.toInt(), 0xFFF59E0B.toInt(), 0xFFFF4081.toInt())
+            )
+            28 -> StreakMilestoneInfo(
+                icon = "💎",
+                title = "28-Day Platinum Streak!",
+                subtitle = "4 Weeks of Focus! A full month of unmatched study discipline.",
+                accentColor = Color.parseColor("#38BDF8"),
+                particles = intArrayOf(0xFF38BDF8.toInt(), 0xFF818CF8.toInt(), 0xFFA855F7.toInt())
+            )
+            50 -> StreakMilestoneInfo(
+                icon = "🔥",
+                title = "50-Day Fire Streak!",
+                subtitle = "Half Century Milestone! 50 straight days of unstoppable study momentum.",
+                accentColor = Color.parseColor("#EF4444"),
+                particles = intArrayOf(0xFFEF4444.toInt(), 0xFFF59E0B.toInt(), 0xFFFF4081.toInt())
+            )
+            100 -> StreakMilestoneInfo(
+                icon = "👑",
+                title = "100-Day Crown Streak!",
+                subtitle = "Century Legend! 100 days of elite, master-level dedication!",
+                accentColor = Color.parseColor("#A855F7"),
+                particles = intArrayOf(0xFFA855F7.toInt(), 0xFFFFD700.toInt(), 0xFFEC4899.toInt())
+            )
+            else -> StreakMilestoneInfo(
+                icon = "🏆",
+                title = "$streak-Day Study Streak!",
+                subtitle = "Incredible consistency! You are on a $streak-day study streak. Keep it up!",
+                accentColor = primaryColor,
+                particles = intArrayOf(primaryColor, 0xFFFFD700.toInt(), 0xFF10B981.toInt())
+            )
         }
     }
 
@@ -85,25 +154,27 @@ object CelebrationEngine {
             val dp = { v: Int -> (v * density).toInt() }
             val targetWidth = (activity.resources.displayMetrics.widthPixels * 0.86f).toInt().coerceAtMost(dp(340))
 
+            val milestoneInfo = getStreakMilestoneInfo(streak, primaryColor)
+            val strokeColor = if (isGoalAchieved) primaryColor else milestoneInfo.accentColor
+
             val cardBg = GradientDrawable().apply {
                 setColor(Color.parseColor("#111625"))
                 cornerRadius = 28f * density
-                setStroke((2.5f * density).toInt(), primaryColor)
+                setStroke((2.5f * density).toInt(), strokeColor)
             }
 
             val container = object : LinearLayout(activity) {
                 private val particles = ArrayList<ConfettiParticle>()
                 private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
                 private var animator: ValueAnimator? = null
-                private val colors = intArrayOf(
-                    0xFFFFD700.toInt(), // Gold
-                    0xFFFF4081.toInt(), // Rose Pink
-                    0xFF6B7CFF.toInt(), // Primary Indigo
-                    0xFF10B981.toInt(), // Emerald
-                    0xFF38BDF8.toInt(), // Sky Blue
-                    0xFFF59E0B.toInt(), // Amber
-                    0xFFA855F7.toInt()  // Purple
-                )
+                private val colors = if (isGoalAchieved) {
+                    intArrayOf(
+                        0xFFFFD700.toInt(), 0xFFFF4081.toInt(), 0xFF6B7CFF.toInt(),
+                        0xFF10B981.toInt(), 0xFF38BDF8.toInt(), 0xFFF59E0B.toInt()
+                    )
+                } else {
+                    milestoneInfo.particles
+                }
 
                 init {
                     orientation = VERTICAL
@@ -111,7 +182,7 @@ object CelebrationEngine {
                     background = cardBg
                     clipToOutline = true
                     setPadding(dp(22), dp(22), dp(22), dp(20))
-                    for (i in 0 until 40) {
+                    for (i in 0 until 45) {
                         particles.add(
                             ConfettiParticle(
                                 x = 0f,
@@ -182,13 +253,13 @@ object CelebrationEngine {
             }
 
             val iconTv = TextView(activity).apply {
-                text = if (isGoalAchieved) "🎉" else "🏆"
+                text = if (isGoalAchieved) "🎉" else milestoneInfo.icon
                 textSize = 42f
                 gravity = Gravity.CENTER
             }
 
             val titleTv = TextView(activity).apply {
-                text = if (isGoalAchieved) "Daily Focus Goal Reached!" else "$streak Day Study Streak!"
+                text = if (isGoalAchieved) "Daily Focus Goal Reached!" else milestoneInfo.title
                 textSize = 19f
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
                 setTextColor(Color.WHITE)
@@ -200,7 +271,7 @@ object CelebrationEngine {
                 text = if (isGoalAchieved) {
                     "Outstanding work! You have hit your daily study goal for today."
                 } else {
-                    "Incredible consistency! You are on a $streak-day study streak. Keep it up!"
+                    milestoneInfo.subtitle
                 }
                 textSize = 13f
                 setTextColor(Color.parseColor("#9CA3AF"))
@@ -209,7 +280,7 @@ object CelebrationEngine {
             }
 
             val btnBg = GradientDrawable().apply {
-                setColor(primaryColor)
+                setColor(if (isGoalAchieved) primaryColor else milestoneInfo.accentColor)
                 cornerRadius = 14f * density
             }
 

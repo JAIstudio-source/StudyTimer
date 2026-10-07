@@ -1765,7 +1765,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                 displayCard.addView(createSettingsRow("", "Landscape Fullscreen", "Sideways fullscreen distraction-free clock", landscapeSwitch))
                 displayCard.addView(createDivider())
 
-                val isPureWhite = sharedPrefs.getBoolean("pureWhiteTimer", false)
+                val isPureWhite = sharedPrefs.getBoolean("pureWhiteTimer", true)
                 val pureWhiteSwitch = SwitchMaterial(this).apply {
                     isChecked = isPureWhite
                     setOnCheckedChangeListener { _, isChecked ->
@@ -1883,6 +1883,7 @@ class SettingsPanelBuilder(private val host: MainActivity) {
                                 .putLong("daily_goal_secs", next)
                                 .putLong("${todayStr}_goal_secs", next)
                                 .apply()
+                            GoalHistoryManager.recordGoalChange(host, todayStr, next)
                             goalValueText.text = formatGoalLabel(next)
                         }
                     }

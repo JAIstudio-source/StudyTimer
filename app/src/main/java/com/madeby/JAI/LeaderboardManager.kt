@@ -29,6 +29,12 @@ object LeaderboardManager {
         }
     }
 
+    fun getCachedEntries(period: LeaderboardPeriod): List<LeaderboardEntry>? {
+        synchronized(cache) {
+            return cache[period]?.entries
+        }
+    }
+
     suspend fun fetchLeaderboard(
         context: Context,
         period: LeaderboardPeriod,
@@ -134,7 +140,8 @@ object LeaderboardManager {
                                 subjectColor = subjectColor,
                                 lastActiveAt = lastActiveAt,
                                 examTarget = obj.optString("exam_target", obj.optString("target_exam", "")),
-                                bio = obj.optString("bio", obj.optString("mood", ""))
+                                bio = obj.optString("bio", obj.optString("mood", "")),
+                                streakDays = obj.optInt("streak_days", obj.optInt("streak", obj.optInt("current_streak", 0)))
                             )
                         )
                     }
@@ -160,20 +167,29 @@ object LeaderboardManager {
     data class PublicUserProfile(
         val userId: String,
         val bio: String = "",
-        val targetExam: String = ""
+        val targetExam: String = "",
+        val streakDays: Int = 0
     )
 
     private val userProfileCache = java.util.concurrent.ConcurrentHashMap<String, PublicUserProfile>()
 
-    private fun parseProfileData(prefsDataStr: String?, pendingJsonStr: String?): Pair<String, String> {
+    private data class ParsedProfile(
+        val bio: String,
+        val examTarget: String,
+        val streakDays: Int
+    )
+
+    private fun parseProfileData(prefsDataStr: String?, pendingJsonStr: String?): ParsedProfile {
         var bio = ""
         var examTarget = ""
+        var streakDays = 0
 
         if (!pendingJsonStr.isNullOrBlank()) {
             try {
                 val pj = JSONObject(pendingJsonStr)
                 bio = pj.optString("bio", pj.optString("mood", "")).trim()
                 examTarget = pj.optString("targetExam", pj.optString("exam_target", "")).trim()
+                streakDays = pj.optInt("streakDays", pj.optInt("streak_days", pj.optInt("streak", 0)))
             } catch (_: Exception) {}
         }
 
@@ -190,10 +206,13 @@ object LeaderboardManager {
                         examTarget = prof.optString("targetExam", "").trim()
                     }
                 }
+                if (streakDays == 0) {
+                    streakDays = prefs.optInt("current_streak", prefs.optInt("streak_days", 0))
+                }
             } catch (_: Exception) {}
         }
 
-        return Pair(bio, examTarget)
+        return ParsedProfile(bio, examTarget, streakDays)
     }
 
     private fun enrichLeaderboardWithProfiles(supabaseUrl: String, anonKey: String, entries: List<LeaderboardEntry>): List<LeaderboardEntry> {
@@ -227,8 +246,8 @@ object LeaderboardManager {
                         if (uid.isNotBlank()) {
                             val prefsData = row.optString("prefs_data", "")
                             val pendingJson = row.optString("pending_profile_json", "")
-                            val (bio, exam) = parseProfileData(prefsData, pendingJson)
-                            userProfileCache[uid] = PublicUserProfile(uid, bio, exam)
+                            val parsed = parseProfileData(prefsData, pendingJson)
+                            userProfileCache[uid] = PublicUserProfile(uid, parsed.bio, parsed.examTarget, parsed.streakDays)
                         }
                     }
                 }
@@ -242,7 +261,8 @@ object LeaderboardManager {
             if (cached != null) {
                 entry.copy(
                     bio = if (cached.bio.isNotBlank()) cached.bio else entry.bio,
-                    examTarget = if (cached.targetExam.isNotBlank()) cached.targetExam else entry.examTarget
+                    examTarget = if (cached.targetExam.isNotBlank()) cached.targetExam else entry.examTarget,
+                    streakDays = if (cached.streakDays > 0) cached.streakDays else entry.streakDays
                 )
             } else {
                 entry

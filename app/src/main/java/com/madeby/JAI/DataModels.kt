@@ -18,7 +18,8 @@ data class LeaderboardEntry(
     val subjectColor: String = "#3b82f6",
     val lastActiveAt: String = "",
     val examTarget: String = "",
-    val bio: String = ""
+    val bio: String = "",
+    val streakDays: Int = 0
 )
 enum class AppSettingsTab { 
     HUB, 

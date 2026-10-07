@@ -17,7 +17,7 @@ class StatsEngine(private val context: Context) {
     }
 
     fun resolveGoalFor(dateStr: String): Long {
-        return prefs.getLong("${dateStr}_goal_secs", dailyGoalSecs())
+        return GoalHistoryManager.resolveGoalForDate(context, dateStr, dailyGoalSecs())
     }
 
     fun recalculateStreak(todayExtra: Long = 0L) {
@@ -81,11 +81,11 @@ class StatsEngine(private val context: Context) {
         if (parsed.openFocusStart != null) {
             val fs = parsed.openFocusStart
             val endTs = if (isToday && timerRunning) System.currentTimeMillis() else (entries.lastOrNull()?.timestamp ?: fs)
-            if (fs < endMs && endTs > startMs) {
-                val segStart = maxOf(fs, startMs)
+            if (fs in startMs until endMs) {
+                val segStart = fs
                 val segEnd = minOf(endTs, endMs - 1000L)
                 val gapMs = (segEnd - segStart).coerceAtLeast(0L)
-                if (gapMs > 0L && gapMs <= 24L * 3600_000L) {
+                if (gapMs > 0L && gapMs <= 14400_000L) {
                     sessions.add(
                         BlockInfo(
                             segStart,
@@ -105,11 +105,11 @@ class StatsEngine(private val context: Context) {
         if (parsed.openBreakStart != null) {
             val bs = parsed.openBreakStart
             val endTs = if (isToday && timerRunning) System.currentTimeMillis() else (entries.lastOrNull()?.timestamp ?: bs)
-            if (bs < endMs && endTs > startMs) {
-                val segStart = maxOf(bs, startMs)
+            if (bs in startMs until endMs) {
+                val segStart = bs
                 val segEnd = minOf(endTs, endMs - 1000L)
                 val gapMs = (segEnd - segStart).coerceAtLeast(0L)
-                if (gapMs > 0L && gapMs <= 24L * 3600_000L) {
+                if (gapMs > 0L && gapMs <= 14400_000L) {
                     breaks.add(BlockInfo(segStart, segEnd, gapMs / 1000L, manual = parsed.openBreakManual))
                 }
             }
@@ -145,11 +145,31 @@ class StatsEngine(private val context: Context) {
 
     fun dayBlocks(dateStr: String, entries: List<TimelineEntry>): Pair<List<BlockInfo>, List<BlockInfo>> {
         val parsed = parseDayBlocks(entries)
-        val sessions = ArrayList(parsed.sessions)
-        val breaks = ArrayList(parsed.breaks)
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val parsedStart = runCatching { sdf.parse(dateStr)?.time }.getOrNull() ?: 0L
+        val startCal = Calendar.getInstance().apply {
+            timeInMillis = parsedStart
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }
+        val startMs = startCal.timeInMillis
+        val endMs = startMs + 24L * 3600_000L
+
+        val sessions = ArrayList<BlockInfo>()
+        val breaks = ArrayList<BlockInfo>()
+
+        for (s in parsed.sessions) {
+            if (s.startMs in startMs until endMs) {
+                sessions.add(s)
+            }
+        }
+        for (b in parsed.breaks) {
+            if (b.startMs in startMs until endMs) {
+                breaks.add(b)
+            }
+        }
+
         if (parsed.openFocusStart != null || parsed.openBreakStart != null) {
-            val dateSdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            val isToday = dateStr == dateSdf.format(Date())
+            val isToday = dateStr == sdf.format(Date())
             val timerState = prefs.getString("timerState", "IDLE") ?: "IDLE"
             val timerRunning = timerState == "STUDYING" || timerState == "BREAK"
             val endTs = if (isToday && timerRunning) {
@@ -159,13 +179,13 @@ class StatsEngine(private val context: Context) {
             }
             if (endTs > 0L) {
                 val fs = parsed.openFocusStart
-                if (fs != null) {
-                    val gapMs = endTs - fs
-                    if (gapMs <= 24L * 3600_000) {
+                if (fs != null && fs in startMs until endMs) {
+                    val gapMs = (endTs - fs).coerceAtLeast(0L)
+                    if (gapMs in 1L..14400_000L) {
                         sessions.add(
                             BlockInfo(
                                 fs,
-                                endTs,
+                                minOf(endTs, endMs - 1000L),
                                 gapMs / 1000L,
                                 isToday && timerRunning,
                                 parsed.openFocusManual,
@@ -177,13 +197,18 @@ class StatsEngine(private val context: Context) {
                     }
                 }
                 val bs = parsed.openBreakStart
-                if (bs != null) breaks.add(BlockInfo(bs, endTs, (endTs - bs) / 1000L, manual = parsed.openBreakManual))
+                if (bs != null && bs in startMs until endMs) {
+                    val gapMs = (endTs - bs).coerceAtLeast(0L)
+                    if (gapMs in 1L..14400_000L) {
+                        breaks.add(BlockInfo(bs, minOf(endTs, endMs - 1000L), gapMs / 1000L, manual = parsed.openBreakManual))
+                    }
+                }
             }
         }
         val focusManual = prefs.getLong("${dateStr}_focus_manual", 0L)
         val breakManual = prefs.getLong("${dateStr}_break_manual", 0L)
-        val hasRawManualFocus = entries.any { it.state == "MANUAL_FOCUS" }
-        val hasRawManualBreak = entries.any { it.state == "MANUAL_BREAK" }
+        val hasRawManualFocus = entries.any { it.state == "MANUAL_FOCUS" && it.timestamp in startMs until endMs }
+        val hasRawManualBreak = entries.any { it.state == "MANUAL_BREAK" && it.timestamp in startMs until endMs }
 
         if (focusManual != 0L && !hasRawManualFocus) {
             if (sessions.isNotEmpty()) {
@@ -191,7 +216,7 @@ class StatsEngine(private val context: Context) {
                 val adj = max(0L, last.secs + focusManual)
                 sessions[sessions.size - 1] = last.copy(secs = adj, endMs = last.startMs + adj * 1000L, manual = adj != last.secs)
             } else if (focusManual > 0L) {
-                val lastEnd = entries.lastOrNull()?.timestamp ?: System.currentTimeMillis()
+                val lastEnd = entries.filter { it.timestamp in startMs until endMs }.lastOrNull()?.timestamp ?: startMs
                 sessions.add(BlockInfo(lastEnd, lastEnd + focusManual * 1000L, focusManual, manual = true))
             }
         }
@@ -201,11 +226,66 @@ class StatsEngine(private val context: Context) {
                 val adj = max(0L, last.secs + breakManual)
                 breaks[breaks.size - 1] = last.copy(secs = adj, endMs = last.startMs + adj * 1000L, manual = adj != last.secs)
             } else if (breakManual > 0L) {
-                val lastEnd = entries.lastOrNull()?.timestamp ?: System.currentTimeMillis()
+                val lastEnd = entries.filter { it.timestamp in startMs until endMs }.lastOrNull()?.timestamp ?: startMs
                 breaks.add(BlockInfo(lastEnd, lastEnd + breakManual * 1000L, breakManual, manual = true))
             }
         }
         return sessions to breaks
+    }
+
+    fun sanitizeAndHealHistoricalTotals() {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val todayStr = sdf.format(Date())
+        val allKeys = prefs.all.keys.toList()
+        val focusKeys = allKeys.filter { it.endsWith("_focus_total") }
+        val entries = TimelineLogger.load(context)
+
+        val timelineDates = entries.map { sdf.format(Date(it.timestamp)) }.toSet()
+        val allDates = (focusKeys.map { it.removeSuffix("_focus_total") } + timelineDates).toSet()
+
+        val editor = prefs.edit()
+        var modified = false
+
+        for (dateStr in allDates) {
+            val isTimerActive = prefs.getString("timerState", "IDLE") != "IDLE"
+            if (dateStr == todayStr && isTimerActive) continue
+
+            val (sessions, breaks) = dayBlocks(dateStr, entries)
+            val trueFocusSum = sessions.filter { !it.running }.sumOf { it.secs }
+            val trueBreakSum = breaks.filter { !it.running }.sumOf { it.secs }
+            val key = "${dateStr}_focus_total"
+            val breakKey = "${dateStr}_break_total"
+            val storedFocus = prefs.getLong(key, 0L)
+            val storedBreak = prefs.getLong(breakKey, 0L)
+
+            // Never destroy stored focus or break time if timeline was incomplete! Backfill missing timeline blocks.
+            if (storedFocus > trueFocusSum) {
+                val missingFocusSecs = storedFocus - trueFocusSum
+                TimelineLogger.appendBlockForDay(context, dateStr, missingFocusSecs, "MANUAL_FOCUS")
+            }
+
+            if (storedBreak > trueBreakSum) {
+                val missingBreakSecs = storedBreak - trueBreakSum
+                TimelineLogger.appendBlockForDay(context, dateStr, missingBreakSecs, "MANUAL_BREAK")
+            }
+
+            // Re-read updated entries after backfilling missing timeline blocks
+            val updatedEntries = TimelineLogger.load(context)
+            val (updatedSessions, updatedBreaks) = dayBlocks(dateStr, updatedEntries)
+            val finalFocusSum = maxOf(storedFocus, updatedSessions.filter { !it.running }.sumOf { it.secs })
+            val finalBreakSum = maxOf(storedBreak, updatedBreaks.filter { !it.running }.sumOf { it.secs })
+
+            if (storedFocus != finalFocusSum || storedBreak != finalBreakSum) {
+                android.util.Log.i("StatsEngine", "Self-healing day totals for $dateStr: storedFocus=$storedFocus -> finalFocusSum=$finalFocusSum")
+                editor.putLong(key, finalFocusSum)
+                editor.putLong(breakKey, finalBreakSum)
+                modified = true
+            }
+            TimelineLogger.reconcileSubjectDurationsFromTimeline(context, dateStr)
+        }
+        if (modified) {
+            editor.apply()
+        }
     }
 
     fun reconcileDayTotals(dateStr: String) {
@@ -405,8 +485,8 @@ class StatsEngine(private val context: Context) {
 
         val timeline = TimelineLogger.load(context)
         val nowMs = System.currentTimeMillis()
-        val blockSecs7 = buildFocusBlockArray(timeline, 7, nowMs, todayStr, currentSessionSecs)
-        val blockSecs30 = buildFocusBlockArray(timeline, 30, nowMs, todayStr, currentSessionSecs)
+        val blockSecs7 = buildFocusBlockArray(timeline, 7, nowMs, todayStr)
+        val blockSecs30 = buildFocusBlockArray(timeline, 30, nowMs, todayStr)
         val maxBlock7 = blockSecs7.maxOrNull() ?: 0L
         val maxBlock30 = blockSecs30.maxOrNull() ?: 0L
         val patternTotal7 = blockSecs7.sum()
@@ -444,8 +524,7 @@ class StatsEngine(private val context: Context) {
         timeline: List<TimelineEntry>,
         windowDays: Int,
         nowMs: Long,
-        todayStr: String,
-        currentSessionSecs: Long
+        todayStr: String
     ): LongArray {
         val arr = LongArray(12)
         val windowStart = Calendar.getInstance().apply {
@@ -602,11 +681,14 @@ internal fun parseDayBlocks(entries: List<TimelineEntry>): ParsedDay {
             "STUDYING", "MANUAL_FOCUS" -> {
                 if (fs != null) {
                     val gapMs = e.timestamp - fs
-                    if (gapMs <= 24L * 3600_000) {
-                        addSplitBlock(sessions, fs, e.timestamp, manual = fsManual, subjectId = fsSubId, subjectName = fsSubName, subjectColor = fsSubColor)
-                    }
+                    val effectiveEndMs = if (gapMs > 14400_000L) fs + 14400_000L else e.timestamp
+                    addSplitBlock(sessions, fs, effectiveEndMs, manual = fsManual, subjectId = fsSubId, subjectName = fsSubName, subjectColor = fsSubColor)
                 }
-                if (bs != null) addSplitBlock(breaks, bs, e.timestamp, manual = bsManual)
+                if (bs != null) {
+                    val gapMs = e.timestamp - bs
+                    val effectiveEndMs = if (gapMs > 14400_000L) bs + 14400_000L else e.timestamp
+                    addSplitBlock(breaks, bs, effectiveEndMs, manual = bsManual)
+                }
                 bs = null
                 bsManual = false
                 fs = e.timestamp
@@ -616,7 +698,11 @@ internal fun parseDayBlocks(entries: List<TimelineEntry>): ParsedDay {
                 fsSubColor = e.subColor
             }
             "BREAK", "MANUAL_BREAK" -> {
-                if (fs != null) addSplitBlock(sessions, fs, e.timestamp, manual = fsManual, subjectId = fsSubId, subjectName = fsSubName, subjectColor = fsSubColor)
+                if (fs != null) {
+                    val gapMs = e.timestamp - fs
+                    val effectiveEndMs = if (gapMs > 14400_000L) fs + 14400_000L else e.timestamp
+                    addSplitBlock(sessions, fs, effectiveEndMs, manual = fsManual, subjectId = fsSubId, subjectName = fsSubName, subjectColor = fsSubColor)
+                }
                 fs = null
                 fsManual = false
                 fsSubId = null
@@ -628,13 +714,21 @@ internal fun parseDayBlocks(entries: List<TimelineEntry>): ParsedDay {
                 }
             }
             "IDLE" -> {
-                if (fs != null) addSplitBlock(sessions, fs, e.timestamp, manual = fsManual, subjectId = fsSubId, subjectName = fsSubName, subjectColor = fsSubColor)
+                if (fs != null) {
+                    val gapMs = e.timestamp - fs
+                    val effectiveEndMs = if (gapMs > 14400_000L) fs + 14400_000L else e.timestamp
+                    addSplitBlock(sessions, fs, effectiveEndMs, manual = fsManual, subjectId = fsSubId, subjectName = fsSubName, subjectColor = fsSubColor)
+                }
                 fs = null
                 fsManual = false
                 fsSubId = null
                 fsSubName = null
                 fsSubColor = null
-                if (bs != null) addSplitBlock(breaks, bs, e.timestamp, manual = bsManual)
+                if (bs != null) {
+                    val gapMs = e.timestamp - bs
+                    val effectiveEndMs = if (gapMs > 14400_000L) bs + 14400_000L else e.timestamp
+                    addSplitBlock(breaks, bs, effectiveEndMs, manual = bsManual)
+                }
                 bs = null
                 bsManual = false
             }

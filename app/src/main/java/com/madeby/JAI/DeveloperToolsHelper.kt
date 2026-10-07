@@ -840,11 +840,27 @@ object DeveloperToolsHelper {
         // 4. Notifications & Celebration Triggers
         addSection("NOTIFICATIONS & CELEBRATION TRIGGERS", "🎉") {
             addView(devButton("Trigger Goal Celebration Banner", "Launches the interactive particle confetti celebration modal") {
-                CelebrationEngine.showCelebrationDialog(activity, isGoalAchieved = true, streak = 5)
+                dialog.dismiss()
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    CelebrationEngine.showCelebrationDialog(activity, isGoalAchieved = true, streak = 5)
+                }, 150)
             })
 
-            addView(devButton("Trigger Milestone Streak Banner", "Launches 14-day streak celebration particle modal") {
-                CelebrationEngine.showCelebrationDialog(activity, isGoalAchieved = false, streak = 14)
+            addView(devButton("Trigger Streak Level-Up Animation (N ➔ N+1)", "Launches the animated streak count-up level-up popup") {
+                dialog.dismiss()
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    val cur = activity.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE).getInt("current_streak", 6)
+                    val old = if (cur > 0) cur - 1 else 6
+                    val next = if (cur > 0) cur else 7
+                    StreakUpAnimationDialog.show(activity, oldStreak = old, newStreak = next)
+                }, 150)
+            })
+
+            addView(devButton("Trigger Milestone Streak Banner", "Preview special milestone celebrations (7, 14, 21, 28, 50, 100 days)") {
+                dialog.dismiss()
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    showStreakTestPicker(activity)
+                }, 150)
             })
 
             addView(devButton("Trigger Haptic Pulse", "Fires study completion haptic vibration waveform") {
@@ -3078,5 +3094,27 @@ object DeveloperToolsHelper {
         dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
         dialog.window?.setLayout((activity.resources.displayMetrics.widthPixels * 0.92f).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
         dialog.show()
+    }
+
+    private fun showStreakTestPicker(activity: MainActivity) {
+        val options = arrayOf(
+            "🥉 7-Day Bronze Streak",
+            "🥈 14-Day Silver Streak",
+            "🥇 21-Day Gold Streak",
+            "💎 28-Day Platinum Streak",
+            "🔥 50-Day Fire Streak",
+            "👑 100-Day Crown Streak"
+        )
+        val streakValues = intArrayOf(7, 14, 21, 28, 50, 100)
+
+        android.app.AlertDialog.Builder(activity)
+            .setTitle("Select Streak Milestone")
+            .setItems(options) { dialogInterface, which ->
+                dialogInterface.dismiss()
+                val targetStreak = streakValues[which]
+                CelebrationEngine.showCelebrationDialog(activity, isGoalAchieved = false, streak = targetStreak)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 }

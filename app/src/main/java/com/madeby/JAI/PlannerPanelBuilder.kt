@@ -334,9 +334,39 @@ class PlannerPanelBuilder(private val host: MainActivity) {
                     layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, dp(8)) }
                 }
 
+                val toggleGoalAction = {
+                    val now = System.currentTimeMillis()
+                    val updated = activeGoalsList.map {
+                        if (it.id == goal.id) it.copy(completed = !it.completed, checkedAt = if (!it.completed) now else 0L) else it
+                    }
+                    saveSessionGoalsToJson(updated)
+                    PlannerHistoryManager.snapshotToday(host, updated)
+                    reloadPlanner()
+                }
+
+                val animateToggleGoalAction = { targetView: View ->
+                    targetView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    targetView.animate()
+                        .scaleX(1.35f)
+                        .scaleY(1.35f)
+                        .setDuration(110)
+                        .setInterpolator(android.view.animation.OvershootInterpolator(2.5f))
+                        .withEndAction {
+                            targetView.animate()
+                                .scaleX(1.0f)
+                                .scaleY(1.0f)
+                                .setDuration(90)
+                                .withEndAction {
+                                    toggleGoalAction()
+                                }
+                                .start()
+                        }
+                        .start()
+                }
+
                 val checkBtn = TextView(host).apply {
                     tag = "goal_check_${goal.id}"
-                    text = if (isChecked) (if (info.isDeficit) "\u2715" else "\u2713") else ""
+                    text = if (isChecked) (if (info.isDeficit) "✕" else "✓") else ""
                     textSize = 14f
                     gravity = Gravity.CENTER
                     setTextColor(0xFFFFFFFF.toInt())
@@ -346,22 +376,13 @@ class PlannerPanelBuilder(private val host: MainActivity) {
                         setStroke(dp(2), if (isChecked) (if (info.isDeficit) redColor else greenColor) else themeCoordinator.textColor)
                     }
                     layoutParams = LinearLayout.LayoutParams(dp(24), dp(24)).apply { setMargins(0, 0, dp(12), 0) }
-                    setOnClickListener {
-                        val now = System.currentTimeMillis()
-                        val updated = activeGoalsList.map {
-                            if (it.id == goal.id) it.copy(completed = !it.completed, checkedAt = if (!it.completed) now else 0L) else it
-                        }
-                        saveSessionGoalsToJson(updated)
-                        PlannerHistoryManager.snapshotToday(host, updated)
-                        reloadPlanner()
-                    }
+                    setOnClickListener { v -> animateToggleGoalAction(v) }
                 }
                 goalCard.addView(checkBtn)
 
                 val textCol = LinearLayout(host).apply {
                     orientation = LinearLayout.VERTICAL
                     layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                    setOnClickListener { showGoalHistoryDialog(goal) }
                 }
                 textCol.addView(TextView(host).apply {
                     text = goal.title
@@ -402,9 +423,15 @@ class PlannerPanelBuilder(private val host: MainActivity) {
                         background = themeCoordinator.createGlassChip(tintedColor(info.chipColor, 100), 10f)
                         setPadding(dp(8), dp(4), dp(8), dp(4))
                         layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(dp(6), 0, dp(6), 0) }
-                        setOnClickListener { showGoalHistoryDialog(goal) }
                     }
                     goalCard.addView(chipView)
+                }
+
+                goalCard.setOnClickListener { animateToggleGoalAction(checkBtn) }
+                goalCard.setOnLongClickListener { v ->
+                    v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                    showGoalHistoryDialog(goal)
+                    true
                 }
 
                 // Hold & Drag Reorder Handle
@@ -417,10 +444,9 @@ class PlannerPanelBuilder(private val host: MainActivity) {
                     }
                     goalCard.addView(gripBtn)
 
-                    // Enable Hold & Drag on the goal card
-                    goalCard.setOnLongClickListener { v ->
+                    gripBtn.setOnLongClickListener { v ->
                         val clipData = android.content.ClipData.newPlainText("goal_id", goal.id)
-                        val shadow = View.DragShadowBuilder(v)
+                        val shadow = View.DragShadowBuilder(goalCard)
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                             v.startDragAndDrop(clipData, shadow, goal.id, 0)
                         } else {
@@ -1249,27 +1275,7 @@ class PlannerPanelBuilder(private val host: MainActivity) {
     }
 
     internal fun migrateHistoricalDailyGoals(context: Context) {
-        val prefs = context.getSharedPreferences("StudyTimerPrefs", Context.MODE_PRIVATE)
-        val globalGoal = (prefs.all["daily_goal_secs"] as? Number)?.toLong() ?: 2700L
-        val editor = prefs.edit()
-        var modified = false
-        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-
-        for (key in prefs.all.keys) {
-            if (key.endsWith("_focus_total")) {
-                val dStr = key.removeSuffix("_focus_total")
-                val goalKey = "${dStr}_goal_secs"
-                if (!prefs.contains(goalKey)) {
-                    editor.putLong(goalKey, globalGoal)
-                    modified = true
-                }
-            }
-        }
-        if (!prefs.contains("${todayStr}_goal_secs")) {
-            editor.putLong("${todayStr}_goal_secs", globalGoal)
-            modified = true
-        }
-        if (modified) editor.apply()
+        GoalHistoryManager.reconcileAllHistoricalGoals(context)
     }
 
     internal data class MatrixGoalItem(val id: String, val title: String, val note: String = "", val targetMinutes: Int = 0, val isDeleted: Boolean = false)

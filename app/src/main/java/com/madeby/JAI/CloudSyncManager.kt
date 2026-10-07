@@ -214,7 +214,6 @@ object CloudSyncManager {
             val examJsonStr = examPrefs.getString("exams_list_json", "[]") ?: "[]"
             prefsJson.put("__exam_countdowns_data__", examJsonStr)
 
-            val currentProf = ProfileManager.getProfile(context)
             var userName: String = ProfileManager.getEffectiveDisplayName(context).trim().take(50)
             val userEmail: String = (AuthManager.getUserEmail(context) ?: "").trim().take(100)
             val profileImg: String = ProfileManager.getEffectiveAvatarUrl(context).trim().take(300)
@@ -222,7 +221,7 @@ object CloudSyncManager {
 
             // Exact schema columns: user_id, user_name, user_email, profile_image_uri, prefs_data, timeline_data, updated_at
             val payload = JSONObject()
-            payload.put("user_id", userId as String)
+            payload.put("user_id", userId)
             payload.put("user_name", userName)
             payload.put("user_email", userEmail)
             payload.put("profile_image_uri", profileImg)
@@ -304,7 +303,7 @@ object CloudSyncManager {
                     
                     val publicAvatar = ProfileManager.getPublicAvatarUrl(context).ifBlank { userName.firstOrNull()?.uppercaseChar()?.toString() ?: "S" }
                     val lbPayload = JSONObject().apply {
-                        put("user_id", userId as String)
+                        put("user_id", userId)
                         put("user_name", if (userName.isNotBlank()) userName else "Student")
                         put("avatar_url", publicAvatar)
                         put("study_date", todayKeyFmt)
@@ -354,17 +353,11 @@ object CloudSyncManager {
         try {
             // 1. Merge Timeline Entries
             val cloudTimelineStr = cloudRecord.optString("timeline_data")
-            val localTimeline = TimelineLogger.load(context).toMutableList()
+            val localTimeline = TimelineLogger.load(context)
             if (cloudTimelineStr.isNotEmpty()) {
                 val cloudEntries = parseTimelineJson(cloudTimelineStr)
-                val existingTimestamps = localTimeline.map { it.timestamp }.toSet()
-                for (ce in cloudEntries) {
-                    if (ce.timestamp !in existingTimestamps) {
-                        localTimeline.add(ce)
-                    }
-                }
-                localTimeline.sortBy { it.timestamp }
-                TimelineLogger.importRaw(context, timelineToJsonString(localTimeline))
+                val mergedTimeline = TimelineLogger.mergeAndDeduplicate(localTimeline, cloudEntries)
+                TimelineLogger.importRaw(context, timelineToJsonString(mergedTimeline))
             }
 
             // 2. Merge Preferences (Keep max of totals, merge keys, merge planner goals & snapshots)
@@ -416,12 +409,21 @@ object CloudSyncManager {
                         if (!sharedPrefs.contains(k) || sharedPrefs.getString(k, "[]") == "[]") {
                             editor.putString(k, cloudPrefs.optString(k, "[]"))
                         }
+                    } else if (k == "daily_goal_history_json") {
+                        val localHist = sharedPrefs.getString("daily_goal_history_json", "[]") ?: "[]"
+                        val cloudHist = cloudPrefs.optString("daily_goal_history_json", "[]")
+                        if (cloudHist.isNotBlank() && cloudHist != "[]") {
+                            val merged = GoalHistoryManager.mergeCloudHistory(localHist, cloudHist)
+                            editor.putString("daily_goal_history_json", merged)
+                        }
                     } else if (!sharedPrefs.contains(k)) {
                         val v = cloudPrefs.get(k)
                         when (v) {
                             is Boolean -> editor.putBoolean(k, v)
                             is Number -> if (k in intPrefKeys) editor.putInt(k, v.toInt()) else editor.putLong(k, v.toLong())
                             is String -> editor.putString(k, v)
+                            is JSONArray -> editor.putString(k, v.toString())
+                            is JSONObject -> editor.putString(k, v.toString())
                         }
                     }
                 }
@@ -716,6 +718,8 @@ object CloudSyncManager {
                                         }
                                     }
                                     is String -> editor.putString(k, v)
+                                    is JSONArray -> editor.putString(k, v.toString())
+                                    is JSONObject -> editor.putString(k, v.toString())
                                 }
                             }
                         }
@@ -823,6 +827,7 @@ object CloudSyncManager {
                     TimelineLogger.importRaw(context, timelineStr)
                 }
 
+                StatsEngine(context).sanitizeAndHealHistoricalTotals()
                 BackupManager(context).runSilentAutoBackup()
                 return@withContext true
             }

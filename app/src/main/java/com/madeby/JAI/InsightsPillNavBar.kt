@@ -47,6 +47,7 @@ class InsightsPillNavBar @JvmOverloads constructor(
     private val labelViews = mutableListOf<TextView>()
 
     private var primaryAccentColor: Int = ThemeCoordinator.INSIGHTS_NAV_ACCENT
+    private var indicatorAnimator: ValueAnimator? = null
 
     init {
         elevation = 20f * density
@@ -255,11 +256,12 @@ class InsightsPillNavBar @JvmOverloads constructor(
             val targetX = activeView.left.toFloat()
             val targetWidth = activeView.width
 
+            indicatorAnimator?.cancel()
             if (animated && indicatorView.width > 0) {
                 val startX = indicatorView.translationX
                 val startWidth = indicatorView.layoutParams.width
 
-                ValueAnimator.ofFloat(0f, 1f).apply {
+                indicatorAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
                     duration = 280
                     // Damping 0.80f spring overshoot feel
                     interpolator = OvershootInterpolator(1.18f)
@@ -282,6 +284,12 @@ class InsightsPillNavBar @JvmOverloads constructor(
                 indicatorView.requestLayout()
             }
         }
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        indicatorAnimator?.cancel()
+        indicatorAnimator = null
     }
 
     fun setBarVisibility(visible: Boolean) {

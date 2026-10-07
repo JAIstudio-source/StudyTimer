@@ -31,15 +31,15 @@ class CalendarTimeline(private val host: MainActivity) {
             val month = anchor.get(Calendar.MONTH)
             val monthLabelSdf = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
 
-            val dateSdf = dateKeyFmt
             var minY = Int.MAX_VALUE; var minM = Int.MAX_VALUE
             var maxY = Int.MIN_VALUE; var maxM = Int.MIN_VALUE
             for (key in snap.dayFocus.keys) {
-                val d = try { dateSdf.parse(key) } catch (_: Exception) { null } ?: continue
-                val c = Calendar.getInstance().apply { time = d }
-                val y = c.get(Calendar.YEAR); val m = c.get(Calendar.MONTH)
-                if (y < minY || (y == minY && m < minM)) { minY = y; minM = m }
-                if (y > maxY || (y == maxY && m > maxM)) { maxY = y; maxM = m }
+                if (key.length >= 7) {
+                    val y = key.substring(0, 4).toIntOrNull() ?: continue
+                    val m = (key.substring(5, 7).toIntOrNull() ?: 1) - 1
+                    if (y < minY || (y == minY && m < minM)) { minY = y; minM = m }
+                    if (y > maxY || (y == maxY && m > maxM)) { maxY = y; maxM = m }
+                }
             }
             val now = Calendar.getInstance()
             if (maxY == Int.MIN_VALUE || now.get(Calendar.YEAR) > maxY || (now.get(Calendar.YEAR) == maxY && now.get(Calendar.MONTH) > maxM)) {
@@ -231,6 +231,12 @@ class CalendarTimeline(private val host: MainActivity) {
                     ringViews[i].invalidate()
                 }
             }
+            grid.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+                override fun onViewAttachedToWindow(v: View) {}
+                override fun onViewDetachedFromWindow(v: View) {
+                    gridAnim.cancel()
+                }
+            })
             gridAnim.start()
             calendarCard.addView(grid)
 
@@ -595,16 +601,38 @@ class CalendarTimeline(private val host: MainActivity) {
                     }
 
                     val breakdown = ExamCountdownManager.getCountdownBreakdown(exam.targetTimestampMs)
+                    val isUrgent = breakdown.totalDays in 0..3 && !breakdown.isPast
 
                     val examCard = LinearLayout(this).apply {
                         orientation = LinearLayout.VERTICAL
-                        background = themeCoordinator.createCardBackground()
+                        background = if (isUrgent) {
+                            GradientDrawable().apply {
+                                cornerRadius = dp(16).toFloat()
+                                val baseBg = if (themeCoordinator.isDarkMode()) 0xFF181A24.toInt() else 0xFFF8FAFC.toInt()
+                                setColor(baseBg)
+                                setStroke(dp(2), Color.argb(180, 245, 158, 11))
+                            }
+                        } else {
+                            themeCoordinator.createCardBackground()
+                        }
                         setPadding(dp(16), dp(14), dp(16), dp(14))
                         layoutParams = LinearLayout.LayoutParams(
                             LinearLayout.LayoutParams.MATCH_PARENT,
                             LinearLayout.LayoutParams.WRAP_CONTENT
                         ).apply {
                             setMargins(0, 0, 0, dp(10))
+                        }
+                        if (isUrgent) {
+                            post {
+                                animate()
+                                    .alpha(0.85f)
+                                    .setDuration(1000)
+                                    .setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
+                                    .withEndAction {
+                                        animate().alpha(1.0f).setDuration(1000).start()
+                                    }
+                                    .start()
+                            }
                         }
                         setOnClickListener {
                             showExamDetailsModal(exam)

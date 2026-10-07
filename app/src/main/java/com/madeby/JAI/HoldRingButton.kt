@@ -12,11 +12,26 @@ import kotlin.math.min
 
 class HoldRingButton(context: Context) : AppCompatButton(context) {
 
+    private var decayAnimator: android.animation.ValueAnimator? = null
+
     var progress: Float = 0f
         set(value) {
             field = value.coerceIn(0f, 1f)
             invalidate()
         }
+
+    fun animateProgressToZero(durationMs: Long = 220L) {
+        decayAnimator?.cancel()
+        if (progress <= 0f) return
+        decayAnimator = android.animation.ValueAnimator.ofFloat(progress, 0f).apply {
+            duration = durationMs
+            interpolator = android.view.animation.DecelerateInterpolator()
+            addUpdateListener { anim ->
+                progress = anim.animatedValue as Float
+            }
+            start()
+        }
+    }
 
     var ringColor: Int = Color.WHITE
         set(value) {
@@ -97,5 +112,11 @@ class HoldRingButton(context: Context) : AppCompatButton(context) {
         cornerArc(left, bottom - 2f * r, left + 2f * r, bottom, 90f)
         lineSegment(edgeH, left, bottom - r, left, top + r)
         canvas.drawPath(ringPath, paint)
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        decayAnimator?.cancel()
+        decayAnimator = null
     }
 }

@@ -121,6 +121,23 @@ class TimerService : Service() {
         return START_STICKY
     }
 
+    private var cachedLectureBitmap: android.graphics.Bitmap? = null
+    private var cachedFlameBitmap: android.graphics.Bitmap? = null
+
+    private fun getCachedLargeIconBitmap(isStudying: Boolean): android.graphics.Bitmap? {
+        return if (isStudying) {
+            if (cachedLectureBitmap == null || cachedLectureBitmap?.isRecycled == true) {
+                cachedLectureBitmap = runCatching { android.graphics.BitmapFactory.decodeResource(resources, R.drawable.ic_lecture_logo) }.getOrNull()
+            }
+            cachedLectureBitmap
+        } else {
+            if (cachedFlameBitmap == null || cachedFlameBitmap?.isRecycled == true) {
+                cachedFlameBitmap = runCatching { android.graphics.BitmapFactory.decodeResource(resources, R.drawable.ic_flame) }.getOrNull()
+            }
+            cachedFlameBitmap
+        }
+    }
+
     private fun updateForegroundNotification() {
         if (cachedTogglePendingIntent == null) {
             val toggleIntent = Intent(this, TimerService::class.java).apply {
@@ -174,8 +191,7 @@ class TimerService : Service() {
             sharedPrefs.safeInt("customPrimary", 0xFFA78BFA.toInt())
         }
 
-        val largeIconRes = if (currentTimerState == TimerState.STUDYING) R.drawable.ic_lecture_logo else R.drawable.ic_flame
-        val largeIconBm = runCatching { android.graphics.BitmapFactory.decodeResource(resources, largeIconRes) }.getOrNull()
+        val largeIconBm = getCachedLargeIconBitmap(currentTimerState == TimerState.STUDYING)
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
@@ -1155,6 +1171,31 @@ class TimerService : Service() {
         timerMode = sharedPrefs.getString("timer_mode", "STOPWATCH") ?: "STOPWATCH"
 
         val nowSecs = System.currentTimeMillis() / 1000L
+        val currentDateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
+        if (activeSessionDateStr != null && activeSessionDateStr != currentDateStr) {
+            android.util.Log.d("TimerService", "loadSavedState: Offline date rollover detected from $activeSessionDateStr to $currentDateStr")
+            if (currentTimerState != TimerState.STUDYING && currentTimerState != TimerState.BREAK) {
+                accumulatedStudy = 0L
+                currentBreakSeconds = 0L
+                lastTimestamp = 0L
+                currentTimerState = TimerState.IDLE
+                continuousStudySecs = 0L
+                isPendingActivityConfirmation = false
+            } else {
+                val gap = nowSecs - lastTimestamp
+                if (gap > MAX_ACCEPTABLE_GAP_SECS) {
+                    accumulatedStudy = 0L
+                    currentBreakSeconds = 0L
+                    lastTimestamp = 0L
+                    currentTimerState = TimerState.IDLE
+                    continuousStudySecs = 0L
+                    isPendingActivityConfirmation = false
+                }
+            }
+            activeSessionDateStr = currentDateStr
+            saveState()
+        }
 
         // Self-heal corrupted 0-second PAUSED session to clean IDLE
         if (currentTimerState == TimerState.PAUSED && accumulatedStudy == 0L && currentBreakSeconds == 0L) {

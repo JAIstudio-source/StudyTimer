@@ -577,6 +577,11 @@ class StatsPanelBuilder(private val host: MainActivity) {
             background = themeCoordinator.createCardBackground()
             setPadding(dp(18), dp(16), dp(18), dp(16))
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(2), 0, dp(8)) }
+            if (!hasPlayedStatsEntranceAnimation) {
+                alpha = 0f
+                translationY = dp(16).toFloat()
+                animate().alpha(1f).translationY(0f).setDuration(280).setInterpolator(android.view.animation.DecelerateInterpolator()).start()
+            }
         }
 
         val heroGoalSecs = snap.heroGoalSecs
@@ -1017,20 +1022,10 @@ class StatsPanelBuilder(private val host: MainActivity) {
 
         fun updatePieChartContent(container: LinearLayout) {
             container.removeAllViews()
-            val isDonut = sharedPrefs.safeBoolean("use_donut_chart", true)
-            val pieView = SubjectPieChartView(host).apply {
-                primaryColor = themeCoordinator.primaryColor
-                textColor = themeCoordinator.textColor
-                isDonutMode = isDonut
-                boxColor = if (themeCoordinator.isDarkMode()) (if (themeCoordinator.activeBgMode == "ECLIPSE") 0xFF1E293B.toInt() else 0xFF111625.toInt()) else 0xFFFFFFFF.toInt()
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(340))
-                setOnClickListener { showPieChartDetailsModal() }
-            }
 
             val slicesList = ArrayList<SubjectPieChartView.PieSlice>()
 
             // Subject Sessions Breakdown derived from unified daily session logs
-            val todayStr = dateKeyFmt.format(Date())
             val (allDaySessions, _) = dayBlocks(todayStr)
 
             // Group unified sessions by subject (aggregating duration + resolved SubjectTag)
@@ -1053,6 +1048,21 @@ class StatsPanelBuilder(private val host: MainActivity) {
             }
 
             val totalSecsAll = subjectMap.values.sumOf { it.second }
+
+            val isDonut = sharedPrefs.safeBoolean("use_donut_chart", true)
+            val pieView = SubjectPieChartView(host).apply {
+                primaryColor = themeCoordinator.primaryColor
+                textColor = themeCoordinator.textColor
+                isDonutMode = isDonut
+                boxColor = if (themeCoordinator.isDarkMode()) (if (themeCoordinator.activeBgMode == "ECLIPSE") 0xFF1E293B.toInt() else 0xFF111625.toInt()) else 0xFFFFFFFF.toInt()
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(340))
+                setOnClickListener { showPieChartDetailsModal() }
+                onSliceSelectedListener = { slice, _ ->
+                    if (slice != null && (slice.label == "Others" || slice.bundledSlices.isNotEmpty())) {
+                        SubjectDialogHelper(host).showOthersBreakdownDialog(slice, totalSecsAll.toDouble())
+                    }
+                }
+            }
 
             if (subjectMap.isEmpty() || totalSecsAll < 60L) {
                 val emptyBox = LinearLayout(host).apply {

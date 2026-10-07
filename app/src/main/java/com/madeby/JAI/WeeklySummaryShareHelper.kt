@@ -290,18 +290,27 @@ class WeeklySummaryShareHelper(private val host: MainActivity) {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             visibility = View.GONE
-            setBackgroundColor(tintedColor(themeCoordinator.bgColor, 220))
+            setBackgroundColor(tintedColor(themeCoordinator.bgColor, 210))
             layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         }
-        loadingOverlay.addView(android.widget.ProgressBar(host, null, android.R.attr.progressBarStyleLarge).apply {
+        val loadingCard = LinearLayout(host).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            background = themeCoordinator.createCardBackground(18f)
+            setPadding(dp(24), dp(20), dp(24), dp(20))
+        }
+        loadingCard.addView(android.widget.ProgressBar(host, null, android.R.attr.progressBarStyleLarge).apply {
             isIndeterminate = true
+            indeterminateTintList = android.content.res.ColorStateList.valueOf(themeCoordinator.primaryColor)
         })
-        loadingOverlay.addView(TextView(host).apply {
+        loadingCard.addView(TextView(host).apply {
             text = getString(R.string.saving)
             setTextColor(themeCoordinator.textColor)
             textSize = 14f
+            typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
             setPadding(0, dp(12), 0, 0)
         })
+        loadingOverlay.addView(loadingCard)
 
         fun getSafeBitmap() = currentBitmap
 

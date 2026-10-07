@@ -76,6 +76,12 @@ class LoginActivity : AppCompatActivity() {
 
         // Handle OAuth Deep-Link return if applicable
         intent?.data?.let { handleDeepLink(it) }
+
+        if (intent?.getBooleanExtra("auto_google", false) == true) {
+            val epoch = System.currentTimeMillis()
+            AuthManager.recordTermsConsent(this, epochMillis = epoch)
+            performGoogleSignIn()
+        }
     }
 
     @android.annotation.SuppressLint("ClickableViewAccessibility")

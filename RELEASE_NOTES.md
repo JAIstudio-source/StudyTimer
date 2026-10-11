@@ -1,10 +1,9 @@
-# StudyTimer 3.1.8 (versionCode 41)
+# StudyTimer 3.1.9 (versionCode 42)
 
-### What's New in Version 3.1.8 🚀
-1. Leaderboard UI update 
-2. Added animation for leaderboard. 
-3. More changes.
-4. Fixed some known bugs. 
+### What's New in Version 3.1.9 🚀
+- Fixed wrong time calculation when timer is running.
+- Fixed pomodoro session problem.
+- Fixed known bugs.
 
 ---
 
@@ -12,7 +11,4 @@
 - Android 9 (API 28) through Android 16 (API 36)
 
 ## Installation
-Install `StudyTimer-release.apk` (v3.1.8). Updating preserves all your study logs, streaks, and settings.
-
-
-
+Install `StudyTimer-release.apk` (v3.1.9). Updating preserves all your study logs, streaks, and settings.

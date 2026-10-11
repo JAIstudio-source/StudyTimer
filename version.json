@@ -1,7 +1,7 @@
 {
     "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
     "url": "https://get-studytimer.vercel.app/?download=true",
-    "versionCode": 41,
-    "versionName": "3.1.8",
-    "releaseNotes": "1. Leaderboard UI update. 2. Added animation for leaderboard. 3. More changes. 4. Fixed some known bugs."
+    "versionCode": 42,
+    "versionName": "3.1.9",
+    "releaseNotes": "Fixed wrong time calculation when timer is running. Fixed pomodoro session problem. Fixed known bugs."
 }

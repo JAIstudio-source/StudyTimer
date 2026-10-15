@@ -3,5 +3,5 @@
     "url": "https://get-studytimer.vercel.app/?download=true",
     "versionCode": 43,
     "versionName": "3.2.0",
-    "releaseNotes": "Live Study Rooms & Circles. Member profile popup cards. Smooth leaderboard refresh. Fixed toast message stacking/queueing. Planner and cloud sync refinements."
+    "releaseNotes": "Live study rooms with friends. Member profile popups. Pull to refresh leaderboard. Fixed repeating popup messages. Cleaner planner and general performance fixes."
 }

@@ -1,7 +1,7 @@
-{
-    "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-    "url": "https://get-studytimer.vercel.app/?download=true",
-    "versionCode": 47,
-    "versionName": "3.3.3",
-    "releaseNotes": "Fixed Pomodoro overtime non-stop vibration, hardened SharedPreferences against ClassCastException crashes, completely removed legacy Summary Card & CSV export, and improved overall app stability."
+﻿{
+    "apkUrl":  "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
+    "url":  "https://get-studytimer.vercel.app/?download=true",
+    "versionCode":  48,
+    "versionName":  "3.3.4",
+    "releaseNotes":  "Fixed Pomodoro overtime non-stop vibration, hardened SharedPreferences against ClassCastException crashes, completely removed legacy Summary Card \u0026 CSV export, and improved overall app stability."
 }

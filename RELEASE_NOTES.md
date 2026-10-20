@@ -1,6 +1,6 @@
-# StudyTimer 3.3.3 (versionCode 47)
+# StudyTimer 3.3.4 (versionCode 48)
 
-### What's New in Version 3.3.3 🚀
+### What's New in Version 3.3.4 🚀
 - **Fixed Pomodoro Overtime Vibration:**
   - Resolved an issue where the phone would vibrate continuously every second once a Pomodoro timer hit 00:00 during overtime. Vibration and sound now trigger cleanly once as designed.
 - **Type Safety & Crash Prevention:**
@@ -17,6 +17,6 @@
 - Android 9 (API 28) through Android 16 (API 36)
 
 ## Installation
-Install `StudyTimer-release.apk` (v3.3.3). Updating preserves all your study logs, streaks, and settings.
+Install `StudyTimer-release.apk` (v3.3.4). Updating preserves all your study logs, streaks, and settings.
 
 

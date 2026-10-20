@@ -1,7 +1,7 @@
 {
     "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
     "url": "https://get-studytimer.vercel.app/?download=true",
-    "versionCode": 45,
-    "versionName": "3.3.1",
-    "releaseNotes": "Fix Google Sign-In selection loop bug. Streamline Settings UI with consolidated cards and conditional visibility. Planner completed goals display in yellow with remaining duration, fixed history grid matrix today's status, and re-added Daily Motivational Inspiration."
+    "versionCode": 46,
+    "versionName": "3.3.2",
+    "releaseNotes": "Goal completion states: Green checkmark for target met, Red cross for early stop with time remaining, and Yellow for ongoing goals. Replaced confusing terms (grid, matrix, palette) with student-friendly labels (Weekly Goal Tracker, Goal Colors, History)."
 }

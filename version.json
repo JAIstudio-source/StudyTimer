@@ -1,7 +1,7 @@
 {
     "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
     "url": "https://get-studytimer.vercel.app/?download=true",
-    "versionCode": 43,
-    "versionName": "3.2.0",
-    "releaseNotes": "Live study rooms with friends. Member profile popups. Pull to refresh leaderboard. Fixed repeating popup messages. Cleaner planner and general performance fixes."
+    "versionCode": 45,
+    "versionName": "3.3.1",
+    "releaseNotes": "Fix Google Sign-In selection loop bug. Streamline Settings UI with consolidated cards and conditional visibility. Planner completed goals display in yellow with remaining duration, fixed history grid matrix today's status, and re-added Daily Motivational Inspiration."
 }

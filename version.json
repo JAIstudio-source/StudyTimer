@@ -1,7 +1,7 @@
 {
     "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
     "url": "https://get-studytimer.vercel.app/?download=true",
-    "versionCode": 46,
-    "versionName": "3.3.2",
-    "releaseNotes": "Goal completion states: Green checkmark for target met, Red cross for early stop with time remaining, and Yellow for ongoing goals. Replaced confusing terms (grid, matrix, palette) with student-friendly labels (Weekly Goal Tracker, Goal Colors, History)."
+    "versionCode": 47,
+    "versionName": "3.3.3",
+    "releaseNotes": "Fixed Pomodoro overtime non-stop vibration, hardened SharedPreferences against ClassCastException crashes, completely removed legacy Summary Card & CSV export, and improved overall app stability."
 }

@@ -1,16 +1,18 @@
-# StudyTimer 3.3.1 (versionCode 45)
+# StudyTimer 3.3.2 (versionCode 46)
 
-### What's New in Version 3.3.1 🚀
-- **Google Sign-In Reliability & Loop Fix:** Resolved the account selection loop where selecting a Google account looped back to the sign-in screen. Added robust fallback handling for missing Play Services tokens and Google OAuth deep links, ensuring users reliably enter the app.
-- **Settings UI Simplification & Redundancy Clean-up:**
-  - **Eliminated Duplicate Settings:** Removed redundant cloud backup controls scattered in Profile settings; all cloud backups and sync management are now unified in the dedicated "Cloud & Backups" tab.
-  - **Streamlined Card Layouts:** Consolidated crowded sub-screens (Timer reduced from 5 cards to 2; Goals and Community streamlined into 2 focused cards each) for a modern, clutter-free look.
-  - **Conditional/Dynamic Visibility:** Sub-options only reveal when their parent switch is active (e.g., auto-pause on face up only displays when Flip to Focus is enabled, reminder time picker only appears when Daily Goal Reminder is toggled on, and live study status only reveals when participating in leaderboards).
-- **Planner & Goals UI Enhancements:**
-  - **Yellow Goal Completion Styling:** Completed goals and planner checklist items now render with crisp `#FACC15` yellow accents and badges.
-  - **Preserved Duration & Remaining Time Display:** Completed goals properly show elapsed and remaining time (e.g. `15/30m (15m left)`) rather than hiding duration details.
-  - **History Grid Matrix Fix:** Cross marks (`✕`) now strictly only appear on past missed days, never on today's active goals (which display the in-progress `•` indicator or `✓` upon completion).
-  - **Metrics Clean-up & Daily Inspiration:** Removed "Best Streak" and "Most Consistent" metrics from beneath planner goals, replacing them with a sleek **Daily Inspiration** motivational quote card right below the goals list.
+### What's New in Version 3.3.2 🚀
+- **Goal Completion Logic & Intuitive Color Coding:**
+  - **Green Checkmark for Completed Goals (`✓`):** When your targeted study time is reached (or when checking a flexible task), the goal displays a solid green `#22C55E` badge and green checkmark.
+  - **Red Cross for Stopped Early (`✕`):** If you manually check off a goal before its target time is met, it clearly marks a red `#EF4444` cross along with the remaining time left (e.g. `✕ 15/30m (15m left)`), preventing false completion marks.
+  - **Yellow Accents for In-Progress / Ongoing Goals:** Ongoing active goals show in yellow `#FACC15` with progress time chips and a quick "Start" focus CTA.
+- **Student-Friendly Terminology & Wording Clean-Up:**
+  - Removed confusing technical jargon ("matrix", "grid", "planner palette") and replaced them with student-friendly labels:
+    - `"Goal & Habit Matrix"` / `"Goal & Habit Grid"` ➔ **`Weekly Goal Tracker`**
+    - `"Planner Palette"` / `"Customize planner palette"` ➔ **`Goal Colors`**
+    - `"▦ Grid"` button ➔ **`📊 History`**
+    - Subtitle descriptions updated to clearly explain features (e.g. *"See which goals you finished each day this week"*).
+- **Weekly History Tracker Consistency:**
+  - Today's early-stopped goals accurately show the red `✕` status, completed goals show the green `✓`, and ongoing goals show the active dot `•`.
 
 ---
 
@@ -18,5 +20,5 @@
 - Android 9 (API 28) through Android 16 (API 36)
 
 ## Installation
-Install `StudyTimer-release.apk` (v3.3.1). Updating preserves all your study logs, streaks, and settings.
+Install `StudyTimer-release.apk` (v3.3.2). Updating preserves all your study logs, streaks, and settings.
 

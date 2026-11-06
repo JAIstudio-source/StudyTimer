@@ -1,7 +1,7 @@
 {
     "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
     "url": "https://get-studytimer.vercel.app/?download=true",
-    "versionCode": 49,
-    "versionName": "3.3.5",
-    "releaseNotes": "• New UI Layout & Refined Transitions\n• Study Report Summary Card\n• New Themes & Wallpapers\n• Minor Bug Fixes & Stability Improvements"
+    "versionCode": 51,
+    "versionName": "3.3.7",
+    "releaseNotes": "• Planner Goal Interaction Fix: Completing a goal with remaining time preserves progress without deficit reversion\n• Daily Goal Protection: Fixed rollover and prevented past records from resetting to 45m\n• Mode Switch Pill Visibility: Mode switch button hides while studying, breaking, or paused\n• Stability & live progress syncing improvements"
 }

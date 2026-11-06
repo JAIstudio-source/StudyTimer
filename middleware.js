@@ -34,6 +34,17 @@ export default function middleware(request) {
   const url = new URL(request.url);
   const pathname = url.pathname.replace(/\/$/, '') || '/';
 
+  // Handle Google Site Verification file directly to prevent cleanUrls 308 redirect
+  if (pathname === '/google280896fbdb950624.html') {
+    return new Response('google-site-verification: google280896fbdb950624.html\n', {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'public, max-age=3600'
+      }
+    });
+  }
+
   const isMarkdownRequested =
     acceptHeader.includes('text/markdown') ||
     acceptHeader.includes('text/x-markdown') ||

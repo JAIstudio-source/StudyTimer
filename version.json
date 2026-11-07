@@ -1,7 +1,7 @@
 {
     "apkUrl": "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
     "url": "https://get-studytimer.vercel.app/?download=true",
-    "versionCode": 49,
-    "versionName": "3.3.5",
-    "releaseNotes": "• New UI Layout & Refined Transitions\n• Study Report Summary Card\n• New Themes & Wallpapers\n• Minor Bug Fixes & Stability Improvements"
+    "versionCode": 50,
+    "versionName": "3.3.6",
+    "releaseNotes": "• New Sounds for Study: Relaxing background sounds like gentle rain, cozy fire, ocean waves, and soft bells\n• New Themes & Wallpapers: Minimalist desk wallpapers and dynamic adaptive clock\n• UI Improvements: Simpler welcome setup, larger landscape timer, and cleaner screens\n• Minor Bug Fixes & Performance Improvements"
 }

@@ -20,7 +20,11 @@ CREATE OR REPLACE FUNCTION public.record_study_session_leaderboard(
     p_subject_color TEXT DEFAULT '#3b82f6',
     p_study_date DATE DEFAULT NULL
 )
-RETURNS VOID AS $$
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 DECLARE
     v_clamped_duration INT;
     v_date DATE;
@@ -115,7 +119,11 @@ CREATE OR REPLACE FUNCTION public.sync_study_progress_leaderboard(
     p_subject_color TEXT DEFAULT '#3b82f6',
     p_study_date DATE DEFAULT NULL
 )
-RETURNS VOID AS $$
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 DECLARE
     v_clamped_seconds INT;
     v_date DATE;
@@ -206,7 +214,11 @@ RETURNS TABLE (
     current_subject TEXT,
     subject_color TEXT,
     last_active_at TIMESTAMPTZ
-) AS $$
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 BEGIN
     RETURN QUERY
     SELECT
@@ -243,7 +255,11 @@ RETURNS TABLE (
     current_subject TEXT,
     subject_color TEXT,
     last_active_at TIMESTAMPTZ
-) AS $$
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 BEGIN
     RETURN QUERY
     WITH weekly_agg AS (
@@ -283,7 +299,11 @@ CREATE OR REPLACE FUNCTION public.sync_offline_study_sessions(
     p_user_id TEXT,
     p_sessions JSONB
 )
-RETURNS JSONB AS $$
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 DECLARE
     v_item JSONB;
     v_count INT := 0;

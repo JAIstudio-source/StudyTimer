@@ -46,6 +46,10 @@ skills-lock.json
 
 # Local backup & exports
 Previous_Versions/
+old files/
+old-files/
+/old files/
+/old-files/
 
 # STRICT SECURITY & ADMIN SAFEGUARDS (Do not track or deploy)
 admin/

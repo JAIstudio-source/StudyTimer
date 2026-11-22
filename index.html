@@ -1,22 +1,23 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
+
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover, interactive-widget=resizes-content">
+
   <!-- Primary Meta Tags -->
   <title>StudyTimer - Track Your Progress with Free Pomodoro Timer &amp; Habit Tracker</title>
   <meta name="title" content="StudyTimer - Track Your Progress with Free Pomodoro Timer &amp; Habit Tracker">
   <meta name="description" content="Boost exam scores with StudyTimer. Free Pomodoro timer, subject tracker, study streaks, and analytics for students on Android and Web. 100% ad-free.">
   <meta name="keywords" content="study timer, pomodoro timer, study tracker, pomodoro app, study streak, offline study timer, student focus app, habit tracker for students, free study timer, ad-free study app">
-  <meta name="google-site-verification" content="google280896fbdb950624" />
-  <meta name="google-site-verification" content="280896fbdb950624" />
+  <meta name="google-site-verification" content="google280896fbdb950624">
+  <meta name="google-site-verification" content="280896fbdb950624">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://get-studytimer.vercel.app/">
 
-  <!-- Instant OAuth Token Forwarder (passes Supabase redirect tokens to demo.html) -->
+  <!-- Instant OAuth Token Forwarder -->
   <script>
-    (function() {
+    (function () {
       if (window.location.hash && (window.location.hash.includes('access_token=') || window.location.hash.includes('error='))) {
         window.location.replace('./study' + window.location.hash);
       } else if (window.location.search && (window.location.search.includes('code=') || window.location.search.includes('error='))) {
@@ -28,43 +29,44 @@
   <!-- Favicon & Touch Icons -->
   <link rel="icon" href="assets/logo.png" type="image/png">
   <link rel="apple-touch-icon" href="assets/logo.png">
-  <meta name="theme-color" content="#09090b">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f9f9f7">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#09090b">
 
-  <!-- Schema.org / Google / Reddit Microdata -->
-  <meta itemprop="name" content="StudyTimer - Free Pomodoro Timer & Study Habit Tracker">
+  <!-- Schema.org / Microdata -->
+  <meta itemprop="name" content="StudyTimer - Free Pomodoro Timer &amp; Study Habit Tracker">
   <meta itemprop="description" content="Boost exam scores with StudyTimer. Free Pomodoro timer, subject tracker, study streaks, and analytics for students on Android and Web. 100% ad-free.">
   <meta itemprop="image" content="https://get-studytimer.vercel.app/assets/og-preview.png">
   <link rel="image_src" href="https://get-studytimer.vercel.app/assets/og-preview.png">
 
-  <!-- Open Graph / Facebook / WhatsApp / Threads / LinkedIn / Discord -->
+  <!-- Open Graph -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="StudyTimer">
   <meta property="og:url" content="https://get-studytimer.vercel.app/">
-  <meta property="og:title" content="StudyTimer - Free Pomodoro Timer & Study Habit Tracker">
+  <meta property="og:title" content="StudyTimer - Free Pomodoro Timer &amp; Study Habit Tracker">
   <meta property="og:description" content="Boost exam scores with StudyTimer. Free Pomodoro timer, subject tracker, study streaks, and analytics for students on Android and Web. 100% ad-free.">
   <meta property="og:image" content="https://get-studytimer.vercel.app/assets/og-preview.png">
   <meta property="og:image:secure_url" content="https://get-studytimer.vercel.app/assets/og-preview.png">
   <meta property="og:image:width" content="1024">
   <meta property="og:image:height" content="500">
   <meta property="og:image:type" content="image/png">
-  <meta property="og:image:alt" content="StudyTimer - Free Pomodoro Timer & Study Habit Tracker Preview">
+  <meta property="og:image:alt" content="StudyTimer - Free Pomodoro Timer &amp; Study Habit Tracker Preview">
   <meta property="og:locale" content="en_US">
 
-  <!-- Twitter / X Cards -->
+  <!-- Twitter / X -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:url" content="https://get-studytimer.vercel.app/">
-  <meta name="twitter:title" content="StudyTimer - Free Pomodoro Timer & Study Habit Tracker">
+  <meta name="twitter:title" content="StudyTimer - Free Pomodoro Timer &amp; Study Habit Tracker">
   <meta name="twitter:description" content="Boost exam scores with StudyTimer. Free Pomodoro timer, subject tracker, study streaks, and analytics for students on Android and Web. 100% ad-free.">
   <meta name="twitter:image" content="https://get-studytimer.vercel.app/assets/og-preview.png">
-  <meta name="twitter:image:alt" content="StudyTimer - Free Pomodoro Timer & Study Habit Tracker Preview">
+  <meta name="twitter:image:alt" content="StudyTimer - Free Pomodoro Timer &amp; Study Habit Tracker Preview">
 
-  <!-- Google Fonts -->
+  <!-- Google Fonts: Plus Jakarta Sans + JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  
-  <!-- Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=3.3.0">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="style.css?v=5.0.0">
 
   <!-- Vercel Web Analytics & Speed Insights -->
   <script>
@@ -74,7 +76,7 @@
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
 
-  <!-- Structured Data (JSON-LD Schema for Google Rich Snippets) -->
+  <!-- Structured Data (JSON-LD Schema) -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -107,11 +109,11 @@
         "url": "https://get-studytimer.vercel.app/",
         "downloadUrl": "https://get-studytimer.vercel.app/StudyTimer-release.apk",
         "featureList": [
-          "Pomodoro Focus Timer (25/50m)",
+          "Custom Focus Timer (Stopwatch & Countdown)",
           "Subject Color-Coded Tracking",
-          "Study Streak Habit Heatmap",
-          "Encrypted Cloud Sync & Web Studio",
-          "Student Leaderboard & Analytics"
+          "Study Streak Calendar",
+          "Cloud Backup & Web Studio",
+          "Student Leaderboard & Progress Charts"
         ]
       },
       {
@@ -153,15 +155,15 @@
             "name": "Does StudyTimer work offline?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Yes, StudyTimer is built with an offline-first architecture. All your sessions and streak progress are stored locally on your device and can seamlessly sync to the cloud when connected."
+              "text": "Yes, StudyTimer works without internet. All your sessions and streak progress are stored on your device."
             }
           },
           {
             "@type": "Question",
-            "name": "Can I sync my study sessions between the Android app and Web?",
+            "name": "Can I use StudyTimer on the web as well as Android?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Yes! You can easily sync your subjects, daily focus goals, timeline logs, and leaderboard rankings between the Android application and the web app."
+              "text": "Yes! You can use the web version in your browser and keep everything in sync with your Android app."
             }
           }
         ]
@@ -170,142 +172,121 @@
   }
   </script>
 </head>
+
 <body>
 
-  <!-- NAVIGATION BAR -->
-  <header class="header-nav" id="navbar">
-    <div class="nav-container">
-      <a href="/" class="logo">
-        <img src="assets/logo.png" alt="StudyTimer Logo" class="nav-logo-img">
-        <span class="logo-text">StudyTimer</span>
+  <!-- ============================================================
+       NAVIGATION — Floating Pill Island
+  ============================================================ -->
+  <header class="site-header" id="navbar">
+    <div class="nav-island">
+      <a href="/" class="nav-brand" aria-label="StudyTimer Home">
+        <img src="assets/logo.png" alt="StudyTimer Logo" class="brand-logo-img">
+        <span class="brand-name">StudyTimer</span>
       </a>
 
-      <nav class="nav-links" id="navLinks">
+      <nav class="nav-links" aria-label="Main Navigation">
         <a href="#features" class="nav-link">Features</a>
-        <a href="study" class="nav-link" style="color: var(--accent-emerald); font-weight: 600;">⚡ Try in Browser</a>
-        <a href="#screenshots" class="nav-link">App Screens</a>
-        <a href="#streaks" class="nav-link">Streaks</a>
-        <a href="#students" class="nav-link">For Students</a>
-        <a href="#reviews" class="nav-link">Reviews</a>
+        <a href="#how-it-works" class="nav-link">How It Works</a>
         <a href="#faq" class="nav-link">FAQ</a>
       </nav>
 
       <div class="nav-actions">
-        <button class="theme-toggle-btn desktop-theme-toggle" id="themeToggleBtn" aria-label="Toggle dark and light mode" title="Toggle theme">
-          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="5"></circle>
-            <line x1="12" y1="1" x2="12" y2="3"></line>
-            <line x1="12" y1="21" x2="12" y2="23"></line>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-            <line x1="1" y1="12" x2="3" y2="12"></line>
-            <line x1="21" y1="12" x2="23" y2="12"></line>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        <a href="study" class="nav-try-link">Try in Browser</a>
+        <a href="https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk"
+           download="StudyTimer.apk"
+           class="btn btn-primary btn-sm">Download App</a>
+        <button class="theme-toggle-btn" id="themeToggleBtn" aria-label="Switch to light mode">
+          <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
           </svg>
-          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
           </svg>
         </button>
-        <a href="https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk" class="btn btn-primary btn-sm apk-download-nav" download>
-          <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2a1 1 0 0 1 1 1v10.586l3.293-3.293a1 1 0 1 1 1.414 1.414l-5 5a1 1 0 0 1-1.414 0l-5-5a1 1 0 1 1 1.414-1.414L11 13.586V3a1 1 0 0 1 1-1zm-7 16a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1z"/>
-          </svg>
-          <span>Download App</span>
-        </a>
-        <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle Navigation Menu" aria-expanded="false">
-          <span class="hamburger-bar"></span>
-          <span class="hamburger-bar"></span>
-          <span class="hamburger-bar"></span>
+        <button class="hamburger-btn" id="mobileMenuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="mobileDrawer">
+          <span></span><span></span><span></span>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- Mobile Navigation Drawer Overlay & Backdrop -->
-  <div class="mobile-drawer-backdrop" id="mobileDrawerBackdrop" aria-hidden="true"></div>
-  <div class="mobile-nav-drawer" id="mobileDrawer" aria-label="Mobile Navigation">
-    <div class="mobile-nav-content">
-      <div class="mobile-theme-row">
-        <span>Dark Theme</span>
-        <button class="theme-toggle-btn" id="mobileThemeToggleBtn" aria-label="Toggle dark and light mode">
-          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-        </button>
-      </div>
-      <a href="study" class="mobile-nav-link" style="color: var(--accent-emerald); font-weight: 700;">⚡ Try in Browser</a>
-      <a href="#features" class="mobile-nav-link">Features</a>
-      <a href="#screenshots" class="mobile-nav-link">App Screens</a>
-      <a href="#streaks" class="mobile-nav-link">Streaks</a>
-      <a href="#students" class="mobile-nav-link">For Students</a>
-      <a href="#reviews" class="mobile-nav-link">Reviews</a>
-      <a href="#faq" class="mobile-nav-link">FAQ</a>
-      <a href="about.html" class="mobile-nav-link">About StudyTimer</a>
-      <a href="contact.html" class="mobile-nav-link">Contact Support</a>
+  <!-- Mobile Bottom-Sheet Drawer -->
+  <div class="drawer-backdrop" id="mobileDrawerBackdrop" aria-hidden="true"></div>
+  <div class="mobile-drawer" id="mobileDrawer" role="dialog" aria-modal="true" aria-label="Navigation Menu">
+    <div class="drawer-handle"></div>
+    <nav class="drawer-nav" aria-label="Mobile Navigation">
+      <a href="#features" class="drawer-link">Features</a>
+      <a href="#how-it-works" class="drawer-link">How It Works</a>
+      <a href="#faq" class="drawer-link">FAQ</a>
+      <a href="study" class="drawer-link">Try in Browser</a>
+      <a href="about.html" class="drawer-link">About</a>
+    </nav>
+    <div class="drawer-cta">
+      <a href="https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk"
+         download="StudyTimer.apk"
+         class="btn btn-primary btn-full">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 2v13m0 0l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"/></svg>
+        Download for Android — Free
+      </a>
     </div>
   </div>
 
   <main>
-    <!-- HERO SECTION -->
+
+    <!-- ============================================================
+         SECTION 1: HERO
+    ============================================================ -->
     <section class="hero-section" id="hero">
-      <div class="glow-orb glow-top"></div>
-      <div class="container hero-container">
-        
-        <div class="hero-content">
-          <h1 class="hero-title">
-            Study Better.<br>
-            <span class="text-highlight">Build Daily Focus.</span>
+      <div class="hero-inner container">
+
+        <div class="hero-text">
+          <h1 class="hero-headline">
+            <span class="headline-line reveal-item reveal-delay-1">Stop studying hard.</span>
+            <span class="headline-line headline-accent reveal-item reveal-delay-2">Start studying smart.</span>
           </h1>
 
-          <p class="hero-description">
-            The simple study timer app that helps you stay focused, stop procrastinating on your phone, and build a daily study habit for all your school and college subjects.
+          <p class="hero-subheadline reveal-item reveal-delay-3">
+            A free timer app that helps you focus, track your subjects, and never miss a study day — no ads, no distractions.
           </p>
 
-          <!-- Store & Download CTA Buttons -->
-          <div class="hero-cta-group" id="download">
-            <a href="https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk" class="store-badge-btn btn-apk-download" download>
-              <svg class="store-icon" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2a1 1 0 0 1 1 1v10.586l3.293-3.293a1 1 0 1 1 1.414 1.414l-5 5a1 1 0 0 1-1.414 0l-5-5a1 1 0 1 1 1.414-1.414L11 13.586V3a1 1 0 0 1 1-1zm-7 16a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1z"/>
-              </svg>
-              <span>Download APK</span>
+          <div class="hero-ctas reveal-item reveal-delay-4">
+            <a href="https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk"
+               download="StudyTimer.apk"
+               class="btn btn-primary btn-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 2v13m0 0l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"/></svg>
+              Download for Android (Free)
             </a>
-
-            <a href="study" class="store-badge-btn btn-demo-action">
-              <svg class="store-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 6 12 12 16 14"></polyline>
-              </svg>
-              <span>⚡ Try in Browser</span>
-            </a>
-
-            <a href="https://github.com/JAIstudio-source/StudyTimer" target="_blank" rel="noopener" class="store-badge-btn btn-github">
-              <svg class="store-icon" viewBox="0 0 24 24" fill="currentColor">
-                <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
-              </svg>
-              <span>GitHub</span>
+            <a href="study" class="btn btn-ghost btn-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+              Try in Browser
             </a>
           </div>
 
-          <!-- Student Stats -->
-          <div class="hero-social-proof">
-            <div class="rating-stars">★★★★★</div>
-            <div class="rating-text">
-              <strong>Trusted by students</strong> studying for school, college, and board exams
+          <div class="trust-strip reveal-item reveal-delay-5">
+            <div class="trust-item">
+              <span class="trust-highlight">No Ads</span>
+            </div>
+            <span class="trust-divider">·</span>
+            <div class="trust-item">
+              <span class="trust-highlight">Works Offline</span>
+            </div>
+            <span class="trust-divider">·</span>
+            <div class="trust-item">
+              <span class="trust-version-pill" id="heroAppVersion">v3.3.6</span>
+              <span class="trust-label">Latest Version</span>
             </div>
           </div>
         </div>
 
-        <!-- HERO PHONE MOCKUP WITH REAL APP SCREENSHOT -->
-        <div class="hero-mockup-wrapper">
-          <div class="phone-frame hero-phone-frame">
-            <div class="phone-notch">
-              <div class="camera-lens"></div>
-              <div class="speaker-grill"></div>
-            </div>
-            <div class="phone-screen-image-wrapper">
-              <img src="assets/screenshots/screen_09_pomodoro.webp" alt="StudyTimer Focus Screen Screenshot" class="app-real-screenshot" loading="eager">
-              <div class="screenshot-overlay-tag">
-                <span>⚡ Real App Screen: Pomodoro Focus</span>
+        <div class="hero-phone-wrap reveal-item reveal-delay-2">
+          <div class="phone-mockup" data-screenshot="assets/screenshots/timer_homescreen.webp" data-caption="Focus Timer — Clean countdown and stopwatch timer for focused study sessions" role="button" tabindex="0" aria-label="Tap to view full screenshot of Focus Timer">
+            <div class="android-camera-dot" aria-hidden="true"></div>
+            <div class="phone-screen">
+              <img src="assets/screenshots/timer_homescreen.webp" alt="StudyTimer app — focus timer homescreen" class="phone-screenshot" loading="eager" width="370" height="800">
+              <div class="screenshot-zoom-hint" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+                <span>Tap to enlarge</span>
               </div>
             </div>
           </div>
@@ -314,622 +295,428 @@
       </div>
     </section>
 
-    <!-- IMPACT STATS BENTO -->
-    <section class="stats-section" id="benefits">
+    <!-- ============================================================
+         SECTION 2: HOW IT WORKS
+    ============================================================ -->
+    <section class="how-section" id="how-it-works">
       <div class="container">
-        <div class="stats-grid">
-          
-          <div class="stat-card">
-            <div class="stat-number">100% Free</div>
-            <div class="stat-label">ZERO ADS &amp; NO PAYWALLS</div>
-            <p class="stat-desc">No popups or banner ads interrupting your homework or study sessions.</p>
-          </div>
-
-          <div class="stat-card stat-card-highlight">
-            <div class="stat-number">Daily Habit</div>
-            <div class="stat-label">STREAK CALENDAR</div>
-            <p class="stat-desc">Build daily momentum and see your consistency grow day by day.</p>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-number">Works Offline</div>
-            <div class="stat-label">NO WI-FI NEEDED</div>
-            <p class="stat-desc">Study anywhere — in school libraries, dorm rooms, or with your phone on airplane mode.</p>
-          </div>
-
-        </div>
-      </div>
-    </section>
-
-    <!-- REAL APP SCREENSHOTS GALLERY -->
-    <section class="gallery-section" id="screenshots">
-      <div class="container">
-        <div class="section-header text-center">
-          <div class="badge-pill">Official App Screens</div>
-          <h2 class="section-title">Clean, Dark &amp; Easy on the Eyes</h2>
-          <p class="section-subtitle">Take a look inside StudyTimer. Everything you need to plan your study day in one simple place.</p>
+        <div class="section-header reveal-item">
+          <span class="section-eyebrow">Simple by design</span>
+          <h2 class="section-title">Three steps, that's it.</h2>
+          <p class="section-desc">No complicated setup. Open the app, start studying.</p>
         </div>
 
-        <div class="screenshots-grid">
-          
-          <!-- Screen 1: Pomodoro Focus -->
-          <div class="gallery-card">
-            <div class="gallery-image-box">
-              <img src="assets/screenshots/screen_09_pomodoro.webp" alt="Pomodoro Focus Screen" class="gallery-img" loading="lazy">
-            </div>
-            <div class="gallery-info">
-              <h3>1. Pomodoro Focus Timer</h3>
-              <p>Study in 25-minute or 50-minute blocks with gentle break alerts to prevent study fatigue.</p>
-            </div>
-          </div>
-
-          <!-- Screen 2: Daily Overview -->
-          <div class="gallery-card">
-            <div class="gallery-image-box">
-              <img src="assets/screenshots/screen_02_insight.webp" alt="Daily Study Insights" class="gallery-img" loading="lazy">
-            </div>
-            <div class="gallery-info">
-              <h3>2. Daily Study Progress</h3>
-              <p>See your total study hours for today, your daily goal progress, and subject summaries.</p>
-            </div>
-          </div>
-
-          <!-- Screen 3: Streak Calendar -->
-          <div class="gallery-card">
-            <div class="gallery-image-box">
-              <img src="assets/screenshots/screen_03_insight-calendar.webp" alt="Study Streak Calendar" class="gallery-img" loading="lazy">
-            </div>
-            <div class="gallery-info">
-              <h3>3. Study Streak Calendar</h3>
-              <p>Color-coded days show your study consistency so you never break your daily learning habit.</p>
-            </div>
-          </div>
-
-          <!-- Screen 4: Subject Pie Chart -->
-          <div class="gallery-card">
-            <div class="gallery-image-box">
-              <img src="assets/screenshots/screen_04_insight-pie-chart.webp" alt="Subject Time Breakdown" class="gallery-img" loading="lazy">
-            </div>
-            <div class="gallery-info">
-              <h3>4. Subject Time Breakdown</h3>
-              <p>Clear pie charts show exactly how many hours you gave to each subject this week.</p>
-            </div>
-          </div>
-
-          <!-- Screen 5: Goal Planner -->
-          <div class="gallery-card">
-            <div class="gallery-image-box">
-              <img src="assets/screenshots/screen_05_insight-goal-planner.webp" alt="Study Goal Planner" class="gallery-img" loading="lazy">
-            </div>
-            <div class="gallery-info">
-              <h3>5. Study Goal Planner</h3>
-              <p>Set daily and weekly study targets for upcoming tests, quizzes, and final exams.</p>
-            </div>
-          </div>
-
-          <!-- Screen 6: Custom Subjects -->
-          <div class="gallery-card">
-            <div class="gallery-image-box">
-              <img src="assets/screenshots/screen_11_subjects.webp" alt="Color-Coded Subjects" class="gallery-img" loading="lazy">
-            </div>
-            <div class="gallery-info">
-              <h3>6. Color-Coded Subjects</h3>
-              <p>Add all your classes (Math, Physics, History, Coding) with custom colors and icons.</p>
-            </div>
-          </div>
-
-          <!-- Screen 7: Summary Card -->
-          <div class="gallery-card">
-            <div class="gallery-image-box">
-              <img src="assets/screenshots/screen_06_summary.webp" alt="Study Highlights" class="gallery-img" loading="lazy">
-            </div>
-            <div class="gallery-info">
-              <h3>7. Best Day Milestones</h3>
-              <p>Celebrate your biggest study days, longest sessions, and all-time records.</p>
-            </div>
-          </div>
-
-          <!-- Screen 8: Fullscreen Desk Timer -->
-          <div class="gallery-card">
-            <div class="gallery-image-box">
-              <img src="assets/screenshots/screen_10_landscape-timer.webp" alt="Landscape Desk Clock" class="gallery-img" loading="lazy">
-            </div>
-            <div class="gallery-info">
-              <h3>8. Landscape Study Clock</h3>
-              <p>Rotate your Android phone sideways to turn it into a distraction-free desk study clock.</p>
-            </div>
-          </div>
-
-          <!-- Screen 9: Timer Settings -->
-          <div class="gallery-card">
-            <div class="gallery-image-box">
-              <img src="assets/screenshots/screen_07_setting-timer.webp" alt="Timer Customization Settings" class="gallery-img" loading="lazy">
-            </div>
-            <div class="gallery-info">
-              <h3>9. Custom Timer Settings</h3>
-              <p>Adjust Pomodoro work intervals, break lengths, sound alerts, and vibration modes.</p>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </section>
-
-    <!-- BEFORE VS AFTER STUDY HABITS -->
-    <section class="comparison-section">
-      <div class="container">
-        <div class="section-header text-center">
-          <div class="badge-pill">Study Smarter</div>
-          <h2 class="section-title">Studying Without a Plan vs. With StudyTimer</h2>
-          <p class="section-subtitle">Stop losing hours to phone notifications and random scrolling while trying to do homework.</p>
-        </div>
-
-        <div class="comparison-grid">
-          
-          <!-- Studying Without StudyTimer -->
-          <div class="comparison-card card-chaos">
-            <div class="comparison-badge badge-chaos">Studying Without a Plan</div>
-            <div class="clutter-screen-preview">
-              <div class="clutter-icons-grid">
-                <div class="fake-icon icon-red"><span>📱 Random Scrolling</span></div>
-                <div class="fake-icon icon-blue"><span>🔔 Notification Popups</span></div>
-                <div class="fake-icon icon-yellow"><span>💬 Group Chat Distractions</span></div>
-                <div class="fake-icon icon-purple"><span>⏰ Lost Track of Hours</span></div>
+        <div class="steps-grid">
+          <div class="step-card tilt-card-3d reveal-item reveal-delay-1">
+            <div class="step-card-top">
+              <div class="step-num">01</div>
+              <div class="step-icon-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               </div>
             </div>
-            <ul class="comparison-list">
-              <li>❌ Getting distracted every 10 minutes by social media</li>
-              <li>❌ Not knowing how much time was actually spent studying</li>
-              <li>❌ Cramming late at night before exam day with lots of stress</li>
-            </ul>
+            <h3 class="step-title">Start a timer</h3>
+            <p class="step-desc">Set 25 minutes, pick your subject, press go. That's your whole setup.</p>
+            <div class="tilt-card-glare"></div>
           </div>
-
-          <!-- Studying With StudyTimer -->
-          <div class="comparison-card card-calm">
-            <div class="comparison-badge badge-calm">Studying With StudyTimer</div>
-            <div class="calm-screen-preview">
-              <div class="calm-text-list">
-                <div class="calm-item">⚡ 25m Focus Block: Math Revision</div>
-                <div class="calm-item">☕ 5m Rest: Grab Water &amp; Stretch</div>
-                <div class="calm-item">🔥 Streak Milestone: 14 Days Studied!</div>
-                <div class="calm-item">📊 Today's Goal: 4 Hours Completed</div>
+          <div class="step-connector reveal-item"></div>
+          <div class="step-card tilt-card-3d reveal-item reveal-delay-2">
+            <div class="step-card-top">
+              <div class="step-num">02</div>
+              <div class="step-icon-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="3"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
               </div>
             </div>
-            <ul class="comparison-list">
-              <li>✅ Focused 25-minute study intervals that keep your brain fresh</li>
-              <li>✅ Clear records of every subject so you know you're prepared</li>
-              <li>✅ Fun daily streaks that make studying every day a habit</li>
-            </ul>
+            <h3 class="step-title">Turn to Desk Clock</h3>
+            <p class="step-desc">Flip your phone sideways for an ambient full-screen clock while you study with your books.</p>
+            <div class="tilt-card-glare"></div>
           </div>
-
+          <div class="step-connector reveal-item"></div>
+          <div class="step-card tilt-card-3d reveal-item reveal-delay-3">
+            <div class="step-card-top">
+              <div class="step-num">03</div>
+              <div class="step-icon-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+              </div>
+            </div>
+            <h3 class="step-title">See your progress</h3>
+            <p class="step-desc">Your streak, hours, and subjects are all saved automatically. Zero manual logging.</p>
+            <div class="tilt-card-glare"></div>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- CORE FEATURES BENTO GRID -->
+    <!-- ============================================================
+         SECTION 3: FEATURES — Bento Grid
+    ============================================================ -->
     <section class="features-section" id="features">
       <div class="container">
-        <div class="section-header text-center">
-          <div class="badge-pill">Built For Students</div>
-          <h2 class="section-title">Simple Tools to Help You Get Better Grades</h2>
-          <p class="section-subtitle">No complicated setups. Just open the app, pick your subject, and start studying.</p>
+        <div class="section-header reveal-item">
+          <span class="section-eyebrow">What's inside</span>
+          <h2 class="section-title">Everything a student needs.</h2>
+          <p class="section-desc">No subscription required. All of this is completely free.</p>
         </div>
 
-        <div class="bento-features-grid">
-          
-          <!-- Feature 1: Pomodoro & Stopwatch -->
-          <div class="bento-card bento-card-large">
+        <div class="bento-grid">
+
+          <!-- Card 1: Focus Timer -->
+          <div class="bento-card bento-feature tilt-card-3d reveal-item">
             <div class="bento-content">
-              <span class="bento-tag">01 // Flexible Timer</span>
-              <h3 class="bento-title">Pomodoro Timer &amp; Open Stopwatch</h3>
-              <p class="bento-desc">
-                Study in 25-minute Pomodoro sessions with 5-minute breaks, or use the open stopwatch when solving long practice papers.
-              </p>
+              <div class="bento-icon-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <h3 class="bento-title">Focus Timer</h3>
+              <p class="bento-desc">Start focused study sessions with custom countdown or stopwatch modes. No distractions, just you and your books.</p>
             </div>
-            <div class="bento-graphic app-blocker-graphic">
-              <div class="blocker-pill-list">
-                <div class="blocker-pill active"><span>25m / 5m Pomodoro</span> <span class="badge-status allowed">POPULAR</span></div>
-                <div class="blocker-pill"><span>50m / 10m Deep Study</span> <span class="badge-status allowed">CUSTOM</span></div>
-                <div class="blocker-pill"><span>Open Stopwatch</span> <span class="badge-status allowed">READY</span></div>
+            <div class="bento-screenshot">
+              <div class="mini-phone-frame" data-screenshot="assets/screenshots/timer_homescreen.webp" data-caption="Focus Timer — Clean countdown and stopwatch timer for focused study sessions" role="button" tabindex="0" aria-label="Tap to view full screenshot of Focus Timer">
+                <div class="android-camera-dot" aria-hidden="true"></div>
+                <img src="assets/screenshots/timer_homescreen.webp" alt="Focus timer" loading="lazy">
+                <div class="screenshot-zoom-hint" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+                </div>
               </div>
             </div>
+            <div class="tilt-card-glare"></div>
           </div>
 
-          <!-- Feature 2: Color Subjects -->
-          <div class="bento-card">
+          <!-- Card 2: Track Subjects -->
+          <div class="bento-card bento-feature tilt-card-3d reveal-item reveal-delay-1">
             <div class="bento-content">
-              <span class="bento-tag">02 // Organization</span>
-              <h3 class="bento-title">Add All Your Subjects</h3>
-              <p class="bento-desc">
-                Create subjects with custom colors (Math, Physics, Biology, History, Coding) so your study log stays neat.
-              </p>
+              <div class="bento-icon-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              </div>
+              <h3 class="bento-title">Track Your Subjects</h3>
+              <p class="bento-desc">Add your classes — Maths, Physics, Chemistry. See exactly how much time you spend on each one.</p>
             </div>
-            <div class="bento-graphic delay-graphic">
-              <div class="delay-circle">
-                <span class="delay-time-display">🎨</span>
-                <span class="delay-sub">Color Tags</span>
+            <div class="bento-screenshot">
+              <div class="mini-phone-frame" data-screenshot="assets/screenshots/donut_month.webp" data-caption="Track Your Subjects — Color-coded distribution and monthly subject breakdowns" role="button" tabindex="0" aria-label="Tap to view full screenshot of Track Your Subjects">
+                <div class="android-camera-dot" aria-hidden="true"></div>
+                <img src="assets/screenshots/donut_month.webp" alt="Subject distribution donut chart" loading="lazy">
+                <div class="screenshot-zoom-hint" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+                </div>
               </div>
             </div>
+            <div class="tilt-card-glare"></div>
           </div>
 
-          <!-- Feature 3: Streak Calendar -->
-          <div class="bento-card" id="streaks">
+          <!-- Card 3: Streaks & Study Insights -->
+          <div class="bento-card bento-feature tilt-card-3d reveal-item reveal-delay-1">
             <div class="bento-content">
-              <span class="bento-tag">03 // Motivation</span>
-              <h3 class="bento-title">Daily Study Streaks</h3>
-              <p class="bento-desc">
-                Build a daily study streak. See your calendar light up as you study every day and beat your best study records.
-              </p>
+              <div class="bento-icon-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              </div>
+              <h3 class="bento-title">Streaks &amp; Insights</h3>
+              <p class="bento-desc">Every day you study adds a tile to your streak. Real charts prove your consistency week by week.</p>
             </div>
-            <div class="bento-graphic schedule-graphic">
-              <div class="schedule-chip">🔥 14 Days Active Streak</div>
-              <div class="schedule-chip">🏆 Best Day: 7 Hours Studied</div>
-            </div>
-          </div>
-
-          <!-- Feature 4: Easy Charts -->
-          <div class="bento-card">
-            <div class="bento-content">
-              <span class="bento-tag">04 // Clear Charts</span>
-              <h3 class="bento-title">Subject Time Charts</h3>
-              <p class="bento-desc">
-                Simple pie charts show you exactly how much time you spent on each subject this week so you can balance your revision.
-              </p>
-            </div>
-            <div class="bento-graphic reminder-graphic">
-              <div class="reminder-box">
-                <span>📊 Math: 40% • Physics: 35% • Coding: 25%</span>
+            <div class="bento-screenshot">
+              <div class="mini-phone-frame" data-screenshot="assets/screenshots/insight_02.webp" data-caption="Streaks & Insights — Deep study analytics and consistency trends" role="button" tabindex="0" aria-label="Tap to view full screenshot of Streaks and Insights">
+                <div class="android-camera-dot" aria-hidden="true"></div>
+                <img src="assets/screenshots/insight_02.webp" alt="Study streaks and performance insights" loading="lazy">
+                <div class="screenshot-zoom-hint" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+                </div>
               </div>
             </div>
+            <div class="tilt-card-glare"></div>
           </div>
 
-          <!-- Feature 5: Offline & Private -->
-          <div class="bento-card bento-card-large">
+          <!-- Card 4: Daily Planner & Goals -->
+          <div class="bento-card bento-feature tilt-card-3d reveal-item reveal-delay-2">
             <div class="bento-content">
-              <span class="bento-tag">05 // Private &amp; Offline</span>
-              <h3 class="bento-title">Works 100% Offline with Backup</h3>
-              <p class="bento-desc">
-                Your study hours stay safely saved on your Android phone. No internet connection needed, with optional Google backup when you want it.
-              </p>
+              <div class="bento-icon-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              </div>
+              <h3 class="bento-title">Daily Planner &amp; Targets</h3>
+              <p class="bento-desc">Set study milestones and checklist tasks. Plan your day with clarity and cross off completed goals.</p>
             </div>
-            <div class="bento-graphic monochrome-graphic">
-              <div class="mono-toggle-demo">
-                <div class="mono-side color-side">Works 100% Offline</div>
-                <div class="mono-side bw-side">Google Backup</div>
+            <div class="bento-screenshot">
+              <div class="mini-phone-frame" data-screenshot="assets/screenshots/planner.webp" data-caption="Daily Planner & Targets — Organize study tasks and achieve daily objectives" role="button" tabindex="0" aria-label="Tap to view full screenshot of Daily Planner">
+                <div class="android-camera-dot" aria-hidden="true"></div>
+                <img src="assets/screenshots/planner.webp" alt="Daily study planner" loading="lazy">
+                <div class="screenshot-zoom-hint" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+                </div>
               </div>
             </div>
+            <div class="tilt-card-glare"></div>
+          </div>
+
+          <!-- Card 5: Landscape Desk Clock -->
+          <div class="bento-card bento-feature tilt-card-3d reveal-item reveal-delay-2">
+            <div class="bento-content">
+              <div class="bento-icon-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="3"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+              </div>
+              <h3 class="bento-title">Landscape Desk Clock</h3>
+              <p class="bento-desc">Rotate your device horizontally for a glowing ambient desk display with calm dimming for zero eye strain.</p>
+            </div>
+            <div class="bento-screenshot">
+              <div class="mini-phone-frame mini-phone-frame-landscape" data-screenshot="assets/screenshots/timer_landscape.webp" data-caption="Landscape Desk Clock — Fullscreen ambient study timer display" role="button" tabindex="0" aria-label="Tap to view full screenshot of Landscape Desk Clock">
+                <div class="android-camera-dot" aria-hidden="true"></div>
+                <img src="assets/screenshots/timer_landscape.webp" alt="Landscape desk clock" loading="lazy">
+                <div class="screenshot-zoom-hint" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+                </div>
+              </div>
+            </div>
+            <div class="tilt-card-glare"></div>
+          </div>
+
+          <!-- Card 6: Live Student Leaderboard -->
+          <div class="bento-card bento-feature tilt-card-3d reveal-item reveal-delay-3">
+            <div class="bento-content">
+              <div class="bento-icon-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path></svg>
+              </div>
+              <h3 class="bento-title">Live Student Leaderboard</h3>
+              <p class="bento-desc">Study alongside peers across the globe. See who is currently focusing and climb daily, weekly, and monthly ranks.</p>
+            </div>
+            <div class="bento-screenshot">
+              <div class="mini-phone-frame" data-screenshot="assets/screenshots/leaderboard.webp" data-caption="Global Leaderboard — Real-time rankings with daily and weekly podiums" role="button" tabindex="0" aria-label="Tap to view full screenshot of Global Leaderboard">
+                <div class="android-camera-dot" aria-hidden="true"></div>
+                <img src="assets/screenshots/leaderboard.webp" alt="Live student leaderboard" loading="lazy">
+                <div class="screenshot-zoom-hint" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+                </div>
+              </div>
+            </div>
+            <div class="tilt-card-glare"></div>
+          </div>
+
+          <!-- Card 7: Works Offline & Zero Ads -->
+          <div class="bento-card bento-feature bento-offline-card bento-card-fullwidth tilt-card-3d reveal-item reveal-delay-3">
+            <div class="bento-content">
+              <div class="bento-icon-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+              </div>
+              <h3 class="bento-title">Works Offline &amp; Ad-Free</h3>
+              <p class="bento-desc">No Wi-Fi? No problem. Everything saves locally to your phone. Zero advertisements, zero paywalls, zero battery drain.</p>
+            </div>
+            <div class="offline-pill-visual" aria-hidden="true">
+              <span class="offline-tag-badge">NO ADS</span>
+              <span class="offline-tag-badge">WORKS OFFLINE</span>
+            </div>
+            <div class="tilt-card-glare"></div>
           </div>
 
         </div>
       </div>
     </section>
 
-    <!-- USE CASES (TABS FOR STUDENTS) -->
-    <section class="usecases-section" id="students">
-      <div class="container">
-        <div class="section-header text-center">
-          <div class="badge-pill">Made For Your Studies</div>
-          <h2 class="section-title">Whatever You're Studying, We've Got You Covered</h2>
-          <p class="section-subtitle">Helpful for school, university, coding, and competitive exams.</p>
-        </div>
-
-        <div class="usecase-tabs" id="usecaseTabs" role="tablist" aria-label="Study use cases">
-          <button class="tab-btn active" role="tab" id="tab-btn-college" aria-selected="true" aria-controls="tab-college" tabindex="0" data-target="college">🎓 High School &amp; College</button>
-          <button class="tab-btn" role="tab" id="tab-btn-competitive" aria-selected="false" aria-controls="tab-competitive" tabindex="-1" data-target="competitive">🩺 Board &amp; Entrance Exams</button>
-          <button class="tab-btn" role="tab" id="tab-btn-coding" aria-selected="false" aria-controls="tab-coding" tabindex="-1" data-target="coding">💻 Coding &amp; Projects</button>
-          <button class="tab-btn" role="tab" id="tab-btn-language" aria-selected="false" aria-controls="tab-language" tabindex="-1" data-target="language">📚 Languages &amp; Reading</button>
-        </div>
-
-        <div class="usecase-tab-content active" id="tab-college" role="tabpanel" aria-labelledby="tab-btn-college" tabindex="0">
-          <div class="usecase-card">
-            <div class="usecase-text">
-              <h3>Balance All Your Classes Before Finals</h3>
-              <p>Tracking 4 to 6 different subjects each semester? Tag each study block by class name so you give enough revision time to tough subjects before test week.</p>
-              <div class="usecase-metric">📚 Study consistently and avoid last-minute cramming</div>
-            </div>
-            <div class="usecase-visual">
-              <div class="usecase-mock">
-                <span>[Semester Classes]</span>
-                <p>Calculus • Chemistry • Literature • History</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="usecase-tab-content" id="tab-competitive" role="tabpanel" aria-labelledby="tab-btn-competitive" tabindex="0">
-          <div class="usecase-card">
-            <div class="usecase-text">
-              <h3>Handle Long 6 to 8 Hour Study Days</h3>
-              <p>Preparing for medical, law, or civil entrance exams? Break long study days into manageable 50-minute focus blocks with 10-minute rest breaks so you don't burn out.</p>
-              <div class="usecase-metric">⚡ Build the stamina needed for tough competitive exams</div>
-            </div>
-            <div class="usecase-visual">
-              <div class="usecase-mock">
-                <span>[Exam Prep Mode]</span>
-                <p>Today's Target: 6 Hours • Completed!</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="usecase-tab-content" id="tab-coding" role="tabpanel" aria-labelledby="tab-btn-coding" tabindex="0">
-          <div class="usecase-card">
-            <div class="usecase-text">
-              <h3>Focus on Coding Practice &amp; Homework</h3>
-              <p>Writing code or working on assignments requires deep concentration. Start the timer, put away your phone, and finish your code in one uninterrupted sitting.</p>
-              <div class="usecase-metric">💻 Perfect for learning programming and building projects</div>
-            </div>
-            <div class="usecase-visual">
-              <div class="usecase-mock">
-                <span>[Coding Block]</span>
-                <p>Python Practice • Data Structures</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="usecase-tab-content" id="tab-language" role="tabpanel" aria-labelledby="tab-btn-language" tabindex="0">
-          <div class="usecase-card">
-            <div class="usecase-text">
-              <h3>Daily 25-Minute Habit for Languages &amp; Books</h3>
-              <p>Learning Japanese, Spanish, or reading textbooks? A single 25-minute Pomodoro session every day creates huge results over a few weeks.</p>
-              <div class="usecase-metric">🌱 Keep your daily learning streak alive</div>
-            </div>
-            <div class="usecase-visual">
-              <div class="usecase-mock">
-                <span>[Daily Habit]</span>
-                <p>25m Spanish • Streak: 30 Days Active</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- TESTIMONIALS / WALL OF LOVE -->
-    <section class="testimonials-section" id="reviews">
-      <div class="container">
-        <div class="section-header text-center">
-          <div class="badge-pill">Student Reviews</div>
-          <h2 class="section-title">What Students Say About StudyTimer</h2>
-          <p class="section-subtitle">Real feedback from students studying every day.</p>
-        </div>
-
-        <div class="testimonials-grid">
-          
-          <div class="review-card">
-            <div class="review-stars">★★★★★</div>
-            <p class="review-text">"The best study app on Android because there are no ads popping up when you study. The Pomodoro timer and subject tags helped me stay focused for my university exams."</p>
-            <div class="review-author">
-              <div class="author-avatar">AK</div>
-              <div class="author-info">
-                <strong>Ananya K.</strong>
-                <span>College Student</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="review-card">
-            <div class="review-stars">★★★★★</div>
-            <p class="review-text">"The streak calendar keeps me accountable. Seeing my daily study streak grow made me study 5+ hours every single day for my medical entrance test."</p>
-            <div class="review-author">
-              <div class="author-avatar">MR</div>
-              <div class="author-info">
-                <strong>Michael R.</strong>
-                <span>Medical Student</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="review-card">
-            <div class="review-stars">★★★★★</div>
-            <p class="review-text">"I study in a library with weak Wi-Fi. The fact that StudyTimer works 100% offline and saves everything automatically is super helpful."</p>
-            <div class="review-author">
-              <div class="author-avatar">DL</div>
-              <div class="author-info">
-                <strong>David L.</strong>
-                <span>Engineering Student</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="review-card">
-            <div class="review-stars">★★★★★</div>
-            <p class="review-text">"I love the clean dark theme. It doesn't strain my eyes when studying late at night, and creating custom subject colors is so clean."</p>
-            <div class="review-author">
-              <div class="author-avatar">SP</div>
-              <div class="author-info">
-                <strong>Sophia P.</strong>
-                <span>Law Student</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="review-card">
-            <div class="review-stars">★★★★★</div>
-            <p class="review-text">"Super small app size (under 7MB) and battery friendly. It runs smoothly on my Android phone without draining the battery."</p>
-            <div class="review-author">
-              <div class="author-avatar">RN</div>
-              <div class="author-info">
-                <strong>Rohan N.</strong>
-                <span>High School Student</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="review-card">
-            <div class="review-stars">★★★★★</div>
-            <p class="review-text">"The pie chart is great because at the end of the week I can see if I spent enough time on Math vs Chemistry."</p>
-            <div class="review-author">
-              <div class="author-avatar">EM</div>
-              <div class="author-info">
-                <strong>Emma M.</strong>
-                <span>Science Student</span>
-              </div>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </section>
-
-    <!-- FAQ ACCORDION -->
+    <!-- ============================================================
+         SECTION 4: FAQ
+    ============================================================ -->
     <section class="faq-section" id="faq">
-      <div class="container faq-container">
-        <div class="section-header text-center">
-          <div class="badge-pill">Common Questions</div>
-          <h2 class="section-title">Frequently Asked Questions</h2>
-          <p class="section-subtitle">Everything you need to know about StudyTimer.</p>
-        </div>
-
-        <div class="faq-accordion" id="faqAccordion">
-          
-          <div class="faq-item">
-            <button class="faq-question" aria-expanded="false">
-              <span>Is StudyTimer really 100% free with no ads?</span>
-              <span class="faq-icon">+</span>
-            </button>
-            <div class="faq-answer">
-              <p>Yes, 100%! There are zero ads, no popup videos, and no subscriptions. All features are completely free for all students.</p>
-            </div>
-          </div>
-
-          <div class="faq-item">
-            <button class="faq-question" aria-expanded="false">
-              <span>Which phones can run StudyTimer?</span>
-              <span class="faq-icon">+</span>
-            </button>
-            <div class="faq-answer">
-              <p>StudyTimer works on all Android phones and tablets running Android 8.0 or newer (including Android 13, 14, and 15).</p>
-            </div>
-          </div>
-
-          <div class="faq-item">
-            <button class="faq-question" aria-expanded="false">
-              <span>Does it work without internet or Wi-Fi?</span>
-              <span class="faq-icon">+</span>
-            </button>
-            <div class="faq-answer">
-              <p>Yes! StudyTimer works completely offline. You can study in airplane mode or in places without Wi-Fi, and your study time is saved directly on your phone.</p>
-            </div>
-          </div>
-
-          <div class="faq-item">
-            <button class="faq-question" aria-expanded="false">
-              <span>How do I install the app on my Android phone?</span>
-              <span class="faq-icon">+</span>
-            </button>
-            <div class="faq-answer">
-              <p>Simply tap the "Download for Android" button above. When the download finishes, tap the file in your notification bar and press Install. It only takes 5 seconds!</p>
-            </div>
-          </div>
-
-          <div class="faq-item">
-            <button class="faq-question" aria-expanded="false">
-              <span>Can I change the timer from 25 minutes to another time?</span>
-              <span class="faq-icon">+</span>
-            </button>
-            <div class="faq-answer">
-              <p>Yes, you can customize your study session duration (e.g. 25m, 45m, 50m, 60m) and break lengths inside the app settings.</p>
-            </div>
-          </div>
-
-          <div class="faq-item">
-            <button class="faq-question" aria-expanded="false">
-              <span>How do I contact support or suggest a new feature?</span>
-              <span class="faq-icon">+</span>
-            </button>
-            <div class="faq-answer">
-              <p>You can email us anytime at <a href="mailto:studytimer737@gmail.com" style="color: var(--accent-emerald); text-decoration: underline;">studytimer737@gmail.com</a>. We love hearing suggestions from students!</p>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </section>
-
-    <!-- FINAL HIGH-CONVERSION CTA BANNER -->
-    <section class="final-cta-section">
       <div class="container">
-        <div class="final-cta-card">
-          <div class="glow-orb glow-cta"></div>
-          <div class="final-cta-content">
-            <div class="badge-pill badge-pill-light">Start Today</div>
-            <h2 class="final-cta-title">Ready to Ace Your Studies?<br>Download Free on Android.</h2>
-            <p class="final-cta-subtitle">Join thousands of students who study smarter with Pomodoro timers, subject tracking, and daily study streaks.</p>
-            
-            <div class="hero-cta-group justify-center">
-              <a href="https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk" class="store-badge-btn btn-apk-download" download>
-                <svg class="store-icon" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2a1 1 0 0 1 1 1v10.586l3.293-3.293a1 1 0 1 1 1.414 1.414l-5 5a1 1 0 0 1-1.414 0l-5-5a1 1 0 1 1 1.414-1.414L11 13.586V3a1 1 0 0 1 1-1zm-7 16a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1z"/>
-                </svg>
-                <span>Download StudyTimer (APK)</span>
-              </a>
+        <div class="section-header reveal-item">
+          <span class="section-eyebrow">Got questions?</span>
+          <h2 class="section-title">Frequently asked questions.</h2>
+        </div>
 
-              <a href="https://github.com/JAIstudio-source/StudyTimer" target="_blank" rel="noopener" class="store-badge-btn btn-github">
-                <svg class="store-icon" viewBox="0 0 24 24" fill="currentColor">
-                  <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+        <div class="faq-list reveal-item">
+
+          <div class="faq-item">
+            <button class="faq-question-btn" aria-expanded="false" id="faq-btn-1" aria-controls="faq-ans-1">
+              <span>Is StudyTimer completely free? Like, actually free?</span>
+              <span class="faq-icon-toggle" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
                 </svg>
-                <span>GitHub Repository</span>
-              </a>
+              </span>
+            </button>
+            <div class="faq-answer" id="faq-ans-1" role="region" aria-labelledby="faq-btn-1" hidden>
+              <div class="faq-answer-inner">
+                Yes. Zero ads, no premium tier, and no paywalls. All timer tools, subject tracking, and streaks are free to use. We built it because we needed a clean timer ourselves.
+              </div>
             </div>
           </div>
+
+          <div class="faq-item">
+            <button class="faq-question-btn" aria-expanded="false" id="faq-btn-2" aria-controls="faq-ans-2">
+              <span>Does it work without the internet?</span>
+              <span class="faq-icon-toggle" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </span>
+            </button>
+            <div class="faq-answer" id="faq-ans-2" role="region" aria-labelledby="faq-btn-2" hidden>
+              <div class="faq-answer-inner">
+                Yes. Everything — your timer, your subjects, your streaks — saves directly on your phone. You can study in the library, on a train, or anywhere with no signal at all.
+              </div>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question-btn" aria-expanded="false" id="faq-btn-3" aria-controls="faq-ans-3">
+              <span>What is a Pomodoro timer?</span>
+              <span class="faq-icon-toggle" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </span>
+            </button>
+            <div class="faq-answer" id="faq-ans-3" role="region" aria-labelledby="faq-btn-3" hidden>
+              <div class="faq-answer-inner">
+                It's a simple study technique: study for 25 minutes, then take a 5-minute break. Repeat. It works because your brain stays sharp in short bursts rather than long, draining sessions. StudyTimer is built around this method.
+              </div>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question-btn" aria-expanded="false" id="faq-btn-4" aria-controls="faq-ans-4">
+              <span>Can I track different subjects separately?</span>
+              <span class="faq-icon-toggle" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </span>
+            </button>
+            <div class="faq-answer" id="faq-ans-4" role="region" aria-labelledby="faq-btn-4" hidden>
+              <div class="faq-answer-inner">
+                Yes. You can add as many subjects as you want — Maths, Physics, History, whatever you're studying. Each gets its own color and its own hours count. You'll see at a glance which subject is getting the most attention (and which one you're avoiding).
+              </div>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question-btn" aria-expanded="false" id="faq-btn-5" aria-controls="faq-ans-5">
+              <span>Can I use the web version instead of the app?</span>
+              <span class="faq-icon-toggle" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </span>
+            </button>
+            <div class="faq-answer" id="faq-ans-5" role="region" aria-labelledby="faq-btn-5" hidden>
+              <div class="faq-answer-inner">
+                Yes! We have a full browser version you can try right now — no download needed. The Android app is the main experience, but the web version works great on any device.
+              </div>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question-btn" aria-expanded="false" id="faq-btn-6" aria-controls="faq-ans-6">
+              <span>What Android version do I need?</span>
+              <span class="faq-icon-toggle" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </span>
+            </button>
+            <div class="faq-answer" id="faq-ans-6" role="region" aria-labelledby="faq-btn-6" hidden>
+              <div class="faq-answer-inner">
+                StudyTimer works on Android 8.0 and above. If your phone is from 2017 or later, you're almost certainly good to go. Install the APK directly — no Play Store needed.
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </section>
+
+    <!-- ============================================================
+         SECTION 9: FINAL CTA
+    ============================================================ -->
+    <section class="final-cta-section" id="download">
+      <div class="container">
+        <div class="final-cta-card reveal-item">
+          <span class="section-eyebrow">You've read enough</span>
+          <h2 class="final-cta-title">Ready to actually study?</h2>
+          <p class="final-cta-sub">Download StudyTimer free today. No sign-up required.</p>
+          <div class="final-cta-actions">
+            <a href="https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk"
+               download="StudyTimer.apk"
+               class="btn btn-primary btn-xl">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 2v13m0 0l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"/></svg>
+              Download for Android — Free
+            </a>
+            <a href="study" class="btn btn-ghost btn-xl">Try in Browser</a>
+          </div>
+          <p class="final-cta-note">APK install · No Play Store needed · Works offline</p>
+        </div>
+      </div>
+    </section>
+
   </main>
 
-  <!-- SEMANTIC FOOTER -->
+  <!-- ============================================================
+       FOOTER
+  ============================================================ -->
   <footer class="site-footer">
-    <div class="container footer-container">
-      <div class="footer-brand-col">
-        <a href="/" class="logo">
-          <img src="assets/logo.png" alt="StudyTimer Logo" class="nav-logo-img">
-          <span class="logo-text">StudyTimer</span>
-        </a>
-        <p class="footer-tagline">The 100% free study timer for students on Android. Zero ads, pure focus.</p>
-        <div class="footer-copyright">
-          © 2026 StudyTimer for Android. Free and Ad-Free.
+    <div class="container">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <a href="/" class="footer-logo" aria-label="StudyTimer Home">
+            <img src="assets/logo.png" alt="StudyTimer" width="32" height="32">
+            <span>StudyTimer</span>
+          </a>
+          <p class="footer-tagline">The free study timer that actually helps.</p>
+          <div class="footer-social">
+            <a href="https://github.com/JAIstudio-source/StudyTimer" target="_blank" rel="noopener" aria-label="GitHub">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.387.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12"/></svg>
+            </a>
+            <a href="mailto:studytimer737@gmail.com" aria-label="Email us">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </a>
+          </div>
+        </div>
+
+        <div class="footer-links-grid">
+          <div class="footer-col">
+            <h3 class="footer-col-title">Features</h3>
+            <a href="#features" class="footer-link">Focus Timer</a>
+            <a href="#features" class="footer-link">Subject Tracker</a>
+            <a href="#features" class="footer-link">Streak Calendar</a>
+            <a href="#features" class="footer-link">Study Insights</a>
+          </div>
+          <div class="footer-col">
+            <h3 class="footer-col-title">About</h3>
+            <a href="about.html" class="footer-link">About Us</a>
+            <a href="privacy.html" class="footer-link">Privacy Policy</a>
+            <a href="terms.html" class="footer-link">Terms of Use</a>
+            <a href="delete-account.html" class="footer-link">Delete Account</a>
+          </div>
+          <div class="footer-col">
+            <h3 class="footer-col-title">Help</h3>
+            <a href="study" class="footer-link">Online Study Studio</a>
+            <a href="contact.html" class="footer-link">Contact Us</a>
+            <a href="https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk" download="StudyTimer.apk" class="footer-link">Download APK</a>
+            <a href="https://github.com/JAIstudio-source/StudyTimer" target="_blank" rel="noopener" class="footer-link">GitHub</a>
+          </div>
         </div>
       </div>
 
-      <div class="footer-nav-col">
-        <h3 class="footer-heading">App Features</h3>
-        <ul>
-          <li><a href="study">Try in Browser</a></li>
-          <li><a href="https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk" download>Download APK</a></li>
-          <li><a href="#features">Pomodoro Timer</a></li>
-          <li><a href="#features">Subject Tracker</a></li>
-          <li><a href="#streaks">Study Streaks</a></li>
-          <li><a href="#screenshots">App Screenshots</a></li>
-        </ul>
-      </div>
-
-      <div class="footer-nav-col">
-        <h3 class="footer-heading">About &amp; Legal</h3>
-        <ul>
-          <li><a href="about.html">About StudyTimer</a></li>
-          <li><a href="privacy.html">Privacy Policy</a></li>
-          <li><a href="terms.html">Terms of Service</a></li>
-          <li><a href="thank-you.html">Installation Guide</a></li>
-          <li><a href="https://github.com/JAIstudio-source/StudyTimer" target="_blank" rel="noopener">GitHub Project</a></li>
-        </ul>
-      </div>
-
-      <div class="footer-nav-col">
-        <h3 class="footer-heading">Help &amp; Support</h3>
-        <ul>
-          <li><a href="contact.html">Contact Us</a></li>
-          <li><a href="mailto:studytimer737@gmail.com">studytimer737@gmail.com</a></li>
-          <li><a href="#faq">FAQ</a></li>
-          <li><a href="delete-account.html">Account Deletion</a></li>
-        </ul>
+      <div class="footer-bottom">
+        <p class="footer-copyright">&copy; 2026 StudyTimer. Free for students.</p>
+        <div class="footer-bottom-links">
+          <a href="privacy.html" class="footer-link">Privacy</a>
+          <a href="terms.html" class="footer-link">Terms</a>
+          <a href="contact.html" class="footer-link">Contact</a>
+        </div>
       </div>
     </div>
   </footer>
 
-  <!-- Scripts -->
-  <script src="script.js?v=3.3.0"></script>
+  <!-- ============================================================
+       SCREENSHOT LIGHTBOX MODAL
+  ============================================================ -->
+  <div class="screenshot-modal" id="screenshotModal" role="dialog" aria-modal="true" aria-label="Screenshot Preview" hidden>
+    <div class="screenshot-modal-backdrop" id="screenshotModalBackdrop"></div>
+    <div class="screenshot-modal-dialog" id="screenshotModalDialog">
+      <button class="screenshot-modal-close" id="screenshotModalClose" aria-label="Close screenshot preview">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="18" x2="18" y2="6"></line></svg>
+      </button>
+      <div class="screenshot-modal-phone" id="screenshotModalPhone">
+        <div class="android-camera-dot" aria-hidden="true"></div>
+        <img id="screenshotModalImg" src="" alt="Full size app screenshot" class="screenshot-modal-img">
+      </div>
+      <p class="screenshot-modal-caption" id="screenshotModalCaption"></p>
+    </div>
+  </div>
+
+  <script src="script.js?v=5.0.0"></script>
 </body>
 </html>

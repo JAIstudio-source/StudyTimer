@@ -1,6 +1,6 @@
-# StudyTimer Documentation & Store Listings
+# 📚 StudyTimer Store Listing & Compliance Documentation
 
-This directory contains store listing documentation and privacy policies for Google Play Store and web listings:
+This directory contains official store listing disclosures, legal compliance documents, and platform declarations:
 
-- `PLAY_STORE_DATA_SAFETY.md`: Complete Google Play Console Data Safety questionnaire answers and disclosures.
-- `PRIVACY_POLICY.md`: Full privacy policy documentation for the StudyTimer mobile application and offline storage.
+- **`PLAY_STORE_DATA_SAFETY.md`**: Complete Google Play Console Data Safety questionnaire answers, third-party SDK declarations, and privacy disclosures for Android review.
+- **`PRIVACY_POLICY.md`**: Authoritative offline-first and DPDP Act 2023 privacy policy documentation for StudyTimer mobile and web platforms.

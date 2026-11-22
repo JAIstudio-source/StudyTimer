@@ -462,20 +462,44 @@ section {
 @media (min-width: 820px) { .nav-try-link { display: block; } }
 
 /* Theme toggle */
+/* Theme toggle button — standardized across all pages */
 .theme-toggle-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-pill);
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  max-width: 36px !important;
+  max-height: 36px !important;
+  border-radius: var(--radius-pill) !important;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   color: var(--text-secondary);
-  transition: background 0.2s, color 0.2s;
+  cursor: pointer;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.2s;
 }
 
 .theme-toggle-btn:hover {
-  background: var(--bg-elevated);
+  background: var(--bg-card-hover);
   color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+
+.theme-toggle-btn svg,
+.theme-toggle-btn .icon-sun,
+.theme-toggle-btn .icon-moon {
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  min-height: 18px !important;
+  max-width: 18px !important;
+  max-height: 18px !important;
+  display: block;
 }
 
 /* Show sun in dark mode (switch to light), moon in light mode (switch to dark) */
@@ -2129,4 +2153,122 @@ section {
   .footer-container {
     grid-template-columns: 1fr;
   }
+}
+
+
+/* Top bar scroll-reveal download button */
+.nav-download-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 16px;
+  font-size: 0.825rem;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  border: 1px solid var(--btn-primary-bg);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px) scale(0.96);
+  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease;
+}
+
+.nav-download-btn.is-visible {
+  opacity: 1;
+  pointer-events: all;
+  transform: translateY(0) scale(1);
+}
+
+.nav-download-btn:hover {
+  background: var(--btn-primary-hover);
+  color: var(--btn-primary-text);
+}
+
+@media (max-width: 600px) {
+  .nav-download-btn {
+    padding: 6px 12px;
+    font-size: 0.775rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .nav-download-btn {
+    padding: 5px 10px;
+    font-size: 0.725rem;
+  }
+}
+
+
+/* Contact form & Subpage form styling */
+.study-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+
+.study-form-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.study-form-input, .study-form-textarea {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--input-bg, var(--bg-card));
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  box-sizing: border-box;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+.study-form-input:focus, .study-form-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-muted);
+}
+
+.study-form-textarea {
+  resize: vertical;
+  min-height: 130px;
+}
+
+.study-form-submit,
+#contactForm .btn-primary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 28px !important;
+  min-height: 48px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  background-color: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  border: 1px solid var(--btn-primary-bg);
+  cursor: pointer;
+  margin-top: 14px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              background 0.2s ease,
+              box-shadow 0.2s ease;
+}
+
+.study-form-submit:hover,
+#contactForm .btn-primary:hover {
+  background-color: var(--btn-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }

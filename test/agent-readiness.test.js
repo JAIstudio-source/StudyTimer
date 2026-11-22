@@ -229,11 +229,11 @@ assert(!robotsTxt.toLowerCase().includes('admin'), 'robots.txt contains no leake
 // ---------------------------------------------------------------------------
 console.log('\n[10/10] Testing JavaScript Runtime Syntax & UI Integrity...');
 const jsFilesToCheck = [
-  'demo.js',
+  'study.js',
   'script.js',
-  'js/demo-audio.js',
-  'js/demo-leaderboard.js',
-  'js/demo-cloud-sync.js',
+  'js/study-audio.js',
+  'js/study-leaderboard.js',
+  'js/study-cloud-sync.js',
   'assets/supabase.js'
 ];
 

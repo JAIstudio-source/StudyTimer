@@ -4,32 +4,35 @@
  * Guarantees 100% offline functionality for the Pomodoro Web Studio & App Landing.
  */
 
-var CACHE_NAME = 'studytimer-web-v58';
+var CACHE_NAME = 'studytimer-web-v74';
 
 var CORE_ASSETS = [
     './',
     './index.html',
-    './demo.html',
-    './demo.css',
-    './demo.js',
-    './js/demo-profanity.js',
-    './js/demo-quotes.js',
-    './js/demo-cloud-sync.js',
-    './js/demo-analytics.js',
-    './js/demo-leaderboard.js',
-    './js/demo-audio.js',
-    './css/demo-base.css',
-    './css/demo-workspace.css',
-    './css/demo-leaderboard.css',
-    './css/demo-themes.css',
-    './css/demo-audio.css',
-    './css/demo-sidebar.css',
-    './css/demo-responsive.css',
+    './study.html',
+    './study.css',
+    './study.js',
+    './js/study-profanity.js',
+    './js/study-quotes.js',
+    './js/study-cloud-sync.js',
+    './js/study-analytics.js',
+    './js/study-leaderboard.js',
+    './js/study-audio.js',
+    './css/study-base.css',
+    './css/study-workspace.css',
+    './css/study-leaderboard.css',
+    './css/study-themes.css',
+    './css/study-audio.css',
+    './css/study-sidebar.css',
+    './css/study-responsive.css',
     './assets/supabase.js',
     './style.css',
     './script.js',
     './assets/logo.png',
     './assets/Featured.webp',
+    './assets/default-bg.webp',
+    './about.html',
+    './contact.html',
     './privacy.html',
     './terms.html',
     './delete-account.html',
@@ -111,8 +114,8 @@ self.addEventListener('fetch', function (event) {
                 return caches.match(request).then(function (cachedResponse) {
                     if (cachedResponse) return cachedResponse;
                     if (request.mode === 'navigate') {
-                        if (url.pathname.includes('demo') || url.href.includes('demo')) {
-                            return caches.match('./demo.html');
+                        if (url.pathname.includes('study') || url.pathname.includes('demo') || url.href.includes('study') || url.href.includes('demo')) {
+                            return caches.match('./study.html');
                         }
                         return caches.match('./index.html');
                     }

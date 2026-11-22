@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initNavScroll();
   initCounterAnimations();
   initVersionSync();
+  initNavDownloadScroll();
   handleAutoDownloadParam();
 });
 
@@ -24,8 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
 function initThemeToggle() {
   const toggleBtns = document.querySelectorAll('.theme-toggle-btn');
   const savedTheme = localStorage.getItem('studytimer-theme');
-  const defaultTheme = document.documentElement.getAttribute('data-theme') || 'light';
-  const activeTheme = savedTheme || defaultTheme;
+  const defaultTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+  const activeTheme = savedTheme || 'dark';
 
   document.documentElement.setAttribute('data-theme', activeTheme);
   updateThemeAriaLabels(activeTheme, toggleBtns);
@@ -434,3 +435,32 @@ function initVersionSync() {
     .catch(() => {});
 }
 
+
+
+// ==========================================================================
+// TOP BAR DOWNLOAD BUTTON (Reveal past hero download button)
+// ==========================================================================
+
+function initNavDownloadScroll() {
+  const navBtn = document.getElementById('navDownloadBtn');
+  const heroBtn = document.getElementById('heroMainDownloadBtn') || document.querySelector('.hero-ctas .btn-primary');
+  if (!navBtn) return;
+  if (!heroBtn) {
+    navBtn.classList.add('is-visible');
+    return;
+  }
+
+  function checkScrollPosition() {
+    const rect = heroBtn.getBoundingClientRect();
+    // Reveal once the hero button scrolls past the sticky header (bottom < 70px)
+    if (rect.bottom < 70) {
+      navBtn.classList.add('is-visible');
+    } else {
+      navBtn.classList.remove('is-visible');
+    }
+  }
+
+  window.addEventListener('scroll', checkScrollPosition, { passive: true });
+  window.addEventListener('resize', checkScrollPosition, { passive: true });
+  checkScrollPosition();
+}

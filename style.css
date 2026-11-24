@@ -1764,6 +1764,13 @@ section {
 }
 
 @media (max-width: 480px) {
+  .screenshot-modal-close {
+    top: -12px;
+    right: -8px;
+    width: 36px;
+    height: 36px;
+  }
+
   .screenshot-modal-phone {
     height: min(78vh, 78dvh);
     border-radius: 28px;

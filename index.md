@@ -42,6 +42,26 @@
 - No banner ads, no popups, no video interstitials
 - Zero subscription tiers or locked features
 
+## Frequently Asked Questions (FAQ)
+
+### 1. Is StudyTimer completely free?
+Yes. Zero ads, no premium tier, and no paywalls. All timer tools, subject tracking, and streaks are 100% free to use.
+
+### 2. Does StudyTimer work without the internet?
+Yes. Everything — your timer, your subjects, your streaks — saves directly on your phone using a local SQLite database.
+
+### 3. What is a Pomodoro timer?
+The Pomodoro technique breaks studying into 25-minute focused bursts followed by 5-minute breaks. StudyTimer provides customizable work/break intervals, ambient audio, and visual countdowns.
+
+### 4. Can I track different subjects separately?
+Yes. You can create unlimited subjects with custom colors and weekly targets to see exactly where your study hours are going.
+
+### 5. Can I use the web version instead of the Android app?
+Yes! You can use the full Web Studio in your browser at https://studytimer.site/study with optional cloud sync to your Android app.
+
+### 6. What Android version do I need?
+StudyTimer works on Android 8.0 (Oreo) and above. You can install the APK directly without needing the Google Play Store.
+
 ## Installation Guidance
 1. Download `StudyTimer-release.apk` from https://studytimer.site/StudyTimer-release.apk
 2. Tap the APK file in your notification bar or Downloads folder on your Android device.

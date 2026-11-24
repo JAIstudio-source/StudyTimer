@@ -115,7 +115,7 @@ assert(varyRes && varyRes.includes('Accept'), 'Middleware sets Vary: Accept head
 // ---------------------------------------------------------------------------
 console.log('\n[4/8] Testing Brand Name Discoverability & NAP Consistency...');
 const indexContent = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
-assert(indexContent.includes('StudyTimer - Track Your Progress'), 'Title includes prominent brand name StudyTimer');
+assert(indexContent.includes('StudyTimer - Free Pomodoro Timer'), 'Title includes prominent brand name StudyTimer');
 assert(indexContent.includes('https://studytimer.site/'), 'Canonical URL points to apex domain');
 assert(indexContent.includes('studytimer737@gmail.com'), 'Consistent contact email across index.html');
 assert(indexContent.includes('500 Howard Street'), 'Consistent postal address in index.html');

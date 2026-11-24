@@ -18,13 +18,17 @@
   --text-primary:  #0a0a0a;
   --text-secondary:#4b5563;
   --text-muted:    #6b7280;
-  --accent:        #10b981;
-  --accent-hover:  #0ea472;
-  --accent-muted:  rgba(16, 185, 129, 0.10);
-  --accent-glow:   transparent;
-  --danger:        #ef4444;
-  --danger-muted:  rgba(239, 68, 68, 0.07);
-  --warning:       #f59e0b;
+  --accent:                #0284C7;
+  --accent-hover:          #0369A1;
+  --accent-eyebrow:        #0369A1;
+  --accent-muted:          #E0F2FE;
+  --accent-badge-bg:       #E0F2FE;
+  --accent-badge-border:   #BAE6FD;
+  --accent-badge-text:     #0369A1;
+  --accent-glow:           transparent;
+  --danger:                #ef4444;
+  --danger-muted:          rgba(239, 68, 68, 0.07);
+  --warning:               #f59e0b;
 
   /* Button colors */
   --btn-primary-bg:    #0a0a0a;
@@ -61,11 +65,13 @@
   /* Subpage / Legal shared tokens */
   --header-bg:             rgba(249, 249, 247, 0.88);
   --border-subtle:         var(--border);
-  --border-focus:          #10b981;
+  --border-focus:          #0284C7;
   --transition-fast:       0.2s cubic-bezier(0.16, 1, 0.3, 1);
   --transition-smooth:     0.35s cubic-bezier(0.16, 1, 0.3, 1);
   --container-max:         1200px;
   --font-heading:          var(--font-sans);
+  --accent-blue:           var(--accent);
+  --accent-blue-subtle:    var(--accent-muted);
   --accent-emerald:        var(--accent);
   --accent-emerald-subtle: var(--accent-muted);
   --mobile-drawer-bg:      var(--bg-card);
@@ -93,10 +99,14 @@
   --text-primary:  #fafafa;
   --text-secondary:#a1a1aa;
   --text-muted:    #71717a;
-  --accent:        #10b981;
-  --accent-hover:  #0ea472;
-  --accent-muted:  rgba(16, 185, 129, 0.12);
-  --accent-glow:   transparent;
+  --accent:                #38BDF8;
+  --accent-hover:          #7DD3FC;
+  --accent-eyebrow:        #38BDF8;
+  --accent-muted:          rgba(56, 189, 248, 0.12);
+  --accent-badge-bg:       rgba(56, 189, 248, 0.12);
+  --accent-badge-border:   rgba(56, 189, 248, 0.25);
+  --accent-badge-text:     #38BDF8;
+  --accent-glow:           transparent;
   --danger-muted:  rgba(239, 68, 68, 0.12);
 
   --btn-primary-bg:    #ffffff;
@@ -116,7 +126,9 @@
 
   --header-bg:             rgba(9, 9, 11, 0.88);
   --border-subtle:         var(--border);
-  --border-focus:          #10b981;
+  --border-focus:          #38BDF8;
+  --accent-blue:           var(--accent);
+  --accent-blue-subtle:    var(--accent-muted);
   --accent-emerald:        var(--accent);
   --accent-emerald-subtle: var(--accent-muted);
   --mobile-drawer-bg:      var(--bg-card);
@@ -291,7 +303,7 @@ section {
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--accent-eyebrow);
   margin-bottom: 12px;
 }
 
@@ -673,14 +685,14 @@ section {
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--accent-badge-border);
   border-radius: var(--radius-pill);
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: var(--accent);
+  color: var(--accent-eyebrow);
   margin-bottom: 24px;
-  background: var(--accent-muted);
+  background: var(--accent-badge-bg);
 }
 
 .hero-headline {
@@ -785,9 +797,9 @@ section {
   font-family: var(--font-mono);
   font-weight: 600;
   font-size: 0.82rem;
-  color: var(--accent);
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: var(--accent-badge-text);
+  background: var(--accent-badge-bg);
+  border: 1px solid var(--accent-badge-border);
   padding: 2px 8px;
   border-radius: var(--radius-pill);
   letter-spacing: 0.02em;
@@ -1002,7 +1014,7 @@ section {
   font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: var(--accent);
+  color: var(--accent-eyebrow);
   display: inline-flex;
   align-items: center;
   line-height: 1;
@@ -1308,9 +1320,9 @@ section {
   letter-spacing: 0.04em;
   padding: 5px 12px;
   border-radius: var(--radius-pill);
-  background: rgba(16, 185, 129, 0.08);
-  border: 1px solid rgba(16, 185, 129, 0.22);
-  color: var(--accent);
+  background: var(--accent-badge-bg);
+  border: 1px solid var(--accent-badge-border);
+  color: var(--accent-badge-text);
   box-shadow: none;
   pointer-events: none;
   user-select: none;
@@ -1799,7 +1811,7 @@ section {
   left: 0;
   width: 100%;
   height: 100%;
-  background: radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.05) 0%, transparent 70%);
+  background: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.05) 0%, transparent 70%);
   pointer-events: none;
   z-index: -1;
 }
@@ -1860,8 +1872,9 @@ section {
   font-weight: 700;
   padding: 2px 6px;
   border-radius: 4px;
-  background: var(--accent-emerald-subtle);
-  color: var(--accent-emerald);
+  background: var(--accent-badge-bg);
+  color: var(--accent-badge-text);
+  border: 1px solid var(--accent-badge-border);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -1899,9 +1912,9 @@ section {
   font-size: 13px;
   font-weight: 600;
   border-radius: var(--radius-pill);
-  background: var(--accent-emerald-subtle);
-  color: var(--accent-emerald);
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  background: var(--accent-badge-bg);
+  color: var(--accent-badge-text);
+  border: 1px solid var(--accent-badge-border);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1910,8 +1923,8 @@ section {
 }
 
 .nav-actions .subpage-studio-link:hover {
-  background: rgba(16, 185, 129, 0.18);
-  border-color: var(--accent-emerald);
+  background: var(--accent-muted);
+  border-color: var(--accent);
   transform: translateY(-1px);
 }
 
@@ -2129,8 +2142,8 @@ section {
 
 .study-form-input:focus, .study-form-textarea:focus {
   outline: none;
-  border-color: var(--accent-emerald);
-  box-shadow: 0 0 0 3px var(--accent-emerald-subtle);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-muted);
 }
 
 .study-form-submit {

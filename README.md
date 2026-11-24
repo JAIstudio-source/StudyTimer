@@ -22,13 +22,13 @@
 
 | Destination | Link |
 | :--- | :--- |
-| 🌐 **Official Website** | [https://get-studytimer.vercel.app](https://get-studytimer.vercel.app/) |
-| ⚡ **Try in Browser (Web Studio)** | [https://get-studytimer.vercel.app/study](https://get-studytimer.vercel.app/study) |
+| 🌐 **Official Website** | [https://studytimer.site](https://studytimer.site/) |
+| ⚡ **Try in Browser (Web Studio)** | [https://studytimer.site/study](https://studytimer.site/study) |
 | 📥 **Direct APK Download** | [StudyTimer-release.apk (v3.3.6)](https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk) |
-| 📖 **Privacy Policy** | [Privacy Policy](https://get-studytimer.vercel.app/privacy.html) |
-| 📜 **Terms of Service** | [Terms of Service](https://get-studytimer.vercel.app/terms.html) |
-| 🗑️ **Account & Data Deletion** | [Self-Serve Deletion Portal](https://get-studytimer.vercel.app/delete-account.html) |
-| 💬 **Contact Support** | [Contact Form](https://get-studytimer.vercel.app/contact.html) • `studytimer737@gmail.com` |
+| 📖 **Privacy Policy** | [Privacy Policy](https://studytimer.site/privacy.html) |
+| 📜 **Terms of Service** | [Terms of Service](https://studytimer.site/terms.html) |
+| 🗑️ **Account & Data Deletion** | [Self-Serve Deletion Portal](https://studytimer.site/delete-account.html) |
+| 💬 **Contact Support** | [Contact Form](https://studytimer.site/contact.html) • `studytimer737@gmail.com` |
 
 ---
 
@@ -70,7 +70,7 @@ Most timer and study apps on mobile app stores are overloaded with intrusive 30-
 - **Weekly Summary Cards**: Generate and export high-resolution performance cards to share with study groups or mentors.
 
 ### 5. ⚡ Web Studio (Try in Browser)
-- Don't have your phone nearby? Open [get-studytimer.vercel.app/study](https://get-studytimer.vercel.app/study) on your laptop or Chromebook.
+- Don't have your phone nearby? Open [studytimer.site/study](https://studytimer.site/study) on your laptop or Chromebook.
 - Full offline IndexedDB support with optional real-time cloud sync.
 
 ---
@@ -110,7 +110,7 @@ In accordance with our strict engineering and privacy mandates:
 - **Zero Public Admin Dashboards**: No client-side administrative HTML panels or exposed inspection UIs.
 - **Strict Row Level Security (RLS)**: Wildcard open policies (`USING (true) WITH CHECK (true)`) are strictly banned. All mutations use velocity-verified PostgreSQL functions (`record_study_session_leaderboard`, `sync_study_progress_leaderboard`, `sync_offline_study_sessions`).
 - **Data Minimization**: We never access contacts, GPS location, microphone, camera, or SMS.
-- **1-Click Permanent Deletion**: Users can delete all cloud data and profiles instantly at [delete-account.html](https://get-studytimer.vercel.app/delete-account.html).
+- **1-Click Permanent Deletion**: Users can delete all cloud data and profiles instantly at [delete-account.html](https://studytimer.site/delete-account.html).
 
 ---
 

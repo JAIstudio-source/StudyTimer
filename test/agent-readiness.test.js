@@ -40,7 +40,7 @@ const html404Content = fs.readFileSync(html404Path, 'utf8');
 const md404Content = fs.readFileSync(md404Path, 'utf8');
 assert(html404Content.length > 500, '404.html has meaningful body > 500 chars');
 assert(html404Content.includes('sitemap.xml'), '404.html links to sitemap.xml');
-assert(md404Content.includes('https://get-studytimer.vercel.app/'), '404.md provides recovery links');
+assert(md404Content.includes('https://studytimer.site/'), '404.md provides recovery links');
 
 // ---------------------------------------------------------------------------
 // TEST 2: Content Without JavaScript & Sequential Heading Hierarchy
@@ -101,7 +101,7 @@ const varyHeader = globalHeaders?.headers.find(h => h.key === 'Vary');
 assert(varyHeader && varyHeader.value.includes('Accept'), 'Global headers include Vary: Accept, Accept-Encoding');
 
 // Test Middleware Content Negotiation
-const reqWithMarkdown = new Request('https://get-studytimer.vercel.app/', {
+const reqWithMarkdown = new Request('https://studytimer.site/', {
   headers: { 'accept': 'text/markdown, text/html;q=0.9' }
 });
 const middlewareRes = middleware(reqWithMarkdown);
@@ -116,7 +116,7 @@ assert(varyRes && varyRes.includes('Accept'), 'Middleware sets Vary: Accept head
 console.log('\n[4/8] Testing Brand Name Discoverability & NAP Consistency...');
 const indexContent = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
 assert(indexContent.includes('StudyTimer - Track Your Progress'), 'Title includes prominent brand name StudyTimer');
-assert(indexContent.includes('https://get-studytimer.vercel.app/'), 'Canonical URL points to apex domain');
+assert(indexContent.includes('https://studytimer.site/'), 'Canonical URL points to apex domain');
 assert(indexContent.includes('studytimer737@gmail.com'), 'Consistent contact email across index.html');
 assert(indexContent.includes('500 Howard Street'), 'Consistent postal address in index.html');
 
@@ -130,7 +130,7 @@ const llmsContent = fs.readFileSync(llmsPath, 'utf8');
 assert(llmsContent.includes('## When to Use StudyTimer'), 'llms.txt contains ## When to Use StudyTimer section');
 assert(llmsContent.includes('Best-Fit Use Cases'), 'llms.txt specifies Best-Fit Use Cases');
 assert(llmsContent.includes('When NOT to Use StudyTimer'), 'llms.txt specifies negative filtering (When NOT to use)');
-assert(llmsContent.includes('https://get-studytimer.vercel.app/StudyTimer-release.apk'), 'llms.txt includes direct download link for agents');
+assert(llmsContent.includes('https://studytimer.site/StudyTimer-release.apk'), 'llms.txt includes direct download link for agents');
 
 // ---------------------------------------------------------------------------
 // TEST 6: Organization Schema Completeness

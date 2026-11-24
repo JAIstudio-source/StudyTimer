@@ -2,9 +2,9 @@
 
 > **Effective Date:** November 2026 &bull; **Applicable to:** StudyTimer Android App & Web Platform
 
-Welcome to **StudyTimer**. By downloading, installing, or accessing our Android application or web tools at [https://get-studytimer.vercel.app](https://get-studytimer.vercel.app/), you agree to be bound by the following Terms of Service. If you do not agree to these terms, please do not use the application.
+Welcome to **StudyTimer**. By downloading, installing, or accessing our Android application or web tools at [https://studytimer.site](https://studytimer.site/), you agree to be bound by the following Terms of Service. If you do not agree to these terms, please do not use the application.
 
-For detailed information on how your data is handled and protected under the DPDP Act 2023, please review our [Privacy Policy](https://get-studytimer.vercel.app/privacy.html).
+For detailed information on how your data is handled and protected under the DPDP Act 2023, please review our [Privacy Policy](https://studytimer.site/privacy.html).
 
 ---
 
@@ -30,7 +30,7 @@ StudyTimer is provided 100% free of charge for personal academic, professional, 
 
 You maintain complete ownership of your data at all times. You can permanently erase your account, cloud backups, and profile data instantly at any time via:
 - In-app: *Settings > Delete Account*
-- Web Portal: [https://get-studytimer.vercel.app/delete-account.html](https://get-studytimer.vercel.app/delete-account.html)
+- Web Portal: [https://studytimer.site/delete-account.html](https://studytimer.site/delete-account.html)
 
 ---
 
@@ -51,5 +51,5 @@ We may update StudyTimer periodically to introduce new features, optimize batter
 
 For any questions, legal notices, or feedback regarding these Terms of Service:
 - **Email:** `studytimer737@gmail.com`
-- **Contact Form:** [https://get-studytimer.vercel.app/contact.html](https://get-studytimer.vercel.app/contact.html)
-- **Website:** [https://get-studytimer.vercel.app/](https://get-studytimer.vercel.app/)
+- **Contact Form:** [https://studytimer.site/contact.html](https://studytimer.site/contact.html)
+- **Website:** [https://studytimer.site/](https://studytimer.site/)

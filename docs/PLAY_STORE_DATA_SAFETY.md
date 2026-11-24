@@ -20,7 +20,7 @@ This document provides official answers and disclosures for the Google Play Cons
 ### A. Data Collection Overview
 - **Does the app collect or share user data?** Yes (Only when users optionally sign in or opt into community leaderboards; guest mode collects zero personal data).
 - **Is all user data encrypted in transit?** Yes (HTTPS / TLS 1.3).
-- **Do you provide a way for users to request data deletion?** Yes (In-app one-click deletion under *Settings > Delete Account* and via public web portal: [https://get-studytimer.vercel.app/delete-account.html](https://get-studytimer.vercel.app/delete-account.html)).
+- **Do you provide a way for users to request data deletion?** Yes (In-app one-click deletion under *Settings > Delete Account* and via public web portal: [https://studytimer.site/delete-account.html](https://studytimer.site/delete-account.html)).
 - **Is account creation mandatory?** No (Full offline mode available without account or internet).
 
 ### B. Data Types Collected & Handled
@@ -45,7 +45,7 @@ This document provides official answers and disclosures for the Google Play Cons
 ---
 
 ## 4. Legal Endpoints & Support
-- **Privacy Policy:** [https://get-studytimer.vercel.app/privacy.html](https://get-studytimer.vercel.app/privacy.html)
-- **Terms of Service:** [https://get-studytimer.vercel.app/terms.html](https://get-studytimer.vercel.app/terms.html)
-- **Account Deletion Portal:** [https://get-studytimer.vercel.app/delete-account.html](https://get-studytimer.vercel.app/delete-account.html)
+- **Privacy Policy:** [https://studytimer.site/privacy.html](https://studytimer.site/privacy.html)
+- **Terms of Service:** [https://studytimer.site/terms.html](https://studytimer.site/terms.html)
+- **Account Deletion Portal:** [https://studytimer.site/delete-account.html](https://studytimer.site/delete-account.html)
 - **Support Contact:** `studytimer737@gmail.com`

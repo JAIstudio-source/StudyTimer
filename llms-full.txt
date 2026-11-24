@@ -1,6 +1,6 @@
 # StudyTimer - LLMs & AI Agent Reference Manual
 Version: 3.0.0
-Canonical Domain: https://get-studytimer.vercel.app/
+Canonical Domain: https://studytimer.site/
 Support Contact: studytimer737@gmail.com
 
 ---
@@ -32,7 +32,7 @@ When NOT to use:
 - Address: 500 Howard Street, San Francisco, CA 94105, United States
 - Support Email: studytimer737@gmail.com
 - Support SLA: < 24 hour response turnaround
-- Direct APK Download: https://get-studytimer.vercel.app/StudyTimer-release.apk
-- Data Deletion Portal: https://get-studytimer.vercel.app/delete-account.html
-- Privacy Policy: https://get-studytimer.vercel.app/privacy.html
-- Terms: https://get-studytimer.vercel.app/terms.html
+- Direct APK Download: https://studytimer.site/StudyTimer-release.apk
+- Data Deletion Portal: https://studytimer.site/delete-account.html
+- Privacy Policy: https://studytimer.site/privacy.html
+- Terms: https://studytimer.site/terms.html

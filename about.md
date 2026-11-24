@@ -10,10 +10,10 @@ StudyTimer was engineered to help students, self-taught programmers, and exam ca
 2. **Zero Advertisements:** No banner ads or video interstitials that break focus streaks.
 3. **Offline-First:** All data writes to a local SQLite/Room database on device.
 4. **Cloud Backup (Optional):** Encrypted Google Cloud sync backed by Supabase PostgreSQL.
-5. **Data Ownership:** You can wipe all data anytime via the app or https://get-studytimer.vercel.app/delete-account.html.
+5. **Data Ownership:** You can wipe all data anytime via the app or https://studytimer.site/delete-account.html.
 
 ## Support Contact & Location
 - Organization: StudyTimer Operations
 - Address: 500 Howard Street, San Francisco, CA 94105, United States
 - Email: studytimer737@gmail.com
-- Website: https://get-studytimer.vercel.app/
+- Website: https://studytimer.site/

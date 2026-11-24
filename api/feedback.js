@@ -100,6 +100,8 @@ function sanitizeDiagnostics(diag) {
 // 3. CORS & SECURITY HEADERS HANDLER
 // ============================================================================
 const ALLOWED_ORIGINS = [
+  'https://studytimer.site',
+  'https://www.studytimer.site',
   'https://get-studytimer.vercel.app',
   'https://studytimer.app',
   'http://localhost:3000',

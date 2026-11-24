@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const OG_IMAGE_URL = 'https://get-studytimer.vercel.app/assets/og-preview.png';
+const OG_IMAGE_URL = 'https://studytimer.site/assets/og-preview.png';
 const OG_IMAGE_WIDTH = '1024';
 const OG_IMAGE_HEIGHT = '500';
 const OG_IMAGE_TYPE = 'image/png';
@@ -9,7 +9,7 @@ const OG_IMAGE_TYPE = 'image/png';
 const pages = [
   {
     file: 'index.html',
-    url: 'https://get-studytimer.vercel.app/',
+    url: 'https://studytimer.site/',
     title: 'StudyTimer - Free Pomodoro Timer &amp; Study Habit Tracker',
     titlePlain: 'StudyTimer - Free Pomodoro Timer & Study Habit Tracker',
     description: 'Boost exam scores with StudyTimer. Free Pomodoro timer, subject tracker, study streaks, and analytics for students on Android and Web. 100% ad-free.',
@@ -17,7 +17,7 @@ const pages = [
   },
   {
     file: 'demo.html',
-    url: 'https://get-studytimer.vercel.app/demo.html',
+    url: 'https://studytimer.site/demo.html',
     title: 'Online Pomodoro Timer &amp; Habit Tracker | StudyTimer Studio',
     titlePlain: 'Online Pomodoro Timer & Habit Tracker | StudyTimer Studio',
     description: 'Free online Pomodoro study timer with customizable countdown intervals, stopwatch, subject tracking, offline support, and seamless Android cloud sync.',
@@ -25,7 +25,7 @@ const pages = [
   },
   {
     file: 'about.html',
-    url: 'https://get-studytimer.vercel.app/about.html',
+    url: 'https://studytimer.site/about.html',
     title: 'About StudyTimer - Free Ad-Free Study &amp; Focus Companion',
     titlePlain: 'About StudyTimer - Free Ad-Free Study & Focus Companion',
     description: 'Discover the mission behind StudyTimer: building a free, privacy-first, 100% ad-free Pomodoro study timer and habit tracker empowering students worldwide.',
@@ -33,7 +33,7 @@ const pages = [
   },
   {
     file: 'contact.html',
-    url: 'https://get-studytimer.vercel.app/contact.html',
+    url: 'https://studytimer.site/contact.html',
     title: 'Contact &amp; Support - StudyTimer Focus &amp; Study Habit Tracker',
     titlePlain: 'Contact & Support - StudyTimer Focus & Study Habit Tracker',
     description: 'Contact the StudyTimer team for support, feature suggestions, bug reports, and partnership inquiries. We are here to help your student study journey.',
@@ -41,7 +41,7 @@ const pages = [
   },
   {
     file: 'privacy.html',
-    url: 'https://get-studytimer.vercel.app/privacy.html',
+    url: 'https://studytimer.site/privacy.html',
     title: 'Privacy Policy &amp; Data Safety - StudyTimer Offline-First Study App',
     titlePlain: 'Privacy Policy & Data Safety - StudyTimer Offline-First Study App',
     description: 'Read the official StudyTimer Privacy Policy. Learn about our zero-data-harvesting approach, offline-first local SQLite storage, and encrypted cloud sync.',
@@ -49,7 +49,7 @@ const pages = [
   },
   {
     file: 'terms.html',
-    url: 'https://get-studytimer.vercel.app/terms.html',
+    url: 'https://studytimer.site/terms.html',
     title: 'Terms of Service &amp; User Agreement - StudyTimer Study App',
     titlePlain: 'Terms of Service & User Agreement - StudyTimer Study App',
     description: 'Review the Terms of Service and End-User Agreement for the StudyTimer application and online Pomodoro web tools. Free and ad-free focus companion.',
@@ -57,7 +57,7 @@ const pages = [
   },
   {
     file: 'delete-account.html',
-    url: 'https://get-studytimer.vercel.app/delete-account.html',
+    url: 'https://studytimer.site/delete-account.html',
     title: 'Delete Account &amp; Cloud Sync Data - StudyTimer Data Management',
     titlePlain: 'Delete Account & Cloud Sync Data - StudyTimer Data Management',
     description: 'Request permanent erasure of your StudyTimer cloud sync backups, leaderboard entries, and account credentials. Full Google Play compliance.',
@@ -65,7 +65,7 @@ const pages = [
   },
   {
     file: 'thank-you.html',
-    url: 'https://get-studytimer.vercel.app/thank-you.html',
+    url: 'https://studytimer.site/thank-you.html',
     title: 'Download Complete - Get Started with StudyTimer Android Focus App',
     titlePlain: 'Download Complete - Get Started with StudyTimer Android Focus App',
     description: 'Thank you for downloading StudyTimer! Follow our quick setup guide to start tracking study sessions, building streaks, and acing your exams.',
@@ -73,7 +73,7 @@ const pages = [
   },
   {
     file: '404.html',
-    url: 'https://get-studytimer.vercel.app/404.html',
+    url: 'https://studytimer.site/404.html',
     title: 'Page Not Found (404) - Return to StudyTimer Focus Timer',
     titlePlain: 'Page Not Found (404) - Return to StudyTimer Focus Timer',
     description: 'Oops! The requested page could not be found. Return to StudyTimer to continue tracking your study sessions and building your daily focus streaks.',

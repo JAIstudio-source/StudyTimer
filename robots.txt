@@ -3,4 +3,4 @@ Allow: /
 Allow: /llms.txt
 Allow: /llms-full.txt
 
-Sitemap: https://get-studytimer.vercel.app/sitemap.xml
+Sitemap: https://studytimer.site/sitemap.xml

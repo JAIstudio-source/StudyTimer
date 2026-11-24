@@ -56,7 +56,7 @@ if (fs.existsSync(srcReleaseNotes)) {
 const versionJsonPath = path.join(websiteRoot, 'version.json');
 const versionJsonObj = {
     apkUrl: "https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk",
-    url: "https://get-studytimer.vercel.app/?download=true",
+    url: "https://studytimer.site/?download=true",
     versionCode: versionCode,
     versionName: versionName,
     releaseNotes: releaseNotesText

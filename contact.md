@@ -4,10 +4,10 @@
 
 ## Primary Contact Channels
 - **Direct Support Email:** studytimer737@gmail.com
-- **Website:** https://get-studytimer.vercel.app/
-- **Account & Data Deletion:** https://get-studytimer.vercel.app/delete-account.html
-- **Privacy Policy:** https://get-studytimer.vercel.app/privacy.html
-- **Terms of Service:** https://get-studytimer.vercel.app/terms.html
+- **Website:** https://studytimer.site/
+- **Account & Data Deletion:** https://studytimer.site/delete-account.html
+- **Privacy Policy:** https://studytimer.site/privacy.html
+- **Terms of Service:** https://studytimer.site/terms.html
 
 ## Support Standards & SLA
 - Support questions & bug reports: under 24 hours turnaround.

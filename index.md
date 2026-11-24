@@ -3,12 +3,12 @@
 > Track your study progress and every focus session with StudyTimer for Android. Configurable Pomodoro intervals, custom subject tagging, daily streak calendars, and deep focus analytics. 100% free and ad-free.
 
 ## Quick Links
-- **Download Free APK:** https://get-studytimer.vercel.app/StudyTimer-release.apk
-- **About StudyTimer:** https://get-studytimer.vercel.app/about.html
-- **Contact & Support:** https://get-studytimer.vercel.app/contact.html
-- **Privacy Policy:** https://get-studytimer.vercel.app/privacy.html
-- **Terms of Service:** https://get-studytimer.vercel.app/terms.html
-- **Account Deletion Portal:** https://get-studytimer.vercel.app/delete-account.html
+- **Download Free APK:** https://studytimer.site/StudyTimer-release.apk
+- **About StudyTimer:** https://studytimer.site/about.html
+- **Contact & Support:** https://studytimer.site/contact.html
+- **Privacy Policy:** https://studytimer.site/privacy.html
+- **Terms of Service:** https://studytimer.site/terms.html
+- **Account Deletion Portal:** https://studytimer.site/delete-account.html
 
 ## Key Features
 
@@ -43,7 +43,7 @@
 - Zero subscription tiers or locked features
 
 ## Installation Guidance
-1. Download `StudyTimer-release.apk` from https://get-studytimer.vercel.app/StudyTimer-release.apk
+1. Download `StudyTimer-release.apk` from https://studytimer.site/StudyTimer-release.apk
 2. Tap the APK file in your notification bar or Downloads folder on your Android device.
 3. Enable "Allow from this source" if prompted by Android security settings and complete installation.
 

@@ -10,7 +10,7 @@ At **StudyTimer**, we believe student focus tools should protect user privacy, n
 
 StudyTimer operates primarily on your device without requiring continuous internet connectivity or mandatory account registration:
 - **On Your Android Device:** 100% of your study timers, custom subjects, color tags, Pomodoro intervals, and daily streaks are stored locally in an on-device encrypted SQLite database. You can use the full application completely offline without creating an account or sharing personal information.
-- **On Browser (Try in Browser):** If you use our browser-based timer at [https://get-studytimer.vercel.app/study](https://get-studytimer.vercel.app/study), sessions and preferences are stored locally in your browser's private IndexedDB and LocalStorage cache.
+- **On Browser (Try in Browser):** If you use our browser-based timer at [https://studytimer.site/study](https://studytimer.site/study), sessions and preferences are stored locally in your browser's private IndexedDB and LocalStorage cache.
 - **Optional Cloud Synchronization:** Cloud features (multi-device backup, streak restoration, opt-in community leaderboard) are completely optional and only activated when you explicitly sign in.
 
 ---
@@ -40,7 +40,7 @@ We practice strict **data minimization**. We only process data necessary to prov
 StudyTimer fully complies with India’s **Digital Personal Data Protection Act, 2023 (DPDP Act)** regarding the processing of digital personal data:
 - **Right to Access & Summary:** View a complete summary of all personal study data and profile information stored in our systems at any time directly through the app or web interface.
 - **Right to Correction & Updating:** Edit, modify, or correct your profile details, avatar, study goals, or session tags instantly via the profile editor.
-- **Right to Erasure & Withdrawal of Consent:** You have the unconditional right to withdraw consent and delete your digital personal data. You can delete your account and all associated cloud records in 1-click via our [Self-Serve Account Deletion Portal](https://get-studytimer.vercel.app/delete-account.html) or within app Settings.
+- **Right to Erasure & Withdrawal of Consent:** You have the unconditional right to withdraw consent and delete your digital personal data. You can delete your account and all associated cloud records in 1-click via our [Self-Serve Account Deletion Portal](https://studytimer.site/delete-account.html) or within app Settings.
 - **Right of Grievance Redressal:** Access readily available grievance redressal provided by our Data Protection & Grievance Officer.
 - **Right to Nominate:** In the event of death or incapacity, a user or their lawful representative may nominate an individual to exercise their data protection rights.
 
@@ -59,7 +59,7 @@ Recognizing that many StudyTimer users are high school and college students, we 
 
 Local study logs remain on your Android device for as long as the application remains installed. When cloud sync is enabled, snapshots are securely stored to allow students to restore their data if they change devices.
 
-If you submit a deletion request via our [Account Deletion Portal](https://get-studytimer.vercel.app/delete-account.html), your cloud profile, study backups, and leaderboard entries are immediately and permanently erased from our production servers.
+If you submit a deletion request via our [Account Deletion Portal](https://studytimer.site/delete-account.html), your cloud profile, study backups, and leaderboard entries are immediately and permanently erased from our production servers.
 
 ---
 
@@ -70,5 +70,5 @@ In accordance with the DPDP Act 2023 and Information Technology rules, if you ha
 - **Grievance / Data Protection Officer:** StudyTimer Privacy & Moderation Team
 - **Official Contact Email:** `studytimer737@gmail.com`
 - **Response Turnaround Time:** Within 48 hours
-- **Direct Support Portal:** [Contact Support Form](https://get-studytimer.vercel.app/contact.html)
-- **Official Website:** [https://get-studytimer.vercel.app/](https://get-studytimer.vercel.app/)
+- **Direct Support Portal:** [Contact Support Form](https://studytimer.site/contact.html)
+- **Official Website:** [https://studytimer.site/](https://studytimer.site/)

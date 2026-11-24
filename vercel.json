@@ -6,10 +6,12 @@
   ],
   "rewrites": [
     { "source": "/study", "destination": "/study.html" },
-    { "source": "/google280896fbdb950624.html", "destination": "/google280896fbdb950624" },
-    { "source": "/download", "destination": "/StudyTimer-release.apk" },
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/terms", "destination": "/terms.html" },
     { "source": "/about", "destination": "/about.html" },
-    { "source": "/contact", "destination": "/contact.html" }
+    { "source": "/contact", "destination": "/contact.html" },
+    { "source": "/google280896fbdb950624.html", "destination": "/google280896fbdb950624" },
+    { "source": "/download", "destination": "/StudyTimer-release.apk" }
   ],
   "headers": [
     {

@@ -4,11 +4,41 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="color-scheme" content="dark light">
+
+  <!-- Instant Anti-FOUC Paint Shield (Zero White Flash on Cold Load) -->
+  <style>
+    :root, html {
+      color-scheme: dark;
+      background-color: #09090b !important;
+    }
+    html, body {
+      background-color: #09090b !important;
+      color: #fafafa;
+      margin: 0;
+    }
+    html[data-theme="light"], html[data-theme="light"] body {
+      color-scheme: light;
+      background-color: #f9f9f7 !important;
+      color: #0a0a0a;
+    }
+  </style>
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('studytimer-theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', saved);
+        if (saved === 'light') {
+          document.documentElement.style.backgroundColor = '#f9f9f7';
+        }
+      } catch (_) {}
+    })();
+  </script>
 
   <!-- Primary Meta Tags -->
   <title>StudyTimer - Free Pomodoro Timer &amp; Study Habit Tracker</title>
   <meta name="title" content="StudyTimer - Free Pomodoro Timer &amp; Study Habit Tracker">
-  <meta name="description" content="Boost exam scores with StudyTimer. Free Pomodoro timer, subject tracker, study streaks, and analytics for students on Android and Web. 100% ad-free.">
+  <meta name="description" content="Boost exam scores with StudyTimer — free Pomodoro timer, study tracker, and habit tracker for students. Offline-first, 100% free with no ads.">
   <meta name="keywords" content="study timer, pomodoro timer, study tracker, pomodoro app, study streak, offline study timer, student focus app, habit tracker for students, free study timer, ad-free study app">
   <meta name="google-site-verification" content="google280896fbdb950624">
   <meta name="google-site-verification" content="280896fbdb950624">
@@ -34,7 +64,7 @@
 
   <!-- Schema.org / Microdata -->
   <meta itemprop="name" content="StudyTimer - Free Pomodoro Timer &amp; Study Habit Tracker">
-  <meta itemprop="description" content="Boost exam scores with StudyTimer. Free Pomodoro timer, subject tracker, study streaks, and analytics for students on Android and Web. 100% ad-free.">
+  <meta itemprop="description" content="Boost exam scores with StudyTimer — free Pomodoro timer, study tracker, and habit tracker for students. Offline-first, 100% free with no ads.">
   <meta itemprop="image" content="https://studytimer.site/assets/og-preview.png">
   <link rel="image_src" href="https://studytimer.site/assets/og-preview.png">
 
@@ -43,7 +73,7 @@
   <meta property="og:site_name" content="StudyTimer">
   <meta property="og:url" content="https://studytimer.site/">
   <meta property="og:title" content="StudyTimer - Free Pomodoro Timer &amp; Study Habit Tracker">
-  <meta property="og:description" content="Boost exam scores with StudyTimer. Free Pomodoro timer, subject tracker, study streaks, and analytics for students on Android and Web. 100% ad-free.">
+  <meta property="og:description" content="Boost exam scores with StudyTimer — free Pomodoro timer, study tracker, and habit tracker for students. Offline-first, 100% free with no ads.">
   <meta property="og:image" content="https://studytimer.site/assets/og-preview.png">
   <meta property="og:image:secure_url" content="https://studytimer.site/assets/og-preview.png">
   <meta property="og:image:width" content="1024">
@@ -56,14 +86,18 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:url" content="https://studytimer.site/">
   <meta name="twitter:title" content="StudyTimer - Free Pomodoro Timer &amp; Study Habit Tracker">
-  <meta name="twitter:description" content="Boost exam scores with StudyTimer. Free Pomodoro timer, subject tracker, study streaks, and analytics for students on Android and Web. 100% ad-free.">
+  <meta name="twitter:description" content="Boost exam scores with StudyTimer — free Pomodoro timer, study tracker, and habit tracker for students. Offline-first, 100% free with no ads.">
   <meta name="twitter:image" content="https://studytimer.site/assets/og-preview.png">
   <meta name="twitter:image:alt" content="StudyTimer - Free Pomodoro Timer &amp; Study Habit Tracker Preview">
 
-  <!-- Google Fonts: Plus Jakarta Sans + JetBrains Mono -->
+  <!-- Google Fonts: Plus Jakarta Sans + JetBrains Mono (Preloaded & Async) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  </noscript>
 
   <!-- Preload Critical LCP Hero Image -->
   <link rel="preload" as="image" href="assets/screenshots/timer_homescreen.webp" type="image/webp">
@@ -215,12 +249,6 @@
     ]
   }
   </script>
-  <script>
-    try {
-      const saved = localStorage.getItem('studytimer-theme') || 'dark';
-      document.documentElement.setAttribute('data-theme', saved);
-    } catch (_) {}
-  </script>
 </head>
 
 <body>
@@ -284,16 +312,15 @@
 
         <div class="hero-text">
           <h1 class="hero-headline">
-            <span class="section-eyebrow reveal-item reveal-delay-1">Free Pomodoro Timer &amp; Study Habit Tracker</span>
-            <span class="headline-line reveal-item reveal-delay-2">Track every study hour.</span>
-            <span class="headline-line headline-accent reveal-item reveal-delay-3">Crush your daily goals.</span>
+            <span class="headline-line reveal-item reveal-delay-1">Free Pomodoro Timer &amp; Study Tracker.</span>
+            <span class="headline-line headline-accent reveal-item reveal-delay-2">Crush your daily goals.</span>
           </h1>
 
-          <p class="hero-subheadline reveal-item reveal-delay-4">
+          <p class="hero-subheadline reveal-item reveal-delay-3">
             Track subject-wise study hours, run Pomodoro sessions, and build daily streaks — 100% free, offline-first, and zero ads.
           </p>
 
-          <div class="hero-ctas reveal-item reveal-delay-4">
+          <div class="hero-ctas reveal-item reveal-delay-3">
             <a href="https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk"
                download="StudyTimer.apk"
                class="btn btn-primary btn-lg" id="heroMainDownloadBtn">
@@ -306,15 +333,7 @@
             </a>
           </div>
 
-          <div class="trust-strip reveal-item reveal-delay-5">
-            <div class="trust-item">
-              <span class="trust-highlight">No Ads</span>
-            </div>
-            <span class="trust-divider">·</span>
-            <div class="trust-item">
-              <span class="trust-highlight">Works Offline</span>
-            </div>
-            <span class="trust-divider">·</span>
+          <div class="trust-strip reveal-item reveal-delay-4">
             <div class="trust-item">
               <span class="trust-version-pill" id="heroAppVersion">v3.3.6</span>
               <span class="trust-label">Built for Competitive Exam Prep</span>

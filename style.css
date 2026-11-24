@@ -740,8 +740,9 @@ section {
   }
 
   .hero-headline {
-    margin-bottom: 12px;
+    font-size: 32px;
     line-height: 1.15;
+    margin-bottom: 12px;
   }
 
   .hero-subheadline {

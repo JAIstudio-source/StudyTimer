@@ -1,8 +1,38 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <meta name="color-scheme" content="dark light">
+
+  <!-- Instant Anti-FOUC Paint Shield (Zero White Flash on Cold Load) -->
+  <style>
+    :root, html {
+      color-scheme: dark;
+      background-color: #09090b !important;
+    }
+    html, body {
+      background-color: #09090b !important;
+      color: #fafafa;
+      margin: 0;
+    }
+    html[data-theme="light"], html[data-theme="light"] body {
+      color-scheme: light;
+      background-color: #f9f9f7 !important;
+      color: #0a0a0a;
+    }
+  </style>
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('studytimer-theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', saved);
+        if (saved === 'light') {
+          document.documentElement.style.backgroundColor = '#f9f9f7';
+        }
+      } catch (_) {}
+    })();
+  </script>
   
   <!-- Primary Meta Tags -->
   <title>StudyTimer Web — Free Online Pomodoro Timer &amp; Habit Tracker</title>

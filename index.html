@@ -65,6 +65,26 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 
+  <!-- Preload Critical LCP Hero Image -->
+  <link rel="preload" as="image" href="assets/screenshots/timer_homescreen.webp" type="image/webp">
+
+  <!-- Prefetch Key Pages for Instant Navigation -->
+  <link rel="prefetch" href="/privacy">
+  <link rel="prefetch" href="/study">
+  <link rel="prefetch" href="/about">
+
+  <!-- Speculation Rules API for Instant (0ms) Page Loads in Modern Browsers -->
+  <script type="speculationrules">
+  {
+    "prerender": [
+      {
+        "source": "list",
+        "urls": ["/study", "/privacy", "/about", "/contact"]
+      }
+    ]
+  }
+  </script>
+
   <!-- Main Stylesheet -->
   <link rel="stylesheet" href="style.css?v=5.0.0">
 
@@ -250,7 +270,7 @@
       <a href="#how-it-works" class="drawer-link">How It Works</a>
       <a href="#faq" class="drawer-link">FAQ</a>
       <a href="study" class="drawer-link">Try in Browser</a>
-      <a href="about.html" class="drawer-link">About</a>
+      <a href="about" class="drawer-link">About</a>
     </nav>
     </div>
 
@@ -697,15 +717,15 @@
           </div>
           <div class="footer-col">
             <h3 class="footer-col-title">About</h3>
-            <a href="about.html" class="footer-link">About Us</a>
-            <a href="privacy.html" class="footer-link">Privacy Policy</a>
-            <a href="terms.html" class="footer-link">Terms of Use</a>
-            <a href="delete-account.html" class="footer-link">Delete Account</a>
+            <a href="about" class="footer-link">About Us</a>
+            <a href="privacy" class="footer-link">Privacy Policy</a>
+            <a href="terms" class="footer-link">Terms of Use</a>
+            <a href="delete-account" class="footer-link">Delete Account</a>
           </div>
           <div class="footer-col">
             <h3 class="footer-col-title">Help</h3>
             <a href="study" class="footer-link">Online Study Studio</a>
-            <a href="contact.html" class="footer-link">Contact Us</a>
+            <a href="contact" class="footer-link">Contact Us</a>
             <a href="https://raw.githubusercontent.com/JAIstudio-source/StudyTimer/main/StudyTimer-release.apk" download="StudyTimer.apk" class="footer-link">Download APK</a>
             <a href="https://github.com/JAIstudio-source/StudyTimer" target="_blank" rel="noopener" class="footer-link">GitHub</a>
           </div>
@@ -715,9 +735,9 @@
       <div class="footer-bottom">
         <p class="footer-copyright">&copy; 2026 StudyTimer. Free for students.</p>
         <div class="footer-bottom-links">
-          <a href="privacy.html" class="footer-link">Privacy</a>
-          <a href="terms.html" class="footer-link">Terms</a>
-          <a href="contact.html" class="footer-link">Contact</a>
+          <a href="privacy" class="footer-link">Privacy</a>
+          <a href="terms" class="footer-link">Terms</a>
+          <a href="contact" class="footer-link">Contact</a>
         </div>
       </div>
     </div>
@@ -740,6 +760,6 @@
     </div>
   </div>
 
-  <script src="script.js?v=5.0.0"></script>
+  <script defer src="script.js?v=5.0.0"></script>
 </body>
 </html>

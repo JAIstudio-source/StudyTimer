@@ -715,11 +715,20 @@ html, body {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(255, 255, 255, 0.18) !important;
 }
 
+[data-theme="dark"] .mode-btn.active svg,
+:root:not([data-theme="light"]) .mode-btn.active svg {
+  stroke: #09090b !important;
+}
+
 [data-theme="light"] .mode-btn.active {
   background: #09090b !important;
   color: #ffffff !important;
   font-weight: 700 !important;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-theme="light"] .mode-btn.active svg {
+  stroke: #ffffff !important;
 }
 
 /* ==========================================================================
@@ -2046,7 +2055,7 @@ body.bg-tone-light .mode-btn {
 html[data-bg-tone="light"] body .mode-btn svg,
 body[data-bg-tone="light"] .mode-btn svg,
 body.bg-tone-light .mode-btn svg {
-  stroke: #09090b !important;
+  stroke: currentColor !important;
 }
 
 html[data-bg-tone="light"] body .mode-btn:hover,
@@ -2087,7 +2096,7 @@ body.bg-tone-dark .mode-btn {
 html[data-bg-tone="dark"] body .mode-btn svg,
 body[data-bg-tone="dark"] .mode-btn svg,
 body.bg-tone-dark .mode-btn svg {
-  stroke: #ffffff !important;
+  stroke: currentColor !important;
 }
 
 html[data-bg-tone="dark"] body .mode-btn:hover,
@@ -2260,13 +2269,32 @@ body.bg-tone-light .daily-quote-capsule .quote-refresh-btn svg {
   stroke: #09090b !important;
 }
 
+html[data-bg-tone="light"] body .topbar-sidebar-toggle-btn,
+html[data-bg-tone="light"] body .mobile-menu-btn,
+body[data-bg-tone="light"] .topbar-sidebar-toggle-btn,
+body[data-bg-tone="light"] .mobile-menu-btn,
+body.bg-tone-light .topbar-sidebar-toggle-btn,
+body.bg-tone-light .mobile-menu-btn {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border: 1px solid rgba(9, 9, 11, 0.18) !important;
+  color: #09090b !important;
+}
+
+html[data-bg-tone="light"] body .topbar-sidebar-toggle-btn:hover,
+body[data-bg-tone="light"] .topbar-sidebar-toggle-btn:hover,
+body.bg-tone-light .topbar-sidebar-toggle-btn:hover {
+  background: #09090b !important;
+  border-color: #09090b !important;
+  color: #ffffff !important;
+}
+
 html[data-bg-tone="light"] body .topbar-sidebar-toggle-btn svg,
 html[data-bg-tone="light"] body .mobile-menu-btn svg,
 body[data-bg-tone="light"] .topbar-sidebar-toggle-btn svg,
 body[data-bg-tone="light"] .mobile-menu-btn svg,
 body.bg-tone-light .topbar-sidebar-toggle-btn svg,
 body.bg-tone-light .mobile-menu-btn svg {
-  stroke: #09090b !important;
+  stroke: currentColor !important;
 }
 
 html[data-bg-tone="dark"] body .topbar-pill-btn,
@@ -2304,74 +2332,141 @@ body.bg-tone-dark .daily-quote-capsule .quote-refresh-btn svg {
   stroke: #ffffff !important;
 }
 
+html[data-bg-tone="dark"] body .topbar-sidebar-toggle-btn,
+html[data-bg-tone="dark"] body .mobile-menu-btn,
+body[data-bg-tone="dark"] .topbar-sidebar-toggle-btn,
+body[data-bg-tone="dark"] .mobile-menu-btn,
+body.bg-tone-dark .topbar-sidebar-toggle-btn,
+body.bg-tone-dark .mobile-menu-btn {
+  background: rgba(15, 23, 42, 0.65) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+}
+
+html[data-bg-tone="dark"] body .topbar-sidebar-toggle-btn:hover,
+body[data-bg-tone="dark"] .topbar-sidebar-toggle-btn:hover,
+body.bg-tone-dark .topbar-sidebar-toggle-btn:hover {
+  background: #ffffff !important;
+  border-color: #ffffff !important;
+  color: #09090b !important;
+}
+
 html[data-bg-tone="dark"] body .topbar-sidebar-toggle-btn svg,
 html[data-bg-tone="dark"] body .mobile-menu-btn svg,
 body[data-bg-tone="dark"] .topbar-sidebar-toggle-btn svg,
 body[data-bg-tone="dark"] .mobile-menu-btn svg,
 body.bg-tone-dark .topbar-sidebar-toggle-btn svg,
 body.bg-tone-dark .mobile-menu-btn svg {
-  stroke: #ffffff !important;
+  stroke: currentColor !important;
 }
 
 /* 7. Bottom Floating Audio Dock */
 html[data-bg-tone="light"] body .floating-audio-dock,
 body[data-bg-tone="light"] .floating-audio-dock,
 body.bg-tone-light .floating-audio-dock {
-  background: rgba(255, 255, 255, 0.9) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
   border: 1px solid rgba(9, 9, 11, 0.18) !important;
   color: #09090b !important;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15) !important;
 }
 
-html[data-bg-tone="light"] body .floating-audio-dock .audio-track-name,
-html[data-bg-tone="light"] body .floating-audio-dock .audio-status-label,
-body[data-bg-tone="light"] .floating-audio-dock .audio-track-name,
-body[data-bg-tone="light"] .floating-audio-dock .audio-status-label,
-body.bg-tone-light .floating-audio-dock .audio-track-name,
-body.bg-tone-light .floating-audio-dock .audio-status-label {
+html[data-bg-tone="light"] body .floating-audio-dock .audio-current-name,
+html[data-bg-tone="light"] body .floating-audio-dock .custom-audio-select-btn,
+html[data-bg-tone="light"] body .floating-audio-dock .custom-audio-btn-label,
+html[data-bg-tone="light"] body .floating-audio-dock .audio-engine-badge,
+body[data-bg-tone="light"] .floating-audio-dock .audio-current-name,
+body[data-bg-tone="light"] .floating-audio-dock .custom-audio-select-btn,
+body[data-bg-tone="light"] .floating-audio-dock .custom-audio-btn-label,
+body[data-bg-tone="light"] .floating-audio-dock .audio-engine-badge,
+body.bg-tone-light .floating-audio-dock .audio-current-name,
+body.bg-tone-light .floating-audio-dock .custom-audio-select-btn,
+body.bg-tone-light .floating-audio-dock .custom-audio-btn-label,
+body.bg-tone-light .floating-audio-dock .audio-engine-badge {
   color: #09090b !important;
 }
 
-html[data-bg-tone="light"] body .floating-audio-dock svg,
-body[data-bg-tone="light"] .floating-audio-dock svg,
-body.bg-tone-light .floating-audio-dock svg {
+html[data-bg-tone="light"] body .floating-audio-dock .custom-audio-select-btn,
+body[data-bg-tone="light"] .floating-audio-dock .custom-audio-select-btn,
+body.bg-tone-light .floating-audio-dock .custom-audio-select-btn {
+  background: rgba(9, 9, 11, 0.06) !important;
+  border-color: rgba(9, 9, 11, 0.14) !important;
+}
+
+html[data-bg-tone="light"] body .floating-audio-dock svg:not(.audio-icon-play):not(.audio-icon-pause),
+body[data-bg-tone="light"] .floating-audio-dock svg:not(.audio-icon-play):not(.audio-icon-pause),
+body.bg-tone-light .floating-audio-dock svg:not(.audio-icon-play):not(.audio-icon-pause) {
   stroke: #09090b !important;
 }
 
+html[data-bg-tone="light"] body .floating-audio-dock .audio-play-toggle-btn,
+body[data-bg-tone="light"] .floating-audio-dock .audio-play-toggle-btn,
+body.bg-tone-light .floating-audio-dock .audio-play-toggle-btn {
+  background: #09090b !important;
+  color: #ffffff !important;
+}
+
 html[data-bg-tone="light"] body .floating-audio-dock .audio-icon-play,
+html[data-bg-tone="light"] body .floating-audio-dock .audio-icon-pause,
 body[data-bg-tone="light"] .floating-audio-dock .audio-icon-play,
-body.bg-tone-light .floating-audio-dock .audio-icon-play {
-  fill: #09090b !important;
+body[data-bg-tone="light"] .floating-audio-dock .audio-icon-pause,
+body.bg-tone-light .floating-audio-dock .audio-icon-play,
+body.bg-tone-light .floating-audio-dock .audio-icon-pause {
+  fill: #ffffff !important;
+  stroke: none !important;
 }
 
 html[data-bg-tone="dark"] body .floating-audio-dock,
 body[data-bg-tone="dark"] .floating-audio-dock,
 body.bg-tone-dark .floating-audio-dock {
-  background: rgba(15, 23, 42, 0.85) !important;
+  background: rgba(15, 23, 42, 0.86) !important;
   border: 1px solid rgba(255, 255, 255, 0.18) !important;
   color: #ffffff !important;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45) !important;
 }
 
-html[data-bg-tone="dark"] body .floating-audio-dock .audio-track-name,
-html[data-bg-tone="dark"] body .floating-audio-dock .audio-status-label,
-body[data-bg-tone="dark"] .floating-audio-dock .audio-track-name,
-body[data-bg-tone="dark"] .floating-audio-dock .audio-status-label,
-body.bg-tone-dark .floating-audio-dock .audio-track-name,
-body.bg-tone-dark .floating-audio-dock .audio-status-label {
+html[data-bg-tone="dark"] body .floating-audio-dock .audio-current-name,
+html[data-bg-tone="dark"] body .floating-audio-dock .custom-audio-select-btn,
+html[data-bg-tone="dark"] body .floating-audio-dock .custom-audio-btn-label,
+html[data-bg-tone="dark"] body .floating-audio-dock .audio-engine-badge,
+body[data-bg-tone="dark"] .floating-audio-dock .audio-current-name,
+body[data-bg-tone="dark"] .floating-audio-dock .custom-audio-select-btn,
+body[data-bg-tone="dark"] .floating-audio-dock .custom-audio-btn-label,
+body[data-bg-tone="dark"] .floating-audio-dock .audio-engine-badge,
+body.bg-tone-dark .floating-audio-dock .audio-current-name,
+body.bg-tone-dark .floating-audio-dock .custom-audio-select-btn,
+body.bg-tone-dark .floating-audio-dock .custom-audio-btn-label,
+body.bg-tone-dark .floating-audio-dock .audio-engine-badge {
   color: #ffffff !important;
 }
 
-html[data-bg-tone="dark"] body .floating-audio-dock svg,
-body[data-bg-tone="dark"] .floating-audio-dock svg,
-body.bg-tone-dark .floating-audio-dock svg {
+html[data-bg-tone="dark"] body .floating-audio-dock .custom-audio-select-btn,
+body[data-bg-tone="dark"] .floating-audio-dock .custom-audio-select-btn,
+body.bg-tone-dark .floating-audio-dock .custom-audio-select-btn {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+html[data-bg-tone="dark"] body .floating-audio-dock svg:not(.audio-icon-play):not(.audio-icon-pause),
+body[data-bg-tone="dark"] .floating-audio-dock svg:not(.audio-icon-play):not(.audio-icon-pause),
+body.bg-tone-dark .floating-audio-dock svg:not(.audio-icon-play):not(.audio-icon-pause) {
   stroke: #ffffff !important;
 }
 
+html[data-bg-tone="dark"] body .floating-audio-dock .audio-play-toggle-btn,
+body[data-bg-tone="dark"] .floating-audio-dock .audio-play-toggle-btn,
+body.bg-tone-dark .floating-audio-dock .audio-play-toggle-btn {
+  background: #ffffff !important;
+  color: #09090b !important;
+}
+
 html[data-bg-tone="dark"] body .floating-audio-dock .audio-icon-play,
+html[data-bg-tone="dark"] body .floating-audio-dock .audio-icon-pause,
 body[data-bg-tone="dark"] .floating-audio-dock .audio-icon-play,
-body.bg-tone-dark .floating-audio-dock .audio-icon-play {
-  fill: #ffffff !important;
+body[data-bg-tone="dark"] .floating-audio-dock .audio-icon-pause,
+body.bg-tone-dark .floating-audio-dock .audio-icon-play,
+body.bg-tone-dark .floating-audio-dock .audio-icon-pause {
+  fill: #09090b !important;
+  stroke: none !important;
 }
 
 /* 8. Zen Full Screen Timer Controls */

@@ -72,6 +72,21 @@ const DEFAULT_SUBJECTS = [
   { id: 'literature', name: 'Literature', iconEmoji: '✍️', color: '#ec4899' }
 ];
 
+function getPresetConfig() {
+  if (typeof window !== 'undefined' && window.__STUDYTIMER_PRESET__ && typeof window.__STUDYTIMER_PRESET__ === 'object') {
+    return window.__STUDYTIMER_PRESET__;
+  }
+  return null;
+}
+
+function getActiveDefaultSubjects() {
+  const preset = getPresetConfig();
+  if (preset && Array.isArray(preset.subjects) && preset.subjects.length > 0) {
+    return preset.subjects;
+  }
+  return DEFAULT_SUBJECTS;
+}
+
 function getCleanUniqueSubjects(subjectsList) {
   const source = Array.isArray(subjectsList) && subjectsList.length > 0 ? subjectsList : DEFAULT_SUBJECTS;
   const seenIds = new Set();
@@ -180,8 +195,8 @@ function getCleanInitialState(user = null) {
       isPublicLeaderboard: true,
       profileStatus: 'approved'
     },
-    subjects: JSON.parse(JSON.stringify(DEFAULT_SUBJECTS)),
-    selectedSubject: DEFAULT_SUBJECTS[0],
+    subjects: JSON.parse(JSON.stringify(getActiveDefaultSubjects())),
+    selectedSubject: getActiveDefaultSubjects()[0],
     plannerGoals: [],
     timelineEntries: [],
     todaySessions: [],
@@ -1686,6 +1701,7 @@ function loadLocalState(targetUserId = null) {
       try { parsed = JSON.parse(local); } catch (_) {}
     }
 
+    const preset = getPresetConfig();
     if (parsed) {
       if (parsed.currentMode && ['pomodoro', 'stopwatch', 'break'].includes(parsed.currentMode)) {
         currentMode = parsed.currentMode;
@@ -1694,6 +1710,11 @@ function loadLocalState(targetUserId = null) {
       }
       if (parsed.lastFocusMode && ['pomodoro', 'stopwatch'].includes(parsed.lastFocusMode)) {
         lastFocusMode = parsed.lastFocusMode;
+      }
+      // Route-specific mode preset (e.g. /pomodoro-timer or /stopwatch) sets initial focus mode
+      if (preset && preset.mode && ['pomodoro', 'stopwatch'].includes(preset.mode)) {
+        currentMode = preset.mode;
+        lastFocusMode = preset.mode;
       }
       if (typeof parsed.pomoCurrentCycle === 'number' && parsed.pomoCurrentCycle > 0) {
         pomoCurrentCycle = parsed.pomoCurrentCycle;
@@ -1763,6 +1784,14 @@ function loadLocalState(targetUserId = null) {
         );
       } else {
         reconstructTodaySessionsFromTimeline();
+      }
+    } else if (preset) {
+      if (preset.mode && ['pomodoro', 'stopwatch'].includes(preset.mode)) {
+        currentMode = preset.mode;
+        lastFocusMode = preset.mode;
+      }
+      if (preset.enableSubjects === true) {
+        timerConfig.enableSubjects = true;
       }
     }
   } catch (e) {
@@ -8761,15 +8790,17 @@ function showToast(message, type = 'info') {
 
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
+  toast.setAttribute('role', 'status');
+  toast.setAttribute('aria-live', 'polite');
   toast.textContent = message;
 
   container.appendChild(toast);
 
   setTimeout(() => {
     toast.style.opacity = '0';
-    toast.style.transform = 'translateY(12px)';
-    toast.style.transition = 'all 0.3s ease';
-    setTimeout(() => toast.remove(), 300);
+    toast.style.transform = 'translateY(8px) scale(0.97)';
+    toast.style.transition = 'opacity 0.16s cubic-bezier(0.23, 1, 0.32, 1), transform 0.16s cubic-bezier(0.23, 1, 0.32, 1)';
+    setTimeout(() => toast.remove(), 170);
   }, 3500);
 }
 
@@ -9563,10 +9594,12 @@ function initDraggableAudioDock() {
   if (isCollapsed) {
     dock.classList.add('dock-collapsed');
   }
+  collapseBtn?.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
 
   collapseBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
     const collapsed = dock.classList.toggle('dock-collapsed');
+    collapseBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     try {
       localStorage.setItem('studytimer_audio_dock_collapsed', collapsed ? 'true' : 'false');
     } catch (_) {}

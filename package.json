@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "node test/agent-readiness.test.js",
+    "generate:seo": "node scripts/generate_seo_pages.mjs",
     "sync:release": "node scripts/sync_release.mjs",
     "generate:feature": "node scripts/generate_feature_graphic.mjs",
     "generate:showcase": "node scripts/generate_showcase.mjs",

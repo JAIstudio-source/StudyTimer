@@ -262,7 +262,7 @@ body.has-custom-bg .app-sidebar {
 }
 
 .audio-equalizer-bars.is-playing .eq-bar {
-  background: var(--accent-blue);
+  background: var(--text-primary);
   animation: eq-bounce 1.2s infinite ease-in-out alternate;
 }
 
@@ -308,8 +308,8 @@ body.has-custom-bg .app-sidebar {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--bg-card, rgba(20, 24, 36, 0.8));
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: var(--radius-md, 10px);
   color: var(--text-primary, #ffffff);
   font-size: 0.78rem;
@@ -318,17 +318,27 @@ body.has-custom-bg .app-sidebar {
   cursor: pointer;
   outline: none;
   max-width: 175px;
-  transition: all var(--transition-fast, 0.2s ease);
+  transition: transform 0.18s cubic-bezier(0.23, 1, 0.32, 1), background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   white-space: nowrap;
 }
 
+[data-theme="light"] .custom-audio-select-btn {
+  background: rgba(9, 9, 11, 0.05);
+  border-color: rgba(9, 9, 11, 0.12);
+  color: #09090b;
+}
+
 .custom-audio-select-btn:hover,
 .custom-audio-select-btn:focus-visible {
-  border-color: var(--accent-blue, #3b82f6);
-  background: var(--bg-card-hover, rgba(30, 36, 54, 0.9));
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
+  border-color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+[data-theme="light"] .custom-audio-select-btn:hover,
+[data-theme="light"] .custom-audio-select-btn:focus-visible {
+  background: rgba(9, 9, 11, 0.09);
 }
 
 .custom-audio-btn-icon {
@@ -372,7 +382,7 @@ body.has-custom-bg .app-sidebar {
   z-index: 10005;
   display: flex;
   flex-direction: column;
-  animation: audioPopupIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: audioPopupIn 0.22s cubic-bezier(0.23, 1, 0.32, 1);
   transform-origin: bottom left;
 }
 
@@ -477,16 +487,24 @@ body.has-custom-bg .app-sidebar {
 }
 
 .custom-audio-item.active {
-  background: rgba(59, 130, 246, 0.15);
-  border-color: rgba(59, 130, 246, 0.35);
-  color: #60a5fa;
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #09090b;
   font-weight: 600;
 }
 
+.custom-audio-item.active .audio-item-sub {
+  color: rgba(9, 9, 11, 0.65);
+}
+
 [data-theme="light"] .custom-audio-item.active {
-  background: rgba(59, 130, 246, 0.12);
-  border-color: rgba(59, 130, 246, 0.3);
-  color: #2563eb;
+  background: #09090b;
+  border-color: #09090b;
+  color: #ffffff;
+}
+
+[data-theme="light"] .custom-audio-item.active .audio-item-sub {
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .audio-item-emoji {
@@ -586,16 +604,21 @@ body.has-custom-bg .app-sidebar {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: var(--accent-blue);
-  color: #ffffff;
+  background: #ffffff;
+  color: #09090b;
   border: none;
   cursor: pointer;
-  transition: transform var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: transform 0.18s cubic-bezier(0.23, 1, 0.32, 1), background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+[data-theme="light"] .audio-play-toggle-btn {
+  background: #09090b;
+  color: #ffffff;
 }
 
 .audio-play-toggle-btn:hover {
   transform: scale(1.08);
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.45);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
 
 .audio-play-toggle-btn svg {

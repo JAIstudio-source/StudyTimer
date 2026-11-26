@@ -101,27 +101,48 @@
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/_vercel/speed-insights/script.js"></script>
 
-  <!-- Structured Data (JSON-LD Schema for WebApplication) -->
+  <!-- Structured Data (JSON-LD Schema for WebApplication & Breadcrumb) -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
-    "@type": "WebApplication",
-    "name": "StudyTimer Web",
-    "url": "https://studytimer.site/study",
-    "applicationCategory": "EducationalApplication",
-    "browserRequirements": "Requires JavaScript. Requires HTML5.",
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD"
-    },
-    "description": "Interactive online study studio with Pomodoro timer, stopwatch, subject tracking, daily targets, and Android cloud sync.",
-    "image": "https://studytimer.site/assets/og-preview.png",
-    "author": {
-      "@type": "Organization",
-      "name": "StudyTimer",
-      "url": "https://studytimer.site/"
-    }
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        "name": "StudyTimer Web",
+        "url": "https://studytimer.site/study",
+        "applicationCategory": "EducationalApplication",
+        "browserRequirements": "Requires JavaScript. Requires HTML5.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "description": "Interactive online study studio with Pomodoro timer, stopwatch, subject tracking, daily targets, and Android cloud sync.",
+        "image": "https://studytimer.site/assets/og-preview.png",
+        "author": {
+          "@type": "Organization",
+          "name": "StudyTimer",
+          "url": "https://studytimer.site/"
+        }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://studytimer.site/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "StudyTimer Web",
+            "item": "https://studytimer.site/study"
+          }
+        ]
+      }
+    ]
   }
   </script>
 
@@ -301,9 +322,6 @@
           </div>
 
           <!-- Cloud Sync Status Pill -->
-          <div class="sync-status-pill" id="syncStatusPill" role="status" aria-live="polite" title="Cloud Sync Status (Click to sync)" style="margin-top: 8px; width: 100%; justify-content: center; cursor: pointer;">
-            <span class="sync-label" id="syncStatusText">Local</span>
-          </div>
         </div>
       </nav>
 
@@ -325,6 +343,16 @@
             <span class="sidebar-tool-label">Theme</span>
           </button>
         </div>
+
+        <!-- Android App Download CTA (Visible only when sidebar is expanded) -->
+        <a href="/#download" class="sidebar-android-download-btn" id="btnSidebarAndroidDownload" title="Download StudyTimer for Android">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+          </svg>
+          <span class="sidebar-android-label">Get Android App</span>
+          <span class="sidebar-android-badge">APK</span>
+        </a>
 
         <!-- Blended Sidebar Rail Toggle Button (Clean footer action, never beside logo) -->
         <button type="button" class="sidebar-rail-toggle-btn" id="btnToggleSidebarCollapse" aria-label="Toggle Sidebar" title="Collapse / Expand Sidebar">

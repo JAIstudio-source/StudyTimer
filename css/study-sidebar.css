@@ -151,10 +151,18 @@ body.has-custom-bg .app-sidebar {
 }
 
 .sidebar-nav-item.active {
-  color: var(--accent-blue);
-  background: rgba(59, 130, 246, 0.12);
-  border-color: rgba(59, 130, 246, 0.25);
+  color: #09090b;
+  background: #ffffff;
+  border-color: #ffffff;
   font-weight: 700;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="light"] .sidebar-nav-item.active {
+  color: #ffffff;
+  background: #09090b;
+  border-color: #09090b;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.16);
 }
 
 .nav-item-svg {
@@ -240,9 +248,9 @@ body.has-custom-bg .app-sidebar {
 }
 
 .sidebar-tool-btn:hover {
-  border-color: var(--accent-blue);
+  border-color: var(--border-strong);
   color: var(--text-primary);
-  background: var(--bg-card);
+  background: var(--bg-card-hover);
 }
 
 .sidebar-tool-btn svg {
@@ -254,6 +262,73 @@ body.has-custom-bg .app-sidebar {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* Android App Download Link (Expanded Sidebar Only) */
+.sidebar-android-download-btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  margin-top: 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: transform 0.18s cubic-bezier(0.23, 1, 0.32, 1), background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.sidebar-android-download-btn:hover {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #09090b;
+  transform: translateY(-1px);
+}
+
+[data-theme="light"] .sidebar-android-download-btn:hover {
+  background: #09090b;
+  border-color: #09090b;
+  color: #ffffff;
+}
+
+.sidebar-android-download-btn svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: currentColor;
+}
+
+.sidebar-android-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-android-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: inherit;
+}
+
+[data-theme="light"] .sidebar-android-badge {
+  background: rgba(9, 9, 11, 0.1);
+}
+
+.sidebar-android-download-btn:hover .sidebar-android-badge {
+  background: rgba(9, 9, 11, 0.12);
+}
+
+[data-theme="light"] .sidebar-android-download-btn:hover .sidebar-android-badge {
+  background: rgba(255, 255, 255, 0.18);
 }
 
 /* Sidebar Collapse / Expand Toggle Button (Blended into footer, away from logo) */
@@ -344,7 +419,8 @@ body.has-custom-bg .app-sidebar {
 .app-sidebar.collapsed .sync-label,
 .app-sidebar.collapsed .auth-btn-label,
 .app-sidebar.collapsed .user-name,
-.app-sidebar.collapsed .dropdown-caret {
+.app-sidebar.collapsed .dropdown-caret,
+.app-sidebar.collapsed .sidebar-android-download-btn {
   display: none !important;
 }
 
@@ -468,7 +544,7 @@ body.has-custom-bg .app-sidebar {
 .topbar-sidebar-toggle-btn {
   background: var(--bg-subtle);
   border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
+  color: var(--text-primary);
   border-radius: var(--radius-pill);
   width: 32px;
   height: 32px;
@@ -476,13 +552,19 @@ body.has-custom-bg .app-sidebar {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: transform 0.18s cubic-bezier(0.23, 1, 0.32, 1), background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
 }
 
 .topbar-sidebar-toggle-btn:hover {
-  background: var(--bg-card);
-  border-color: var(--accent-blue);
-  color: var(--text-primary);
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #09090b;
+}
+
+[data-theme="light"] .topbar-sidebar-toggle-btn:hover {
+  background: #09090b;
+  border-color: #09090b;
+  color: #ffffff;
 }
 
 .topbar-sidebar-toggle-btn svg {
@@ -744,11 +826,20 @@ body.has-custom-bg .app-sidebar {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(255, 255, 255, 0.18) !important;
 }
 
+[data-theme="dark"] .mode-btn.active svg,
+:root:not([data-theme="light"]) .mode-btn.active svg {
+  stroke: #09090b !important;
+}
+
 [data-theme="light"] .mode-btn.active {
   background: #09090b !important;
   color: #ffffff !important;
   font-weight: 700 !important;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-theme="light"] .mode-btn.active svg {
+  stroke: #ffffff !important;
 }
 
 /* Floating Glowing Circle Timer */
@@ -892,6 +983,62 @@ body.has-custom-bg .app-sidebar {
   opacity: 0.4;
 }
 
+/* Subtle Collapsible SEO Guide & FAQ in Footer (Preset Pages) */
+.seo-preset-guide {
+  margin: 8px auto 0;
+  max-width: 680px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.seo-preset-guide summary {
+  cursor: pointer;
+  list-style: none;
+  text-align: center;
+  font-weight: 500;
+  color: var(--text-muted);
+  opacity: 0.78;
+  transition: opacity 0.18s ease, color 0.18s ease;
+}
+
+.seo-preset-guide summary::-webkit-details-marker {
+  display: none;
+}
+
+.seo-preset-guide summary:hover {
+  opacity: 1;
+  color: var(--text-primary);
+}
+
+.seo-preset-guide-body {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.seo-preset-guide-body h2 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 6px;
+}
+
+.seo-preset-guide-body h3 {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 10px 0 3px;
+}
+
+.seo-preset-guide-body p {
+  margin: 0;
+}
+
 /* 4. Floating Focus Audio Dock (Draggable & Collapsible Glass Island) */
 .floating-audio-dock {
   position: fixed;
@@ -905,6 +1052,7 @@ body.has-custom-bg .app-sidebar {
   gap: 8px;
   padding: 6px 12px;
   background: rgba(18, 18, 24, 0.86);
+  color: var(--text-primary);
   backdrop-filter: blur(18px) saturate(180%);
   -webkit-backdrop-filter: blur(18px) saturate(180%);
   border: 1px solid var(--border-subtle);
@@ -912,13 +1060,14 @@ body.has-custom-bg .app-sidebar {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   user-select: none;
   touch-action: none;
-  transition: box-shadow var(--transition-normal), border-color var(--transition-normal);
+  transition: box-shadow 0.2s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.2s ease, padding 0.2s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 [data-theme="light"] .floating-audio-dock {
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
+  color: #09090b;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  border-color: rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 0, 0, 0.12);
 }
 
 .floating-audio-dock:hover {
@@ -974,13 +1123,15 @@ body.has-custom-bg .app-sidebar {
 
 /* Collapsed Mini-Pill Mode */
 .floating-audio-dock.dock-collapsed {
-  padding: 6px 8px;
+  padding: 6px 10px;
   gap: 6px;
 }
 
 .floating-audio-dock.dock-collapsed .audio-current-name,
+.floating-audio-dock.dock-collapsed .custom-audio-dropdown-wrap,
 .floating-audio-dock.dock-collapsed .audio-preset-select,
-.floating-audio-dock.dock-collapsed .audio-volume-wrap {
+.floating-audio-dock.dock-collapsed .audio-volume-wrap,
+.floating-audio-dock.dock-collapsed .audio-engine-badge {
   display: none !important;
 }
 
@@ -1000,7 +1151,7 @@ body.has-custom-bg .app-sidebar {
 .eq-bar {
   width: 2.5px;
   height: 4px;
-  background: var(--accent-blue);
+  background: var(--text-primary);
   border-radius: 1px;
   transition: height 0.2s ease;
 }
@@ -1055,8 +1206,8 @@ body.has-custom-bg .app-sidebar {
 }
 
 .audio-play-toggle-btn {
-  background: var(--accent-blue);
-  color: #fff;
+  background: #ffffff;
+  color: #09090b;
   border: none;
   border-radius: 50%;
   width: 26px;
@@ -1065,8 +1216,13 @@ body.has-custom-bg .app-sidebar {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform var(--transition-fast), filter var(--transition-fast);
+  transition: transform 0.18s cubic-bezier(0.23, 1, 0.32, 1), background-color 0.18s ease;
   flex-shrink: 0;
+}
+
+[data-theme="light"] .audio-play-toggle-btn {
+  background: #09090b;
+  color: #ffffff;
 }
 
 .audio-play-toggle-btn:hover {
@@ -1166,6 +1322,10 @@ body.has-custom-bg .app-sidebar {
   .app-sidebar.collapsed .sidebar-brand-names {
     display: flex !important;
     flex-direction: column !important;
+  }
+
+  .app-sidebar.collapsed .sidebar-android-download-btn {
+    display: flex !important;
   }
 
   .app-sidebar.collapsed .sidebar-nav-item {

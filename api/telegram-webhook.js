@@ -3,9 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://vkveimpvrpnzelbsvdrg.supabase.co';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const TELEGRAM_MODERATION_BOT_TOKEN = process.env.TELEGRAM_MODERATION_BOT_TOKEN || '[REDACTED_TELEGRAM_BOT_TOKEN]';
-const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET || '[REDACTED_TELEGRAM_WEBHOOK_SECRET]';
-const ALLOWED_USER_ID = process.env.ALLOWED_USER_ID || process.env.TELEGRAM_CHAT_ID || '6326462250';
+const TELEGRAM_MODERATION_BOT_TOKEN = process.env.TELEGRAM_MODERATION_BOT_TOKEN || '';
+const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET || '';
+const ALLOWED_USER_ID = process.env.ALLOWED_USER_ID || process.env.TELEGRAM_CHAT_ID || '';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY);
 

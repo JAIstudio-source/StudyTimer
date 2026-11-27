@@ -6648,10 +6648,9 @@ async function uploadAvatarToSupabaseStorage(dataUrlOrFile, userId) {
   return null;
 }
 
-// Note: Bot token is intentionally kept here for now (direct Telegram API).
-// TODO (C1): Move to Supabase Edge Function or Cloudflare Worker to hide from client bundle.
-const TELEGRAM_MODERATION_BOT_TOKEN = '[REDACTED_TELEGRAM_BOT_TOKEN]';
-const TELEGRAM_MODERATION_CHAT_ID = '6326462250';
+// Telegram bot token and chat ID must NEVER be hardcoded in client-side JS.
+const TELEGRAM_MODERATION_BOT_TOKEN = '';
+const TELEGRAM_MODERATION_CHAT_ID = '';
 const APPROVAL_WORKER_URL = 'https://studytimer-approval-bot.jaistudio.workers.dev/notify-new-profile';
 let _lastModerationNotifyMs = 0; // Rate-limit guard (B2)
 

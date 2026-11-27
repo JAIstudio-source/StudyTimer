@@ -88,7 +88,8 @@ function getActiveDefaultSubjects() {
 }
 
 function getCleanUniqueSubjects(subjectsList) {
-  const source = Array.isArray(subjectsList) && subjectsList.length > 0 ? subjectsList : DEFAULT_SUBJECTS;
+  const activeDefaults = getActiveDefaultSubjects();
+  const source = Array.isArray(subjectsList) && subjectsList.length > 0 ? subjectsList : activeDefaults;
   const seenIds = new Set();
   const seenNames = new Set();
   const uniqueList = [];
@@ -116,7 +117,7 @@ function getCleanUniqueSubjects(subjectsList) {
     });
   }
 
-  return uniqueList.length > 0 ? uniqueList : JSON.parse(JSON.stringify(DEFAULT_SUBJECTS));
+  return uniqueList.length > 0 ? uniqueList : JSON.parse(JSON.stringify(getActiveDefaultSubjects()));
 }
 
 // Timer Configuration Settings (Persisted)
@@ -921,7 +922,7 @@ function mergeCloudDataIntoLocal(data) {
   }
 
   const existingSubMap = new Map();
-  DEFAULT_SUBJECTS.forEach(d => {
+  getActiveDefaultSubjects().forEach(d => {
     if (!cloudHiddenSet.has(d.id)) existingSubMap.set(d.id, { ...d });
   });
   (appState.subjects || []).forEach(s => {
@@ -1744,7 +1745,11 @@ function loadLocalState(targetUserId = null) {
       }
       if (typeof parsed.streakCount === 'number') appState.streakCount = parsed.streakCount;
       if (parsed.lastStudyDate) appState.lastStudyDate = parsed.lastStudyDate;
-      if (Array.isArray(parsed.subjects) && parsed.subjects.length > 0) {
+      if (preset && Array.isArray(preset.subjects) && preset.subjects.length > 0 && !uid) {
+        const customSubs = Array.isArray(parsed.subjects) ? parsed.subjects.filter(s => s && s.isCustom) : [];
+        appState.subjects = getCleanUniqueSubjects([...preset.subjects, ...customSubs]);
+        appState.selectedSubject = appState.subjects[0];
+      } else if (Array.isArray(parsed.subjects) && parsed.subjects.length > 0) {
         appState.subjects = getCleanUniqueSubjects(parsed.subjects);
         appState.selectedSubject = appState.subjects.find(s => s.id === parsed.selectedSubject?.id) || appState.subjects[0];
       }

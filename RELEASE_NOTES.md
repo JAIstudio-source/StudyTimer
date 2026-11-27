@@ -1,10 +1,13 @@
-# StudyTimer 3.3.6 🚀
+# StudyTimer 3.3.7 🚀
 
 ### What's New:
-- **New Sounds for Study**: Relaxing background sounds like gentle rain, cozy fire, ocean waves, and soft bells to help you stay in the zone.
-- **New Themes & Wallpapers**: Beautiful minimalist desk wallpapers and a dynamic clock that adapts cleanly to any background.
-- **UI Improvements**: A fresh, simpler welcome setup, a larger landscape desk timer, and a cleaner overall look.
-- **Minor Bug Fixes & Performance Improvements**
+- **Dual-Mode App Blocker**: Use Focus Lock with just Overlay permission, or unlock per-app blocking with Usage Access.
+- **Switch Chapters Mid-Session**: Change chapters anytime while studying without losing your saved time.
+- **Smooth Goal Reordering**: Slide Planner goals smoothly across your list with auto-scroll.
+- **Scrollable Goal Tracker**: Long goal lists now scroll cleanly in the Weekly Goal Tracker.
+- **UI & Theme Polish**: Instant Light/Dark system theme switching, live wallpaper previews, and clearer text contrast.
+- **Smarter Study Tips**: Clean, well-paced tips that never interrupt your focus.
+- **Bug Fixes**: Fixed Today's Focus vs. Subject Chart sync delay, subject-switch time errors, and auto-detects removed blocker permissions.
 
 ---
 
@@ -12,4 +15,4 @@
 - Android 9 (API 28) through Android 16 (API 36)
 
 ## Installation
-Install `StudyTimer-release.apk` (v3.3.6). Updating preserves all your study logs, streaks, and settings.
+Install `StudyTimer-release.apk` (v3.3.7). Updating preserves all your study logs, streaks, and settings.

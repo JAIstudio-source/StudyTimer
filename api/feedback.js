@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Configuration from Environment Variables (Zero hardcoded fallbacks in production)
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://vkveimpvrpnzelbsvdrg.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '[REDACTED_SUPABASE_ANON_KEY]';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 

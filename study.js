@@ -13,8 +13,8 @@
 // ============================================================================
 // 1. SUPABASE CLIENT CONFIGURATION & DATE HELPERS
 // ============================================================================
-const SUPABASE_URL = 'https://vkveimpvrpnzelbsvdrg.supabase.co';
-const SUPABASE_ANON_KEY = '[REDACTED_SUPABASE_ANON_KEY]';
+let SUPABASE_URL = 'https://vkveimpvrpnzelbsvdrg.supabase.co';
+let SUPABASE_ANON_KEY = '';
 
 /**
  * Standard Local Calendar Date Formatter (yyyy-MM-dd)
@@ -42,7 +42,7 @@ function getIsoDateStr(d = new Date()) {
 
 let supabaseClient = null;
 function getSupabase() {
-  if (!supabaseClient && typeof window !== 'undefined') {
+  if (!supabaseClient && SUPABASE_ANON_KEY && typeof window !== 'undefined') {
     const sb = window.supabase || (typeof supabase !== 'undefined' ? supabase : null);
     if (sb && sb.createClient) {
       supabaseClient = sb.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -56,7 +56,21 @@ function getSupabase() {
   }
   return supabaseClient;
 }
-getSupabase();
+async function initSupabaseConfig() {
+  if (typeof window === 'undefined' || SUPABASE_ANON_KEY) return;
+  try {
+    const res = await fetch('/api/config');
+    if (res.ok) {
+      const cfg = await res.json();
+      if (cfg.supabaseUrl) SUPABASE_URL = cfg.supabaseUrl;
+      if (cfg.supabaseAnonKey) SUPABASE_ANON_KEY = cfg.supabaseAnonKey;
+      getSupabase();
+    }
+  } catch (e) {
+    console.warn('Failed to load Supabase config:', e);
+  }
+}
+initSupabaseConfig();
 
 // ============================================================================
 // 2. STATE MANAGEMENT & PREFERENCES

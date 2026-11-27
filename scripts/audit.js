@@ -1,5 +1,9 @@
-const SUPABASE_URL = 'https://vkveimpvrpnzelbsvdrg.supabase.co';
-const SERVICE_KEY = '[REDACTED_SUPABASE_SERVICE_KEY]';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://vkveimpvrpnzelbsvdrg.supabase.co';
+const SERVICE_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!SERVICE_KEY) {
+  console.error('Missing SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY in environment.');
+  process.exit(1);
+}
 
 async function audit() {
   const headers = {
